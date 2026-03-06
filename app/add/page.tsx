@@ -42,11 +42,7 @@ export default function AddLogs() {
             setConfigError("");
             setIsFetching(true);
 
-            fetch('/api/weaver', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: weav3rUserId, receiptId, apiKey: weav3rApiKey })
-            })
+            fetch(`https://weav3r.dev/api/trades/${weav3rUserId}/${receiptId}?apiKey=${weav3rApiKey}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.error) throw new Error(data.error);
