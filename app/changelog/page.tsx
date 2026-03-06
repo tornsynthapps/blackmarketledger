@@ -31,6 +31,29 @@ export default function ChangelogPage() {
                             <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
                                 <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
                             </div>
+                            <span className="font-semibold text-foreground/90">Automated GitHub Pages Deployment</span>
+                            <p className="text-sm text-foreground/70 mt-1">Configured Next.js static asset export logic targeting GitHub Actions for continuous deployment on the `main` branch.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* v0.1.2 */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80 mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v0.1.2</h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 06, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
                             <span className="font-semibold text-foreground/90">Client-Side Fetch Architecture</span>
                             <p className="text-sm text-foreground/70 mt-1">Moved Weaver API data fetching out of the Next.js server proxy directly onto the client side for better performance.</p>
                         </li>
