@@ -221,6 +221,7 @@ export default function AddLogs() {
                                                 {p.parsed.type === 'SELL' && <>💰 <span className="font-medium text-success">Sold</span> {p.parsed.amount}x {formatItemName(p.parsed.item)} @ {p.parsed.price.toLocaleString()}</>}
                                                 {p.parsed.type === 'MUG' && <>🥷 <span className="font-medium text-danger">Mug Loss</span> ${p.parsed.amount.toLocaleString()}</>}
                                                 {p.parsed.type === 'CONVERT' && <>♻️ <span className="font-medium text-primary">Converted</span> {p.parsed.fromAmount} {formatItemName(p.parsed.fromItem)} into {p.parsed.toAmount} {formatItemName(p.parsed.toItem)}</>}
+                                                {p.parsed.type === 'SET_CONVERT' && <>🏛️ <span className="font-medium text-primary">Museum Set</span> Converted {p.parsed.times}x {formatItemName(p.parsed.setType)} Sets into {p.parsed.pointsEarned} Points</>}
                                             </div>
                                         ) : (
                                             <div className="text-danger flex items-center gap-1.5 font-medium">

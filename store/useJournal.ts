@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Transaction, ParsedLog } from '@/lib/parser';
+import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
 
 // A simple hook to manage transactions in localStorage.
 const STORAGE_KEY = 'torn_invest_tracker_logs';
@@ -144,6 +144,26 @@ export function useJournal() {
             toCurr.stock += t.toAmount;
             toCurr.totalCost += fromCostOfGoods;
             inventory.set(t.toItem, toCurr);
+        } else if (t.type === 'SET_CONVERT') {
+            const setItems = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
+            let totalCostOfGoods = 0;
+
+            // Deduct from ALL set items
+            setItems.forEach(item => {
+                const curr = inventory.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+                const avgCost = curr.stock > 0 ? (curr.totalCost / curr.stock) : 0;
+                const costOfGoods = avgCost * t.times;
+                curr.stock -= t.times;
+                curr.totalCost -= costOfGoods;
+                inventory.set(item, curr);
+                totalCostOfGoods += costOfGoods;
+            });
+
+            // Add to points
+            const pointsCurr = inventory.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0 };
+            pointsCurr.stock += t.pointsEarned;
+            pointsCurr.totalCost += totalCostOfGoods;
+            inventory.set('points', pointsCurr);
         }
     });
 

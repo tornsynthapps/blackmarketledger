@@ -6,7 +6,7 @@ import { Download, Upload, Trash2, Edit2, Search, ArrowLeft } from "lucide-react
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Transaction, formatItemName } from "@/lib/parser";
+import { Transaction, formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
 
 function LogsPageContent() {
     const { isLoaded, transactions, deleteLog, restoreData, editLog } = useJournal();
@@ -24,6 +24,11 @@ function LogsPageContent() {
             const term = search.toLowerCase();
             if (t.type === 'MUG') return 'mug'.includes(term);
             if (t.type === 'CONVERT') return t.fromItem.toLowerCase().includes(term) || t.toItem.toLowerCase().includes(term);
+            if (t.type === 'SET_CONVERT') {
+                if (t.setType.toLowerCase().includes(term) || 'set point'.includes(term)) return true;
+                const itemsToSearch = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
+                return itemsToSearch.some(item => item.toLowerCase().includes(term));
+            }
             return t.item.toLowerCase().includes(term);
         })
         .sort((a, b) => b.date - a.date);
@@ -75,17 +80,20 @@ function LogsPageContent() {
                     {t.type === 'SELL' && <span className="text-success font-medium bg-success/10 px-2 py-1 rounded">Sell</span>}
                     {t.type === 'MUG' && <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded">Mug</span>}
                     {t.type === 'CONVERT' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded">Convert</span>}
+                    {t.type === 'SET_CONVERT' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded">Set Convert</span>}
                 </td>
                 <td className="px-6 py-4">
                     <div className="font-medium">
                         {t.type === 'BUY' || t.type === 'SELL' ? formatItemName(t.item) : ''}
                         {t.type === 'CONVERT' ? `${formatItemName(t.fromItem)} → ${formatItemName(t.toItem)}` : ''}
+                        {t.type === 'SET_CONVERT' ? `${t.times}x ${formatItemName(t.setType)} Set → ${t.pointsEarned} Points` : ''}
                         {t.type === 'MUG' ? 'Money' : ''}
                     </div>
                 </td>
                 <td className="px-6 py-4 text-right">
                     {t.type === 'BUY' || t.type === 'SELL' ? t.amount.toLocaleString() : ''}
                     {t.type === 'CONVERT' ? `${t.fromAmount} → ${t.toAmount}` : ''}
+                    {t.type === 'SET_CONVERT' ? `${t.times} sets` : ''}
                 </td>
                 <td className="px-6 py-4 text-right">
                     {t.type === 'BUY' || t.type === 'SELL' ? `$${t.price.toLocaleString()}` : ''}

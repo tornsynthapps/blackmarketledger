@@ -25,13 +25,32 @@ export interface ConvertTransaction extends BaseTransaction {
     toAmount: number;
 }
 
-export type Transaction = TradeTransaction | MugTransaction | ConvertTransaction;
+export interface SetConvertTransaction extends BaseTransaction {
+    type: 'SET_CONVERT';
+    setType: 'flower' | 'plushie';
+    times: number;
+    pointsEarned: number;
+}
+
+export type Transaction = TradeTransaction | MugTransaction | ConvertTransaction | SetConvertTransaction;
 
 export type ParsedTradeLog = Omit<TradeTransaction, 'id' | 'date'>;
 export type ParsedMugLog = Omit<MugTransaction, 'id' | 'date'>;
 export type ParsedConvertLog = Omit<ConvertTransaction, 'id' | 'date'>;
+export type ParsedSetConvertLog = Omit<SetConvertTransaction, 'id' | 'date'>;
 
-export type ParsedLog = ParsedTradeLog | ParsedMugLog | ParsedConvertLog;
+export type ParsedLog = ParsedTradeLog | ParsedMugLog | ParsedConvertLog | ParsedSetConvertLog;
+
+export const FLOWER_SET = [
+    'dahlia', 'orchid', 'african violet', 'cherry blossom', 'peony',
+    'ceibo flower', 'edelweiss', 'crocus', 'heather', 'tribulus omanense', 'banana orchid'
+];
+
+export const PLUSHIE_SET = [
+    'sheep plushie', 'teddy bear plushie', 'kitten plushie', 'jaguar plushie', 'wolverine plushie', 'nessie plushie',
+    'red fox plushie', 'monkey plushie', 'chamois plushie', 'panda plushie', 'lion plushie', 'camel plushie',
+    'stingray plushie'
+];
 
 function normalizeItemName(name: string): string {
     const lower = name.trim().toLowerCase();
@@ -64,6 +83,8 @@ export function formatItemName(name: string): string {
 * s;<item>;<amount>;;<total_cost> (Sell)
 * m;<amount> (Mug loss)
 * c;<ratio_flushies>;<times> (Convert flushies to points)
+* cf;<times> (Convert flower sets to points)
+* cp;<times> (Convert plushie sets to points)
 */
 export function parseLogLine(line: string): ParsedLog | null {
     const parts = line.trim().split(';');
@@ -126,6 +147,20 @@ export function parseLogLine(line: string): ParsedLog | null {
                 fromAmount: ratio * times,
                 toAmount: 10 * times
             } as ParsedConvertLog;
+        } else if (action === 'cf' || action === 'cp') {
+            if (parts.length < 2) return null;
+            const timesStr = parts[1].trim().replace(/,/g, '');
+            const times = parseInt(timesStr, 10);
+
+            if (isNaN(times) || times <= 0) return null;
+
+            const isFlower = action === 'cf';
+            return {
+                type: 'SET_CONVERT',
+                setType: isFlower ? 'flower' : 'plushie',
+                times,
+                pointsEarned: times * 10
+            } as ParsedSetConvertLog;
         }
     } catch (e) {
         return null;

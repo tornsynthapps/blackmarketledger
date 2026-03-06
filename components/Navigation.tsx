@@ -14,7 +14,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Logs", href: "/logs", icon: List },
-    { name: "Points & Flushies", href: "/points", icon: Wallet },
+    { name: "Museum", href: "/museum", icon: Wallet },
     { name: "Add Data", href: "/add", icon: PlusCircle },
 ];
 
