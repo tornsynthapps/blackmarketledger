@@ -17,8 +17,8 @@ export default function PointsDashboard() {
 
     const { flushieStats, pointsStats } = useMemo(() => {
         return {
-            flushieStats: inventory.get('Flushie') || { stock: 0, totalCost: 0, realizedProfit: 0 },
-            pointsStats: inventory.get('Points') || { stock: 0, totalCost: 0, realizedProfit: 0 },
+            flushieStats: inventory.get('flushie') || { stock: 0, totalCost: 0, realizedProfit: 0 },
+            pointsStats: inventory.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0 },
         };
     }, [inventory]);
 

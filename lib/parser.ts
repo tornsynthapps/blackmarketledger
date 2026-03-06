@@ -38,10 +38,10 @@ function normalizeItemName(name: string): string {
 
     // Handle aliases
     if (lower === 'flush' || lower === 'flushies' || lower === 'flushie') {
-        return 'Flushie';
+        return 'flushie';
     }
     if (lower === 'point' || lower === 'points') {
-        return 'Points';
+        return 'points';
     }
 
     // Return purely lowercase for consistent internal storage
@@ -121,8 +121,8 @@ export function parseLogLine(line: string): ParsedLog | null {
 
             return {
                 type: 'CONVERT',
-                fromItem: 'Flushie',
-                toItem: 'Points',
+                fromItem: 'flushie',
+                toItem: 'points',
                 fromAmount: ratio * times,
                 toAmount: 10 * times
             } as ParsedConvertLog;
