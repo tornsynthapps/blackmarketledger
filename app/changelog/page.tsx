@@ -1,0 +1,93 @@
+"use client";
+
+import { History, GitCommitHorizontal } from "lucide-react";
+import pkg from '../../package.json';
+
+export default function ChangelogPage() {
+    return (
+        <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Version History</h1>
+                <p className="text-foreground/60 mt-2">Track the latest updates and improvements.</p>
+            </div>
+
+            <div className="space-y-6">
+
+                {/* Current Version */}
+                <div className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-10" />
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold">v{pkg.version} <span className="text-sm font-medium text-primary ml-2 bg-primary/10 px-2 py-0.5 rounded-full">Current</span></h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 06, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Smart Logs Parsing</span>
+                            <p className="text-sm text-foreground/70 mt-1">Added a RegExp engine to auto-parse standard Torn Bazaar sale strings copied directly from the game.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Dashboard Column Sorting</span>
+                            <p className="text-sm text-foreground/70 mt-1">Inventory table can now be sorted dynamically by Item Name, Stock, Avg Cost, Total Cost, or Realized Profit.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Strict Data Lowercasing</span>
+                            <p className="text-sm text-foreground/70 mt-1">Refactored the parser to ensure all item strings are stored strictly lowercase in internal storage for absolute matching parity.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Dynamic UI Presentation</span>
+                            <p className="text-sm text-foreground/70 mt-1">Added formatItemName utility so lowercase items appear nicely Title Cased securely on the Dashboard, Logs, and Preview pages.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Weaver Proxy Intercept</span>
+                            <p className="text-sm text-foreground/70 mt-1">Enabled Next.js backend proxy interceptor pointing to Weaver's Trades API endpoints to gracefully circumvent browser CORS issues when fetching profiles.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* Initial Prototype */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v0.0.1</h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 05, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-transparent flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/30" />
+                            </div>
+                            <p className="text-sm text-foreground/70 mt-0.5">Initial prototype release: local-storage backed item tracking, transaction logs, basic flushie ratios, and general dashboard.</p>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    );
+}
