@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
 import { parseLogLine, ParsedLog, formatItemName } from "@/lib/parser";
 import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert } from "lucide-react";
+import Link from "next/link";
 
 export default function AddLogs() {
     const [input, setInput] = useState("");
@@ -137,9 +138,9 @@ export default function AddLogs() {
                         <p className="opacity-80 text-xs">Learn how to write shorthand logs and paste Weav3r receipts or Bazaar logs.</p>
                     </div>
                 </div>
-                <a href="/log-formats" className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap">
+                <Link href="/log-formats" className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap">
                     View Formats &rarr;
-                </a>
+                </Link>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
