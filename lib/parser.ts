@@ -87,6 +87,25 @@ export function formatItemName(name: string): string {
 * cp;<times> (Convert plushie sets to points)
 */
 export function parseLogLine(line: string): ParsedLog | null {
+    // Try parsing Torn abroad log format:
+    // e.g. "17:49:48 - 06/03/26 You bought 19x Xanax at $688,996 each for a total of $13,090,924 from Japan"
+    const abroadLogRegex = /You bought ([\d,]+)x (.+?) at \$([\d,]+) each/i;
+    const abroadMatch = line.match(abroadLogRegex);
+    if (abroadMatch) {
+        const amount = parseInt(abroadMatch[1].replace(/,/g, ''), 10);
+        const item = normalizeItemName(abroadMatch[2]);
+        const price = parseInt(abroadMatch[3].replace(/,/g, ''), 10);
+
+        if (!isNaN(amount) && !isNaN(price)) {
+            return {
+                type: 'BUY',
+                item,
+                amount,
+                price
+            } as ParsedTradeLog;
+        }
+    }
+
     const parts = line.trim().split(';');
     if (parts.length < 2) return null;
 
