@@ -31,6 +31,20 @@ export default function ChangelogPage() {
                             <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
                                 <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
                             </div>
+                            <span className="font-semibold text-foreground/90">BlackMarket Ledger Rebrand</span>
+                            <p className="text-sm text-foreground/70 mt-1">Renamed the application from Torn Trade Tracker to BlackMarket Ledger. Added "by Torn Synth Apps" branding.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Community & Support Banners</span>
+                            <p className="text-sm text-foreground/70 mt-1">Introduced smart, unobtrusive banners to encourage forum bumps and user donations, complete with local-storage probability scaling.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
                             <span className="font-semibold text-foreground/90">Museum Dashboard & Sets</span>
                             <p className="text-sm text-foreground/70 mt-1">Renamed the Points view to Museum. Added detailed tracking for complete Flower and Plushie Sets. Implemented precise calculation of sets available to convert based on current stock.</p>
                         </li>
@@ -92,7 +106,7 @@ export default function ChangelogPage() {
                                 <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
                             </div>
                             <span className="font-semibold text-foreground/90">Client-Side Fetch Architecture</span>
-                            <p className="text-sm text-foreground/70 mt-1">Moved Weaver API data fetching out of the Next.js server proxy directly onto the client side for better performance.</p>
+                            <p className="text-sm text-foreground/70 mt-1">Moved Weav3r API data fetching out of the Next.js server proxy directly onto the client side for better performance.</p>
                         </li>
                     </ul>
                 </div>
@@ -165,8 +179,8 @@ export default function ChangelogPage() {
                             <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
                                 <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
                             </div>
-                            <span className="font-semibold text-foreground/90">Weaver Proxy Intercept</span>
-                            <p className="text-sm text-foreground/70 mt-1">Enabled Next.js backend proxy interceptor pointing to Weaver's Trades API endpoints to gracefully circumvent browser CORS issues when fetching profiles.</p>
+                            <span className="font-semibold text-foreground/90">Weav3r Proxy Intercept</span>
+                            <p className="text-sm text-foreground/70 mt-1">Enabled Next.js backend proxy interceptor pointing to Weav3r's Trades API endpoints to gracefully circumvent browser CORS issues when fetching profiles.</p>
                         </li>
                     </ul>
                 </div>

@@ -34,7 +34,7 @@ export default function AddLogs() {
         const urlMatch = input.match(/https:\/\/weav3r\.dev\/receipt\/([A-Za-z0-9_-]+)/);
         if (urlMatch && !isFetching) {
             if (!weav3rApiKey || !weav3rUserId) {
-                setConfigError("Please configure Weaver API Key and User ID to fetch trades.");
+                setConfigError("Please configure Weav3r API Key and User ID to fetch trades.");
                 return;
             }
 
@@ -113,11 +113,11 @@ export default function AddLogs() {
 
             <div className="bg-panel border border-border p-4 rounded-xl flex flex-col sm:flex-row gap-4 items-center">
                 <div className="flex-1 flex flex-col gap-1 w-full">
-                    <label className="text-xs font-semibold text-foreground/70">Weaver API Key</label>
+                    <label className="text-xs font-semibold text-foreground/70">Weav3r API Key</label>
                     <input type="password" value={tempApiKey} onChange={e => setTempApiKey(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter API Key" />
                 </div>
                 <div className="flex-1 flex flex-col gap-1 w-full">
-                    <label className="text-xs font-semibold text-foreground/70">Weaver User ID</label>
+                    <label className="text-xs font-semibold text-foreground/70">Weav3r User ID</label>
                     <input type="text" value={tempUserId} onChange={e => setTempUserId(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter User ID" />
                 </div>
                 <div className="mt-4 sm:mt-auto sm:self-end w-full sm:w-auto">
@@ -129,20 +129,17 @@ export default function AddLogs() {
 
             {configError && <div className="text-sm text-danger flex items-center gap-1.5 bg-danger/10 p-3 rounded-lg border border-danger/20"><AlertCircle className="w-4 h-4" /> {configError}</div>}
 
-            <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex gap-3 text-sm text-primary">
-                <Info className="w-5 h-5 shrink-0" />
-                <div>
-                    <p className="font-semibold mb-1">Supported Log Formats:</p>
-                    <ul className="list-disc list-inside space-y-1 opacity-80">
-                        <li><code className="bg-primary/10 px-1 py-0.5 rounded">b;&lt;item&gt;;&lt;qty&gt;;&lt;price&gt;</code> - Buy an item based on individual price. Example: <code>b;Xanax;100;830000</code></li>
-                        <li><code className="bg-primary/10 px-1 py-0.5 rounded">b;&lt;item&gt;;&lt;qty&gt;;;&lt;total&gt;</code> - Buy an item using total cost. Example: <code>b;Xanax;100;;83000000</code></li>
-                        <li><code className="bg-primary/10 px-1 py-0.5 rounded">s;&lt;item&gt;;&lt;qty&gt;;&lt;price&gt;</code> - Sell an item. Example: <code>s;Xanax;50;845000</code></li>
-                        <li><code className="bg-primary/10 px-1 py-0.5 rounded">m;&lt;amount&gt;</code> - Mug loss. Example: <code>m;500000</code></li>
-                        <li><code className="bg-primary/10 px-1 py-0.5 rounded">c;&lt;flushies_per_10_points&gt;;&lt;times&gt;</code> - Convert flushies to points. Example: <code>c;13;120</code></li>
-                        <li className="mt-2 text-primary font-medium">💡 Paste a Weaver receipt URL (e.g. <code>https://weav3r.dev/receipt/RJiDVUO9Is</code>) below to automatically fetch trades!</li>
-                        <li className="mt-1 text-primary font-medium">💡 Or directly paste your raw Torn Bazaar logs! (e.g. <code>TequilaKing bought 4 x Six-Pack of Alcohol from your bazaar for $3,587,596.</code>)</li>
-                    </ul>
+            <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex flex-col sm:flex-row gap-4 text-sm text-primary items-start sm:items-center justify-between">
+                <div className="flex gap-3 items-center">
+                    <Info className="w-5 h-5 shrink-0" />
+                    <div>
+                        <p className="font-semibold">Supported Log Formats</p>
+                        <p className="opacity-80 text-xs">Learn how to write shorthand logs and paste Weav3r receipts or Bazaar logs.</p>
+                    </div>
                 </div>
+                <a href="/log-formats" className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap">
+                    View Formats &rarr;
+                </a>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -153,7 +150,7 @@ export default function AddLogs() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             className="w-full h-96 p-4 rounded-xl border border-border bg-panel focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y font-mono text-sm shadow-inner"
-                            placeholder="Paste your logs here...&#10;b;Xanax;89;899999&#10;m;789789&#10;s;Xanax;89;900000&#10;&#10;Or paste a Weaver receipt URL like:&#10;https://weav3r.dev/receipt/RJiDVUO9Is"
+                            placeholder="Paste your logs here...&#10;b;Xanax;89;899999&#10;m;789789&#10;s;Xanax;89;900000&#10;&#10;Or paste a Weav3r receipt URL like:&#10;https://weav3r.dev/receipt/RJiDVUO9Is"
                         />
                         {isFetching && (
                             <div className="absolute inset-0 bg-panel/70 backdrop-blur-[2px] flex items-center justify-center rounded-xl z-10 transition-all">

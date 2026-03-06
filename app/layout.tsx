@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/Navigation";
+import { Banners } from "@/components/Banners";
 import Link from "next/link";
 
 const geistSans = Geist({
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Torn Trade Tracker",
+  title: "BlackMarket Ledger",
   description: "Track inventory, profits, and flushie conversions securely in your browser.",
 };
 
@@ -25,12 +26,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased selection:bg-primary/30`}
       >
         <Navigation />
-        <main className="pt-24 pb-12 min-h-screen px-4 max-w-6xl mx-auto flex-1 h-full flex flex-col">
+        <Banners />
+        <main className="pt-8 pb-12 min-h-screen px-4 max-w-6xl mx-auto flex-1 h-full flex flex-col">
           <div className="flex-1">
             {children}
           </div>
@@ -48,12 +65,19 @@ export default function RootLayout({
               </a>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-6 gap-y-2">
               <Link href="/changelog" className="hover:text-foreground transition-colors">
                 Version History
               </Link>
               <Link href="/migration" className="hover:text-foreground transition-colors">
                 Data Migration
+              </Link>
+              <span className="hidden sm:inline text-border">|</span>
+              <Link href="/terms" className="hover:text-foreground transition-colors">
+                Terms of Use
+              </Link>
+              <Link href="/privacy" className="hover:text-foreground transition-colors">
+                Privacy Policy
               </Link>
             </div>
           </footer>

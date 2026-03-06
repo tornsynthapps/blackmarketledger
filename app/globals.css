@@ -1,5 +1,5 @@
 @import "tailwindcss";
-
+@custom-variant dark (&:is(.dark *));
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -25,7 +25,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --background: #020617;
     --foreground: #f8fafc;
     --panel: #0f172a;
@@ -35,6 +35,17 @@
     --success: #10b981;
     --danger: #ef4444;
   }
+}
+
+:root[class~="dark"] {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --panel: #0f172a;
+  --border: #1e293b;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --success: #10b981;
+  --danger: #ef4444;
 }
 
 body {
