@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/Navigation";
 import { Banners } from "@/components/Banners";
+import { VisitorCounter } from "@/components/VisitorCounter";
 import Link from "next/link";
 
 const geistSans = Geist({
@@ -52,17 +53,21 @@ export default function RootLayout({
             {children}
           </div>
 
-          <footer className="mt-16 pt-8 pb-4 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-foreground/50">
-            <div>
+          <footer className="mt-16 pt-8 pb-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-foreground/50">
+            <div className="flex items-center justify-center md:justify-start">
               &copy; {new Date().getFullYear()}{" "}
               <a
                 href="https://www.torn.com/profiles.php?XID=3165209"
                 target="_blank"
                 rel="noreferrer noopener"
-                className="hover:text-primary transition-colors font-medium border-b border-transparent hover:border-primary pb-0.5"
+                className="hover:text-primary transition-colors font-medium border-b border-transparent hover:border-primary pb-0.5 ml-1"
               >
                 PixelGhost [3165209]
               </a>
+            </div>
+
+            <div className="flex-1 flex justify-center">
+              <VisitorCounter />
             </div>
 
             <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-6 gap-y-2">
