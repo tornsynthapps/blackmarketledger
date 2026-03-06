@@ -94,7 +94,7 @@ export function Banners() {
                             <p>
                                 Enjoying the app? ⭐{" "}
                                 <a
-                                    href="https://www.torn.com/forums.php"
+                                    href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={handleForumClick}
@@ -107,7 +107,7 @@ export function Banners() {
                             <p>
                                 Help keep the tool visible!{" "}
                                 <a
-                                    href="https://www.torn.com/forums.php"
+                                    href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={handleForumClick}
