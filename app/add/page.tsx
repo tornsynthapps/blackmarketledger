@@ -67,10 +67,18 @@ export default function AddLogs() {
     }, [input, weav3rApiKey, weav3rUserId, isFetching]);
 
     useEffect(() => {
+        let converted = input;
+
         const bazaarRegex = /^.* bought (\d+)\s*x\s*(.+?) from your bazaar for \$([\d,]+)\.?.*$/gm;
-        const converted = input.replace(bazaarRegex, (match, qty, item, price) => {
+        converted = converted.replace(bazaarRegex, (match, qty, item, price) => {
             return `s;${item};${qty};;${price}`;
         });
+
+        const abroadRegex = /^.*You bought ([\d,]+)\s*x\s*(.+?) at \$([\d,]+) each.*$/gm;
+        converted = converted.replace(abroadRegex, (match, qty, item, price) => {
+            return `b;${item};${qty};${price}`;
+        });
+
         if (converted !== input) {
             setInput(converted);
         }
