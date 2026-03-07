@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import pkg from '@/package.json';
+import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -24,6 +25,7 @@ export function Navigation() {
     const pathname = usePathname();
     const [isDark, setIsDark] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const { vibrate } = useHapticFeedback();
 
     useEffect(() => {
         setMounted(true);
@@ -31,6 +33,7 @@ export function Navigation() {
     }, []);
 
     const toggleDark = () => {
+        vibrate("utility");
         const next = !isDark;
         setIsDark(next);
         if (next) {
@@ -64,6 +67,7 @@ export function Navigation() {
                             <Link
                                 key={item.href}
                                 href={item.href}
+                                onClick={() => vibrate("nav")}
                                 className={cn(
                                     "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
                                     !isActive && "text-foreground/70 hover:bg-foreground/5"

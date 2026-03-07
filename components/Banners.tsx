@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 export function Banners() {
     const [showForum, setShowForum] = useState(false);
     const [showDonation, setShowDonation] = useState(false);
+    const { vibrate } = useHapticFeedback();
 
     // Dynamic text stats
     const [forumClicks, setForumClicks] = useState(0);
@@ -57,6 +59,7 @@ export function Banners() {
     };
 
     const handleForumClick = () => {
+        vibrate("success");
         const stats = updateStats("forumClicks", forumClicks + 1);
         setForumClicks(stats.forumClicks);
         updateStats("forumCloseStreak", 0); // Reset close streak if they click the link
@@ -64,6 +67,7 @@ export function Banners() {
     };
 
     const handleForumClose = () => {
+        vibrate("utility");
         const statsStr = localStorage.getItem("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { forumCloseStreak: 0 };
         updateStats("forumCloseStreak", (stats.forumCloseStreak || 0) + 1);
@@ -71,6 +75,7 @@ export function Banners() {
     };
 
     const handleDonationClick = () => {
+        vibrate("success");
         const statsStr = localStorage.getItem("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { donationClicks: 0 };
         updateStats("donationClicks", (stats.donationClicks || 0) + 1);
@@ -79,6 +84,7 @@ export function Banners() {
     };
 
     const handleDonationClose = () => {
+        vibrate("utility");
         const statsStr = localStorage.getItem("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { donationCloseStreak: 0 };
         updateStats("donationCloseStreak", (stats.donationCloseStreak || 0) + 1);

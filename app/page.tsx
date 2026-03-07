@@ -5,6 +5,7 @@ import { formatItemName } from "@/lib/parser";
 import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -17,6 +18,7 @@ const formatMoney = (val: number) => {
 export default function Home() {
   const { isLoaded, inventory, totalMugLoss, renameItem } = useJournal();
   const router = useRouter();
+  const { vibrate } = useHapticFeedback();
 
   type SortKey = 'name' | 'stock' | 'avgCost' | 'totalCost' | 'realizedProfit';
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
@@ -73,6 +75,7 @@ export default function Home() {
   if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
   const handleSort = (key: SortKey) => {
+    vibrate("utility");
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc';
@@ -134,7 +137,12 @@ export default function Home() {
               type="text"
               placeholder="Search inventory items..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                if (!search && e.target.value) {
+                  vibrate("utility");
+                }
+                setSearch(e.target.value);
+              }}
               className="w-full pl-9 pr-4 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
             />
           </div>
@@ -175,7 +183,10 @@ export default function Home() {
                   return (
                     <tr
                       key={name}
-                      onClick={() => router.push(`/logs?item=${encodeURIComponent(name)}`)}
+                      onClick={() => {
+                        vibrate("nav");
+                        router.push(`/logs?item=${encodeURIComponent(name)}`);
+                      }}
                       className="hover:bg-primary/5 transition-colors cursor-pointer group"
                     >
                       <td className="px-6 py-4 font-medium group-hover:text-primary transition-colors">{formatItemName(name)}</td>
@@ -196,6 +207,7 @@ export default function Home() {
                             const newName = prompt(`Enter new name for ${formatItemName(name)}.\n\nIf you enter the name of another existing item, their logs will be MERGED automatically.`, formatItemName(name));
                             if (newName !== null && newName !== formatItemName(name)) {
                               if (confirm(`Are you sure you want to rename/merge '${formatItemName(name)}' to '${formatItemName(newName)}'? This updates all logs.`)) {
+                                vibrate("success");
                                 renameItem(name, newName);
                               }
                             }

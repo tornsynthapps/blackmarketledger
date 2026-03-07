@@ -5,6 +5,7 @@ import { useJournal } from "@/store/useJournal";
 import { parseLogLine, ParsedLog, formatItemName } from "@/lib/parser";
 import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
+import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 export default function AddLogs() {
     const [input, setInput] = useState("");
@@ -14,6 +15,7 @@ export default function AddLogs() {
     const [justPasted, setJustPasted] = useState(false);
     const highlightRef = useRef<HTMLDivElement>(null);
     const { addLogs, isLoaded, clearLogs, weav3rApiKey, weav3rUserId, saveWeaverConfig } = useJournal();
+    const { vibrate } = useHapticFeedback();
 
     const [tempApiKey, setTempApiKey] = useState("");
     const [tempUserId, setTempUserId] = useState("");
@@ -106,6 +108,7 @@ export default function AddLogs() {
     const handleSave = () => {
         const validLogs = parsedLines.map(p => p.parsed).filter((p): p is ParsedLog => p !== null);
         if (validLogs.length > 0) {
+            vibrate("success");
             addLogs(validLogs);
             setInput("");
             setShowToast(true);
@@ -139,7 +142,13 @@ export default function AddLogs() {
                     <input type="text" value={tempUserId} onChange={e => setTempUserId(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter User ID" />
                 </div>
                 <div className="mt-4 sm:mt-auto sm:self-end w-full sm:w-auto">
-                    <button onClick={() => saveWeaverConfig(tempApiKey, tempUserId)} className="w-full sm:w-auto px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded font-medium text-sm transition-colors mb-[1px]">
+                    <button
+                        onClick={() => {
+                            vibrate("utility");
+                            saveWeaverConfig(tempApiKey, tempUserId);
+                        }}
+                        className="w-full sm:w-auto px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded font-medium text-sm transition-colors mb-[1px]"
+                    >
                         Save Config
                     </button>
                 </div>
@@ -155,7 +164,11 @@ export default function AddLogs() {
                         <p className="opacity-80 text-xs">Learn how to write shorthand logs and paste Weav3r receipts or Bazaar logs.</p>
                     </div>
                 </div>
-                <Link href="/log-formats" className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap">
+                <Link
+                    href="/log-formats"
+                    onClick={() => vibrate("nav")}
+                    className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap"
+                >
                     View Formats &rarr;
                 </Link>
             </div>
@@ -222,7 +235,9 @@ export default function AddLogs() {
                             <p className="text-sm text-foreground/70 mb-4">This will completely erase all stored logs from your local browser.</p>
                             <button
                                 onClick={() => {
+                                    vibrate("danger");
                                     if (window.confirm("Are you sure you want to delete all logs permanently?")) {
+                                        vibrate("danger");
                                         clearLogs();
                                     }
                                 }}

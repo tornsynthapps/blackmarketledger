@@ -7,9 +7,11 @@ import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Transaction, formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 function LogsPageContent() {
     const { isLoaded, transactions, deleteLog, restoreData, editLog } = useJournal();
+    const { vibrate } = useHapticFeedback();
     const searchParams = useSearchParams();
     const filterItem = searchParams.get('item');
 
@@ -103,14 +105,17 @@ function LogsPageContent() {
                     {(t.type === 'BUY' || t.type === 'SELL') && (
                         <button
                             onClick={() => {
+                                vibrate("utility");
                                 const newPriceStr = prompt("Enter new price:", t.price.toString());
                                 const newAmountStr = prompt("Enter new amount:", t.amount.toString());
                                 if (newPriceStr !== null && newAmountStr !== null) {
                                     const newPrice = parseInt(newPriceStr, 10);
                                     const newAmount = parseInt(newAmountStr, 10);
                                     if (!isNaN(newPrice) && !isNaN(newAmount)) {
+                                        vibrate("success");
                                         editLog(t.id, { price: newPrice, amount: newAmount });
                                     } else {
+                                        vibrate("danger");
                                         alert("Invalid numbers provided.");
                                     }
                                 }
@@ -122,6 +127,7 @@ function LogsPageContent() {
                     )}
                     <button
                         onClick={() => {
+                            vibrate("danger");
                             if (confirm("Delete this log?")) deleteLog(t.id);
                         }}
                         className="text-danger/70 hover:text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors"
@@ -142,7 +148,11 @@ function LogsPageContent() {
         >
 
             {filterItem && (
-                <Link href="/" className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors">
+                <Link
+                    href="/"
+                    onClick={() => vibrate("nav")}
+                    className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors"
+                >
                     <ArrowLeft className="w-4 h-4" /> Back to Dashboard
                 </Link>
             )}
@@ -164,13 +174,19 @@ function LogsPageContent() {
                         onChange={handleRestore}
                     />
                     <button
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => {
+                            vibrate("utility");
+                            fileInputRef.current?.click();
+                        }}
                         className="flex items-center gap-2 px-4 py-2 bg-panel border border-border shadow-sm rounded-lg hover:bg-foreground/5 transition-colors text-sm font-medium"
                     >
                         <Upload className="w-4 h-4" /> Import Backup
                     </button>
                     <button
-                        onClick={handleBackup}
+                        onClick={() => {
+                            vibrate("success");
+                            handleBackup();
+                        }}
                         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground shadow-sm rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
                     >
                         <Download className="w-4 h-4" /> Export Backup
@@ -187,7 +203,12 @@ function LogsPageContent() {
                             type="text"
                             placeholder="Search items..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => {
+                                if (!search && e.target.value) {
+                                    vibrate("utility");
+                                }
+                                setSearch(e.target.value);
+                            }}
                             className="w-full pl-9 pr-4 py-2 text-sm bg-panel border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                         />
                     </div>
