@@ -160,7 +160,7 @@ export default function Home() {
             <tbody className="divide-y divide-border">
               {sortedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-foreground/50 italic">
+                  <td colSpan={6} className="px-6 py-8 text-center text-foreground/50 italic">
                     No items found. Add some logs to start tracking.
                   </td>
                 </tr>

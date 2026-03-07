@@ -11,6 +11,11 @@ export interface InventoryItemStats {
     stock: number;
     totalCost: number; // for calculating average cost basis
     realizedProfit: number; // profit from selling
+
+    // Abroad specific tracking
+    abroadStock: number;
+    abroadTotalCost: number;
+    abroadRealizedProfit: number;
 }
 
 export function useJournal() {
@@ -54,14 +59,147 @@ export function useJournal() {
         localStorage.setItem(CONFIG_KEY, JSON.stringify({ apiKey, userId }));
     }, []);
 
-    const addLogs = useCallback((parsedLogs: ParsedLog[]) => {
-        const newTxns: Transaction[] = parsedLogs.map(p => ({
-            ...p,
-            id: crypto.randomUUID(),
-            date: Date.now()
-        } as Transaction));
+    // Derived State helper calculation to get current inventory snapshot
+    // Used by addLogs to know how to split sales
+    const calculateInventory = (txns: Transaction[]) => {
+        const inv = new Map<string, InventoryItemStats>();
+        txns.forEach(t => {
+            if (t.type === 'BUY') {
+                const isAbroad = t.tag === 'Abroad';
+                const current = inv.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
 
-        saveTransactions([...transactions, ...newTxns]);
+                if (isAbroad) {
+                    current.abroadStock += t.amount;
+                    current.abroadTotalCost += (t.price * t.amount);
+                } else {
+                    current.stock += t.amount;
+                    current.totalCost += (t.price * t.amount);
+                }
+                inv.set(t.item, current);
+            } else if (t.type === 'SELL') {
+                const isAbroad = t.tag === 'Abroad';
+                const current = inv.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+
+                if (isAbroad) {
+                    const avgCostBasis = current.abroadStock > 0 ? (current.abroadTotalCost / current.abroadStock) : 0;
+                    const costOfGoodsSold = avgCostBasis * t.amount;
+                    const revenue = t.price * t.amount;
+
+                    current.abroadStock -= t.amount;
+                    current.abroadTotalCost -= costOfGoodsSold;
+                    current.abroadRealizedProfit += (revenue - costOfGoodsSold);
+                } else {
+                    const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
+                    const costOfGoodsSold = avgCostBasis * t.amount;
+                    const revenue = t.price * t.amount;
+
+                    current.stock -= t.amount;
+                    current.totalCost -= costOfGoodsSold;
+                    current.realizedProfit += (revenue - costOfGoodsSold);
+                }
+
+                inv.set(t.item, current);
+            } else if (t.type === 'CONVERT') {
+                // Assume flushies are always normal stock for museum conversions
+                const fromCurr = inv.get(t.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                const fromAvgCost = fromCurr.stock > 0 ? (fromCurr.totalCost / fromCurr.stock) : 0;
+                const fromCostOfGoods = fromAvgCost * t.fromAmount;
+                fromCurr.stock -= t.fromAmount;
+                fromCurr.totalCost -= fromCostOfGoods;
+                inv.set(t.fromItem, fromCurr);
+
+                const toCurr = inv.get(t.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                toCurr.stock += t.toAmount;
+                toCurr.totalCost += fromCostOfGoods;
+                inv.set(t.toItem, toCurr);
+            } else if (t.type === 'SET_CONVERT') {
+                const setItems = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
+                let totalCostOfGoods = 0;
+
+                setItems.forEach(item => {
+                    // Assume museum set items use normal stock primarily
+                    const curr = inv.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                    const avgCost = curr.stock > 0 ? (curr.totalCost / curr.stock) : 0;
+                    const costOfGoods = avgCost * t.times;
+                    curr.stock -= t.times;
+                    curr.totalCost -= costOfGoods;
+                    inv.set(item, curr);
+                    totalCostOfGoods += costOfGoods;
+                });
+
+                const pointsCurr = inv.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                pointsCurr.stock += t.pointsEarned;
+                pointsCurr.totalCost += totalCostOfGoods;
+                inv.set('points', pointsCurr);
+            }
+        });
+        return inv;
+    };
+
+    const addLogs = useCallback((parsedLogs: ParsedLog[]) => {
+        let currentTxns = [...transactions];
+        const initialDate = Date.now();
+
+        // Process sequentially so each generic SELL log correctly reads the dynamic inventory
+        parsedLogs.forEach((p, idx) => {
+            const date = initialDate + idx; // Ensure unique chronological time matching insertion
+
+            if (p.type === 'SELL' && !p.tag) {
+                // Determine if we need to split this standard sell
+                const currentInv = calculateInventory(currentTxns);
+                const itemStats = currentInv.get(p.item);
+
+                let remainingAmountToSell = p.amount;
+
+                // If they have NO normal stock but have abroad stock, default to using abroad.
+                // Or if they sell more than their normal stock, deduct from normal, then abroad, then negative normal.
+                const normalAvail = itemStats?.stock || 0;
+                const abroadAvail = itemStats?.abroadStock || 0;
+
+                const toSave: Transaction[] = [];
+
+                if (normalAvail >= remainingAmountToSell || (normalAvail <= 0 && abroadAvail <= 0)) {
+                    // Plenty of normal stock or neither exists: Just sell to Normal
+                    toSave.push({ ...p, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                } else if (normalAvail > 0 && remainingAmountToSell > normalAvail) {
+                    // Split needed! First clear normal stock
+                    toSave.push({ ...p, amount: normalAvail, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                    remainingAmountToSell -= normalAvail;
+
+                    if (abroadAvail > 0) {
+                        const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
+                        toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date: date + 1, tag: 'Abroad' } as Transaction);
+                        remainingAmountToSell -= amountFromAbroad;
+                    }
+
+                    // If still remaining, dump negative to normal
+                    if (remainingAmountToSell > 0) {
+                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 2, tag: 'Normal' } as Transaction);
+                    }
+                } else if (normalAvail <= 0 && abroadAvail > 0) {
+                    // No normal stock, but we have abroad stock
+                    const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
+                    toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date, tag: 'Abroad' } as Transaction);
+                    remainingAmountToSell -= amountFromAbroad;
+
+                    if (remainingAmountToSell > 0) {
+                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 1, tag: 'Normal' } as Transaction);
+                    }
+                }
+
+                currentTxns = [...currentTxns, ...toSave];
+            } else {
+                // Not a generic sell, or properly tagged manually. Save as is.
+                currentTxns.push({
+                    ...p,
+                    id: crypto.randomUUID(),
+                    date,
+                    ...(p.type === 'BUY' && !p.tag ? { tag: 'Normal' } : {}) // Default untagged buys to Normal
+                } as Transaction);
+            }
+        });
+
+        saveTransactions(currentTxns);
     }, [saveTransactions, transactions]);
 
     const clearLogs = useCallback(() => {
@@ -85,7 +223,6 @@ export function useJournal() {
     }, [saveTransactions, transactions]);
 
     const renameItem = useCallback((oldName: string, newName: string) => {
-        // Prevent renaming to empty string
         if (!newName.trim()) return;
         const normalizedNewName = newName.trim();
 
@@ -105,74 +242,28 @@ export function useJournal() {
         }));
     }, [saveTransactions, transactions]);
 
-    // Derived state: Inventory Map
-    const inventory = new Map<string, InventoryItemStats>();
-    let totalMugLoss = 0;
+    // Derived global state for UI components
+    const inventory = calculateInventory(transactions);
 
+    let totalMugLoss = 0;
     transactions.forEach(t => {
         if (t.type === 'MUG') {
             totalMugLoss += t.amount;
-        } else if (t.type === 'BUY') {
-            const current = inventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-            current.stock += t.amount;
-            current.totalCost += (t.price * t.amount);
-            inventory.set(t.item, current);
-        } else if (t.type === 'SELL') {
-            const current = inventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-
-            const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
-            const costOfGoodsSold = avgCostBasis * t.amount;
-            const revenue = t.price * t.amount;
-
-            current.stock -= t.amount;
-            // Reduce the pool of total cost proportional to items sold
-            current.totalCost -= costOfGoodsSold;
-            current.realizedProfit += (revenue - costOfGoodsSold);
-
-            inventory.set(t.item, current);
-        } else if (t.type === 'CONVERT') {
-            // Deduct fromItem (Flushie)
-            const fromCurr = inventory.get(t.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-            const fromAvgCost = fromCurr.stock > 0 ? (fromCurr.totalCost / fromCurr.stock) : 0;
-            const fromCostOfGoods = fromAvgCost * t.fromAmount;
-            fromCurr.stock -= t.fromAmount;
-            fromCurr.totalCost -= fromCostOfGoods;
-            inventory.set(t.fromItem, fromCurr);
-
-            // Add toItem (Points) - Cost basis is the cost of the Flushies converted!
-            const toCurr = inventory.get(t.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-            toCurr.stock += t.toAmount;
-            toCurr.totalCost += fromCostOfGoods;
-            inventory.set(t.toItem, toCurr);
-        } else if (t.type === 'SET_CONVERT') {
-            const setItems = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
-            let totalCostOfGoods = 0;
-
-            // Deduct from ALL set items
-            setItems.forEach(item => {
-                const curr = inventory.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-                const avgCost = curr.stock > 0 ? (curr.totalCost / curr.stock) : 0;
-                const costOfGoods = avgCost * t.times;
-                curr.stock -= t.times;
-                curr.totalCost -= costOfGoods;
-                inventory.set(item, curr);
-                totalCostOfGoods += costOfGoods;
-            });
-
-            // Add to points
-            const pointsCurr = inventory.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0 };
-            pointsCurr.stock += t.pointsEarned;
-            pointsCurr.totalCost += totalCostOfGoods;
-            inventory.set('points', pointsCurr);
         }
     });
 
     let totalItemRealizedProfit = 0;
     let totalInventoryValue = 0; // calculated at avg cost basis
 
+    let totalAbroadRealizedProfit = 0;
+    let totalAbroadInventoryValue = 0;
+
     inventory.forEach(stats => {
         totalItemRealizedProfit += stats.realizedProfit;
         totalInventoryValue += Math.max(0, stats.totalCost);
+
+        totalAbroadRealizedProfit += stats.abroadRealizedProfit;
+        totalAbroadInventoryValue += Math.max(0, stats.abroadTotalCost);
     });
 
     const netTotalProfit = totalItemRealizedProfit - totalMugLoss;

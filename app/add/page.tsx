@@ -76,7 +76,7 @@ export default function AddLogs() {
 
         const abroadRegex = /^.*You bought ([\d,]+)\s*x\s*(.+?) at \$([\d,]+) each.*$/gm;
         converted = converted.replace(abroadRegex, (match, qty, item, price) => {
-            return `b;${item};${qty};${price}`;
+            return `b;${item};${qty};${price};Abroad`;
         });
 
         if (converted !== input) {

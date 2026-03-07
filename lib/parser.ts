@@ -1,8 +1,11 @@
 export type TransactionType = 'BUY' | 'SELL' | 'MUG' | 'CONVERT';
 
+export type TransactionTag = 'Abroad' | 'Normal';
+
 export interface BaseTransaction {
     id: string;
     date: number; // timestamp
+    tag?: TransactionTag; // Used to differentiate source of items
 }
 
 export interface TradeTransaction extends BaseTransaction {
@@ -101,7 +104,8 @@ export function parseLogLine(line: string): ParsedLog | null {
                 type: 'BUY',
                 item,
                 amount,
-                price
+                price,
+                tag: 'Abroad'
             } as ParsedTradeLog;
         }
     }
@@ -135,11 +139,20 @@ export function parseLogLine(line: string): ParsedLog | null {
 
             if (isNaN(amount) || isNaN(price)) return null;
 
+            let tag: TransactionTag | undefined = undefined;
+            // Support explicit tag at the end (b;Xanax;100;800000;Abroad or b;Xanax;100;;8000000;Abroad)
+            if (parts.length >= 5) {
+                const potentialTag = parts[parts.length - 1].trim().toLowerCase();
+                if (potentialTag === 'abroad') tag = 'Abroad';
+                if (potentialTag === 'normal') tag = 'Normal';
+            }
+
             return {
                 type: action === 'b' ? 'BUY' : 'SELL',
                 item,
                 amount,
-                price
+                price,
+                ...(tag && { tag })
             } as ParsedTradeLog;
         } else if (action === 'm') {
             const amountStr = parts[1].trim().replace(/,/g, '');

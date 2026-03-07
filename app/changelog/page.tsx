@@ -31,6 +31,43 @@ export default function ChangelogPage() {
                             <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
                                 <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
                             </div>
+                            <span className="font-semibold text-foreground/90">Abroad Tracking Feature</span>
+                            <p className="text-sm text-foreground/70 mt-1">Introduced an entirely new dashboard dedicated to tracking items explicitly purchased from international markets. Items are separated securely via tagging.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Weav3r Pricelist Self Sells</span>
+                            <p className="text-sm text-foreground/70 mt-1">Users can now instantly "Self Sell" their Abroad items back to their normal ledger using accurate real-time market prices pulled automatically via the Weav3r integration.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Smart Sell Splits</span>
+                            <p className="text-sm text-foreground/70 mt-1">Added background validation inside the store parser. If you have mixed abroad and normal stock, the application automatically divides standard generic sales safely across both ledgers.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* v1.1.2 */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80 mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v1.1.2</h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 07, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
                             <span className="font-semibold text-foreground/90">Inline Abroad Log Conversion</span>
                             <p className="text-sm text-foreground/70 mt-1">Abroad logs pasted into the Add Logs page are now automatically converted into standard inline format for seamless live preview validation.</p>
                         </li>
