@@ -115,7 +115,12 @@ export default function AbroadDashboard() {
     if (!isLoaded) return null;
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div
+            className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
+            style={{
+                '--primary': '#0d9488', // Emerald/Teal
+            } as React.CSSProperties}
+        >
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Abroad Tracking</h1>
                 <p className="text-foreground/60 mt-2">Manage items purchased internationally and track their separate cost basis.</p>
@@ -144,7 +149,7 @@ export default function AbroadDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden group hover:border-primary/30 transition-colors">
-                    <div className="absolute -right-6 -top-6 bg-primary/5 w-32 h-32 rounded-full blur-2xl group-hover:bg-primary/10 transition-colors" />
+                    <div className="absolute -right-6 -top-6 bg-primary/10 w-32 h-32 rounded-full blur-2xl group-hover:bg-primary/20 transition-colors" />
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-primary/10 rounded-lg">
                             <Plane className="w-5 h-5 text-primary" />
@@ -154,7 +159,7 @@ export default function AbroadDashboard() {
                     <p className="text-3xl font-bold tracking-tight">${Math.round(abroadStats.totalValue).toLocaleString()}</p>
                 </div>
                 <div className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden group hover:border-success/30 transition-colors">
-                    <div className="absolute -right-6 -top-6 bg-success/5 w-32 h-32 rounded-full blur-2xl group-hover:bg-success/10 transition-colors" />
+                    <div className="absolute -right-6 -top-6 bg-success/10 w-32 h-32 rounded-full blur-2xl group-hover:bg-success/20 transition-colors" />
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-success/10 rounded-lg">
                             <Plane className="w-5 h-5 text-success" />
@@ -195,10 +200,10 @@ export default function AbroadDashboard() {
                                     return (
                                         <tr key={item.name} className="hover:bg-foreground/[0.01] transition-colors">
                                             <td className="px-6 py-4 font-medium sm:whitespace-nowrap">{formatItemName(item.name)}</td>
-                                            <td className="px-6 py-4 text-right font-mono">{item.stock.toLocaleString()}</td>
-                                            <td className="px-6 py-4 text-right font-mono text-foreground/70">${Math.round(item.avgCost).toLocaleString()}</td>
-                                            <td className="px-6 py-4 text-right font-mono">${Math.round(item.totalCost).toLocaleString()}</td>
-                                            <td className={`px-6 py-4 text-right font-mono font-medium ${item.realizedProfit > 0 ? "text-success" : item.realizedProfit < 0 ? "text-danger" : "text-foreground/70"}`}>
+                                            <td className="px-6 py-4 text-right">{item.stock.toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right text-foreground/70">${Math.round(item.avgCost).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right">${Math.round(item.totalCost).toLocaleString()}</td>
+                                            <td className={`px-6 py-4 text-right font-medium ${item.realizedProfit > 0 ? "text-success" : item.realizedProfit < 0 ? "text-danger" : "text-foreground/70"}`}>
                                                 {item.realizedProfit > 0 ? "+" : ""}${Math.round(item.realizedProfit).toLocaleString()}
                                             </td>
                                             <td className="px-6 py-4 text-center">

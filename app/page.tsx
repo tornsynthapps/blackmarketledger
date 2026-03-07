@@ -83,7 +83,12 @@ export default function Home() {
   const netTotal = stats.profit - totalMugLoss;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div
+      className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+      style={{
+        '--primary': '#3b82f6', // Blue
+      } as React.CSSProperties}
+    >
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Main Dashboard</h1>
@@ -214,18 +219,21 @@ export default function Home() {
 }
 
 function StatCard({
-  title, value, icon, description, valueClass = ""
+  title, value, icon, description, valueClass = "", colorClass = "bg-primary"
 }: {
-  title: string, value: string, icon: React.ReactNode, description: string, valueClass?: string
+  title: string, value: string, icon: React.ReactNode, description: string, valueClass?: string, colorClass?: string
 }) {
   return (
-    <div className="bg-panel p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-panel p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+      <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full blur-2xl transition-colors opacity-10 group-hover:opacity-20 ${colorClass}`} />
+      <div className="flex items-center justify-between mb-4 relative z-10">
         <h3 className="text-sm font-medium text-foreground/70">{title}</h3>
         <div className="p-2 bg-foreground/5 rounded-lg">{icon}</div>
       </div>
-      <p className={`text-2xl font-bold tracking-tight ${valueClass}`}>{value}</p>
-      <p className="text-xs text-foreground/50 mt-2">{description}</p>
+      <div className="relative z-10">
+        <p className={`text-2xl font-bold tracking-tight ${valueClass}`}>{value}</p>
+        <p className="text-xs text-foreground/50 mt-2">{description}</p>
+      </div>
     </div>
   );
 }

@@ -134,7 +134,12 @@ function LogsPageContent() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div
+            className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+            style={{
+                '--primary': '#8b5cf6', // Violet
+            } as React.CSSProperties}
+        >
 
             {filterItem && (
                 <Link href="/" className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors">

@@ -26,11 +26,12 @@ export default function MuseumDashboard() {
         totalValue,
         totalProfit
     } = useMemo(() => {
-        const flushieStats = inventory.get('flushie') || { stock: 0, totalCost: 0, realizedProfit: 0 };
-        const pointsStats = inventory.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0 };
+        const defaultStats = { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+        const flushieStats = inventory.get('flushie') || defaultStats;
+        const pointsStats = inventory.get('points') || defaultStats;
 
-        const flowersData = FLOWER_SET.map(name => ({ name, stats: inventory.get(name) || { stock: 0, totalCost: 0, realizedProfit: 0 } }));
-        const plushiesData = PLUSHIE_SET.map(name => ({ name, stats: inventory.get(name) || { stock: 0, totalCost: 0, realizedProfit: 0 } }));
+        const flowersData = FLOWER_SET.map(name => ({ name, stats: inventory.get(name) || defaultStats }));
+        const plushiesData = PLUSHIE_SET.map(name => ({ name, stats: inventory.get(name) || defaultStats }));
 
         const flowerSetsPossible = FLOWER_SET.length > 0 ? Math.min(...flowersData.map(f => f.stats.stock)) : 0;
         const plushieSetsPossible = PLUSHIE_SET.length > 0 ? Math.min(...plushiesData.map(p => p.stats.stock)) : 0;
@@ -60,11 +61,15 @@ export default function MuseumDashboard() {
 
     if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
-    const flushieAvg = flushieStats.stock > 0 ? flushieStats.totalCost / flushieStats.stock : 0;
     const pointsAvg = pointsStats.stock > 0 ? pointsStats.totalCost / pointsStats.stock : 0;
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        <div
+            className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10"
+            style={{
+                '--primary': '#f59e0b', // Amber
+            } as React.CSSProperties}
+        >
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-primary">Museum</h1>
@@ -83,23 +88,22 @@ export default function MuseumDashboard() {
                     description={`Avg Cost: ${formatMoney(pointsAvg)}`}
                 />
                 <StatCard
-                    title="Flushie Stock"
-                    value={flushieStats.stock.toLocaleString()}
-                    icon={<Droplet className="text-primary w-5 h-5" />}
-                    description={`Avg Cost: ${formatMoney(flushieAvg)}`}
+                    title="Flower Stock"
+                    value={flowersData.reduce((acc, curr) => acc + curr.stats.stock, 0).toLocaleString()}
+                    icon={<Flower2 className="text-primary w-5 h-5" />}
+                    description="Total flowers acquired"
+                />
+                <StatCard
+                    title="Plushie Stock"
+                    value={plushiesData.reduce((acc, curr) => acc + curr.stats.stock, 0).toLocaleString()}
+                    icon={<Ghost className="text-primary w-5 h-5" />}
+                    description="Total plushies acquired"
                 />
                 <StatCard
                     title="Museum Inventory Value"
                     value={formatMoney(totalValue)}
                     icon={<Box className="text-primary w-5 h-5" />}
                     description="Total cost basis of sets & points"
-                />
-                <StatCard
-                    title="Realized Profit"
-                    value={formatMoney(totalProfit)}
-                    icon={<TrendingUp className="text-success w-5 h-5" />}
-                    description="From selling Museum items"
-                    valueClass={totalProfit >= 0 ? "text-success" : "text-danger"}
                 />
             </div>
 
@@ -137,31 +141,36 @@ export default function MuseumDashboard() {
                     </div>
                 </div>
 
-                {/* Flushies Detail */}
-                <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
-                    <div className="flex items-center gap-3 mb-6">
+                {/* Set Values */}
+                <div className="bg-panel rounded-xl border border-border shadow-sm p-6 relative overflow-hidden">
+                    <div className="absolute -right-6 -top-6 bg-primary/10 w-32 h-32 rounded-full blur-2xl pointer-events-none" />
+                    <div className="flex items-center gap-3 mb-6 relative z-10">
                         <div className="p-3 bg-primary/10 rounded-xl">
-                            <Droplet className="w-6 h-6 text-primary" />
+                            <Box className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold">Uncategorized Flushies</h2>
-                            <p className="text-sm text-foreground/60">Current unused items</p>
+                            <h2 className="text-xl font-bold">Set Assembly Cost</h2>
+                            <p className="text-sm text-foreground/60">Calculated sum of avg costs</p>
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 relative z-10">
                         <div className="flex justify-between items-center py-3 border-b border-border/50">
-                            <span className="text-foreground/70">Total Invested (Cost)</span>
-                            <span className="font-medium">{formatMoney(flushieStats.totalCost)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-3 border-b border-border/50">
-                            <span className="text-foreground/70">Avg Cost Basis</span>
-                            <span className="font-medium bg-foreground/5 px-2 py-1 rounded">{formatMoney(flushieAvg)}</span>
+                            <div className="flex items-center gap-2">
+                                <Flower2 className="w-4 h-4 text-foreground/50" />
+                                <span className="text-foreground/70">Avg Cost of Flower Set</span>
+                            </div>
+                            <span className="font-medium bg-foreground/5 px-2 py-1 rounded">
+                                {formatMoney(flowersData.reduce((acc, curr) => acc + (curr.stats.stock > 0 ? curr.stats.totalCost / curr.stats.stock : 0), 0))}
+                            </span>
                         </div>
                         <div className="flex justify-between items-center py-3">
-                            <span className="text-foreground/70">Profit from direct sales</span>
-                            <span className={`font-bold ${flushieStats.realizedProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-                                {formatMoney(flushieStats.realizedProfit)}
+                            <div className="flex items-center gap-2">
+                                <Ghost className="w-4 h-4 text-foreground/50" />
+                                <span className="text-foreground/70">Avg Cost of Plushie Set</span>
+                            </div>
+                            <span className="font-medium bg-foreground/5 px-2 py-1 rounded">
+                                {formatMoney(plushiesData.reduce((acc, curr) => acc + (curr.stats.stock > 0 ? curr.stats.totalCost / curr.stats.stock : 0), 0))}
                             </span>
                         </div>
                     </div>
@@ -213,17 +222,18 @@ export default function MuseumDashboard() {
 }
 
 function StatCard({
-    title, value, icon, description, valueClass = ""
+    title, value, icon, description, valueClass = "", colorClass = "bg-primary"
 }: {
-    title: string, value: string, icon: React.ReactNode, description: string, valueClass?: string
+    title: string, value: string, icon: React.ReactNode, description: string, valueClass?: string, colorClass?: string
 }) {
     return (
-        <div className="bg-panel p-6 rounded-xl border border-border flex flex-col justify-between hover:border-primary/50 transition-colors">
-            <div className="flex items-center justify-between mb-4">
+        <div className="bg-panel p-6 rounded-xl border border-border flex flex-col justify-between hover:border-primary/50 transition-colors relative overflow-hidden group">
+            <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full blur-2xl transition-colors opacity-10 group-hover:opacity-20 ${colorClass}`} />
+            <div className="flex items-center justify-between mb-4 relative z-10">
                 <h3 className="text-sm font-medium text-foreground/70">{title}</h3>
                 {icon}
             </div>
-            <div>
+            <div className="relative z-10">
                 <p className={`text-2xl font-bold tracking-tight ${valueClass}`}>{value}</p>
                 <p className="text-xs text-foreground/50 mt-1">{description}</p>
             </div>

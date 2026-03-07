@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, Database, PlusCircle, List, Moon, Sun } from "lucide-react";
+import { LayoutDashboard, Wallet, Database, PlusCircle, List, Moon, Sun, Landmark, Plane } from "lucide-react";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -13,11 +13,11 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 const navItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Museum", href: "/museum", icon: Wallet },
-    { name: "Abroad", href: "/abroad", icon: Wallet },
-    { name: "Logs", href: "/logs", icon: List },
-    { name: "Add Data", href: "/add", icon: PlusCircle },
+    { name: "Dashboard", href: "/", icon: LayoutDashboard, color: "#3b82f6" },
+    { name: "Museum", href: "/museum", icon: Landmark, color: "#f59e0b" },
+    { name: "Abroad", href: "/abroad", icon: Plane, color: "#0d9488" },
+    { name: "Logs", href: "/logs", icon: List, color: "#8b5cf6" },
+    { name: "Add Data", href: "/add", icon: PlusCircle, color: "#8b5cf6" },
 ];
 
 export function Navigation() {
@@ -46,7 +46,7 @@ export function Navigation() {
         <nav className="sticky top-0 h-16 bg-panel border-b border-border/50 z-50 backdrop-blur-md bg-opacity-80">
             <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2">
-                    <Database className="w-6 h-6 text-primary" />
+                    <Database className="w-8 h-8 text-foreground" />
                     <div className="flex flex-col">
                         <span className="font-bold text-lg tracking-tight hidden sm:block leading-none">BlackMarket Ledger</span>
                         <div className="flex items-center gap-1 mt-0.5">
@@ -59,7 +59,6 @@ export function Navigation() {
                 <div className="flex items-center gap-1 sm:gap-2">
                     {navItems.map((item) => {
                         const Icon = item.icon;
-                        // Exact match for dashboard, startswith for others if detail pages exist
                         const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
                         return (
                             <Link
@@ -67,13 +66,12 @@ export function Navigation() {
                                 href={item.href}
                                 className={cn(
                                     "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                                    isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-foreground/70 hover:bg-foreground/5 hover:text-foreground"
+                                    !isActive && "text-foreground/70 hover:bg-foreground/5"
                                 )}
+                                style={isActive ? { backgroundColor: `${item.color}1a`, color: item.color } : {}}
                             >
-                                <Icon className="w-4 h-4" />
-                                <span className="hidden sm:inline">{item.name}</span>
+                                <Icon className="w-4 h-4" style={{ color: item.color }} />
+                                <span className="hidden sm:inline" style={isActive ? { color: item.color } : undefined}>{item.name}</span>
                             </Link>
                         );
                     })}
