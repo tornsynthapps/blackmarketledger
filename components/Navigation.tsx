@@ -48,7 +48,7 @@ export function Navigation() {
     return (
         <nav className="sticky top-0 h-16 bg-panel border-b border-border/50 z-50 backdrop-blur-md bg-opacity-80">
             <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2">
+                <Link href="/" onClick={() => vibrate("nav")} className="flex items-center gap-2">
                     <Database className="w-8 h-8 text-foreground" />
                     <div className="flex flex-col">
                         <span className="font-bold text-lg tracking-tight hidden sm:block leading-none">BlackMarket Ledger</span>

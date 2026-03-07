@@ -6,15 +6,15 @@ import { useWebHaptics } from "web-haptics/react";
 type HapticTone = "nav" | "utility" | "success" | "danger";
 
 const TONE_TO_PRESET: Record<HapticTone, string> = {
-  nav: "nudge",
-  utility: "nudge",
+  nav: "rigid",
+  utility: "light",
   success: "success",
   danger: "error",
 };
 
 export function useHapticFeedback() {
   const { trigger, isSupported } = useWebHaptics({
-    debug: process.env.NODE_ENV !== "production",
+    debug: true,
   });
 
   const vibrate = useCallback(
