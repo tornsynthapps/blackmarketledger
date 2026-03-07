@@ -90,14 +90,17 @@ export function formatItemName(name: string): string {
 * cp;<times> (Convert plushie sets to points)
 */
 export function parseLogLine(line: string): ParsedLog | null {
-    // Try parsing Torn abroad log format:
+    // Try parsing Torn system event logs for purchases:
     // e.g. "17:49:48 - 06/03/26 You bought 19x Xanax at $688,996 each for a total of $13,090,924 from Japan"
-    const abroadLogRegex = /You bought ([\d,]+)x (.+?) at \$([\d,]+) each/i;
-    const abroadMatch = line.match(abroadLogRegex);
-    if (abroadMatch) {
-        const amount = parseInt(abroadMatch[1].replace(/,/g, ''), 10);
-        const item = normalizeItemName(abroadMatch[2]);
-        const price = parseInt(abroadMatch[3].replace(/,/g, ''), 10);
+    // e.g. "07:28:09 - 07/03/26 You bought 22x Crocus on Frengesp's bazaar at $7,099 each for a total of $156,178"
+    // e.g. "07:28:33 - 07/03/26 You bought 58x Crocus on the item market from lesbiampires at $8,189 each for a total of $474,962"
+    const tornBuyRegex = /You bought ([\d,]+)x (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$[\d,]+(?: from (.+))?)?/i;
+    const tornBuyMatch = line.match(tornBuyRegex);
+    if (tornBuyMatch) {
+        const amount = parseInt(tornBuyMatch[1].replace(/,/g, ''), 10);
+        const item = normalizeItemName(tornBuyMatch[2]);
+        const price = parseInt(tornBuyMatch[3].replace(/,/g, ''), 10);
+        const isAbroad = !!tornBuyMatch[4];
 
         if (!isNaN(amount) && !isNaN(price)) {
             return {
@@ -105,7 +108,7 @@ export function parseLogLine(line: string): ParsedLog | null {
                 item,
                 amount,
                 price,
-                tag: 'Abroad'
+                ...(isAbroad && { tag: 'Abroad' })
             } as ParsedTradeLog;
         }
     }

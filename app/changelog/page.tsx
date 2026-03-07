@@ -31,6 +31,43 @@ export default function ChangelogPage() {
                             <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
                                 <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
                             </div>
+                            <span className="font-semibold text-foreground/90">Robust Log Parsing Strategy</span>
+                            <p className="text-sm text-foreground/70 mt-1">Updated parser to seamlessly read and sanitize bazaar and item market transaction logs directly from the game's system events.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Syntax Highlighting & Validation</span>
+                            <p className="text-sm text-foreground/70 mt-1">Shorthand log input now features real-time syntax highlighting showing invalid logs with an aggressive red background overlay.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Rapid Paste Support</span>
+                            <p className="text-sm text-foreground/70 mt-1">When pasting lines sequentially into the Add page, correctly parsed logs automatically append trailing newlines allowing rapid batch creation.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* v2.1.0 */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80 mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v2.1.0</h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 07, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
                             <span className="font-semibold text-foreground/90">UI Improvements & Theming</span>
                             <p className="text-sm text-foreground/70 mt-1">Introduced a comprehensive UI overhaul featuring page-specific color themes, Space Grotesk/Mono typography, and glowing stat card backgrounds.</p>
                         </li>

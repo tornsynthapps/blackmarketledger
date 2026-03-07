@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useJournal } from "@/store/useJournal";
 import { parseLogLine, ParsedLog, formatItemName } from "@/lib/parser";
 import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert } from "lucide-react";
@@ -11,6 +11,8 @@ export default function AddLogs() {
     const [showToast, setShowToast] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
     const [configError, setConfigError] = useState("");
+    const [justPasted, setJustPasted] = useState(false);
+    const highlightRef = useRef<HTMLDivElement>(null);
     const { addLogs, isLoaded, clearLogs, weav3rApiKey, weav3rUserId, saveWeaverConfig } = useJournal();
 
     const [tempApiKey, setTempApiKey] = useState("");
@@ -74,15 +76,22 @@ export default function AddLogs() {
             return `s;${item};${qty};;${price}`;
         });
 
-        const abroadRegex = /^.*You bought ([\d,]+)\s*x\s*(.+?) at \$([\d,]+) each.*$/gm;
-        converted = converted.replace(abroadRegex, (match, qty, item, price) => {
-            return `b;${item};${qty};${price};Abroad`;
+        const tornBuyRegex = /.*You bought ([\d,]+)\s*x\s*(.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?:(?:(?!from).)*from\s+([a-zA-Z]+))?.*/gmi;
+        converted = converted.replace(tornBuyRegex, (match, qty, item, price, country) => {
+            return `b;${item};${qty};${price}${country ? `;Abroad` : ''}`;
         });
 
         if (converted !== input) {
             setInput(converted);
+        } else if (justPasted) {
+            setJustPasted(false);
+            const linesArr = input.split('\n');
+            const lastLine = linesArr[linesArr.length - 1];
+            if (lastLine.trim() !== '' && parseLogLine(lastLine)) {
+                setInput(input + '\n');
+            }
         }
-    }, [input]);
+    }, [input, justPasted]);
 
     // Validate on the fly
     const lines = input.split('\n').filter(l => l.trim().length > 0);
@@ -154,15 +163,35 @@ export default function AddLogs() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Editor */}
                 <div className="flex flex-col gap-4">
-                    <div className="relative">
+                    <div className="relative font-mono text-sm w-full h-96 bg-panel rounded-xl shadow-inner border border-border overflow-hidden">
+                        <div
+                            ref={highlightRef}
+                            className="absolute inset-0 p-4 pointer-events-none whitespace-pre-wrap break-words overflow-y-auto"
+                            aria-hidden="true"
+                        >
+                            {input.split('\n').map((l, i, arr) => {
+                                if (l.trim() === '') return <span key={i}>{l}{i < arr.length - 1 ? '\n' : ''}</span>;
+                                const parsed = parseLogLine(l);
+                                return (
+                                    <span key={i} className={parsed ? "text-transparent" : "text-danger bg-danger/10 font-medium"}>
+                                        {l}{i < arr.length - 1 ? '\n' : ''}
+                                    </span>
+                                );
+                            })}
+                        </div>
                         <textarea
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            className="w-full h-96 p-4 rounded-xl border border-border bg-panel focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y font-mono text-sm shadow-inner"
+                            onScroll={(e) => {
+                                if (highlightRef.current) highlightRef.current.scrollTop = e.currentTarget.scrollTop;
+                            }}
+                            onPaste={() => setJustPasted(true)}
+                            className="absolute inset-0 w-full h-full p-4 resize-none bg-transparent text-foreground/90 caret-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 relative z-10"
                             placeholder="Paste your logs here...&#10;b;Xanax;89;899999&#10;m;789789&#10;s;Xanax;89;900000&#10;&#10;Or paste a Weav3r receipt URL like:&#10;https://weav3r.dev/receipt/RJiDVUO9Is"
+                            spellCheck="false"
                         />
                         {isFetching && (
-                            <div className="absolute inset-0 bg-panel/70 backdrop-blur-[2px] flex items-center justify-center rounded-xl z-10 transition-all">
+                            <div className="absolute inset-0 bg-panel/70 backdrop-blur-[2px] flex items-center justify-center rounded-xl z-20 transition-all">
                                 <span className="animate-pulse font-semibold text-primary text-lg">Fetching Trades...</span>
                             </div>
                         )}
@@ -220,7 +249,7 @@ export default function AddLogs() {
                             <div className="space-y-2">
                                 {parsedLines.map((p, i) => (
                                     <div key={i} className={`p-3 rounded-lg border text-sm ${p.parsed ? 'bg-panel border-border' : 'bg-danger/5 border-danger/20'}`}>
-                                        <div className="font-mono text-xs text-foreground/50 mb-1">{p.line}</div>
+                                        <div className={`font-mono text-xs mb-1 ${p.parsed ? 'text-foreground/50' : 'text-danger font-semibold'}`}>{p.line}</div>
                                         {p.parsed ? (
                                             <div className="text-foreground/90 truncate">
                                                 {p.parsed.type === 'BUY' && <>🛒 <span className="font-medium text-primary">Bought</span> {p.parsed.amount}x {formatItemName(p.parsed.item)} @ {p.parsed.price.toLocaleString()}</>}
