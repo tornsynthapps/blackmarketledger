@@ -78,11 +78,14 @@ function LogsPageContent() {
                     {format(new Date(t.date), 'MMM d, yyyy HH:mm')}
                 </td>
                 <td className="px-6 py-4">
-                    {t.type === 'BUY' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded">Buy</span>}
-                    {t.type === 'SELL' && <span className="text-success font-medium bg-success/10 px-2 py-1 rounded">Sell</span>}
-                    {t.type === 'MUG' && <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded">Mug</span>}
-                    {t.type === 'CONVERT' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded">Convert</span>}
-                    {t.type === 'SET_CONVERT' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded">Set Convert</span>}
+                    <div className="flex items-center gap-2">
+                        {t.type === 'BUY' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">BUY</span>}
+                        {t.type === 'SELL' && <span className="text-success font-medium bg-success/10 px-2 py-1 rounded text-xs tracking-wider">SELL</span>}
+                        {t.type === 'MUG' && <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded text-xs tracking-wider">MUG</span>}
+                        {t.type === 'CONVERT' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">CONVERT</span>}
+                        {t.type === 'SET_CONVERT' && <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">SET CONVERT</span>}
+                        {t.tag === 'Abroad' && <span className="text-warning font-medium bg-warning/10 px-2 py-1 rounded text-xs tracking-wider">ABROAD</span>}
+                    </div>
                 </td>
                 <td className="px-6 py-4">
                     <div className="font-medium">

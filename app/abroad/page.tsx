@@ -175,7 +175,7 @@ export default function AbroadDashboard() {
             <div className="bg-panel border border-border rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-foreground/[0.02] border-b border-border text-foreground/60 font-medium">
+                        <thead className="text-xs uppercase text-foreground/60 bg-foreground/5">
                             <tr>
                                 <th className="px-6 py-4 whitespace-nowrap">Item</th>
                                 <th className="px-6 py-4 text-right">Abroad Stock</th>
@@ -200,7 +200,11 @@ export default function AbroadDashboard() {
                                     return (
                                         <tr key={item.name} className="hover:bg-foreground/[0.01] transition-colors">
                                             <td className="px-6 py-4 font-medium sm:whitespace-nowrap">{formatItemName(item.name)}</td>
-                                            <td className="px-6 py-4 text-right">{item.stock.toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right font-mono">
+                                                <span className="bg-primary/10 text-primary px-2 py-1 rounded-md">
+                                                    {item.stock.toLocaleString()}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 text-right text-foreground/70">${Math.round(item.avgCost).toLocaleString()}</td>
                                             <td className="px-6 py-4 text-right">${Math.round(item.totalCost).toLocaleString()}</td>
                                             <td className={`px-6 py-4 text-right font-medium ${item.realizedProfit > 0 ? "text-success" : item.realizedProfit < 0 ? "text-danger" : "text-foreground/70"}`}>
