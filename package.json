@@ -1,12 +1,13 @@
 {
   "name": "blackmarket-ledger",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "next build && firebase deploy --only hosting"
   },
   "dependencies": {
     "clsx": "^2.1.1",

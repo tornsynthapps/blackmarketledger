@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "tornsynthapps"
+  },
+  "targets": {
+    "tornsynthapps": {
+      "hosting": {
+        "blackmarketledger": [
+          "blackmarketledger"
+        ]
+      }
+    }
+  }
+}
