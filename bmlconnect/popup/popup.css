@@ -1,0 +1,28 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, sans-serif;
+}
+body { margin: 0; background: #12161d; color: #f6f8fb; }
+.wrap { width: 320px; padding: 14px; }
+h1 { margin: 0 0 6px; font-size: 18px; }
+.muted { margin: 0 0 12px; font-size: 12px; color: #b5bfcc; }
+label { display: block; margin-bottom: 6px; font-size: 12px; }
+input[type="password"] {
+  width: 100%; box-sizing: border-box; border: 1px solid #2f3845; border-radius: 8px;
+  background: #1a2029; color: #fff; padding: 9px 10px; margin-bottom: 10px;
+}
+button {
+  width: 100%; border: none; border-radius: 8px; padding: 9px 10px;
+  font-weight: 600; background: #3a78f2; color: #fff; cursor: pointer;
+}
+.toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.toggle-row input { margin: 0; }
+.card { margin-top: 12px; background: #1a2029; border: 1px solid #2f3845; border-radius: 8px; padding: 10px; font-size: 12px; }
+.card h2 { margin: 0 0 8px; font-size: 13px; }
+.card div { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.message { min-height: 18px; font-size: 12px; margin-top: 10px; color: #9cc2ff; }
+.message.error { color: #ff9f9f; }
+.footer { margin-top: 10px; padding-top: 8px; border-top: 1px solid #2f3845; font-size: 11px; color: #9aa8bd; }
+.links { display: flex; gap: 8px; margin-top: 4px; }
+.links a { color: #9cc2ff; text-decoration: none; }
+.links a:hover { text-decoration: underline; }

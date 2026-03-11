@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "BML Connect",
+  "description": "Sync cost-basis from blackmarketledger.web.app and display it on torn.com for subscribed users.",
+  "version": "1.1.0",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://blackmarketledger.web.app/*",
+    "https://www.torn.com/*",
+    "https://torn.com/*",
+    "https://*.supabase.co/*",
+    "https://api.torn.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://blackmarketledger.web.app/*"],
+      "js": ["src/shared.js", "src/ledger-sync.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.torn.com/*", "https://torn.com/*"],
+      "js": ["src/shared.js", "src/torn-overlay.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "BML Connect",
+    "default_popup": "popup/popup.html"
+  }
+}

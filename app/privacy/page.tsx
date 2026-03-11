@@ -10,35 +10,42 @@ export default function PrivacyPolicy() {
                     <Shield className="w-6 h-6" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
-                <p className="text-foreground/60 mt-2">Last updated: March 06, 2026</p>
+                <p className="text-foreground/60 mt-2">Last updated: March 11, 2026</p>
             </div>
 
             <div className="bg-panel border border-border p-6 rounded-xl space-y-6">
                 <section>
-                    <h2 className="text-xl font-bold mb-2">1. Local Storage Only</h2>
+                    <h2 className="text-xl font-bold mb-2">1. Web App Local Storage</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        BlackMarket Ledger is designed with a privacy-first approach. All of your trading data, logs, API keys, and settings are stored <strong>strictly locally</strong> within your web browser using Local Storage.
+                        BlackMarket Ledger stores your trading logs, settings, and calculations locally in your browser for the web app experience.
                     </p>
                 </section>
 
                 <section>
-                    <h2 className="text-xl font-bold mb-2">2. No Tracking or Data Collection</h2>
+                    <h2 className="text-xl font-bold mb-2">2. BML Connect Extension Data</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        We do not collect, track, aggregate, or sell any of your personal data. We do not use cookies for tracking purposes. There are no backend database servers storing your information on our end.
+                        The BML Connect extension stores your Torn API key, sign-in state, subscription status, and synced cost-basis summary in browser extension storage. This data is used to show your cost-basis panel on Torn pages and can be removed by uninstalling the extension or clearing extension storage.
                     </p>
                 </section>
 
                 <section>
-                    <h2 className="text-xl font-bold mb-2">3. Third-Party Services (Weav3r API)</h2>
+                    <h2 className="text-xl font-bold mb-2">3. Supabase Subscription Verification</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        If you choose to use the Weav3r API integration to automatically fetch your trades, your API key and User ID will be sent directly from your browser to Weav3r's application programming interface (<code className="bg-foreground/10 px-1 py-0.5 rounded text-sm">api.weav3r.dev</code>). This data goes strictly to Weav3r, and does not pass through any servers controlled by the BlackMarket Ledger. Please refer to Weav3r's relevant terms and privacy policies regarding how they handle data.
+                        When you verify inside BML Connect, your API key is sent to our Supabase edge function endpoint at <code className="bg-foreground/10 px-1 py-0.5 rounded text-sm">yxjmnkaollkpcvymiicd.supabase.co</code>. The function calls Torn&apos;s basic user endpoint to read your Torn user ID and checks subscription validity in our Supabase database.
                     </p>
                 </section>
 
                 <section>
-                    <h2 className="text-xl font-bold mb-2">4. Your Control</h2>
+                    <h2 className="text-xl font-bold mb-2">4. Third-Party Services</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        Because data is only stored in your browser, you have complete control over it. You can permanently delete your data at any time by clearing your browser data or using the "Clear All Tracker Data" button within the app.
+                        If you use Weav3r features in the web app, requests are sent directly to Weav3r from your browser. If you use BML Connect verification, requests are sent to Supabase and Torn API for identity/subscription checks.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 className="text-xl font-bold mb-2">5. No Advertising / Sale of Data</h2>
+                    <p className="text-foreground/80 leading-relaxed">
+                        We do not sell your personal data and do not run ad tracking profiles for BML Connect or BlackMarket Ledger.
                     </p>
                 </section>
             </div>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BML Connect</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>BML Connect</h1>
+    <p class="muted">Sign in with your Torn API key to verify subscription status.</p>
+
+    <label for="apiKey">Torn API Key</label>
+    <input id="apiKey" type="password" placeholder="Enter your Torn API key" autocomplete="off" />
+
+    <button id="saveBtn">Verify & Save</button>
+
+    <label class="toggle-row" for="overlayToggle">
+      <input id="overlayToggle" type="checkbox" />
+      <span>Show BML Box on Torn pages</span>
+    </label>
+
+    <section class="card">
+      <h2>Account</h2>
+      <div><span>Username:</span> <strong id="username">-</strong></div>
+      <div><span>User ID:</span> <strong id="userId">-</strong></div>
+      <div><span>Subscription:</span> <strong id="subscription">-</strong></div>
+      <div><span>Valid until:</span> <strong id="validUntil">-</strong></div>
+    </section>
+
+    <p id="message" class="message"></p>
+
+    <footer class="footer">
+      <div>© 2026 BML Connect</div>
+      <div class="links">
+        <a href="https://blackmarketledger.web.app/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+        <a href="https://blackmarketledger.web.app/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+      </div>
+    </footer>
+  </main>
+
+  <script src="../src/shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
