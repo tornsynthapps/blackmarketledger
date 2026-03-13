@@ -3,50 +3,60 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useJournal } from "@/store/useJournal";
+import * as idb from '@/lib/idb';
 
 export function Banners() {
     const [showForum, setShowForum] = useState(false);
     const [showDonation, setShowDonation] = useState(false);
     const { vibrate } = useHapticFeedback();
+    const { needsMigration, performMigration } = useJournal();
 
     // Dynamic text stats
     const [forumClicks, setForumClicks] = useState(0);
 
     useEffect(() => {
-        // Run logic only on client-side mounting
-        const statsStr = localStorage.getItem("blackmarket_banner_stats");
-        let stats = statsStr ? JSON.parse(statsStr) : {
-            forumClicks: 0,
-            forumCloseStreak: 0,
-            donationClicks: 0,
-            donationCloseStreak: 0
+        const init = async () => {
+            let statsStr = await idb.get<string>("blackmarket_banner_stats");
+            if (!statsStr) {
+                statsStr = localStorage.getItem("blackmarket_banner_stats") || undefined;
+                if (statsStr) {
+                    await idb.set("blackmarket_banner_stats", statsStr);
+                }
+            }
+
+            let stats = statsStr ? JSON.parse(statsStr) : {
+                forumClicks: 0,
+                forumCloseStreak: 0,
+                donationClicks: 0,
+                donationCloseStreak: 0
+            };
+
+            setForumClicks(stats.forumClicks);
+
+            // Probability Calculations
+            let forumProb = 0.1 * Math.pow(0.5, stats.forumClicks);
+            if (stats.forumCloseStreak >= 3) {
+                forumProb *= 2;
+            }
+
+            let donationProb = 0.2 * Math.pow(0.5, stats.donationClicks);
+            if (stats.donationCloseStreak >= 3) {
+                donationProb *= 2;
+            }
+
+            if (Math.random() < forumProb) {
+                setShowForum(true);
+            } else if (Math.random() < donationProb) {
+                setShowDonation(true);
+            }
         };
 
-        setForumClicks(stats.forumClicks);
-
-        // Probability Calculations
-        // Forum: Base 10%, decrease roughly by half per click, increase if closed 3 times consecutively
-        let forumProb = 0.1 * Math.pow(0.5, stats.forumClicks);
-        if (stats.forumCloseStreak >= 3) {
-            forumProb *= 2;
-        }
-
-        // Donation: Base 20%, decrease roughly by half per click, increase if closed 3 times consecutively
-        let donationProb = 0.2 * Math.pow(0.5, stats.donationClicks);
-        if (stats.donationCloseStreak >= 3) {
-            donationProb *= 2;
-        }
-
-        // Only show one banner at a time, prioritize Forum
-        if (Math.random() < forumProb) {
-            setShowForum(true);
-        } else if (Math.random() < donationProb) {
-            setShowDonation(true);
-        }
+        init();
     }, []);
 
-    const updateStats = (key: string, val: number) => {
-        const statsStr = localStorage.getItem("blackmarket_banner_stats");
+    const updateStats = async (key: string, val: number) => {
+        let statsStr = await idb.get<string>("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : {
             forumClicks: 0,
             forumCloseStreak: 0,
@@ -54,42 +64,63 @@ export function Banners() {
             donationCloseStreak: 0
         };
         stats[key] = val;
+        await idb.set("blackmarket_banner_stats", JSON.stringify(stats));
         localStorage.setItem("blackmarket_banner_stats", JSON.stringify(stats));
         return stats;
     };
 
-    const handleForumClick = () => {
+    const handleForumClick = async () => {
         vibrate("success");
-        const stats = updateStats("forumClicks", forumClicks + 1);
+        const stats = await updateStats("forumClicks", forumClicks + 1);
         setForumClicks(stats.forumClicks);
-        updateStats("forumCloseStreak", 0); // Reset close streak if they click the link
+        await updateStats("forumCloseStreak", 0);
         setShowForum(false);
     };
 
-    const handleForumClose = () => {
+    const handleForumClose = async () => {
         vibrate("utility");
-        const statsStr = localStorage.getItem("blackmarket_banner_stats");
+        let statsStr = await idb.get<string>("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { forumCloseStreak: 0 };
-        updateStats("forumCloseStreak", (stats.forumCloseStreak || 0) + 1);
+        await updateStats("forumCloseStreak", (stats.forumCloseStreak || 0) + 1);
         setShowForum(false);
     };
 
-    const handleDonationClick = () => {
+    const handleDonationClick = async () => {
         vibrate("success");
-        const statsStr = localStorage.getItem("blackmarket_banner_stats");
+        let statsStr = await idb.get<string>("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { donationClicks: 0 };
-        updateStats("donationClicks", (stats.donationClicks || 0) + 1);
-        updateStats("donationCloseStreak", 0);
+        await updateStats("donationClicks", (stats.donationClicks || 0) + 1);
+        await updateStats("donationCloseStreak", 0);
         setShowDonation(false);
     };
 
-    const handleDonationClose = () => {
+    const handleDonationClose = async () => {
         vibrate("utility");
-        const statsStr = localStorage.getItem("blackmarket_banner_stats");
+        let statsStr = await idb.get<string>("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { donationCloseStreak: 0 };
-        updateStats("donationCloseStreak", (stats.donationCloseStreak || 0) + 1);
+        await updateStats("donationCloseStreak", (stats.donationCloseStreak || 0) + 1);
         setShowDonation(false);
     };
+
+    if (needsMigration) {
+        return (
+            <div className="bg-red-500/10 text-red-600 dark:text-red-500 border-b border-red-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-40">
+                <div className="max-w-4xl mx-auto flex items-center justify-center gap-4">
+                    <div className="flex-1">
+                        <p className="font-semibold">
+                            ⚠️ Database Upgrade Required
+                        </p>
+                        <p className="mt-1 opacity-90">
+                            Your transaction data is currently stored in LocalStorage. Please upgrade to our new IndexedDB backend to lift storage caps and improve performance.
+                        </p>
+                    </div>
+                    <button onClick={() => { vibrate("success"); performMigration(); }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium text-sm transition-colors whitespace-nowrap">
+                        Migrate Now
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (showForum) {
         return (

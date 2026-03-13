@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
 
-// A simple hook to manage transactions in localStorage.
+import * as idb from '@/lib/idb';
+
+// A simple hook to manage transactions in localStorage and IndexedDB.
 const STORAGE_KEY = 'torn_invest_tracker_logs';
 const CONFIG_KEY = 'torn_invest_tracker_config';
 
@@ -21,42 +23,103 @@ export interface InventoryItemStats {
 export function useJournal() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [needsMigration, setNeedsMigration] = useState(false);
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
 
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                setTransactions(JSON.parse(stored));
-            } catch (e) {
-                console.error("Failed to parse logs", e);
-            }
-        }
+        const init = async () => {
+            const dbSelection = localStorage.getItem("bml_db_selection");
+            let loadedTransactions: Transaction[] = [];
+            let parsedConfig = null;
 
-        const configStr = localStorage.getItem(CONFIG_KEY);
-        if (configStr) {
-            try {
-                const config = JSON.parse(configStr);
-                setWeav3rApiKey(config.apiKey || "");
-                setWeav3rUserId(config.userId || "");
-            } catch (e) {
-                console.error("Failed to parse config", e);
+            if (dbSelection === "indexeddb") {
+                const idbStored = await idb.get<string>(STORAGE_KEY);
+                if (idbStored) {
+                    try {
+                        loadedTransactions = JSON.parse(idbStored);
+                    } catch (e) {
+                        console.error("Failed to parse logs from IDB", e);
+                    }
+                }
+                const idbConfig = await idb.get<string>(CONFIG_KEY);
+                if (idbConfig) {
+                    try {
+                        parsedConfig = JSON.parse(idbConfig);
+                    } catch (e) {
+                        console.error("Failed to parse config from IDB", e);
+                    }
+                }
+            } else {
+                setNeedsMigration(true);
+                const lsStored = localStorage.getItem(STORAGE_KEY);
+                if (lsStored) {
+                    try {
+                        loadedTransactions = JSON.parse(lsStored);
+                    } catch (e) {
+                        console.error("Failed to parse logs from LS", e);
+                    }
+                }
+                const lsConfig = localStorage.getItem(CONFIG_KEY);
+                if (lsConfig) {
+                    try {
+                        parsedConfig = JSON.parse(lsConfig);
+                    } catch (e) {
+                        console.error("Failed to parse config from LS", e);
+                    }
+                }
             }
-        }
 
-        setIsLoaded(true);
+            if (loadedTransactions.length > 0) {
+                setTransactions(loadedTransactions);
+            }
+
+            if (parsedConfig) {
+                setWeav3rApiKey(parsedConfig.apiKey || "");
+                setWeav3rUserId(parsedConfig.userId || "");
+            }
+
+            setIsLoaded(true);
+        };
+
+        init();
+    }, []);
+
+    const performMigration = useCallback(async () => {
+        const lsStored = localStorage.getItem(STORAGE_KEY);
+        const lsConfig = localStorage.getItem(CONFIG_KEY);
+        
+        if (lsStored) await idb.set(STORAGE_KEY, lsStored);
+        if (lsConfig) await idb.set(CONFIG_KEY, lsConfig);
+        
+        localStorage.setItem("bml_db_selection", "indexeddb");
+        localStorage.removeItem(STORAGE_KEY);
+        // We keep CONFIG_KEY in localStorage just as a fallback if needed, but logs are cleared to save space
+
+        window.location.reload();
     }, []);
 
     const saveTransactions = useCallback((newLogs: Transaction[]) => {
         setTransactions(newLogs);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newLogs));
+        const str = JSON.stringify(newLogs);
+        
+        if (localStorage.getItem("bml_db_selection") === "indexeddb") {
+            idb.set(STORAGE_KEY, str).catch(console.error);
+        } else {
+            localStorage.setItem(STORAGE_KEY, str);
+        }
     }, []);
 
     const saveWeaverConfig = useCallback((apiKey: string, userId: string) => {
         setWeav3rApiKey(apiKey);
         setWeav3rUserId(userId);
-        localStorage.setItem(CONFIG_KEY, JSON.stringify({ apiKey, userId }));
+        const str = JSON.stringify({ apiKey, userId });
+        
+        if (localStorage.getItem("bml_db_selection") === "indexeddb") {
+            idb.set(CONFIG_KEY, str).catch(console.error);
+        } else {
+            localStorage.setItem(CONFIG_KEY, str);
+        }
     }, []);
 
     // Derived State helper calculation to get current inventory snapshot
@@ -285,5 +348,7 @@ export function useJournal() {
         weav3rApiKey,
         weav3rUserId,
         saveWeaverConfig,
+        needsMigration,
+        performMigration,
     };
 }
