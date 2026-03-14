@@ -3,13 +3,32 @@
 import { useState, useEffect } from "react";
 import { getConnectionString, sendToExtension } from "@/lib/bmlconnect";
 import Link from "next/link";
+import { useJournal } from "@/store/useJournal";
+import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { Server, Database, ArrowRightLeft, ShieldCheck, Activity } from "lucide-react";
 
 export default function BMLDashboard() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Storage selection state
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationComplete, setMigrationComplete] = useState(false);
+  
+  const { transactions, syncPreference, setSyncPreference, forceSync, mergeTransactions } = useJournal();
+  const { vibrate } = useHapticFeedback();
+  
+  // The standard syncPreference uses 'local' or 'drive'. Let's use 'extension' or 'local' but for backward compatibility, maybe we just set a new preference `extension_db` locally.
+  const [storageLocation, setStorageLocation] = useState<'browser' | 'extension'>('browser');
 
   useEffect(() => {
+    // Read current storage pref
+    const pref = localStorage.getItem("bml_storage_pref") as 'browser' | 'extension' | null;
+    if (pref) {
+      setStorageLocation(pref);
+    }
+    
     const checkConnection = async () => {
       const token = getConnectionString();
       const res = await sendToExtension({ 
@@ -20,7 +39,6 @@ export default function BMLDashboard() {
       if (res.success) {
         setIsConnected(true);
         const userRes = await sendToExtension({ requestType: "GET_USER_INFO" });
-        console.log("BML_DEBUG: user info response", userRes);
         if (userRes.success) {
           setUserInfo(userRes.data);
         }
@@ -33,111 +51,246 @@ export default function BMLDashboard() {
     checkConnection();
   }, []);
 
+  const handleMigrationToExtension = async () => {
+    if (!userInfo?.subscriptionValid) return;
+    
+    setIsMigrating(true);
+    vibrate("utility");
+    
+    try {
+      // 1. Fetch current logs from extension to merge
+      const resLoad = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
+      let extensionLogs = [];
+      if (resLoad.success && Array.isArray(resLoad.data)) {
+        extensionLogs = resLoad.data;
+      }
+      
+      // 2. Perform merge in memory (this also saves to extension and local IDB because of useJournal update)
+      mergeTransactions(extensionLogs);
+      
+      localStorage.setItem("bml_storage_pref", 'extension');
+      setStorageLocation('extension');
+      setMigrationComplete(true);
+      vibrate("success");
+      
+      setTimeout(() => setMigrationComplete(false), 3000);
+    } catch (err) {
+      console.error("Migration failed", err);
+      alert("Migration failed");
+      vibrate("danger");
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  const handleMigrationToBrowser = async () => {
+    vibrate("utility");
+    setIsMigrating(true);
+    
+    try {
+      // When moving back to browser, we already have the memory state (which was synced with extension).
+      // We just need to change the preference.
+      // However, to be extra safe and ensure we have everything from extension:
+      const resLoad = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
+      if (resLoad.success && Array.isArray(resLoad.data)) {
+        mergeTransactions(resLoad.data);
+      }
+      
+      localStorage.setItem("bml_storage_pref", 'browser');
+      setStorageLocation('browser');
+      vibrate("success");
+    } catch (err) {
+      console.error("Switch failed", err);
+      vibrate("danger");
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+
+  const handleRefreshSubscription = async () => {
+    vibrate("utility");
+    setLoading(true);
+    try {
+      const res = await sendToExtension({ requestType: "VERIFY_SUBSCRIPTION" });
+      if (res.success) {
+        setUserInfo(res.data);
+        vibrate("success");
+      } else {
+        alert(res.error || "Failed to refresh subscription");
+        vibrate("danger");
+      }
+    } catch (err) {
+      console.error("Refresh failed", err);
+      vibrate("danger");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const backupAndMigrate = () => {
+    if (confirm("You are about to sync your logs with the extension database. We will download a backup first just in case. Proceed?")) {
+      // Download backup
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `bml_backup_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+      
+      handleMigrationToExtension();
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex h-[60vh] flex-col items-center justify-center bg-[#0a0c10] text-white">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-gray-500 text-sm font-medium">Authorizing tunnel...</p>
+      <div className="flex h-[60vh] flex-col items-center justify-center text-foreground bg-background">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary mb-4"></div>
+        <p className="text-foreground/50 text-sm font-medium">Authorizing tunnel...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center bg-[#0a0c10] font-sans">
-      <main className="w-full max-w-3xl p-6 bg-[#12161d] rounded-2xl shadow-2xl border border-[#232a35] relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center bg-background font-sans">
+      <main className="w-full max-w-3xl p-6 bg-panel rounded-2xl shadow-sm border border-border relative overflow-hidden">
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div className="flex items-center justify-between mb-6 relative z-10">
           <div>
-            <h1 className="text-2xl font-black text-white tracking-tighter">BML <span className="text-blue-500">CONN</span></h1>
-            <p className="text-[#484f58] text-[9px] font-black uppercase tracking-[0.2em]">Secure Extension Tunnel v1.4</p>
+            <h1 className="text-2xl font-bold tracking-tight">BML <span className="text-primary font-black">CONNECT</span></h1>
+            <p className="text-foreground/50 text-xs font-mono uppercase tracking-widest mt-1">Secure Extension Tunnel</p>
           </div>
-          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isConnected ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest font-mono ${isConnected ? 'bg-success/10 text-success border border-success/20' : 'bg-danger/10 text-danger border border-danger/20'}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-success animate-pulse' : 'bg-danger'}`}></span>
             {isConnected ? 'Sync Online' : 'Sync Offline'}
           </div>
         </div>
         
         <div className="relative z-10">
         {!isConnected ? (
-          <div className="text-center py-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 text-red-500 mb-4">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-danger/10 text-danger mb-4">
+              <Activity className="w-6 h-6" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-2">Tunnel Connection Failed</h2>
-            <p className="text-[#8b949e] text-xs mb-6 max-w-sm mx-auto">
+            <h2 className="text-lg font-bold mb-2">Tunnel Connection Failed</h2>
+            <p className="text-foreground/60 text-sm mb-6 max-w-sm mx-auto">
               We couldn't reach the BML extension. Ensure it's installed and the connection token is properly configured.
             </p>
             <div className="flex gap-3 justify-center">
-              <Link href="/bmlconnect/connect" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-6 rounded-lg transition-all text-xs">Setup Connection</Link>
-              <button onClick={() => window.location.reload()} className="bg-[#1c2128] text-[#adbac7] font-bold py-2.5 px-6 rounded-lg border border-[#2d333b] text-xs transition-colors hover:bg-[#22272e]">Retry</button>
+              <Link href="/bmlconnect/connect" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-6 rounded-lg transition-colors text-sm">Setup Connection</Link>
+              <button onClick={() => window.location.reload()} className="bg-foreground/5 text-foreground font-medium py-2 px-6 rounded-lg border border-border text-sm transition-colors hover:bg-foreground/10">Retry</button>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Minimal Profile Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="p-4 bg-[#1c2128]/50 border border-[#2d333b] rounded-xl flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 font-black">
-                  {userInfo?.username?.[0]?.toUpperCase() || '?'}
+          <div className="space-y-6">
+            {/* Extended Profile Info */}
+            <div className="bg-foreground/5 border border-border rounded-xl p-5">
+              <h3 className="text-sm font-bold flex items-center gap-2 mb-4 border-b border-border pb-3">
+                <ShieldCheck className="w-4 h-4 text-primary" /> Authorization Details
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Operator</p>
+                  <p className="font-mono text-sm font-medium">{userInfo?.username || 'Unknown'}</p>
                 </div>
                 <div>
-                  <p className="text-[#484f58] text-[9px] font-black uppercase tracking-tight">Operator</p>
-                  <h3 className="text-white text-sm font-bold truncate max-w-[120px]">{userInfo?.username || 'Unknown'}</h3>
+                  <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">User ID</p>
+                  <p className="font-mono text-sm font-medium text-foreground/80">{userInfo?.userId || 'N/A'}</p>
                 </div>
-              </div>
-              
-              <div className="p-4 bg-[#1c2128]/50 border border-[#2d333b] rounded-xl">
-                <p className="text-[#484f58] text-[9px] font-black uppercase tracking-tight mb-1">Status</p>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${userInfo?.subscriptionValid ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20' : 'bg-[#2d333b] text-[#8b949e]'}`}>
-                    {userInfo?.subscriptionValid ? 'PRO SUBSCRIBER' : 'FREE USER'}
+                <div>
+                  <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Tier</p>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${userInfo?.subscriptionValid ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-foreground/10 text-foreground/60 border border-border'}`}>
+                    {userInfo?.subscriptionValid ? 'WHALE SUBSCRIBER' : 'FREE USER'}
                   </span>
                 </div>
+                <div>
+                  <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Valid Until</p>
+                  <p className="font-mono text-sm font-medium text-foreground/80">
+                    {userInfo?.validUntil ? new Date(userInfo.validUntil).toLocaleDateString() : 'Lifetime'}
+                  </p>
+                </div>
               </div>
-
-              <div className="p-4 bg-[#1c2128]/50 border border-[#2d333b] rounded-xl">
-                <p className="text-[#484f58] text-[9px] font-black uppercase tracking-tight">Valid Until</p>
-                <h3 className="text-[#adbac7] text-sm font-bold">
-                  {userInfo?.validUntil ? new Date(userInfo.validUntil).toLocaleDateString() : 'Lifetime'}
-                </h3>
+              <div className="mt-4 flex justify-end">
+                <button 
+                  onClick={handleRefreshSubscription}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors border border-primary/20"
+                >
+                  <Activity className="w-3 h-3" />
+                  Refresh Subscription
+                </button>
               </div>
             </div>
 
-            {/* Compact Action Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Link href="/bmlconnect/connect" className="p-4 bg-[#1c2128] border border-[#2d333b] rounded-xl hover:border-blue-500/40 transition-all flex flex-col items-center text-center group">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+            {/* Storage Configuration */}
+            <div className="bg-foreground/5 border border-border rounded-xl p-5">
+               <h3 className="text-sm font-bold flex items-center gap-2 mb-4 border-b border-border pb-3">
+                <Database className="w-4 h-4 text-primary" /> Storage Configuration
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 {/* Browser Option */}
+                 <div 
+                   onClick={() => {
+                     if (storageLocation === 'browser') return;
+                     handleMigrationToBrowser();
+                   }}
+                   className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${storageLocation === 'browser' ? 'bg-primary/5 border-primary' : 'bg-background border-border hover:border-primary/50'}`}
+                 >
+                    <div className="flex items-center gap-3 mb-2">
+                       <Server className="w-5 h-5 text-foreground/60" />
+                       <div className="font-bold text-sm">Local Browser</div>
+                    </div>
+                    <p className="text-xs text-foreground/60">Stores data in local IndexedDB. Cleared if you purge site data.</p>
+                 </div>
+
+                 {/* Extension Option */}
+                 <div 
+                   onClick={() => {
+                     if (!userInfo?.subscriptionValid) return;
+                     if (storageLocation === 'extension') return;
+                     backupAndMigrate();
+                   }}
+                   className={`p-4 rounded-xl border-2 transition-all ${!userInfo?.subscriptionValid ? 'opacity-50 cursor-not-allowed bg-background border-border grayscale' : 'cursor-pointer'} ${storageLocation === 'extension' ? 'bg-primary/5 border-primary' : userInfo?.subscriptionValid ? 'bg-background border-border hover:border-primary/50' : ''}`}
+                 >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-3">
+                         <ShieldCheck className="w-5 h-5 text-amber-500" />
+                         <div className="font-bold text-sm">Extension Database</div>
+                      </div>
+                      {!userInfo?.subscriptionValid && <span className="bg-foreground/10 text-foreground/60 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Whale Only</span>}
+                    </div>
+                    <p className="text-xs text-foreground/60">Stores data securely within the extension. Never wiped by browser cache clears.</p>
+                 </div>
+              </div>
+
+              {isMigrating && (
+                <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-500 text-xs font-medium animate-pulse flex items-center justify-center gap-2">
+                   <ArrowRightLeft className="w-4 h-4 animate-spin" />
+                   Migrating data to extension... Do not close window.
                 </div>
-                <span className="text-white font-bold text-[10px] uppercase tracking-tighter">Connection</span>
+              )}
+
+              {migrationComplete && (
+                <div className="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg text-success text-xs font-medium flex items-center justify-center gap-2">
+                   <ShieldCheck className="w-4 h-4" />
+                   Migration Complete! Using isolated extension storage.
+                </div>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <Link href="/bmlconnect/connect" className="p-3 bg-panel border border-border rounded-xl hover:bg-foreground/5 transition-colors text-center text-xs font-medium">
+                Manage Connection Token
               </Link>
-              <div className="p-4 bg-[#1c2128] border border-[#2d333b] rounded-xl hover:border-purple-500/40 transition-all flex flex-col items-center text-center group cursor-pointer opacity-50">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <span className="text-white font-bold text-[10px] uppercase tracking-tighter">Sync Logs</span>
-              </div>
-              <div className="p-4 bg-[#1c2128] border border-[#2d333b] rounded-xl hover:border-green-500/40 transition-all flex flex-col items-center text-center group cursor-pointer opacity-50">
-                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                </div>
-                <span className="text-white font-bold text-[10px] uppercase tracking-tighter">Export Data</span>
-              </div>
-              <div className="p-4 bg-[#1c2128] border border-[#2d333b] rounded-xl hover:border-red-500/40 transition-all flex flex-col items-center text-center group cursor-pointer opacity-50">
-                <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                </div>
-                <span className="text-white font-bold text-[10px] uppercase tracking-tighter">Purge Cache</span>
-              </div>
+              <button onClick={() => window.location.reload()} className="p-3 bg-panel border border-border rounded-xl hover:bg-foreground/5 transition-colors text-center text-xs font-medium">
+                Refresh Status
+              </button>
             </div>
           </div>
         )}
-        </div>
-
-        <div className="mt-8 pt-4 border-t border-[#232a35] flex justify-center items-center relative z-10">
-          <p className="text-[#484f58] text-[8px] font-black uppercase tracking-[0.3em]">Encrypted Session • Node.JS v20</p>
         </div>
       </main>
     </div>

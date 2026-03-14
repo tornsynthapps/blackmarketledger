@@ -1,8 +1,9 @@
 "use client";
 
 export interface BMLRequest {
-  requestType: "CONNECT" | "HELLO" | "CONNECTION" | "BML_SYNC" | "GET_USER_INFO";
+  requestType: "CONNECT" | "HELLO" | "CONNECTION" | "BML_SYNC" | "GET_USER_INFO" | "EXTENSION_DB_SAVE" | "EXTENSION_DB_LOAD" | "EXTENSION_DB_MIGRATE" | "VERIFY_SUBSCRIPTION";
   connectionToken?: string;
+  apiKey?: string;
   payload?: any;
 }
 

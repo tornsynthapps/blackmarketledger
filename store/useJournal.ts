@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
-
+import { sendToExtension } from '@/lib/bmlconnect';
 import * as idb from '@/lib/idb';
 
 // A simple hook to manage transactions in localStorage and IndexedDB.
@@ -67,13 +67,30 @@ export function useJournal() {
                 }
             }
 
-            // Load Transactions (V2 -> V1 -> LS)
-            const dbVersion = localStorage.getItem("bml_db_version");
-            
-            if (dbVersion === "2") {
-                // V2: Already migrated, load from new transaction store
-                loadedTransactions = await idb.getAllTransactions<Transaction>();
-            } else {
+            // Check storage preference
+            const storagePref = localStorage.getItem("bml_storage_pref");
+            let loadedFromExtension = false;
+
+            if (storagePref === 'extension') {
+                try {
+                    const res = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
+                    if (res && res.success && Array.isArray(res.data)) {
+                        loadedTransactions = res.data;
+                        loadedFromExtension = true;
+                    }
+                } catch (e) {
+                    console.error("Failed to load from extension DB, falling back to local IDB", e);
+                }
+            }
+
+            if (!loadedFromExtension) {
+                // Load Transactions (V2 -> V1 -> LS)
+                const dbVersion = localStorage.getItem("bml_db_version");
+                
+                if (dbVersion === "2") {
+                    // V2: Already migrated, load from new transaction store
+                    loadedTransactions = await idb.getAllTransactions<Transaction>();
+                } else {
                 // Try to load old data to migrate
                 const idbStored = await idb.get<string>(STORAGE_KEY);
                 const lsStored = localStorage.getItem(STORAGE_KEY);
@@ -99,6 +116,7 @@ export function useJournal() {
                 } catch (err) {
                     console.error("Failed to migrate logs to IDB V2", err);
                 }
+            }
             }
 
             if (loadedTransactions.length > 0) {
@@ -128,7 +146,10 @@ export function useJournal() {
     // Setup beforeunload listener
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (hasUnsyncedChanges && syncPreference === 'drive') {
+            // Only warn if they are on LOCAL browser storage AND Drive sync is active but unsynced.
+            // When using the Extension Database, we consider the data secure enough to bypass the browser's clearing warning.
+            const isExtension = localStorage.getItem("bml_storage_pref") === 'extension';
+            if (hasUnsyncedChanges && syncPreference === 'drive' && !isExtension) {
                 e.preventDefault();
                 e.returnValue = ''; // Standard way to trigger warning
             }
@@ -214,16 +235,49 @@ export function useJournal() {
 
     const saveTransactions = useCallback((newLogs: Transaction[]) => {
         setTransactions(newLogs);
-        idb.saveTransactions(newLogs).catch(err => {
-            console.error("Failed to save transactions to IDB", err);
-            // Fallback for extreme failure situations if IDB crashes
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newLogs));
-        });
+        
+        const storagePref = localStorage.getItem("bml_storage_pref");
+        
+        if (storagePref === 'extension') {
+            sendToExtension({ requestType: 'EXTENSION_DB_SAVE', payload: newLogs }).catch(err => {
+                 console.error("Failed to save to extension DB", err);
+            });
+            // Still save to local IDB as a fallback duplicate if desired, or skip. 
+            // The user wants shared data when moving, so let's keep IDB in sync too for safety if they switch back.
+            idb.saveTransactions(newLogs).catch(console.error);
+        } else {
+            idb.saveTransactions(newLogs).catch(err => {
+                console.error("Failed to save transactions to IDB", err);
+                // Fallback for extreme failure situations if IDB crashes
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(newLogs));
+            });
+        }
 
         if (syncPreference === 'drive') {
             setHasUnsyncedChanges(true);
         }
     }, [syncPreference]);
+
+    const mergeTransactions = useCallback((incoming: Transaction[]) => {
+        setTransactions(prev => {
+            const merged = [...prev];
+            const existingIds = new Set(prev.map(t => t.id));
+            
+            incoming.forEach(t => {
+                if (!existingIds.has(t.id)) {
+                    merged.push(t);
+                    existingIds.add(t.id);
+                }
+            });
+            
+            // Sort by date to keep consistent
+            merged.sort((a, b) => a.date - b.date);
+            
+            // Save the merged result
+            saveTransactions(merged);
+            return merged;
+        });
+    }, [saveTransactions]);
 
     const saveWeaverConfig = useCallback((apiKey: string, userId: string) => {
         setWeav3rApiKey(apiKey);
@@ -469,6 +523,7 @@ export function useJournal() {
         isSyncing,
         hasUnsyncedChanges,
         setSyncPreference,
-        forceSync
+        forceSync,
+        mergeTransactions
     };
 }
