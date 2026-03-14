@@ -29,44 +29,61 @@ export function useJournal() {
 
     useEffect(() => {
         const init = async () => {
-            const dbSelection = localStorage.getItem("bml_db_selection");
             let loadedTransactions: Transaction[] = [];
             let parsedConfig = null;
 
-            if (dbSelection === "indexeddb") {
-                const idbStored = await idb.get<string>(STORAGE_KEY);
-                if (idbStored) {
-                    try {
-                        loadedTransactions = JSON.parse(idbStored);
-                    } catch (e) {
-                        console.error("Failed to parse logs from IDB", e);
-                    }
-                }
-                const idbConfig = await idb.get<string>(CONFIG_KEY);
-                if (idbConfig) {
-                    try {
-                        parsedConfig = JSON.parse(idbConfig);
-                    } catch (e) {
-                        console.error("Failed to parse config from IDB", e);
-                    }
+            // Load Config
+            const idbConfig = await idb.get<string>(CONFIG_KEY);
+            if (idbConfig) {
+                try {
+                    parsedConfig = JSON.parse(idbConfig);
+                } catch (e) {
+                    console.error("Failed to parse config from IDB", e);
                 }
             } else {
-                setNeedsMigration(true);
-                const lsStored = localStorage.getItem(STORAGE_KEY);
-                if (lsStored) {
-                    try {
-                        loadedTransactions = JSON.parse(lsStored);
-                    } catch (e) {
-                        console.error("Failed to parse logs from LS", e);
-                    }
-                }
                 const lsConfig = localStorage.getItem(CONFIG_KEY);
                 if (lsConfig) {
                     try {
                         parsedConfig = JSON.parse(lsConfig);
+                        // Migrate config to IDB secretly
+                        idb.set(CONFIG_KEY, lsConfig).catch(console.error);
                     } catch (e) {
                         console.error("Failed to parse config from LS", e);
                     }
+                }
+            }
+
+            // Load Transactions (V2 -> V1 -> LS)
+            const dbVersion = localStorage.getItem("bml_db_version");
+            
+            if (dbVersion === "2") {
+                // V2: Already migrated, load from new transaction store
+                loadedTransactions = await idb.getAllTransactions<Transaction>();
+            } else {
+                // Try to load old data to migrate
+                const idbStored = await idb.get<string>(STORAGE_KEY);
+                const lsStored = localStorage.getItem(STORAGE_KEY);
+                
+                let oldLogsStr = idbStored || lsStored;
+                if (oldLogsStr) {
+                    try {
+                        loadedTransactions = JSON.parse(oldLogsStr);
+                    } catch (e) {
+                        console.error("Failed to parse old logs for migration", e);
+                    }
+                }
+
+                // Perform Migration if we have logs or are fresh
+                try {
+                    await idb.saveTransactions(loadedTransactions);
+                    localStorage.setItem("bml_db_version", "2");
+                    localStorage.setItem("bml_db_selection", "indexeddb"); // Ensure legacy flag is set just in case
+                    
+                    // Cleanup old structures to save space
+                    if (idbStored) await idb.del(STORAGE_KEY);
+                    if (lsStored) localStorage.removeItem(STORAGE_KEY);
+                } catch (err) {
+                    console.error("Failed to migrate logs to IDB V2", err);
                 }
             }
 
@@ -86,28 +103,17 @@ export function useJournal() {
     }, []);
 
     const performMigration = useCallback(async () => {
-        const lsStored = localStorage.getItem(STORAGE_KEY);
-        const lsConfig = localStorage.getItem(CONFIG_KEY);
-        
-        if (lsStored) await idb.set(STORAGE_KEY, lsStored);
-        if (lsConfig) await idb.set(CONFIG_KEY, lsConfig);
-        
-        localStorage.setItem("bml_db_selection", "indexeddb");
-        localStorage.removeItem(STORAGE_KEY);
-        // We keep CONFIG_KEY in localStorage just as a fallback if needed, but logs are cleared to save space
-
+        // Obsolete: Handled automatically in init() now.
         window.location.reload();
     }, []);
 
     const saveTransactions = useCallback((newLogs: Transaction[]) => {
         setTransactions(newLogs);
-        const str = JSON.stringify(newLogs);
-        
-        if (localStorage.getItem("bml_db_selection") === "indexeddb") {
-            idb.set(STORAGE_KEY, str).catch(console.error);
-        } else {
-            localStorage.setItem(STORAGE_KEY, str);
-        }
+        idb.saveTransactions(newLogs).catch(err => {
+            console.error("Failed to save transactions to IDB", err);
+            // Fallback for extreme failure situations if IDB crashes
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newLogs));
+        });
     }, []);
 
     const saveWeaverConfig = useCallback((apiKey: string, userId: string) => {
