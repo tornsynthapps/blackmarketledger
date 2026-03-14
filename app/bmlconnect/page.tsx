@@ -2,17 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { getConnectionString, sendToExtension } from "@/lib/bmlconnect";
-import { supabase } from "@/lib/supabaseClient";
-import type { Session } from "@supabase/supabase-js";
 import Link from "next/link";
 import { useJournal } from "@/store/useJournal";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import {
-  Server, Database, ArrowRightLeft, ShieldCheck, Activity,
-  Download, ExternalLink, Settings, Trash2, Unlink, LogOut
-} from "lucide-react";
-
-const SUPABASE_FUNCTIONS_URL = "https://yxjmnkaollkpcvymiicd.supabase.co/functions/v1";
+import { Server, Database, ArrowRightLeft, ShieldCheck, Activity, Download, ExternalLink, Settings, Trash2, Unlink } from "lucide-react";
 
 export default function BMLDashboard() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
@@ -22,35 +15,29 @@ export default function BMLDashboard() {
   const [isDriveConnected, setIsDriveConnected] = useState(false);
   const [driveDataExists, setDriveDataExists] = useState(false);
   const [showDriveSettings, setShowDriveSettings] = useState(false);
-  const [googleSession, setGoogleSession] = useState<Session | null>(null);
 
   // Storage selection state
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
 
-  const { transactions, mergeTransactions } = useJournal();
+  const { transactions, mergeTransactions, weav3rApiKey, weav3rUserId } = useJournal();
   const { vibrate } = useHapticFeedback();
 
+  // The standard syncPreference uses 'local' or 'drive'. Let's use 'extension' or 'local' but for backward compatibility, maybe we just set a new preference `extension_db` locally.
   const [storageLocation, setStorageLocation] = useState<'browser' | 'extension' | 'drive'>('browser');
 
   useEffect(() => {
+    // Read current storage pref
     const pref = localStorage.getItem("bml_storage_pref") as 'browser' | 'extension' | null;
-    if (pref) setStorageLocation(pref as any);
+    if (pref) {
+      setStorageLocation(pref as any);
+    }
 
     setIsDriveConnected(localStorage.getItem("bml_drive_connected") === "true");
     setDriveDataExists(localStorage.getItem("bml_drive_data_exists") === "true");
 
-    // Load Supabase session (Google OAuth session)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setGoogleSession(session);
-    });
-
-    // Listen for auth state changes (e.g., after OAuth redirect)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setGoogleSession(session);
-    });
-
     const checkConnection = async () => {
+      // 1. Check if extension is installed
       const helloRes = await sendToExtension({ requestType: "HELLO" });
       if (!helloRes.success && helloRes.error === "Extension request timed out") {
         setIsExtensionInstalled(false);
@@ -61,13 +48,19 @@ export default function BMLDashboard() {
 
       setIsExtensionInstalled(true);
 
+      // 2. Check if connected
       const token = getConnectionString();
-      const res = await sendToExtension({ requestType: "CONNECTION", connectionToken: token });
+      const res = await sendToExtension({
+        requestType: "CONNECTION",
+        connectionToken: token
+      });
 
       if (res.success) {
         setIsConnected(true);
         const userRes = await sendToExtension({ requestType: "GET_USER_INFO" });
-        if (userRes.success) setUserInfo(userRes.data);
+        if (userRes.success) {
+          setUserInfo(userRes.data);
+        }
       } else {
         setIsConnected(false);
       }
@@ -75,41 +68,30 @@ export default function BMLDashboard() {
     };
 
     checkConnection();
-
-    return () => subscription.unsubscribe();
   }, []);
-
-  // Helper: send a Drive action through the extension (extension forwards Supabase JWT to edge function)
-  const callDriveThroughExtension = async (action: string, data?: any) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("No active Google session. Please reconnect Google Drive.");
-
-    const res = await sendToExtension({
-      requestType: "BML_SYNC",
-      action,
-      data,
-      supabaseToken: session.access_token,
-    });
-
-    if (!res.success) throw new Error(res.error || `Drive ${action} failed`);
-    return res;
-  };
 
   const handleMigrationToExtension = async () => {
     if (!userInfo?.subscriptionValid) return;
+
     setIsMigrating(true);
     vibrate("utility");
 
     try {
+      // 1. Fetch current logs from extension to merge
       const resLoad = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
+      let extensionLogs = [];
       if (resLoad.success && Array.isArray(resLoad.data)) {
-        mergeTransactions(resLoad.data);
+        extensionLogs = resLoad.data;
       }
+
+      // 2. Perform merge in memory (this also saves to extension and local IDB because of useJournal update)
+      mergeTransactions(extensionLogs);
 
       localStorage.setItem("bml_storage_pref", 'extension');
       setStorageLocation('extension');
       setMigrationComplete(true);
       vibrate("success");
+
       setTimeout(() => setMigrationComplete(false), 3000);
     } catch (err) {
       console.error("Migration failed", err);
@@ -125,6 +107,9 @@ export default function BMLDashboard() {
     setIsMigrating(true);
 
     try {
+      // When moving back to browser, we already have the memory state (which was synced with extension).
+      // We just need to change the preference.
+      // However, to be extra safe and ensure we have everything from extension:
       const resLoad = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
       if (resLoad.success && Array.isArray(resLoad.data)) {
         mergeTransactions(resLoad.data);
@@ -163,22 +148,34 @@ export default function BMLDashboard() {
 
   const handleSyncToDrive = async () => {
     if (!userInfo?.subscriptionValid) {
-      alert("Whale Subscription Required: Your subscription has expired.");
+      alert("Whale Subscription Required: Your subscription has expired. Please renew or use 'Rescue to Browser' to move your data.");
       return;
     }
 
     setLoading(true);
     vibrate("utility");
     try {
-      const res = await callDriveThroughExtension('write', JSON.stringify(transactions));
+      const apiKey = weav3rApiKey || localStorage.getItem("bml_api_key") || userInfo?.apiKey;
 
-      setStorageLocation('drive');
-      localStorage.setItem("bml_storage_pref", 'drive');
-      vibrate("success");
-    } catch (err: any) {
+      // 1. Upload raw stringified data
+      const res = await fetch(`https://yxjmnkaollkpcvymiicd.supabase.co/functions/v1/sync-google-drive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, action: 'write', data: JSON.stringify(transactions) })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setStorageLocation('drive');
+        localStorage.setItem("bml_storage_pref", 'drive');
+        vibrate("success");
+      } else {
+        alert(data.error || "Sync failed");
+        vibrate("danger");
+      }
+    } catch (err) {
       console.error("Sync failed", err);
-      alert(err.message || "Sync failed. Check your connection.");
-      vibrate("danger");
+      alert("Sync failed. Check your connection.");
     } finally {
       setLoading(false);
     }
@@ -190,135 +187,173 @@ export default function BMLDashboard() {
       return;
     }
     vibrate("utility");
+    try {
+      const apiKey = weav3rApiKey || localStorage.getItem("bml_api_key") || userInfo?.apiKey;
+      const userId = weav3rUserId || userInfo?.userId;
 
-    // Use Supabase's built-in Google OAuth — no edge function needed for initiation
-    const redirectTo = `${window.location.origin}/bmlconnect/redirect`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        // Request Google Drive appdata scope in addition to the default profile/email scopes
-        scopes: 'https://www.googleapis.com/auth/drive.appdata',
-        redirectTo,
-        queryParams: {
-          access_type: 'offline',   // Get a refresh token
-          prompt: 'consent',         // Force consent screen so we always get a refresh token
-        },
-      },
-    });
+      if (!apiKey || !userId) {
+        alert(`Missing ${!apiKey ? "API Key" : "User ID"}. Ensure your configuration is set up.`);
+        return;
+      }
 
-    if (error) {
-      console.error("OAuth initiation failed", error);
-      alert(`Failed to initiate Google sign-in: ${error.message}`);
+      const redirectUri = `${window.location.origin}/bmlconnect/redirect`;
+
+      const res = await fetch(`https://yxjmnkaollkpcvymiicd.supabase.co/functions/v1/initiate-google-auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, userId, redirectUri })
+      });
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Failed to initiate Google Auth");
+      }
+    } catch (err) {
+      console.error("Auth initiation failed", err);
+      alert("Auth initiation failed");
     }
-    // If successful, Supabase will redirect the browser to Google.
-    // After the user approves, Google redirects back to Supabase, then to /bmlconnect/redirect.
   };
 
   const handleRestoreFromDrive = async () => {
     setLoading(true);
     vibrate("utility");
     try {
-      const res = await callDriveThroughExtension('read');
+      const apiKey = weav3rApiKey || localStorage.getItem("bml_api_key") || userInfo?.apiKey;
 
-      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        mergeTransactions(res.data);
-        localStorage.setItem("bml_storage_pref", 'drive');
-        setStorageLocation('drive');
-        setDriveDataExists(false);
-        localStorage.removeItem("bml_drive_data_exists");
-        alert("Data restored successfully from Google Drive!");
-        vibrate("success");
-      } else {
+      const res = await fetch(`https://yxjmnkaollkpcvymiicd.supabase.co/functions/v1/sync-google-drive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, action: 'read' })
+      });
+      const data = await res.json();
+
+      if (data.success && data.data) {
+        try {
+          // Data is now plain JSON string or already parsed JSON object depending on how Supabase returns it
+          // Based on sync-google-drive, it returns whatever was in 'data' field.
+          const rawData = data.data;
+          const parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+
+          if (Array.isArray(parsed)) {
+            mergeTransactions(parsed);
+
+            localStorage.setItem("bml_storage_pref", 'drive');
+            setStorageLocation('drive');
+            setDriveDataExists(false);
+            localStorage.removeItem("bml_drive_data_exists");
+            alert("Data restored successfully from Google Drive!");
+            vibrate("success");
+          } else {
+            throw new Error("Invalid data format in Drive backup");
+          }
+        } catch (e: any) {
+          console.error("Restore parse error", e);
+          alert("Restore Failed: Invalid data format in Drive.");
+          vibrate("danger");
+        }
+      } else if (data.success && !data.data) {
         alert("No data found in Google Drive.");
+      } else {
+        alert(data.error || "Failed to restore data");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Restore failed", err);
-      alert(err.message || "Restore failed. Check your connection.");
-      vibrate("danger");
+      alert("Restore failed. Check your connection.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteDrive = async () => {
-    if (!confirm("Are you sure you want to PERMANENTLY delete your Google Drive sync data? This cannot be undone.")) return;
+    if (!confirm("Are you sure you want to PERMANENTLY delete your Google Drive sync data? This cannot be undone.")) {
+      return;
+    }
 
     setLoading(true);
     vibrate("utility");
     try {
-      await callDriveThroughExtension('delete');
+      const apiKey = weav3rApiKey || localStorage.getItem("bml_api_key") || userInfo?.apiKey;
 
-      setStorageLocation('browser');
-      localStorage.setItem("bml_storage_pref", 'browser');
-      localStorage.removeItem("bml_drive_data_exists");
-      setDriveDataExists(false);
-      alert("Google Drive sync data deleted successfully.");
-      vibrate("success");
-    } catch (err: any) {
+      const res = await fetch(`https://yxjmnkaollkpcvymiicd.supabase.co/functions/v1/sync-google-drive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, action: 'delete' })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setStorageLocation('browser');
+        localStorage.setItem("bml_storage_pref", 'browser');
+        localStorage.removeItem("bml_drive_data_exists");
+        setDriveDataExists(false);
+        alert("Google Drive sync data deleted successfully.");
+        vibrate("success");
+      } else {
+        alert(data.error || "Delete failed");
+        vibrate("danger");
+      }
+    } catch (err) {
       console.error("Delete failed", err);
-      alert(err.message || "Delete failed. Check your connection.");
-      vibrate("danger");
+      alert("Delete failed. Check your connection.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDisconnectDrive = async () => {
-    if (!confirm("Disconnect Google Drive? Your local data will remain, but syncing will stop.")) return;
-
-    // Sign out from Supabase (clears Google session)
-    await supabase.auth.signOut();
-    setGoogleSession(null);
-
-    localStorage.removeItem("bml_drive_connected");
-    localStorage.removeItem("bml_drive_data_exists");
-    localStorage.removeItem("bml_storage_pref");
-    setIsDriveConnected(false);
-    setDriveDataExists(false);
-    setStorageLocation('browser');
-    vibrate("utility");
+  const handleDisconnectDrive = () => {
+    if (confirm("Disconnect Google Drive? Your local data will remain, but syncing will stop.")) {
+      localStorage.removeItem("bml_drive_connected");
+      localStorage.removeItem("bml_drive_data_exists");
+      localStorage.removeItem("bml_storage_pref");
+      setIsDriveConnected(false);
+      setDriveDataExists(false);
+      setStorageLocation('browser');
+      vibrate("utility");
+    }
   };
 
   const backupAndMigrate = () => {
-    if (confirm("We will download a backup before migrating to extension storage. Proceed?")) {
+    if (confirm("You are about to sync your logs with the extension database. We will download a backup first just in case. Proceed?")) {
+      // Download backup
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
-      const a = document.createElement('a');
-      a.setAttribute("href", dataStr);
-      a.setAttribute("download", `bml_backup_${Date.now()}.json`);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `bml_backup_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+
       handleMigrationToExtension();
     }
   };
 
   const handleRescueToBrowser = async () => {
-    if (!confirm("This will attempt to recover your most recent data and move it back to local browser storage. Proceed?")) return;
-
-    setLoading(true);
-    try {
-      if (storageLocation === 'drive') {
-        await handleRestoreFromDrive();
-      } else if (storageLocation === 'extension') {
-        const resLoad = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
-        if (resLoad.success && Array.isArray(resLoad.data)) {
-          mergeTransactions(resLoad.data);
+    if (confirm("This will attempt to recovery your most recent data from the cloud/extension and move it back to your local browser storage. Proceed?")) {
+      setLoading(true);
+      try {
+        if (storageLocation === 'drive') {
+          await handleRestoreFromDrive();
+        } else if (storageLocation === 'extension') {
+          const resLoad = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
+          if (resLoad.success && Array.isArray(resLoad.data)) {
+            mergeTransactions(resLoad.data);
+          }
         }
-      }
 
-      localStorage.setItem("bml_storage_pref", 'browser');
-      setStorageLocation('browser');
-      alert("Data rescued successfully! You are now using Local Browser storage.");
-      vibrate("success");
-    } catch (err) {
-      console.error("Rescue failed", err);
-      alert("Rescue failed. Try again or check your connection.");
-    } finally {
-      setLoading(false);
+        localStorage.setItem("bml_storage_pref", 'browser');
+        setStorageLocation('browser');
+        alert("Data rescued successfully! You are now using Local Browser storage.");
+        vibrate("success");
+      } catch (err) {
+        console.error("Rescue failed", err);
+        alert("Rescue failed. Try again or check your connection.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
-
-  const driveConnectedViaSession = isDriveConnected || !!googleSession;
 
   if (loading) {
     return (
@@ -396,7 +431,7 @@ export default function BMLDashboard() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Authorization Details */}
+              {/* Extended Profile Info */}
               <div className="bg-foreground/5 border border-border rounded-xl p-5">
                 <h3 className="text-sm font-bold flex items-center gap-2 mb-4 border-b border-border pb-3">
                   <ShieldCheck className="w-4 h-4 text-primary" /> Authorization Details
@@ -487,7 +522,7 @@ export default function BMLDashboard() {
                         return;
                       }
 
-                      if (!driveConnectedViaSession) {
+                      if (!isDriveConnected) {
                         handleConnectDrive();
                         return;
                       }
@@ -502,21 +537,16 @@ export default function BMLDashboard() {
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         {!userInfo?.subscriptionValid && <span className="bg-foreground/10 text-foreground/60 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Whale Only</span>}
-                        {!driveConnectedViaSession && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Connect</span>}
-                        {driveConnectedViaSession && googleSession && (
-                          <span className="bg-success/10 text-success text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-success/20">
-                            {googleSession.user.email}
-                          </span>
-                        )}
+                        {!isDriveConnected && <span className="bg-primary/10 text-primary text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Connect</span>}
                       </div>
                     </div>
                     <p className="text-xs text-foreground/60">
-                      {driveConnectedViaSession
+                      {isDriveConnected
                         ? "Synchronize your transactions with your Google Drive account."
-                        : "Sign in with Google to sync data across devices securely."}
+                        : "Connect your Google account to sync data across devices securely."}
                     </p>
 
-                    {driveConnectedViaSession && (
+                    {isDriveConnected && (
                       <div className="mt-3 pt-3 border-t border-border flex justify-between items-center">
                         <button
                           onClick={(e) => {
@@ -542,33 +572,24 @@ export default function BMLDashboard() {
                   </div>
                 </div>
 
-                {showDriveSettings && driveConnectedViaSession && (
+                {showDriveSettings && isDriveConnected && (
                   <div className="mt-4 p-5 bg-panel border-2 border-primary/20 rounded-xl shadow-inner animate-in slide-in-from-top-2 duration-300">
                     <h4 className="text-sm font-bold mb-4 flex items-center gap-2">
                       <Settings className="w-4 h-4 text-primary" /> Google Drive Settings
                     </h4>
-                    {googleSession && (
-                      <div className="mb-4 p-3 bg-success/5 border border-success/20 rounded-lg flex items-center gap-3">
-                        <ShieldCheck className="w-4 h-4 text-success flex-shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-success">Authenticated</p>
-                          <p className="text-[10px] text-foreground/50">{googleSession.user.email}</p>
-                        </div>
-                      </div>
-                    )}
                     <div className="grid grid-cols-1 gap-3">
                       <button
                         onClick={handleDisconnectDrive}
                         className="w-full flex items-center justify-between p-3 bg-background border border-border rounded-lg hover:border-danger/50 hover:bg-danger/5 transition-all text-left"
                       >
                         <div className="flex items-center gap-3">
-                          <LogOut className="w-4 h-4 text-foreground/60" />
+                          <Unlink className="w-4 h-4 text-foreground/60" />
                           <div>
-                            <p className="text-xs font-bold">Sign Out Google</p>
-                            <p className="text-[10px] text-foreground/50">Stop syncing and sign out of your Google account.</p>
+                            <p className="text-xs font-bold">Disconnect Account</p>
+                            <p className="text-[10px] text-foreground/50">Stop syncing and unauthorizing this device.</p>
                           </div>
                         </div>
-                        <Unlink className="w-3 h-3 text-foreground/30" />
+                        <ArrowRightLeft className="w-3 h-3 text-foreground/30" />
                       </button>
 
                       <button
@@ -593,6 +614,7 @@ export default function BMLDashboard() {
                     </button>
                   </div>
                 )}
+
 
                 {isMigrating && (
                   <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-500 text-xs font-medium animate-pulse flex items-center justify-center gap-2">

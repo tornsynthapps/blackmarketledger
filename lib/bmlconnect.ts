@@ -6,10 +6,6 @@ export interface BMLRequest {
   apiKey?: string;
   pin?: string;
   payload?: any;
-  // Drive sync fields: passed to extension which forwards them to the edge function
-  action?: string;
-  data?: any;
-  supabaseToken?: string;
 }
 
 export interface BMLResponse {
