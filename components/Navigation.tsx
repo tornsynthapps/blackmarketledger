@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, Database, PlusCircle, List, Moon, Sun, Landmark, Plane } from "lucide-react";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import pkg from '@/package.json';
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { Cloud, CloudOff, RefreshCw, LayoutDashboard, Database, PlusCircle, List, Moon, Sun, Landmark, Plane } from "lucide-react";
+import { useJournal } from "@/store/useJournal";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -26,6 +27,7 @@ export function Navigation() {
     const [isDark, setIsDark] = useState(false);
     const [mounted, setMounted] = useState(false);
     const { vibrate } = useHapticFeedback();
+    const { syncPreference, isSyncing, setSyncPreference, forceSync } = useJournal();
 
     useEffect(() => {
         setMounted(true);
@@ -43,6 +45,12 @@ export function Navigation() {
             document.documentElement.classList.remove("dark");
             localStorage.setItem("theme", "light");
         }
+    };
+
+    const toggleSync = async () => {
+        vibrate("utility");
+        const nextPref = syncPreference === 'local' ? 'drive' : 'local';
+        setSyncPreference(nextPref);
     };
 
     return (
@@ -80,13 +88,38 @@ export function Navigation() {
                         );
                     })}
                     {mounted && (
-                        <button
-                            onClick={toggleDark}
-                            className="p-1.5 ml-1 sm:ml-2 rounded-lg text-foreground/70 hover:bg-foreground/5 hover:text-foreground transition-colors"
-                            aria-label="Toggle dark mode"
-                        >
-                            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={toggleSync}
+                                title={syncPreference === 'drive' ? "Using Google Drive Sync" : "Using Local Storage"}
+                                className={cn(
+                                    "p-1.5 ml-1 sm:ml-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-semibold",
+                                    syncPreference === 'drive' ? "text-primary hover:bg-primary/10" : "text-foreground/50 hover:bg-foreground/5 hover:text-foreground"
+                                )}
+                            >
+                                {syncPreference === 'drive' ? <Cloud className="w-5 h-5" /> : <CloudOff className="w-5 h-5" />}
+                                <span className="hidden lg:inline">{syncPreference === 'drive' ? 'Drive' : 'Local'}</span>
+                            </button>
+                            
+                            {syncPreference === 'drive' && (
+                                <button
+                                    onClick={forceSync}
+                                    disabled={isSyncing}
+                                    title="Force Sync"
+                                    className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                                >
+                                    <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+                                </button>
+                            )}
+                            
+                            <button
+                                onClick={toggleDark}
+                                className="p-1.5 ml-1 sm:ml-2 rounded-lg text-foreground/70 hover:bg-foreground/5 hover:text-foreground transition-colors"
+                                aria-label="Toggle dark mode"
+                            >
+                                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
