@@ -5,10 +5,11 @@ import { getConnectionString, sendToExtension } from "@/lib/bmlconnect";
 import Link from "next/link";
 import { useJournal } from "@/store/useJournal";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import { Server, Database, ArrowRightLeft, ShieldCheck, Activity } from "lucide-react";
+import { Server, Database, ArrowRightLeft, ShieldCheck, Activity, Download, ExternalLink } from "lucide-react";
 
 export default function BMLDashboard() {
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [isExtensionInstalled, setIsExtensionInstalled] = useState<boolean | null>(null);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
@@ -16,7 +17,7 @@ export default function BMLDashboard() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
   
-  const { transactions, syncPreference, setSyncPreference, forceSync, mergeTransactions } = useJournal();
+  const { transactions, mergeTransactions } = useJournal();
   const { vibrate } = useHapticFeedback();
   
   // The standard syncPreference uses 'local' or 'drive'. Let's use 'extension' or 'local' but for backward compatibility, maybe we just set a new preference `extension_db` locally.
@@ -30,6 +31,18 @@ export default function BMLDashboard() {
     }
     
     const checkConnection = async () => {
+      // 1. Check if extension is installed
+      const helloRes = await sendToExtension({ requestType: "HELLO" });
+      if (!helloRes.success && helloRes.error === "Extension request timed out") {
+        setIsExtensionInstalled(false);
+        setIsConnected(false);
+        setLoading(false);
+        return;
+      }
+      
+      setIsExtensionInstalled(true);
+
+      // 2. Check if connected
       const token = getConnectionString();
       const res = await sendToExtension({ 
         requestType: "CONNECTION", 
@@ -169,14 +182,37 @@ export default function BMLDashboard() {
         </div>
         
         <div className="relative z-10">
-        {!isConnected ? (
+        {!isExtensionInstalled ? (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 mb-4">
+              <Download className="w-6 h-6" />
+            </div>
+            <h2 className="text-lg font-bold mb-2">Extension Required</h2>
+            <p className="text-foreground/60 text-sm mb-6 max-w-sm mx-auto">
+              BML Connect requires the browser extension to sync your logs and unlock advanced features.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <a 
+                href="https://chromewebstore.google.com/" 
+                target="_blank" 
+                rel="noreferrer noopener"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-6 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Install Extension
+              </a>
+              <button onClick={() => window.location.reload()} className="bg-foreground/5 text-foreground font-medium py-2 px-6 rounded-lg border border-border text-sm transition-colors hover:bg-foreground/10">
+                I've installed it
+              </button>
+            </div>
+          </div>
+        ) : !isConnected ? (
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-danger/10 text-danger mb-4">
               <Activity className="w-6 h-6" />
             </div>
             <h2 className="text-lg font-bold mb-2">Tunnel Connection Failed</h2>
             <p className="text-foreground/60 text-sm mb-6 max-w-sm mx-auto">
-              We couldn't reach the BML extension. Ensure it's installed and the connection token is properly configured.
+              We couldn't reach the BML extension. Ensure it's active and the connection token is properly configured.
             </p>
             <div className="flex gap-3 justify-center">
               <Link href="/bmlconnect/connect" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-6 rounded-lg transition-colors text-sm">Setup Connection</Link>

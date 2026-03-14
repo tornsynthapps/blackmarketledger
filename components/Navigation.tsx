@@ -7,7 +7,7 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import pkg from '@/package.json';
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import { LayoutDashboard, Database, PlusCircle, List, Moon, Sun, Landmark, Plane } from "lucide-react";
+import { LayoutDashboard, Database, PlusCircle, List, Moon, Sun, Landmark, Plane, ArrowRightLeft } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -20,6 +20,7 @@ const navItems = [
     { name: "Abroad", href: "/abroad", icon: Plane, color: "#0d9488" },
     { name: "Logs", href: "/logs", icon: List, color: "#8b5cf6" },
     { name: "Add Data", href: "/add", icon: PlusCircle, color: "#8b5cf6" },
+    { name: "BML Connect", href: "/bmlconnect", icon: ArrowRightLeft, color: "#ec4899" },
 ];
 
 export function Navigation() {
