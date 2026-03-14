@@ -4,7 +4,12 @@ export interface BMLRequest {
   requestType: "CONNECT" | "HELLO" | "CONNECTION" | "BML_SYNC" | "GET_USER_INFO" | "EXTENSION_DB_SAVE" | "EXTENSION_DB_LOAD" | "EXTENSION_DB_MIGRATE" | "VERIFY_SUBSCRIPTION";
   connectionToken?: string;
   apiKey?: string;
+  pin?: string;
   payload?: any;
+  // Drive sync fields: passed to extension which forwards them to the edge function
+  action?: string;
+  data?: any;
+  supabaseToken?: string;
 }
 
 export interface BMLResponse {

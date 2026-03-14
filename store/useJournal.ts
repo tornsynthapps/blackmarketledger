@@ -3,7 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
 import { sendToExtension } from '@/lib/bmlconnect';
+import { supabase } from '@/lib/supabaseClient';
 import * as idb from '@/lib/idb';
+
+const SUPABASE_FUNCTIONS_URL = 'https://yxjmnkaollkpcvymiicd.supabase.co/functions/v1';
+
+/** Get the current Supabase session access token for authenticating Drive sync calls. */
+async function getDriveSupabaseToken(): Promise<string | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
+}
 
 // A simple hook to manage transactions in localStorage and IndexedDB.
 const STORAGE_KEY = 'torn_invest_tracker_logs';
@@ -66,15 +75,33 @@ export function useJournal() {
             const storagePref = localStorage.getItem("bml_storage_pref");
             let loadedFromExtension = false;
 
-            if (storagePref === 'extension') {
+            if (storagePref === 'drive') {
+                // Load from Google Drive through the extension (extension forwards Supabase JWT to edge function)
                 try {
-                    const res = await sendToExtension({ requestType: "EXTENSION_DB_LOAD" });
+                    const supabaseToken = await getDriveSupabaseToken();
+                    if (!supabaseToken) throw new Error('No Google session — Drive sync skipped');
+
+                    const res = await sendToExtension({
+                        requestType: 'BML_SYNC',
+                        action: 'read',
+                        supabaseToken,
+                    });
                     if (res && res.success && Array.isArray(res.data)) {
                         loadedTransactions = res.data;
                         loadedFromExtension = true;
                     }
                 } catch (e) {
-                    console.error("Failed to load from extension DB, falling back to local IDB", e);
+                    console.error('Failed to load from Google Drive (via extension), falling back to local IDB', e);
+                }
+            } else if (storagePref === 'extension') {
+                try {
+                    const res = await sendToExtension({ requestType: 'EXTENSION_DB_LOAD' });
+                    if (res && res.success && Array.isArray(res.data)) {
+                        loadedTransactions = res.data;
+                        loadedFromExtension = true;
+                    }
+                } catch (e) {
+                    console.error('Failed to load from extension, falling back to local IDB', e);
                 }
             }
 
@@ -148,6 +175,22 @@ export function useJournal() {
             });
             // Still save to local IDB as a fallback duplicate if desired, or skip. 
             // The user wants shared data when moving, so let's keep IDB in sync too for safety if they switch back.
+            idb.saveTransactions(newLogs).catch(console.error);
+        } else if (storagePref === 'drive') {
+            // Sync through the extension (extension forwards Supabase JWT as Bearer to the edge function)
+            getDriveSupabaseToken().then(supabaseToken => {
+                if (!supabaseToken) {
+                    console.warn('Drive sync skipped: no active Google session');
+                    return;
+                }
+                sendToExtension({
+                    requestType: 'BML_SYNC',
+                    action: 'write',
+                    data: JSON.stringify(newLogs),
+                    supabaseToken,
+                }).catch(err => console.error('Failed to sync to Google Drive (via extension)', err));
+            });
+            // Always keep local IDB in sync as a fallback
             idb.saveTransactions(newLogs).catch(console.error);
         } else {
             idb.saveTransactions(newLogs).catch(err => {
