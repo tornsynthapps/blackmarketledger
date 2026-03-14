@@ -8,7 +8,6 @@ import * as idb from '@/lib/idb';
 // A simple hook to manage transactions in localStorage and IndexedDB.
 const STORAGE_KEY = 'torn_invest_tracker_logs';
 const CONFIG_KEY = 'torn_invest_tracker_config';
-const SYNC_PREF_KEY = 'bml_sync_preference';
 
 const EXTENSION_ID = 'kmepclikpphdhmefmppjlmkigndpndel'; // Or use window.postMessage if simpler, but let's use postMessage for general web-to-ext
 
@@ -36,10 +35,6 @@ export function useJournal() {
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
 
-    // Sync state
-    const [syncPreference, setSyncPreferenceState] = useState<'local' | 'drive'>('local');
-    const [isSyncing, setIsSyncing] = useState(false);
-    const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false);
 
     useEffect(() => {
         const init = async () => {
@@ -128,14 +123,6 @@ export function useJournal() {
                 setWeav3rUserId(parsedConfig.userId || "");
             }
 
-            const storedPref = localStorage.getItem(SYNC_PREF_KEY) as 'local' | 'drive' | null;
-            if (storedPref) {
-                setSyncPreferenceState(storedPref);
-                if (storedPref === 'drive') {
-                    // Trigger initial read
-                    forceSyncInternal('read', loadedTransactions);
-                }
-            }
 
             setIsLoaded(true);
         };
@@ -143,90 +130,7 @@ export function useJournal() {
         init();
     }, []);
 
-    // Setup beforeunload listener
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            // Only warn if they are on LOCAL browser storage AND Drive sync is active but unsynced.
-            // When using the Extension Database, we consider the data secure enough to bypass the browser's clearing warning.
-            const isExtension = localStorage.getItem("bml_storage_pref") === 'extension';
-            if (hasUnsyncedChanges && syncPreference === 'drive' && !isExtension) {
-                e.preventDefault();
-                e.returnValue = ''; // Standard way to trigger warning
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [hasUnsyncedChanges, syncPreference]);
 
-    const setSyncPreference = useCallback((pref: 'local' | 'drive') => {
-        setSyncPreferenceState(pref);
-        localStorage.setItem(SYNC_PREF_KEY, pref);
-        if (pref === 'drive') {
-            forceSyncInternal('read', transactions);
-        }
-    }, [transactions]);
-
-    const forceSyncInternal = async (action: 'read' | 'write', currentTxns: Transaction[]) => {
-        setIsSyncing(true);
-        
-        // We assume the extension ID is known, or better yet, the extension injected a method.
-        // For security, web apps usually use window.postMessage to communicate with content scripts.
-        // Wait! Manifest V3 content scripts can inject a variable or listen to window events.
-        
-        try {
-            return new Promise<void>((resolve) => {
-                const messageId = crypto.randomUUID();
-                
-                const handleResponse = (event: MessageEvent) => {
-                    if (event.source !== window || event.data.type !== 'BML_SYNC_RESPONSE' || event.data.id !== messageId) return;
-                    window.removeEventListener('message', handleResponse);
-                    
-                    if (event.data.success) {
-                        if (action === 'read' && event.data.data) {
-                            // Merge or overwrite data from drive
-                            // For simplicity, overwrite
-                            setTransactions(event.data.data);
-                            idb.saveTransactions(event.data.data).catch(console.error);
-                        }
-                        if (action === 'write') {
-                            setHasUnsyncedChanges(false);
-                            // Also trigger legacy ledger update for extension content scripts
-                            localStorage.setItem(STORAGE_KEY, JSON.stringify(currentTxns));
-                        }
-                    } else {
-                        console.error("Sync Error:", event.data.error);
-                    }
-                    setIsSyncing(false);
-                    resolve();
-                };
-
-                window.addEventListener('message', handleResponse);
-                
-                window.postMessage({
-                    type: 'BML_SYNC_REQUEST',
-                    id: messageId,
-                    action,
-                    data: action === 'write' ? currentTxns : null
-                }, '*');
-                
-                // Timeout
-                setTimeout(() => {
-                    window.removeEventListener('message', handleResponse);
-                    setIsSyncing(false);
-                    resolve();
-                }, 10000); // 10s timeout
-            });
-        } catch (e) {
-            console.error("Sync caught error:", e);
-            setIsSyncing(false);
-        }
-    };
-
-    const forceSync = useCallback(() => {
-        if (syncPreference === 'drive') {
-            forceSyncInternal('write', transactions);
-        }
-    }, [syncPreference, transactions]);
 
     const performMigration = useCallback(async () => {
         // Obsolete: Handled automatically in init() now.
@@ -252,11 +156,7 @@ export function useJournal() {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(newLogs));
             });
         }
-
-        if (syncPreference === 'drive') {
-            setHasUnsyncedChanges(true);
-        }
-    }, [syncPreference]);
+    }, []);
 
     const mergeTransactions = useCallback((incoming: Transaction[]) => {
         setTransactions(prev => {
@@ -519,11 +419,6 @@ export function useJournal() {
         saveWeaverConfig,
         needsMigration,
         performMigration,
-        syncPreference,
-        isSyncing,
-        hasUnsyncedChanges,
-        setSyncPreference,
-        forceSync,
         mergeTransactions
     };
 }

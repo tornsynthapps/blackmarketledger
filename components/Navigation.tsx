@@ -7,7 +7,7 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import pkg from '@/package.json';
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import { Cloud, CloudOff, RefreshCw, LayoutDashboard, Database, PlusCircle, List, Moon, Sun, Landmark, Plane } from "lucide-react";
+import { LayoutDashboard, Database, PlusCircle, List, Moon, Sun, Landmark, Plane } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -27,7 +27,6 @@ export function Navigation() {
     const [isDark, setIsDark] = useState(false);
     const [mounted, setMounted] = useState(false);
     const { vibrate } = useHapticFeedback();
-    const { syncPreference, isSyncing, setSyncPreference, forceSync } = useJournal();
 
     useEffect(() => {
         setMounted(true);
@@ -47,11 +46,6 @@ export function Navigation() {
         }
     };
 
-    const toggleSync = async () => {
-        vibrate("utility");
-        const nextPref = syncPreference === 'local' ? 'drive' : 'local';
-        setSyncPreference(nextPref);
-    };
 
     return (
         <nav className="sticky top-0 h-16 bg-panel border-b border-border/50 z-50 backdrop-blur-md bg-opacity-80">
@@ -89,28 +83,6 @@ export function Navigation() {
                     })}
                     {mounted && (
                         <div className="flex items-center gap-1">
-                            <button
-                                onClick={toggleSync}
-                                title={syncPreference === 'drive' ? "Using Google Drive Sync" : "Using Local Storage"}
-                                className={cn(
-                                    "p-1.5 ml-1 sm:ml-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-semibold",
-                                    syncPreference === 'drive' ? "text-primary hover:bg-primary/10" : "text-foreground/50 hover:bg-foreground/5 hover:text-foreground"
-                                )}
-                            >
-                                {syncPreference === 'drive' ? <Cloud className="w-5 h-5" /> : <CloudOff className="w-5 h-5" />}
-                                <span className="hidden lg:inline">{syncPreference === 'drive' ? 'Drive' : 'Local'}</span>
-                            </button>
-                            
-                            {syncPreference === 'drive' && (
-                                <button
-                                    onClick={forceSync}
-                                    disabled={isSyncing}
-                                    title="Force Sync"
-                                    className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                                >
-                                    <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
-                                </button>
-                            )}
                             
                             <button
                                 onClick={toggleDark}
