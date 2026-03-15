@@ -29,7 +29,7 @@ export default function ConnectionSetup() {
   const handleTestHello = async () => {
     setStatus("Testing Protocol...");
     vibrate("utility");
-    const res = await sendToExtension({ requestType: "HELLO" });
+    const res = await sendToExtension({ type: "HELLO" });
     setStatus(res.success ? "Hello Test Success" : "Hello Test Failed");
     setResponse(res);
     if (res.success) vibrate("success");
@@ -40,8 +40,8 @@ export default function ConnectionSetup() {
     setStatus("Testing Authentication...");
     vibrate("utility");
     const res = await sendToExtension({ 
-      requestType: "CONNECTION", 
-      connectionToken: connectionToken 
+      type: "CONNECTION",
+      payload: { connectionToken }
     });
     setStatus(res.success ? "Authentication Success" : "Authentication Failed");
     setResponse(res);

@@ -68,11 +68,8 @@ export function useJournal() {
 
             if (storagePref === 'extension' || storagePref === 'drive') {
                 try {
-                    const pin = localStorage.getItem("bml_sync_pin") || undefined;
                     const res = await sendToExtension({ 
-                        requestType: storagePref === 'drive' ? "BML_SYNC" : "EXTENSION_DB_LOAD",
-                        payload: storagePref === 'drive' ? { action: 'read' } : undefined,
-                        pin
+                        type: storagePref === 'drive' ? "DRIVE_LOAD_DATA" : "EXTENSION_DB_LOAD",
                     });
                     if (res && res.success && Array.isArray(res.data)) {
                         loadedTransactions = res.data;
@@ -148,18 +145,16 @@ export function useJournal() {
         const storagePref = localStorage.getItem("bml_storage_pref");
         
         if (storagePref === 'extension') {
-            sendToExtension({ requestType: 'EXTENSION_DB_SAVE', payload: newLogs }).catch(err => {
+            sendToExtension({ type: 'EXTENSION_DB_SAVE', payload: { logs: newLogs } }).catch(err => {
                  console.error("Failed to save to extension DB", err);
             });
             // Still save to local IDB as a fallback duplicate if desired, or skip. 
             // The user wants shared data when moving, so let's keep IDB in sync too for safety if they switch back.
             idb.saveTransactions(newLogs).catch(console.error);
         } else if (storagePref === 'drive') {
-            const pin = localStorage.getItem("bml_sync_pin") || undefined;
             sendToExtension({ 
-                requestType: 'BML_SYNC', 
-                payload: { action: 'write', data: newLogs },
-                pin
+                type: 'DRIVE_WRITE_DATA', 
+                payload: { data: newLogs },
             }).catch(err => {
                  console.error("Failed to sync to Google Drive", err);
             });

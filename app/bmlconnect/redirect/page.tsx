@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { completeGoogleDriveSetup } from "@/lib/drive-api";
 
 function AuthCallbackContent() {
   const searchParams = useSearchParams();
@@ -22,31 +23,21 @@ function AuthCallbackContent() {
       }
 
       try {
-        const res = await fetch(`https://yxjmnkaollkpcvymiicd.supabase.co/functions/v1/handle-google-callback`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, state })
-        });
-        const data = await res.json();
+        const data = await completeGoogleDriveSetup({ code, state });
 
         if (data.success) {
-          localStorage.setItem("bml_drive_connected", "true");
-          if (data.dataExists) {
-            localStorage.setItem("bml_drive_data_exists", "true");
-          }
           setStatus("success");
           setTimeout(() => {
-            router.push("/bmlconnect");
+            router.push("/bmlconnect?drive=connected");
           }, 2000);
         } else {
           setStatus("error");
-          setError(data.error || "Failed to exchange tokens");
-          if (data.details) setError(prev => `${prev}: ${data.details}`);
+          setError("Failed to exchange tokens");
         }
       } catch (err) {
         console.error("Callback handling failed", err);
         setStatus("error");
-        setError("Network error during callback");
+        setError(err instanceof Error ? err.message : "Network error during callback");
       }
     };
 
