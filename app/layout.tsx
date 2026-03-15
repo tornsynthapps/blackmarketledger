@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navigation } from "@/components/Navigation";
 import { Banners } from "@/components/Banners";
 import { VisitorCounter } from "@/components/VisitorCounter";
+import { ServiceRail } from "@/components/ServiceRail";
 import Link from "next/link";
 
 const spaceGrotesk = Space_Grotesk({
@@ -34,11 +35,11 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
+                const theme = localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+                  ? 'dark'
+                  : 'light';
+                document.documentElement.classList.toggle('dark', theme === 'dark');
+                document.documentElement.classList.toggle('light', theme === 'light');
               } catch (_) {}
             `,
           }}
@@ -88,6 +89,7 @@ export default function RootLayout({
             </div>
           </footer>
         </main>
+        <ServiceRail />
       </body>
     </html>
   );

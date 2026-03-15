@@ -13,6 +13,7 @@ const DRIVE_CACHE_READY_KEY = 'bml_drive_cache_ready';
 const DRIVE_CACHE_SYNCED_AT_KEY = 'bml_drive_cache_synced_at';
 const DRIVE_BOOTSTRAP_DONE_KEY = 'bml_drive_bootstrap_done';
 const DRIVE_SYNC_MAX_AGE_MS = 10 * 60 * 1000;
+const TORN_BASIC_USER_URL = "https://api.torn.com/user/?selections=basic&key=";
 
 declare global {
     interface Window {
@@ -36,12 +37,34 @@ export interface SyncState {
     message: string;
 }
 
+async function resolveTornUserId(apiKey: string) {
+    const response = await fetch(`${TORN_BASIC_USER_URL}${encodeURIComponent(apiKey)}`);
+    const data = await response.json();
+
+    if (!response.ok || data?.error) {
+        const message = data?.error?.error || data?.error || "Failed to validate Torn API key";
+        throw new Error(message);
+    }
+
+    const rawUserId = data?.player_id ?? data?.playerID ?? data?.user_id ?? data?.userId;
+    const userId = typeof rawUserId === "number" || typeof rawUserId === "string"
+        ? String(rawUserId)
+        : "";
+
+    if (!userId) {
+        throw new Error("Could not determine Torn user ID from the provided API key.");
+    }
+
+    return userId;
+}
+
 export function useJournal() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
     const [needsMigration, setNeedsMigration] = useState(false);
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
+    const [driveApiKey, setDriveApiKey] = useState("");
     const [syncState, setSyncState] = useState<SyncState>({ isSyncing: false, message: "" });
     const syncCounterRef = useRef(0);
 
@@ -289,6 +312,7 @@ export function useJournal() {
                 if (parsedConfig) {
                     setWeav3rApiKey(parsedConfig.apiKey || "");
                     setWeav3rUserId(parsedConfig.userId || "");
+                    setDriveApiKey(parsedConfig.driveApiKey || "");
                 }
             } catch (error) {
                 console.error("Journal bootstrap failed", error);
@@ -367,17 +391,46 @@ export function useJournal() {
         });
     }, [saveTransactions]);
 
-    const saveWeaverConfig = useCallback((apiKey: string, userId: string) => {
-        setWeav3rApiKey(apiKey);
+    const saveWeaverConfig = useCallback(async (apiKey: string) => {
+        const trimmedApiKey = apiKey.trim();
+
+        if (!trimmedApiKey) {
+            setWeav3rApiKey("");
+            setWeav3rUserId("");
+            const clearedConfig = JSON.stringify({ apiKey: "", userId: "", driveApiKey });
+
+            if (localStorage.getItem("bml_db_selection") === "indexeddb") {
+                await persistConfigCache(clearedConfig);
+            } else {
+                localStorage.setItem(CONFIG_KEY, clearedConfig);
+            }
+            return "";
+        }
+
+        const userId = await resolveTornUserId(trimmedApiKey);
+        setWeav3rApiKey(trimmedApiKey);
         setWeav3rUserId(userId);
-        const str = JSON.stringify({ apiKey, userId });
-        
+        const str = JSON.stringify({ apiKey: trimmedApiKey, userId, driveApiKey });
+
+        if (localStorage.getItem("bml_db_selection") === "indexeddb") {
+            await persistConfigCache(str);
+        } else {
+            localStorage.setItem(CONFIG_KEY, str);
+        }
+
+        return userId;
+    }, [driveApiKey, persistConfigCache]);
+
+    const saveDriveApiKey = useCallback((apiKey: string) => {
+        setDriveApiKey(apiKey);
+        const str = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey: apiKey });
+
         if (localStorage.getItem("bml_db_selection") === "indexeddb") {
             persistConfigCache(str).catch(console.error);
         } else {
             localStorage.setItem(CONFIG_KEY, str);
         }
-    }, [persistConfigCache]);
+    }, [persistConfigCache, weav3rApiKey, weav3rUserId]);
 
     // Derived State helper calculation to get current inventory snapshot
     // Used by addLogs to know how to split sales
@@ -619,7 +672,9 @@ export function useJournal() {
         netTotalProfit,
         weav3rApiKey,
         weav3rUserId,
+        driveApiKey,
         saveWeaverConfig,
+        saveDriveApiKey,
         needsMigration,
         performMigration,
         mergeTransactions,

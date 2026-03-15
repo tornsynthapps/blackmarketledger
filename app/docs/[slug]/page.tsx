@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // Allowed documentation slugs
-const validSlugs = ['introduction', 'app-guide', 'extension-guide', 'faq-troubleshooting'];
+const validSlugs = ['introduction', 'app-guide', 'extension-guide', 'faq-troubleshooting', 'log-formats'];
 
 export async function generateStaticParams() {
   return validSlugs.map((slug) => ({

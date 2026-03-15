@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type MouseEvent } from "react";
 import { X } from "lucide-react";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import { useJournal } from "@/store/useJournal";
@@ -79,12 +79,14 @@ export function Banners() {
         setShowForum(false);
     };
 
-    const handleForumClose = async () => {
+    const handleForumClose = async (event: MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
         vibrate("utility");
+        setShowForum(false);
         let statsStr = await idb.get<string>("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { forumCloseStreak: 0 };
         await updateStats("forumCloseStreak", (stats.forumCloseStreak || 0) + 1);
-        setShowForum(false);
     };
 
     const handleDonationClick = async () => {
@@ -96,17 +98,19 @@ export function Banners() {
         setShowDonation(false);
     };
 
-    const handleDonationClose = async () => {
+    const handleDonationClose = async (event: MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
         vibrate("utility");
+        setShowDonation(false);
         let statsStr = await idb.get<string>("blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { donationCloseStreak: 0 };
         await updateStats("donationCloseStreak", (stats.donationCloseStreak || 0) + 1);
-        setShowDonation(false);
     };
 
     if (needsMigration) {
         return (
-            <div className="bg-red-500/10 text-red-600 dark:text-red-500 border-b border-red-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-40">
+            <div className="bg-red-500/10 text-red-600 dark:text-red-500 border-b border-red-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
                 <div className="max-w-4xl mx-auto flex items-center justify-center gap-4">
                     <div className="flex-1">
                         <p className="font-semibold">
@@ -126,7 +130,7 @@ export function Banners() {
 
     if (syncStatus.isSyncing) {
         return (
-            <div className="bg-green-500/10 text-green-700 dark:text-green-400 border-b border-green-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-40">
+            <div className="bg-green-500/10 text-green-700 dark:text-green-400 border-b border-green-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
                 <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
                     <div className="flex-1">
                         <p>{syncStatus.message}</p>
@@ -138,7 +142,7 @@ export function Banners() {
 
     if (showForum) {
         return (
-            <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-b border-yellow-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-40">
+            <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-b border-yellow-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
                 <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
                     <div className="flex-1">
                         {forumClicks === 0 ? (
@@ -169,7 +173,7 @@ export function Banners() {
                             </p>
                         )}
                     </div>
-                    <button onClick={handleForumClose} className="p-1 hover:bg-yellow-500/20 rounded-full transition-colors shrink-0" aria-label="Dismiss banner">
+                    <button type="button" onClick={handleForumClose} className="p-1 hover:bg-yellow-500/20 rounded-full transition-colors shrink-0" aria-label="Dismiss banner">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
@@ -179,7 +183,7 @@ export function Banners() {
 
     if (showDonation) {
         return (
-            <div className="bg-red-500/10 text-red-600 dark:text-red-500 border-b border-red-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-40">
+            <div className="bg-red-500/10 text-red-600 dark:text-red-500 border-b border-red-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
                 <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
                     <div className="flex-1">
                         <p>
@@ -195,7 +199,7 @@ export function Banners() {
                             </a>
                         </p>
                     </div>
-                    <button onClick={handleDonationClose} className="p-1 hover:bg-red-500/20 rounded-full transition-colors shrink-0" aria-label="Dismiss banner">
+                    <button type="button" onClick={handleDonationClose} className="p-1 hover:bg-red-500/20 rounded-full transition-colors shrink-0" aria-label="Dismiss banner">
                         <X className="w-4 h-4" />
                     </button>
                 </div>

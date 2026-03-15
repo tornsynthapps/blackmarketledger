@@ -18,14 +18,12 @@ export default function AddLogs() {
     const { vibrate } = useHapticFeedback();
 
     const [tempApiKey, setTempApiKey] = useState("");
-    const [tempUserId, setTempUserId] = useState("");
 
     useEffect(() => {
         if (isLoaded) {
             setTempApiKey(weav3rApiKey);
-            setTempUserId(weav3rUserId);
         }
-    }, [isLoaded, weav3rApiKey, weav3rUserId]);
+    }, [isLoaded, weav3rApiKey]);
 
     useEffect(() => {
         let t: NodeJS.Timeout;
@@ -36,10 +34,10 @@ export default function AddLogs() {
     }, [showToast]);
 
     useEffect(() => {
-        const urlMatch = input.match(/https:\/\/weav3r\.dev\/receipt\/([A-Za-z0-9_-]+)/);
+            const urlMatch = input.match(/https:\/\/weav3r\.dev\/receipt\/([A-Za-z0-9_-]+)/);
         if (urlMatch && !isFetching) {
             if (!weav3rApiKey || !weav3rUserId) {
-                setConfigError("Please configure Weav3r API Key and User ID to fetch trades.");
+                setConfigError("Please save a valid Weav3r API key to fetch trades.");
                 return;
             }
 
@@ -134,7 +132,7 @@ export default function AddLogs() {
             )}
 
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Add Data Logs</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Terminal</h1>
                 <p className="text-foreground/60 mt-2">Paste your shorthand logs here to add to your tracker.</p>
             </div>
 
@@ -143,15 +141,16 @@ export default function AddLogs() {
                     <label className="text-xs font-semibold text-foreground/70">Weav3r API Key</label>
                     <input type="password" value={tempApiKey} onChange={e => setTempApiKey(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter API Key" />
                 </div>
-                <div className="flex-1 flex flex-col gap-1 w-full">
-                    <label className="text-xs font-semibold text-foreground/70">Weav3r User ID</label>
-                    <input type="text" value={tempUserId} onChange={e => setTempUserId(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter User ID" />
-                </div>
                 <div className="mt-4 sm:mt-auto sm:self-end w-full sm:w-auto">
                     <button
-                        onClick={() => {
+                        onClick={async () => {
                             vibrate("utility");
-                            saveWeaverConfig(tempApiKey, tempUserId);
+                            try {
+                                await saveWeaverConfig(tempApiKey);
+                                setConfigError("");
+                            } catch (error) {
+                                setConfigError(error instanceof Error ? error.message : "Failed to save Weav3r API key.");
+                            }
                         }}
                         className="w-full sm:w-auto px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded font-medium text-sm transition-colors mb-[1px]"
                     >
@@ -166,16 +165,16 @@ export default function AddLogs() {
                 <div className="flex gap-3 items-center">
                     <Info className="w-5 h-5 shrink-0" />
                     <div>
-                        <p className="font-semibold">Supported Log Formats</p>
-                        <p className="opacity-80 text-xs">Learn how to write shorthand logs and paste Weav3r receipts or Bazaar logs.</p>
+                        <p className="font-semibold">Documentation</p>
+                        <p className="opacity-80 text-xs">Learn how to write shorthand logs and use Weav3r receipts or Bazaar logs.</p>
                     </div>
                 </div>
                 <Link
-                    href="/log-formats"
+                    href="/docs/log-formats"
                     onClick={() => vibrate("nav")}
                     className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap"
                 >
-                    View Formats &rarr;
+                    Open Docs &rarr;
                 </Link>
             </div>
 
@@ -229,7 +228,7 @@ export default function AddLogs() {
                             className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all active:scale-95"
                         >
                             <Save className="w-4 h-4" />
-                            +Add Data
+                            Run Import
                         </button>
                     </div>
 

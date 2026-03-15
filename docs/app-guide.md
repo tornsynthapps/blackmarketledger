@@ -22,6 +22,15 @@ Below the key metrics, you will find a searchable, sortable table of your curren
 
 ## Navigation & Features
 
+### Terminal
+The Terminal section is the fastest way to import ledger activity in bulk.
+
+- Paste shorthand logs directly into the editor.
+- Paste a Weav3r receipt URL to convert it into importable buy lines automatically.
+- Paste Torn Bazaar-style logs to convert them into supported shorthand entries.
+
+The info card at the top of the Terminal page now links to the main **Documentation** section, where you can review shorthand examples and broader app guidance in one place.
+
 ### Logs Tab
 The Logs section is where you can view every transaction you have entered. You can filter logs by specific item names or view them all chronologically. This is useful for auditing past trades or verifying your cost basis calculations.
 
@@ -37,5 +46,7 @@ To manually add transactions:
 2. Select whether it was a **Buy** or **Sell** transaction.
 3. Enter the item name, quantity, and total price.
 4. If it was a purchase made abroad, ensure you mark it appropriately depending on the input options.
+
+If you need format help while importing, open the **Documentation** link from the Terminal page instead of a separate log-formats helper.
 
 > **Tip**: For the most efficient workflow, ensure you enter your trades regularly to keep your cost basis accurate, which heavily improves the usefulness of the BML Connect extension.

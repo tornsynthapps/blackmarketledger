@@ -16,7 +16,12 @@ const formatMoney = (val: number) => {
 };
 
 export default function Home() {
-  const { isLoaded, inventory, totalMugLoss, renameItem } = useJournal();
+  const {
+    isLoaded,
+    inventory,
+    totalMugLoss,
+    renameItem,
+  } = useJournal();
   const router = useRouter();
   const { vibrate } = useHapticFeedback();
 
@@ -84,7 +89,6 @@ export default function Home() {
   };
 
   const netTotal = stats.profit - totalMugLoss;
-
   return (
     <div
       className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
