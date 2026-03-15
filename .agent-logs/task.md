@@ -1,6 +1,6 @@
 # Task Checklist
 
-- [x] Update `next.config.ts` to include `output: 'export'` and `images: { unoptimized: true }` for static hosting.
-- [x] Create `.github/workflows/deploy.yml` to trigger on `main` branch pushes.
-- [x] Configure the workflow to build the Next.js application and deploy the `./out` directory to GitHub Pages.
-- [ ] Update Version & Changelog and commit the changes.
+- [x] Finalize the shared service drawer rollout across desktop and mobile.
+- [x] Update Weav3r setup to derive the Torn user ID from the saved API key.
+- [x] Restore a short standalone log-formats documentation page and wire the Terminal link to it.
+- [x] Bump version metadata, update the changelog UI, and prepare the release commit/tag.
