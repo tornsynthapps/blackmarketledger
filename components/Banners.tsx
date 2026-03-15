@@ -5,12 +5,14 @@ import { X } from "lucide-react";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import { useJournal } from "@/store/useJournal";
 import * as idb from '@/lib/idb';
+import { useGlobalSyncStatus } from "@/lib/syncStatus";
 
 export function Banners() {
     const [showForum, setShowForum] = useState(false);
     const [showDonation, setShowDonation] = useState(false);
     const { vibrate } = useHapticFeedback();
     const { needsMigration, performMigration } = useJournal();
+    const syncStatus = useGlobalSyncStatus();
 
     // Dynamic text stats
     const [forumClicks, setForumClicks] = useState(0);
@@ -117,6 +119,18 @@ export function Banners() {
                     <button onClick={() => { vibrate("success"); performMigration(); }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium text-sm transition-colors whitespace-nowrap">
                         Migrate Now
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (syncStatus.isSyncing) {
+        return (
+            <div className="bg-green-500/10 text-green-700 dark:text-green-400 border-b border-green-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-40">
+                <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                        <p>{syncStatus.message}</p>
+                    </div>
                 </div>
             </div>
         );

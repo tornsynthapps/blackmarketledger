@@ -107,8 +107,13 @@ export default function AbroadDashboard() {
 
         // Slight delay to allow UI to render spinner
         setTimeout(() => {
-            addLogs(logs);
-            setSellingItemId(null);
+            Promise.resolve(addLogs(logs))
+                .catch((error) => {
+                    console.error("Failed to save abroad self-sell logs", error);
+                })
+                .finally(() => {
+                    setSellingItemId(null);
+                });
         }, 500);
     };
 

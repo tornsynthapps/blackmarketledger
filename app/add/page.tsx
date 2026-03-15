@@ -105,13 +105,19 @@ export default function AddLogs() {
     const validCount = parsedLines.filter(p => p.parsed !== null).length;
     const inValidCount = lines.length - validCount;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const validLogs = parsedLines.map(p => p.parsed).filter((p): p is ParsedLog => p !== null);
         if (validLogs.length > 0) {
-            vibrate("success");
-            addLogs(validLogs);
-            setInput("");
-            setShowToast(true);
+            try {
+                await addLogs(validLogs);
+                vibrate("success");
+                setInput("");
+                setShowToast(true);
+            } catch (error) {
+                console.error("Failed to add logs", error);
+                vibrate("danger");
+                alert(error instanceof Error ? error.message : "Failed to add logs.");
+            }
         }
     };
 
@@ -218,12 +224,12 @@ export default function AddLogs() {
                             </div>
                         </div>
                         <button
-                            onClick={handleSave}
+                            onClick={() => void handleSave()}
                             disabled={validCount === 0}
                             className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all active:scale-95"
                         >
                             <Save className="w-4 h-4" />
-                            Save {validCount} Logs
+                            +Add Data
                         </button>
                     </div>
 
