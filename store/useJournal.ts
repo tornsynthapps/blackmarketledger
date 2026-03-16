@@ -273,10 +273,10 @@ export function useJournal() {
     const saveTransactions = useCallback((newLogs: Transaction[]) => {
         setTransactions(newLogs);
         const storagePref = localStorage.getItem("bml_storage_pref");
-        
+
         if (storagePref === 'extension') {
             sendToExtension({ type: 'EXTENSION_DB_SAVE', payload: { logs: newLogs } }).catch(err => {
-                 console.error("Failed to save to extension DB", err);
+                console.error("Failed to save to extension DB", err);
             });
             persistTransactionsCache("LogsDB", newLogs).catch(console.error);
         } else if (storagePref === 'drive') {
@@ -303,14 +303,14 @@ export function useJournal() {
         setTransactions(prev => {
             const merged = [...prev];
             const existingIds = new Set(prev.map(t => t.id));
-            
+
             incoming.forEach(t => {
                 if (!existingIds.has(t.id)) {
                     merged.push(t);
                     existingIds.add(t.id);
                 }
             });
-            
+
             merged.sort((a, b) => a.date - b.date);
             saveTransactions(merged);
             return merged;
@@ -343,6 +343,17 @@ export function useJournal() {
 
     const calculateInventory = (txns: Transaction[]) => {
         const inv = new Map<string, InventoryItemStats>();
+        // Add/Subtract 0.1 to date of each transaction based on BUY or SELL
+        txns.forEach(t => {
+            if (t.type === 'BUY') {
+                t.date -= 0.1;
+            } else {
+                t.date += 0.1
+            }
+        })
+
+        // Sort transactions by date.
+        txns.sort((a, b) => a.date - b.date);
         txns.forEach(t => {
             if (t.type === 'BUY') {
                 const isAbroad = t.tag === 'Abroad';
@@ -505,7 +516,7 @@ export function useJournal() {
     const switchStorageLocation = useCallback(async (newLocation: 'browser' | 'drive', migrationType: 'merge' | 'overwrite' | 'none') => {
         const sourceDB = newLocation === 'drive' ? 'LogsDB' : 'GoogleCacheLogsDB';
         const targetDB = newLocation === 'drive' ? 'GoogleCacheLogsDB' : 'LogsDB';
-        
+
         let targetData: Transaction[] = [];
 
         if (migrationType !== 'none') {
@@ -524,7 +535,7 @@ export function useJournal() {
                 });
                 targetData.sort((a, b) => a.date - b.date);
             }
-            
+
             await persistTransactionsCache(targetDB, targetData);
             if (newLocation === 'drive' && driveApiKey) {
                 await runSyncTask("Uploading migrated data...", async () => {
