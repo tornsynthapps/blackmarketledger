@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ChevronLeft, Crown, HardDrive, KeyRound, Save, X } from "lucide-react";
+import { Check, ChevronLeft, Crown, Eye, EyeOff, HardDrive, KeyRound, Save, X } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import { sendToExtension } from "@/lib/bmlconnect";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { getGoogleDriveStatus } from "@/lib/drive-api";
 
 type ServiceItem = {
   name: string;
@@ -25,29 +26,48 @@ export function ServiceRail() {
   const [driveConnected, setDriveConnected] = useState(false);
   const [isWhaleSubscriber, setIsWhaleSubscriber] = useState(false);
   const [tempWeav3rApiKey, setTempWeav3rApiKey] = useState(weav3rApiKey);
+  const [tempDriveApiKey, setTempDriveApiKey] = useState(driveApiKey);
+  const [showWeav3rKey, setShowWeav3rKey] = useState(false);
+  const [showDriveKey, setShowDriveKey] = useState(false);
   const [isSavingWeav3rKey, setIsSavingWeav3rKey] = useState(false);
+  const [isSavingDriveKey, setIsSavingDriveKey] = useState(false);
   const [weav3rError, setWeav3rError] = useState("");
+  const [driveError, setDriveError] = useState("");
 
   useEffect(() => {
     setTempWeav3rApiKey(weav3rApiKey);
   }, [weav3rApiKey]);
 
   useEffect(() => {
+    setTempDriveApiKey(driveApiKey);
+  }, [driveApiKey]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadServiceState = async () => {
       const helloRes = await sendToExtension({ type: "HELLO" });
-      if (!helloRes.success || cancelled) return;
+      
+      const requests: Promise<{ success: boolean; data?: any; connected?: boolean }>[] = [
+        helloRes.success 
+          ? (sendToExtension<{ subscriptionValid?: boolean }>({ type: "GET_USER_INFO" }) as any)
+          : Promise.resolve({ success: false })
+      ];
 
-      const [userRes, driveRes] = await Promise.all([
-        sendToExtension<{ subscriptionValid?: boolean }>({ type: "GET_USER_INFO" }),
-        sendToExtension<{ connected?: boolean }>({ type: "DRIVE_STATUS" }),
-      ]);
+      if (driveApiKey) {
+        requests.push(getGoogleDriveStatus(driveApiKey).catch(() => ({ success: false })));
+      } else if (helloRes.success) {
+        requests.push(sendToExtension<{ connected?: boolean }>({ type: "DRIVE_STATUS" }) as any);
+      } else {
+        requests.push(Promise.resolve({ success: false }));
+      }
+
+      const [userRes, driveRes] = await Promise.all(requests);
 
       if (cancelled) return;
 
-      setIsWhaleSubscriber(Boolean(userRes.success && userRes.data?.subscriptionValid));
-      setDriveConnected(Boolean(driveRes.success && driveRes.data?.connected));
+      setIsWhaleSubscriber(Boolean(userRes.success && (userRes.data as any)?.subscriptionValid));
+      setDriveConnected(Boolean(driveRes.success && (driveRes.data?.connected || (driveRes as any).connected)));
     };
 
     void loadServiceState();
@@ -55,7 +75,7 @@ export function ServiceRail() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [driveApiKey]);
 
   const services: ServiceItem[] = [
     {
@@ -86,6 +106,20 @@ export function ServiceRail() {
       setWeav3rError(error instanceof Error ? error.message : "Failed to save Weav3r API key.");
     } finally {
       setIsSavingWeav3rKey(false);
+    }
+  };
+
+  const handleSaveDriveKey = async () => {
+    vibrate("utility");
+    setIsSavingDriveKey(true);
+    setDriveError("");
+
+    try {
+      await saveDriveApiKey(tempDriveApiKey);
+    } catch (error) {
+      setDriveError(error instanceof Error ? error.message : "Failed to save Drive API key.");
+    } finally {
+      setIsSavingDriveKey(false);
     }
   };
 
@@ -124,13 +158,22 @@ export function ServiceRail() {
                   <KeyRound className="h-3.5 w-3.5 text-primary" />
                   Weav3r API Key
                 </span>
-                <input
-                  type="password"
-                  value={tempWeav3rApiKey}
-                  onChange={(event) => setTempWeav3rApiKey(event.target.value)}
-                  placeholder="Torn API key used with weav3r"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary/50"
-                />
+                <div className="relative">
+                  <input
+                    type={showWeav3rKey ? "text" : "password"}
+                    value={tempWeav3rApiKey}
+                    onChange={(event) => setTempWeav3rApiKey(event.target.value)}
+                    placeholder="Torn API key used with weav3r"
+                    className="w-full rounded-xl border border-border bg-background py-2.5 pl-3 pr-10 text-sm outline-none transition-colors focus:border-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowWeav3rKey(!showWeav3rKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+                  >
+                    {showWeav3rKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">
                   Save the Torn API key and the app will resolve your user ID automatically.
                 </p>
@@ -151,19 +194,35 @@ export function ServiceRail() {
                   <HardDrive className="h-3.5 w-3.5 text-primary" />
                   Drive API Key
                 </span>
-                <input
-                  type="password"
-                  value={driveApiKey}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    saveDriveApiKey(value);
-                  }}
-                  placeholder="Drive API key"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary/50"
-                />
+                <div className="relative">
+                  <input
+                    type={showDriveKey ? "text" : "password"}
+                    value={tempDriveApiKey}
+                    onChange={(event) => setTempDriveApiKey(event.target.value)}
+                    placeholder="Drive API key"
+                    className="w-full rounded-xl border border-border bg-background py-2.5 pl-3 pr-10 text-sm outline-none transition-colors focus:border-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDriveKey(!showDriveKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+                  >
+                    {showDriveKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 <p className="mt-1.5 text-[11px] text-danger">
                   Keep this key private. Anyone with it can access your synced data.
                 </p>
+                {driveError && <p className="mt-1.5 text-[11px] text-danger">{driveError}</p>}
+                <button
+                  type="button"
+                  onClick={() => void handleSaveDriveKey()}
+                  disabled={isSavingDriveKey}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {isSavingDriveKey ? "Saving..." : "Save Drive Key"}
+                </button>
               </label>
             </div>
 

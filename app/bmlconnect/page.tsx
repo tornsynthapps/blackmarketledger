@@ -9,7 +9,10 @@ import {
   Database,
   Download,
   ExternalLink,
+  Eye,
+  EyeOff,
   RefreshCw,
+  Save,
   Server,
   Settings,
   ShieldCheck,
@@ -18,7 +21,14 @@ import {
 } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import { getConnectionString, sendToExtension } from "@/lib/bmlconnect";
-import { initiateGoogleDriveSetup } from "@/lib/drive-api";
+import {
+  initiateGoogleDriveSetup,
+  getGoogleDriveStatus,
+  loadGoogleDriveData,
+  writeGoogleDriveData,
+  deleteGoogleDriveData,
+  disconnectGoogleDrive,
+} from "@/lib/drive-api";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import type { Transaction } from "@/lib/parser";
 
@@ -49,9 +59,14 @@ const EMPTY_DRIVE_STATUS: DriveStatus = {
 };
 
 export default function BMLDashboard() {
-  const { transactions, mergeTransactions, weav3rApiKey } = useJournal();
+  const {
+    transactions,
+    mergeTransactions,
+    driveApiKey,
+    saveDriveApiKey,
+  } = useJournal();
   const { vibrate } = useHapticFeedback();
-
+  
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [isExtensionInstalled, setIsExtensionInstalled] = useState<boolean | null>(
@@ -64,6 +79,7 @@ export default function BMLDashboard() {
   const [showDriveSettings, setShowDriveSettings] = useState(false);
   const [showDriveSetupDialog, setShowDriveSetupDialog] = useState(false);
   const [manualApiKey, setManualApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [showDriveAuthChoiceDialog, setShowDriveAuthChoiceDialog] = useState(false);
   const [pendingDriveAuthUrl, setPendingDriveAuthUrl] = useState<string | null>(null);
   const [driveSetupBusy, setDriveSetupBusy] = useState(false);
@@ -87,56 +103,70 @@ export default function BMLDashboard() {
   useEffect(() => {
     const initialize = async () => {
       const helloRes = await sendToExtension({ type: "HELLO" });
-      if (!helloRes.success) {
-        setIsExtensionInstalled(false);
-        setIsConnected(false);
-        setLoading(false);
-        return;
-      }
+      setIsExtensionInstalled(helloRes.success);
 
-      setIsExtensionInstalled(true);
-
-      const token = getConnectionString();
-      const connectionRes = await sendToExtension({
-        type: "CONNECTION",
-        payload: { connectionToken: token },
-      });
-
-      if (!connectionRes.success) {
-        setIsConnected(false);
-        setLoading(false);
-        return;
-      }
-
-      setIsConnected(true);
-
-      const [userRes, driveRes] = await Promise.all([
-        sendToExtension<UserInfo>({ type: "GET_USER_INFO" }),
-        sendToExtension<DriveStatus>({ type: "DRIVE_STATUS" }),
-      ]);
-
-      if (userRes.success) {
-        setUserInfo(userRes.data ?? null);
-      }
-
-      if (driveRes.success && driveRes.data) {
-        setDriveStatus({
-          connected: Boolean(driveRes.data.connected),
-          hasData: Boolean(driveRes.data.hasData),
-          email: driveRes.data.email ?? null,
-          connectedAt: driveRes.data.connectedAt ?? null,
-          lastSyncedAt: driveRes.data.lastSyncedAt ?? null,
+      if (helloRes.success) {
+        const token = getConnectionString();
+        const connectionRes = await sendToExtension({
+          type: "CONNECTION",
+          payload: { connectionToken: token },
         });
+        setIsConnected(connectionRes.success);
+      } else {
+        setIsConnected(false);
+      }
+
+      // Try to load user info from extension if it exists, otherwise we'll rely on local state
+      let userRes = null;
+      if (helloRes.success) {
+        userRes = await sendToExtension<UserInfo>({ type: "GET_USER_INFO" });
+        if (userRes.success) {
+          setUserInfo(userRes.data ?? null);
+        }
+      }
+
+      // Drive status can always be fetched if we have the driveApiKey
+      if (driveApiKey) {
+        try {
+          const driveRes = await getGoogleDriveStatus(driveApiKey);
+          if (driveRes.success && driveRes.data) {
+            setDriveStatus({
+              connected: Boolean(driveRes.data.connected),
+              hasData: Boolean(driveRes.data.hasData),
+              email: driveRes.data.email ?? null,
+              connectedAt: driveRes.data.connectedAt ?? null,
+              lastSyncedAt: driveRes.data.lastSyncedAt ?? null,
+            });
+          }
+        } catch (e) {
+          console.error("Failed to fetch drive status during init", e);
+        }
+      } else if (helloRes.success) {
+        // Fallback to extension if we don't have an API key locally yet
+        const driveRes = await sendToExtension<DriveStatus>({ type: "DRIVE_STATUS" });
+        if (driveRes.success && driveRes.data) {
+          setDriveStatus({
+            connected: Boolean(driveRes.data.connected),
+            hasData: Boolean(driveRes.data.hasData),
+            email: driveRes.data.email ?? null,
+            connectedAt: driveRes.data.connectedAt ?? null,
+            lastSyncedAt: driveRes.data.lastSyncedAt ?? null,
+          });
+        }
       }
 
       setLoading(false);
     };
 
     initialize();
-  }, []);
+  }, [driveApiKey]);
 
   const refreshDriveStatus = async () => {
-    const response = await sendToExtension<DriveStatus>({ type: "DRIVE_STATUS" });
+    if (!driveApiKey) {
+      return sendToExtension<DriveStatus>({ type: "DRIVE_STATUS" });
+    }
+
+    const response = await getGoogleDriveStatus(driveApiKey);
     if (response.success && response.data) {
       setDriveStatus({
         connected: Boolean(response.data.connected),
@@ -149,18 +179,6 @@ export default function BMLDashboard() {
     return response;
   };
 
-  const applyApiKeyToExtension = async (apiKey: string) => {
-    const response = await sendToExtension<UserInfo>({
-      type: "SUBSCRIPTION_STATUS",
-      payload: { apiKey },
-    });
-
-    if (!response.success) {
-      throw new Error(response.error || "Failed to sync Torn API key to extension");
-    }
-
-    setUserInfo(response.data ?? null);
-  };
 
   const handleMigrationToExtension = async () => {
     if (!userInfo?.subscriptionValid) return;
@@ -236,29 +254,31 @@ export default function BMLDashboard() {
   };
 
   const handleDriveLoad = async () => {
+    if (!driveApiKey) {
+      alert("Missing Drive API Key. Please configure it in the settings.");
+      return;
+    }
+
     setDriveActionBusy(true);
     setStatusMessage("Loading ledger data from Google Drive...");
     vibrate("utility");
 
     try {
-      const response = await sendToExtension<Transaction[]>({
-        type: "DRIVE_LOAD_DATA",
-      });
+      const response = await loadGoogleDriveData(driveApiKey);
       if (!response.success) {
-        throw new Error(response.error || "Drive load failed");
+        throw new Error("Drive load failed");
       }
 
       if (!Array.isArray(response.data) || response.data.length === 0) {
-        setStatusMessage("Drive connected. No ledger backup found yet.");
-        await refreshDriveStatus();
-        return;
+        setStatusMessage("Drive connected. No ledger backup found yet. Using Google Drive for future syncs.");
+      } else {
+        mergeTransactions(response.data);
+        setStatusMessage("Ledger data loaded from Google Drive.");
       }
 
-      mergeTransactions(response.data);
       localStorage.setItem("bml_storage_pref", "drive");
       setStorageLocation("drive");
       await refreshDriveStatus();
-      setStatusMessage("Ledger data loaded from Google Drive.");
       vibrate("success");
     } catch (error) {
       console.error("Drive load failed", error);
@@ -277,18 +297,20 @@ export default function BMLDashboard() {
       return;
     }
 
+    if (!driveApiKey) {
+      alert("Missing Drive API Key. Please configure it in the settings.");
+      return;
+    }
+
     setDriveActionBusy(true);
     setStatusMessage("Syncing current ledger to Google Drive...");
     vibrate("utility");
 
     try {
-      const response = await sendToExtension({
-        type: "DRIVE_WRITE_DATA",
-        payload: { data: transactions },
-      });
+      const response = await writeGoogleDriveData(driveApiKey, transactions);
 
       if (!response.success) {
-        throw new Error(response.error || "Drive sync failed");
+        throw new Error("Drive sync failed");
       }
 
       localStorage.setItem("bml_storage_pref", "drive");
@@ -306,43 +328,32 @@ export default function BMLDashboard() {
   };
 
   const handleDriveCardClick = async () => {
-    if (!userInfo?.subscriptionValid) {
-      alert("Whale Subscription Required for Google Drive Sync.");
-      return;
-    }
-
     if (driveStatus.connected) {
       await handleDriveLoad();
       return;
     }
 
-    const existingApiKey = weav3rApiKey || userInfo?.apiKey;
-    if (existingApiKey) {
-      await handleStartDriveSetup(existingApiKey, false);
-      return;
-    }
-
+    setManualApiKey(driveApiKey);
     setShowDriveSetupDialog(true);
   };
 
   const handleStartDriveSetup = async (apiKeyOverride?: string, fromManualEntry = true) => {
-    if (!userInfo?.subscriptionValid) {
-      alert("Whale Subscription Required: You must be a Whale to use Google Drive Sync.");
+    const apiKey = (apiKeyOverride || manualApiKey || driveApiKey || "").trim();
+    if (!apiKey) {
+      alert("Missing Torn API key. Please enter it in the setup dialog.");
       return;
     }
 
-    const apiKey = apiKeyOverride || weav3rApiKey || userInfo?.apiKey || manualApiKey.trim();
-    if (!apiKey) {
-      alert("Missing Torn API key. Sync your subscription in the extension first.");
-      return;
+    // Update global drive API key if changed manually
+    if (manualApiKey && manualApiKey !== driveApiKey) {
+      saveDriveApiKey(manualApiKey);
     }
 
     setDriveSetupBusy(true);
+    setStatusMessage(null); // Clear previous errors
     setStatusMessage("Checking Google Drive session for this Torn API key...");
 
     try {
-      await applyApiKeyToExtension(apiKey);
-
       const response = await initiateGoogleDriveSetup({
         apiKey,
         redirectUri: `${window.location.origin}/bmlconnect/redirect`,
@@ -385,11 +396,16 @@ export default function BMLDashboard() {
       return;
     }
 
+    if (!driveApiKey) {
+      alert("Missing Drive API Key. Data cannot be deleted directly.");
+      return;
+    }
+
     setDriveActionBusy(true);
     try {
-      const response = await sendToExtension({ type: "DRIVE_DELETE_DATA" });
+      const response = await deleteGoogleDriveData(driveApiKey);
       if (!response.success) {
-        throw new Error(response.error || "Delete failed");
+        throw new Error("Delete failed");
       }
 
       await refreshDriveStatus();
@@ -411,11 +427,22 @@ export default function BMLDashboard() {
       return;
     }
 
+    if (!driveApiKey) {
+      // If no API key, we can't tell the server to disconnect, but we can clear local state
+      setDriveStatus(EMPTY_DRIVE_STATUS);
+      localStorage.setItem("bml_storage_pref", "browser");
+      setStorageLocation("browser");
+      setShowDriveSettings(false);
+      setStatusMessage("Google Drive disconnected locally.");
+      vibrate("success");
+      return;
+    }
+
     setDriveActionBusy(true);
     try {
-      const response = await sendToExtension({ type: "DRIVE_DISCONNECT" });
+      const response = await disconnectGoogleDrive(driveApiKey);
       if (!response.success) {
-        throw new Error(response.error || "Disconnect failed");
+        throw new Error("Disconnect failed");
       }
 
       setDriveStatus(EMPTY_DRIVE_STATUS);
@@ -553,7 +580,16 @@ export default function BMLDashboard() {
           )}
 
           {statusMessage && (
-            <div className="mb-4 rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground/70">
+            <div
+              className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+                statusMessage.toLowerCase().includes("fail") ||
+                statusMessage.toLowerCase().includes("invalid") ||
+                statusMessage.toLowerCase().includes("error") ||
+                statusMessage.toLowerCase().includes("expired")
+                  ? "border-danger/20 bg-danger/5 text-danger"
+                  : "border-border bg-background text-foreground/70"
+              }`}
+            >
               {statusMessage}
             </div>
           )}
@@ -760,8 +796,8 @@ export default function BMLDashboard() {
                     </div>
                     <p className="text-xs text-foreground/60">
                       {driveStatus.connected
-                        ? "Click to load ledger data through the extension from Google Drive appData."
-                        : "Authorize Google Drive appData access from the web app, then load data through the extension."}
+                        ? "Click to load ledger data directly from Google Drive appData."
+                        : "Authorize Google Drive appData access to sync your ledger across devices without any extension."}
                     </p>
 
                     {driveStatus.connected && (
@@ -880,47 +916,76 @@ export default function BMLDashboard() {
       </main>
 
       {showDriveSetupDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-panel p-6 shadow-xl">
-            <h2 className="mb-3 text-xl font-bold">Google Drive Connect</h2>
-            <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-foreground/80">
-              <p className="mb-2 font-semibold text-amber-600">
-                Your Torn API key will be stored in the database.
-              </p>
-              <p className="mb-2">
-                It will be used to identify the Google Drive <code>appDataFolder</code> session for this integration.
-              </p>
-              <p>
-                Please create a dedicated Torn API key specifically for this integration. Suggested name:{" "}
-                <strong>&quot;Only use Ledger Drive Connect&quot;</strong>
-              </p>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-panel shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h2 className="mb-4 text-xl font-bold tracking-tight">Google Drive Connect</h2>
+              <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm leading-relaxed text-foreground/80">
+                <p className="mb-2 font-bold text-amber-600 dark:text-amber-400">
+                  <ShieldCheck className="mr-2 inline-block h-4 w-4" />
+                  Security Notice
+                </p>
+                <p className="mb-3">
+                  Your Torn API key will be stored securely in our database. Only users with this specific API key will be able to access your Google Drive ledger backup.
+                </p>
+                <p>
+                  We recommend creating a dedicated Torn API key for this purpose named 
+                  <strong className="mx-1 rounded bg-panel px-1.5 py-0.5 text-xs font-mono">&quot;BML Drive Sync&quot;</strong>.
+                </p>
+              </div>
 
-            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-foreground/50">
-              Torn API Key
-            </label>
-            <input
-              type="password"
-              value={manualApiKey}
-              onChange={(event) => setManualApiKey(event.target.value)}
-              placeholder="Enter Torn API key"
-              className="mb-4 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition-colors focus:border-primary/50"
-            />
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-foreground/50">
+                    Active Drive API Key
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      value={manualApiKey}
+                      onChange={(event) => setManualApiKey(event.target.value)}
+                      placeholder="Enter Torn API key"
+                      className="w-full rounded-xl border border-border bg-background py-3 pl-4 pr-12 text-sm font-mono outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/5"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] text-foreground/40">
+                    Modifying this key will also update your global Drive settings.
+                  </p>
+                </div>
 
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDriveSetupDialog(false)}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground/70"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleStartDriveSetup(undefined, true)}
-                disabled={driveSetupBusy}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-              >
-                Continue
-              </button>
+                {statusMessage && !driveSetupBusy && (
+                  <div className="rounded-xl border border-danger/20 bg-danger/5 p-3 text-xs font-semibold text-danger animate-in fade-in slide-in-from-top-1">
+                    {statusMessage}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowDriveSetupDialog(false);
+                    setShowApiKey(false);
+                  }}
+                  className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-foreground/70 transition-colors hover:bg-foreground/5"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleStartDriveSetup(undefined, true)}
+                  disabled={driveSetupBusy}
+                  className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:translate-y-[-1px] hover:shadow-xl hover:shadow-primary/30 active:translate-y-0 disabled:opacity-60"
+                >
+                  {driveSetupBusy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save & Connect
+                </button>
+              </div>
             </div>
           </div>
         </div>

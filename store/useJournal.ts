@@ -5,6 +5,7 @@ import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
 import { sendToExtension } from '@/lib/bmlconnect';
 import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
+import { loadGoogleDriveData, writeGoogleDriveData } from '@/lib/drive-api';
 
 // A simple hook to manage transactions in localStorage and IndexedDB.
 const STORAGE_KEY = 'torn_invest_tracker_logs';
@@ -182,16 +183,20 @@ export function useJournal() {
     }, []);
 
     const fetchDriveTransactions = useCallback(async () => {
-        const response = await sendToExtension<Transaction[]>({ type: "DRIVE_LOAD_DATA" });
+        if (!driveApiKey) {
+            throw new Error("Google Drive sync key is not configured. Redirecting to setup...");
+        }
+
+        const response = await loadGoogleDriveData(driveApiKey);
         if (!response.success) {
-            throw new Error(response.error || "Failed to download Drive data");
+            throw new Error("Failed to download Drive data");
         }
 
         const driveTransactions = Array.isArray(response.data) ? response.data : [];
         await persistLocalCache(driveTransactions);
         markDriveSyncComplete();
         return driveTransactions;
-    }, [markDriveSyncComplete, persistLocalCache]);
+    }, [driveApiKey, markDriveSyncComplete, persistLocalCache]);
 
     const refreshDriveCache = useCallback(async () => {
         const driveTransactions = await runSyncTask(
@@ -346,15 +351,18 @@ export function useJournal() {
             persistTransactionsCache(newLogs).catch(console.error);
         } else if (storagePref === 'drive') {
             persistLocalCache(newLogs).catch(console.error);
+
+            if (!driveApiKey) {
+                console.warn("Drive API key missing during sync attempt.");
+                return;
+            }
+
             runSyncTask(
                 "Sync in progress: uploading latest data to Google Drive...",
                 async () => {
-                    const response = await sendToExtension({ 
-                        type: 'DRIVE_WRITE_DATA', 
-                        payload: { data: newLogs },
-                    });
+                    const response = await writeGoogleDriveData(driveApiKey, newLogs);
                     if (!response.success) {
-                        throw new Error(response.error || "Failed to sync to Google Drive");
+                        throw new Error("Failed to sync to Google Drive");
                     }
                     markDriveSyncComplete();
                 }
@@ -368,7 +376,7 @@ export function useJournal() {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(newLogs));
             });
         }
-    }, [markDriveSyncComplete, persistLocalCache, persistTransactionsCache, runSyncTask]);
+    }, [driveApiKey, markDriveSyncComplete, persistLocalCache, persistTransactionsCache, runSyncTask]);
 
     const mergeTransactions = useCallback((incoming: Transaction[]) => {
         setTransactions(prev => {

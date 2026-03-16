@@ -77,3 +77,47 @@ export async function getGoogleDriveStatus(apiKey: string) {
 
   return readJson<{ success: true; data: GoogleDriveStatusResponse }>(response);
 }
+
+export async function loadGoogleDriveData(apiKey: string) {
+  const response = await fetch(getFunctionUrl("sync-google-drive"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, action: "read" }),
+  });
+
+  return readJson<{
+    success: true;
+    data: any[];
+    meta: { connection: GoogleDriveStatusResponse };
+  }>(response);
+}
+
+export async function writeGoogleDriveData(apiKey: string, data: any[]) {
+  const response = await fetch(getFunctionUrl("sync-google-drive"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, action: "write", data }),
+  });
+
+  return readJson<{ success: true; data: GoogleDriveStatusResponse }>(response);
+}
+
+export async function deleteGoogleDriveData(apiKey: string) {
+  const response = await fetch(getFunctionUrl("sync-google-drive"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, action: "delete" }),
+  });
+
+  return readJson<{ success: true; data: GoogleDriveStatusResponse }>(response);
+}
+
+export async function disconnectGoogleDrive(apiKey: string) {
+  const response = await fetch(getFunctionUrl("sync-google-drive"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, action: "disconnect" }),
+  });
+
+  return readJson<{ success: true; data: GoogleDriveStatusResponse }>(response);
+}
