@@ -1,8 +1,9 @@
-export const DB_NAME = 'BMLDB';
-export const DB_VERSION = 2; // Upgraded to v2
+export const DB_VERSION = 2;
 export const STORE_NAME = 'keyval';
-export const TXN_STORE_NAME = 'transactions'; // New store for individual transactions
+export const TXN_STORE_NAME = 'transactions';
 const IDB_TIMEOUT_MS = 1500;
+
+export type DBName = 'LogsDB' | 'GoogleCacheLogsDB';
 
 function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -22,12 +23,12 @@ function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
   });
 }
 
-function getDB(): Promise<IDBDatabase> {
+function getDB(dbName: DBName): Promise<IDBDatabase> {
   return withTimeout(new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') return reject(new Error('IndexedDB not available'));
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(dbName, DB_VERSION);
     request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('IndexedDB open blocked'));
+    request.onblocked = () => reject(new Error(`IndexedDB open blocked for ${dbName}`));
     request.onsuccess = () => resolve(request.result);
     request.onupgradeneeded = (event) => {
       const db = request.result;
@@ -40,77 +41,76 @@ function getDB(): Promise<IDBDatabase> {
         txnStore.createIndex('item', 'item', { unique: false });
       }
     };
-  }), 'IndexedDB open timed out');
+  }), `IndexedDB open timed out for ${dbName}`);
 }
 
-// ---- Legacy/Config keyval operations ----
-export async function get<T = any>(key: string): Promise<T | undefined> {
+// ---- Key-Value operations ----
+export async function get<T = any>(dbName: DBName, key: string): Promise<T | undefined> {
   try {
-    const db = await getDB();
+    const db = await getDB(dbName);
     return await withTimeout(new Promise((resolve, reject) => {
       const transaction = db.transaction(STORE_NAME, 'readonly');
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get(key);
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
-    }), 'IndexedDB read timed out');
+    }), `IndexedDB read timed out for ${dbName}`);
   } catch (e) {
     return undefined;
   }
 }
 
-export async function set(key: string, val: any): Promise<void> {
-  const db = await getDB();
+export async function set(dbName: DBName, key: string, val: any): Promise<void> {
+  const db = await getDB(dbName);
   return withTimeout(new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(val, key);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
-  }), 'IndexedDB write timed out');
+  }), `IndexedDB write timed out for ${dbName}`);
 }
 
-export async function del(key: string): Promise<void> {
-  const db = await getDB();
+export async function del(dbName: DBName, key: string): Promise<void> {
+  const db = await getDB(dbName);
   return withTimeout(new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(key);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
-  }), 'IndexedDB delete timed out');
+  }), `IndexedDB delete timed out for ${dbName}`);
 }
 
-// ---- V2 Transactions operations ----
-export async function getAllTransactions<T = any>(): Promise<T[]> {
+// ---- Transactions operations ----
+export async function getAllTransactions<T = any>(dbName: DBName): Promise<T[]> {
   try {
-    const db = await getDB();
+    const db = await getDB(dbName);
     return await withTimeout(new Promise((resolve, reject) => {
       const transaction = db.transaction(TXN_STORE_NAME, 'readonly');
       const store = transaction.objectStore(TXN_STORE_NAME);
       const request = store.getAll();
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result || []);
-    }), 'IndexedDB transaction read timed out');
+    }), `IndexedDB transaction read timed out for ${dbName}`);
   } catch (e) {
-    console.warn("Failed to get transactions from IDB v2", e);
+    console.warn(`Failed to get transactions from ${dbName}`, e);
     return [];
   }
 }
 
-export async function saveTransactions(txns: any[]): Promise<void> {
-  const db = await getDB();
+export async function saveTransactions(dbName: DBName, txns: any[]): Promise<void> {
+  const db = await getDB(dbName);
   return withTimeout(new Promise((resolve, reject) => {
     const transaction = db.transaction(TXN_STORE_NAME, 'readwrite');
     const store = transaction.objectStore(TXN_STORE_NAME);
     
-    // Clear out old records entirely to ensure full sync with array state
     store.clear().onsuccess = () => {
-      let count = 0;
       if (txns.length === 0) {
         resolve();
         return;
       }
+      let count = 0;
       txns.forEach(txn => {
         const req = store.put(txn);
         req.onsuccess = () => {
@@ -121,5 +121,5 @@ export async function saveTransactions(txns: any[]): Promise<void> {
       });
     };
     transaction.onerror = () => reject(transaction.error);
-  }), 'IndexedDB transaction write timed out');
+  }), `IndexedDB transaction write timed out for ${dbName}`);
 }

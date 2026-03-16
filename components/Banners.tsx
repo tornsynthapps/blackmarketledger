@@ -19,11 +19,11 @@ export function Banners() {
 
     useEffect(() => {
         const init = async () => {
-            let statsStr = await idb.get<string>("blackmarket_banner_stats");
+            let statsStr = await idb.get<string>("LogsDB", "blackmarket_banner_stats");
             if (!statsStr) {
                 statsStr = localStorage.getItem("blackmarket_banner_stats") || undefined;
                 if (statsStr) {
-                    await idb.set("blackmarket_banner_stats", statsStr);
+                    await idb.set("LogsDB", "blackmarket_banner_stats", statsStr);
                 }
             }
 
@@ -58,7 +58,7 @@ export function Banners() {
     }, []);
 
     const updateStats = async (key: string, val: number) => {
-        let statsStr = await idb.get<string>("blackmarket_banner_stats");
+        let statsStr = await idb.get<string>("LogsDB", "blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : {
             forumClicks: 0,
             forumCloseStreak: 0,
@@ -66,7 +66,7 @@ export function Banners() {
             donationCloseStreak: 0
         };
         stats[key] = val;
-        await idb.set("blackmarket_banner_stats", JSON.stringify(stats));
+        await idb.set("LogsDB", "blackmarket_banner_stats", JSON.stringify(stats));
         localStorage.setItem("blackmarket_banner_stats", JSON.stringify(stats));
         return stats;
     };
@@ -84,14 +84,14 @@ export function Banners() {
         event.stopPropagation();
         vibrate("utility");
         setShowForum(false);
-        let statsStr = await idb.get<string>("blackmarket_banner_stats");
+        let statsStr = await idb.get<string>("LogsDB", "blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { forumCloseStreak: 0 };
         await updateStats("forumCloseStreak", (stats.forumCloseStreak || 0) + 1);
     };
 
     const handleDonationClick = async () => {
         vibrate("success");
-        let statsStr = await idb.get<string>("blackmarket_banner_stats");
+        let statsStr = await idb.get<string>("LogsDB", "blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { donationClicks: 0 };
         await updateStats("donationClicks", (stats.donationClicks || 0) + 1);
         await updateStats("donationCloseStreak", 0);
@@ -103,7 +103,7 @@ export function Banners() {
         event.stopPropagation();
         vibrate("utility");
         setShowDonation(false);
-        let statsStr = await idb.get<string>("blackmarket_banner_stats");
+        let statsStr = await idb.get<string>("LogsDB", "blackmarket_banner_stats");
         let stats = statsStr ? JSON.parse(statsStr) : { donationCloseStreak: 0 };
         await updateStats("donationCloseStreak", (stats.donationCloseStreak || 0) + 1);
     };

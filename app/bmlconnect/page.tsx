@@ -64,9 +64,10 @@ export default function BMLDashboard() {
     mergeTransactions,
     driveApiKey,
     saveDriveApiKey,
+    switchStorageLocation,
   } = useJournal();
   const { vibrate } = useHapticFeedback();
-  
+
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const [isExtensionInstalled, setIsExtensionInstalled] = useState<boolean | null>(
@@ -87,6 +88,12 @@ export default function BMLDashboard() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
+  const [showMigrationDialog, setShowMigrationDialog] = useState(false);
+  const [bypassExtension, setBypassExtension] = useState(false);
+  const [pendingStorageSwitch, setPendingStorageSwitch] = useState<{
+    target: "browser" | "drive";
+    label: string;
+  } | null>(null);
 
   const driveSuccessBanner = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -98,60 +105,16 @@ export default function BMLDashboard() {
     if (pref === "browser" || pref === "extension" || pref === "drive") {
       setStorageLocation(pref);
     }
-  }, []);
 
-  useEffect(() => {
     const initialize = async () => {
-      const helloRes = await sendToExtension({ type: "HELLO" });
-      setIsExtensionInstalled(helloRes.success);
+      const extensionActive = await sendToExtension({ type: "HELLO" });
+      setIsExtensionInstalled(extensionActive.success);
+      setIsConnected(extensionActive.success);
 
-      if (helloRes.success) {
-        const token = getConnectionString();
-        const connectionRes = await sendToExtension({
-          type: "CONNECTION",
-          payload: { connectionToken: token },
-        });
-        setIsConnected(connectionRes.success);
-      } else {
-        setIsConnected(false);
-      }
-
-      // Try to load user info from extension if it exists, otherwise we'll rely on local state
-      let userRes = null;
-      if (helloRes.success) {
-        userRes = await sendToExtension<UserInfo>({ type: "GET_USER_INFO" });
-        if (userRes.success) {
-          setUserInfo(userRes.data ?? null);
-        }
-      }
-
-      // Drive status can always be fetched if we have the driveApiKey
-      if (driveApiKey) {
-        try {
-          const driveRes = await getGoogleDriveStatus(driveApiKey);
-          if (driveRes.success && driveRes.data) {
-            setDriveStatus({
-              connected: Boolean(driveRes.data.connected),
-              hasData: Boolean(driveRes.data.hasData),
-              email: driveRes.data.email ?? null,
-              connectedAt: driveRes.data.connectedAt ?? null,
-              lastSyncedAt: driveRes.data.lastSyncedAt ?? null,
-            });
-          }
-        } catch (e) {
-          console.error("Failed to fetch drive status during init", e);
-        }
-      } else if (helloRes.success) {
-        // Fallback to extension if we don't have an API key locally yet
-        const driveRes = await sendToExtension<DriveStatus>({ type: "DRIVE_STATUS" });
-        if (driveRes.success && driveRes.data) {
-          setDriveStatus({
-            connected: Boolean(driveRes.data.connected),
-            hasData: Boolean(driveRes.data.hasData),
-            email: driveRes.data.email ?? null,
-            connectedAt: driveRes.data.connectedAt ?? null,
-            lastSyncedAt: driveRes.data.lastSyncedAt ?? null,
-          });
+      if (extensionActive.success) {
+        const sub = await sendToExtension<UserInfo>({ type: "SUBSCRIPTION_STATUS" });
+        if (sub.success) {
+          setUserInfo(sub.data ?? null);
         }
       }
 
@@ -179,53 +142,27 @@ export default function BMLDashboard() {
     return response;
   };
 
+  const initiateStorageSwitch = (target: "browser" | "drive", label: string) => {
+    if (storageLocation === target) return;
+    setPendingStorageSwitch({ target, label });
+    setShowMigrationDialog(true);
+  };
 
-  const handleMigrationToExtension = async () => {
-    if (!userInfo?.subscriptionValid) return;
-
+  const handleMigrationConfirm = async (type: "merge" | "overwrite" | "none") => {
+    if (!pendingStorageSwitch) return;
     setIsMigrating(true);
     vibrate("utility");
-
     try {
-      const resLoad = await sendToExtension<Transaction[]>({
-        type: "EXTENSION_DB_LOAD",
-      });
-      const extensionLogs = resLoad.success && Array.isArray(resLoad.data)
-        ? resLoad.data
-        : [];
-
-      mergeTransactions(extensionLogs);
-      localStorage.setItem("bml_storage_pref", "extension");
-      setStorageLocation("extension");
+      await switchStorageLocation(pendingStorageSwitch.target, type);
+      setStorageLocation(pendingStorageSwitch.target);
+      setShowMigrationDialog(false);
+      setPendingStorageSwitch(null);
       setMigrationComplete(true);
       vibrate("success");
       window.setTimeout(() => setMigrationComplete(false), 3000);
     } catch (error) {
       console.error("Migration failed", error);
       alert("Migration failed");
-      vibrate("danger");
-    } finally {
-      setIsMigrating(false);
-    }
-  };
-
-  const handleMigrationToBrowser = async () => {
-    setIsMigrating(true);
-    vibrate("utility");
-
-    try {
-      const resLoad = await sendToExtension<Transaction[]>({
-        type: "EXTENSION_DB_LOAD",
-      });
-      if (resLoad.success && Array.isArray(resLoad.data)) {
-        mergeTransactions(resLoad.data);
-      }
-
-      localStorage.setItem("bml_storage_pref", "browser");
-      setStorageLocation("browser");
-      vibrate("success");
-    } catch (error) {
-      console.error("Switch failed", error);
       vibrate("danger");
     } finally {
       setIsMigrating(false);
@@ -258,192 +195,84 @@ export default function BMLDashboard() {
       alert("Missing Drive API Key. Please configure it in the settings.");
       return;
     }
-
-    setDriveActionBusy(true);
-    setStatusMessage("Loading ledger data from Google Drive...");
-    vibrate("utility");
-
-    try {
-      const response = await loadGoogleDriveData(driveApiKey);
-      if (!response.success) {
-        throw new Error("Drive load failed");
-      }
-
-      if (!Array.isArray(response.data) || response.data.length === 0) {
-        setStatusMessage("Drive connected. No ledger backup found yet. Using Google Drive for future syncs.");
-      } else {
-        mergeTransactions(response.data);
-        setStatusMessage("Ledger data loaded from Google Drive.");
-      }
-
-      localStorage.setItem("bml_storage_pref", "drive");
-      setStorageLocation("drive");
-      await refreshDriveStatus();
-      vibrate("success");
-    } catch (error) {
-      console.error("Drive load failed", error);
-      setStatusMessage(error instanceof Error ? error.message : "Drive load failed");
-      vibrate("danger");
-    } finally {
-      setDriveActionBusy(false);
-    }
+    initiateStorageSwitch("drive", "Google Drive");
   };
 
   const handleDriveWrite = async () => {
     if (!userInfo?.subscriptionValid) {
-      alert(
-        "Whale Subscription Required: Your subscription has expired. Please renew or rescue your data to browser storage.",
-      );
+      alert("Whale Subscription Required: Your subscription has expired.");
       return;
     }
 
     if (!driveApiKey) {
-      alert("Missing Drive API Key. Please configure it in the settings.");
+      alert("Missing Drive API Key.");
       return;
     }
 
     setDriveActionBusy(true);
-    setStatusMessage("Syncing current ledger to Google Drive...");
+    setStatusMessage("Syncing ledger to Google Drive...");
     vibrate("utility");
 
     try {
       const response = await writeGoogleDriveData(driveApiKey, transactions);
+      if (!response.success) throw new Error("Sync failed");
 
-      if (!response.success) {
-        throw new Error("Drive sync failed");
-      }
-
-      localStorage.setItem("bml_storage_pref", "drive");
-      setStorageLocation("drive");
       await refreshDriveStatus();
-      setStatusMessage("Google Drive sync complete.");
+      setStatusMessage("Ledger successfully synced to Google Drive.");
       vibrate("success");
     } catch (error) {
-      console.error("Drive sync failed", error);
-      setStatusMessage(error instanceof Error ? error.message : "Drive sync failed");
+      setStatusMessage(error instanceof Error ? error.message : "Sync failed");
       vibrate("danger");
     } finally {
       setDriveActionBusy(false);
     }
   };
 
-  const handleDriveCardClick = async () => {
-    if (driveStatus.connected) {
-      await handleDriveLoad();
+  const handleStartDriveSetup = async () => {
+    if (!manualApiKey.trim()) {
+      alert("Please enter a Torn API key.");
       return;
-    }
-
-    setManualApiKey(driveApiKey);
-    setShowDriveSetupDialog(true);
-  };
-
-  const handleStartDriveSetup = async (apiKeyOverride?: string, fromManualEntry = true) => {
-    const apiKey = (apiKeyOverride || manualApiKey || driveApiKey || "").trim();
-    if (!apiKey) {
-      alert("Missing Torn API key. Please enter it in the setup dialog.");
-      return;
-    }
-
-    // Update global drive API key if changed manually
-    if (manualApiKey && manualApiKey !== driveApiKey) {
-      saveDriveApiKey(manualApiKey);
     }
 
     setDriveSetupBusy(true);
-    setStatusMessage(null); // Clear previous errors
-    setStatusMessage("Checking Google Drive session for this Torn API key...");
+    setStatusMessage(null);
+    vibrate("utility");
 
     try {
+      await saveDriveApiKey(manualApiKey);
+
       const response = await initiateGoogleDriveSetup({
-        apiKey,
-        redirectUri: `${window.location.origin}/bmlconnect/redirect`,
+        apiKey: manualApiKey,
+        redirectUri: `${window.location.origin}/bmlconnect`,
       });
 
       if (response.status === "SESSION_EXISTS") {
-        setDriveStatus({
-          connected: response.connection.connected,
-          hasData: response.connection.hasData,
-        });
         setShowDriveSetupDialog(false);
-        setStatusMessage("Google Drive session already exists. Starting sync...");
-        await handleDriveLoad();
-        return;
-      }
-
-      if (fromManualEntry) {
+        await refreshDriveStatus();
+        setStatusMessage("Google Drive session restored.");
+        vibrate("success");
+      } else if (response.status === "AUTH_REQUIRED") {
+        setShowDriveSetupDialog(false);
         setPendingDriveAuthUrl(response.url);
-        setShowDriveSetupDialog(false);
         setShowDriveAuthChoiceDialog(true);
-        setStatusMessage("No Drive session found for this Torn API key.");
-        return;
       }
-
-      window.location.assign(response.url);
     } catch (error) {
-      console.error("Drive setup failed", error);
-      setStatusMessage(error instanceof Error ? error.message : "Drive setup failed");
+      setStatusMessage(error instanceof Error ? error.message : "Auth failed");
+      vibrate("danger");
     } finally {
       setDriveSetupBusy(false);
     }
   };
 
-  const handleDeleteDriveData = async () => {
-    if (
-      !confirm(
-        "Permanently delete the Google Drive appData backup for this ledger account?",
-      )
-    ) {
-      return;
-    }
-
-    if (!driveApiKey) {
-      alert("Missing Drive API Key. Data cannot be deleted directly.");
-      return;
-    }
-
-    setDriveActionBusy(true);
-    try {
-      const response = await deleteGoogleDriveData(driveApiKey);
-      if (!response.success) {
-        throw new Error("Delete failed");
-      }
-
-      await refreshDriveStatus();
-      localStorage.setItem("bml_storage_pref", "browser");
-      setStorageLocation("browser");
-      setStatusMessage("Drive backup deleted.");
-      vibrate("success");
-    } catch (error) {
-      console.error("Delete failed", error);
-      setStatusMessage(error instanceof Error ? error.message : "Delete failed");
-      vibrate("danger");
-    } finally {
-      setDriveActionBusy(false);
-    }
-  };
-
   const handleDisconnectDrive = async () => {
-    if (!confirm("Disconnect Google Drive for this ledger account?")) {
-      return;
-    }
-
-    if (!driveApiKey) {
-      // If no API key, we can't tell the server to disconnect, but we can clear local state
-      setDriveStatus(EMPTY_DRIVE_STATUS);
-      localStorage.setItem("bml_storage_pref", "browser");
-      setStorageLocation("browser");
-      setShowDriveSettings(false);
-      setStatusMessage("Google Drive disconnected locally.");
-      vibrate("success");
-      return;
-    }
+    if (!driveApiKey) return;
+    if (!confirm("Are you sure you want to disconnect Google Drive?")) return;
 
     setDriveActionBusy(true);
+    vibrate("utility");
+
     try {
-      const response = await disconnectGoogleDrive(driveApiKey);
-      if (!response.success) {
-        throw new Error("Disconnect failed");
-      }
+      await disconnectGoogleDrive(driveApiKey);
 
       setDriveStatus(EMPTY_DRIVE_STATUS);
       localStorage.setItem("bml_storage_pref", "browser");
@@ -452,71 +281,10 @@ export default function BMLDashboard() {
       setStatusMessage("Google Drive disconnected.");
       vibrate("success");
     } catch (error) {
-      console.error("Disconnect failed", error);
       setStatusMessage(error instanceof Error ? error.message : "Disconnect failed");
       vibrate("danger");
     } finally {
       setDriveActionBusy(false);
-    }
-  };
-
-  const backupAndMigrate = () => {
-    if (
-      !confirm(
-        "You are about to sync your logs with the extension database. A backup will be downloaded first. Continue?",
-      )
-    ) {
-      return;
-    }
-
-    const dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(transactions));
-    const downloadAnchorNode = document.createElement("a");
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `bml_backup_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-
-    handleMigrationToExtension();
-  };
-
-  const handleRescueToBrowser = async () => {
-    if (
-      !confirm(
-        "This will recover your most recent data from cloud or extension storage and move you back to browser storage. Continue?",
-      )
-    ) {
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      if (storageLocation === "drive") {
-        await handleDriveLoad();
-      }
-
-      if (storageLocation === "extension") {
-        const resLoad = await sendToExtension<Transaction[]>({
-          type: "EXTENSION_DB_LOAD",
-        });
-        if (resLoad.success && Array.isArray(resLoad.data)) {
-          mergeTransactions(resLoad.data);
-        }
-      }
-
-      localStorage.setItem("bml_storage_pref", "browser");
-      setStorageLocation("browser");
-      setStatusMessage("Data rescued to local browser storage.");
-      vibrate("success");
-    } catch (error) {
-      console.error("Rescue failed", error);
-      setStatusMessage(error instanceof Error ? error.message : "Rescue failed");
-      vibrate("danger");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -546,23 +314,18 @@ export default function BMLDashboard() {
 
           <div className="flex flex-col items-end gap-2">
             <div
-              className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest font-mono ${
-                isConnected
+              className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest font-mono ${isConnected
                   ? "border-success/20 bg-success/10 text-success"
                   : "border-danger/20 bg-danger/10 text-danger"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  isConnected ? "animate-pulse bg-success" : "bg-danger"
                 }`}
-              ></span>
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "animate-pulse bg-success" : "bg-danger"}`}></span>
               {isConnected ? "Sync Online" : "Sync Offline"}
             </div>
 
             {userInfo && !userInfo.subscriptionValid && storageLocation !== "browser" && (
               <button
-                onClick={handleRescueToBrowser}
+                onClick={() => initiateStorageSwitch("browser", "Browser Storage")}
                 className="animate-pulse rounded bg-amber-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-tighter text-white shadow-lg shadow-amber-500/20"
               >
                 Rescue Data
@@ -580,16 +343,10 @@ export default function BMLDashboard() {
           )}
 
           {statusMessage && (
-            <div
-              className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
-                statusMessage.toLowerCase().includes("fail") ||
-                statusMessage.toLowerCase().includes("invalid") ||
-                statusMessage.toLowerCase().includes("error") ||
-                statusMessage.toLowerCase().includes("expired")
-                  ? "border-danger/20 bg-danger/5 text-danger"
-                  : "border-border bg-background text-foreground/70"
-              }`}
-            >
+            <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${statusMessage.toLowerCase().match(/fail|invalid|error|expired/)
+                ? "border-danger/20 bg-danger/5 text-danger"
+                : "border-border bg-background text-foreground/70"
+              }`}>
               {statusMessage}
             </div>
           )}
@@ -604,23 +361,23 @@ export default function BMLDashboard() {
                 BML Connect requires the browser extension to sync your logs and unlock advanced features.
               </p>
               <div className="flex flex-col justify-center gap-3 sm:flex-row">
-                <a
-                  href="https://chromewebstore.google.com/"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
+                <a href="https://chromewebstore.google.com/" target="_blank" rel="noreferrer noopener" className="flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                   <Download className="h-4 w-4" /> Install Extension
                 </a>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="rounded-lg border border-border bg-foreground/5 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/10"
-                >
+                <button onClick={() => window.location.reload()} className="rounded-lg border border-border bg-foreground/5 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/10">
                   I&apos;ve installed it
                 </button>
               </div>
+              <div className="mt-8 pt-6 border-t border-border/50">
+                <button
+                  onClick={() => setBypassExtension(true)}
+                  className="text-xs font-bold uppercase tracking-widest text-foreground/30 hover:text-primary transition-colors underline underline-offset-4"
+                >
+                  Continue without extension (Limited features)
+                </button>
+              </div>
             </div>
-          ) : !isConnected ? (
+          ) : (!isConnected && !bypassExtension) ? (
             <div className="py-12 text-center">
               <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-danger/10 text-danger">
                 <Activity className="h-6 w-6" />
@@ -630,16 +387,10 @@ export default function BMLDashboard() {
                 We couldn&apos;t reach the BML extension. Ensure it&apos;s active and the connection token is configured.
               </p>
               <div className="flex justify-center gap-3">
-                <Link
-                  href="/bmlconnect/connect"
-                  className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                >
+                <Link href="/bmlconnect/connect" className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
                   Setup Connection
                 </Link>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="rounded-lg border border-border bg-foreground/5 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/10"
-                >
+                <button onClick={() => window.location.reload()} className="rounded-lg border border-border bg-foreground/5 px-6 py-2 text-sm font-medium text-foreground transition-colors hover:bg-foreground/10">
                   Retry
                 </button>
               </div>
@@ -652,53 +403,27 @@ export default function BMLDashboard() {
                 </h3>
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                   <div>
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">
-                      Operator
-                    </p>
-                    <p className="font-mono text-sm font-medium">
-                      {userInfo?.username || "Unknown"}
-                    </p>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">Operator</p>
+                    <p className="font-mono text-sm font-medium">{userInfo?.username || "Unknown"}</p>
                   </div>
                   <div>
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">
-                      User ID
-                    </p>
-                    <p className="font-mono text-sm font-medium text-foreground/80">
-                      {userInfo?.userId || "N/A"}
-                    </p>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">User ID</p>
+                    <p className="font-mono text-sm font-medium text-foreground/80">{userInfo?.userId || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">
-                      Tier
-                    </p>
-                    <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                        userInfo?.subscriptionValid
-                          ? "border border-amber-500/20 bg-amber-500/10 text-amber-500"
-                          : "border border-border bg-foreground/10 text-foreground/60"
-                      }`}
-                    >
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">Tier</p>
+                    <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${userInfo?.subscriptionValid ? "border border-amber-500/20 bg-amber-500/10 text-amber-500" : "border border-border bg-foreground/10 text-foreground/60"}`}>
                       {userInfo?.subscriptionValid ? "WHALE SUBSCRIBER" : "FREE USER"}
                     </span>
                   </div>
                   <div>
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">
-                      Valid Until
-                    </p>
-                    <p className="font-mono text-sm font-medium text-foreground/80">
-                      {userInfo?.validUntil
-                        ? new Date(userInfo.validUntil).toLocaleDateString()
-                        : "Lifetime"}
-                    </p>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-foreground/50">Valid Until</p>
+                    <p className="font-mono text-sm font-medium text-foreground/80">{userInfo?.validUntil ? new Date(userInfo.validUntil).toLocaleDateString() : "Lifetime"}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={handleRefreshSubscription}
-                    className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    Refresh Subscription
+                  <button onClick={handleRefreshSubscription} className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20">
+                    <RefreshCw className="h-3 w-3" /> Refresh Subscription
                   </button>
                 </div>
               </div>
@@ -709,281 +434,106 @@ export default function BMLDashboard() {
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div
-                    onClick={() => {
-                      if (storageLocation !== "browser") {
-                        handleMigrationToBrowser();
-                      }
-                    }}
-                    className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
-                      storageLocation === "browser"
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-background hover:border-primary/50"
-                    }`}
+                  <button
+                    onClick={() => initiateStorageSwitch("browser", "Browser Storage")}
+                    className={`cursor-pointer rounded-xl border-2 p-4 text-left transition-all ${storageLocation === "browser" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/50"}`}
                   >
                     <div className="mb-2 flex items-center gap-3">
                       <Server className="h-5 w-5 text-foreground/60" />
                       <div className="text-sm font-bold">Local Browser</div>
                     </div>
-                    <p className="text-xs text-foreground/60">
-                      Stores data in local IndexedDB. Cleared if you purge site data.
-                    </p>
-                  </div>
+                    <p className="text-xs text-foreground/60">Stores data in local IndexedDB. Cleared if you purge site data.</p>
+                  </button>
 
-                  <div
-                    onClick={() => {
-                      if (!userInfo?.subscriptionValid || storageLocation === "extension") {
-                        return;
-                      }
-                      backupAndMigrate();
-                    }}
-                    className={`rounded-xl border-2 p-4 transition-all ${
-                      !userInfo?.subscriptionValid
-                        ? "cursor-not-allowed border-border bg-background opacity-50 grayscale"
-                        : storageLocation === "extension"
-                          ? "border-primary bg-primary/5"
-                          : "cursor-pointer border-border bg-background hover:border-primary/50"
-                    }`}
-                  >
+                  <div className={`rounded-xl border-2 p-4 transition-all ${!userInfo?.subscriptionValid ? "cursor-not-allowed border-border bg-background opacity-50 grayscale" : storageLocation === "extension" ? "border-primary bg-primary/5" : "cursor-pointer border-border bg-background hover:border-primary/50"}`}>
                     <div className="mb-2 flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <ShieldCheck className="h-5 w-5 text-amber-500" />
                         <div className="text-sm font-bold">Extension Database</div>
                       </div>
-                      {!userInfo?.subscriptionValid && (
-                        <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-foreground/60">
-                          Whale Only
-                        </span>
-                      )}
                     </div>
-                    <p className="text-xs text-foreground/60">
-                      Stores data inside the extension so browser site-data clears do not wipe it.
-                    </p>
-                  </div>
-
-                  <div
-                    onClick={handleDriveCardClick}
-                    className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
-                      !userInfo?.subscriptionValid
-                        ? "border-border bg-background opacity-50 grayscale"
-                        : storageLocation === "drive"
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-background hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="mb-2 flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <ExternalLink className="h-5 w-5 text-blue-500" />
-                        <div className="text-sm font-bold">Google Drive Sync</div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        {!userInfo?.subscriptionValid && (
-                          <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-foreground/60">
-                            Whale Only
-                          </span>
-                        )}
-                        {!driveStatus.connected && (
-                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
-                            Connect
-                          </span>
-                        )}
-                        {driveStatus.connected && (
-                          <span className="rounded bg-success/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-success">
-                            Connected
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-xs text-foreground/60">
-                      {driveStatus.connected
-                        ? "Click to load ledger data directly from Google Drive appData."
-                        : "Authorize Google Drive appData access to sync your ledger across devices without any extension."}
-                    </p>
-
-                    {driveStatus.connected && (
-                      <div className="mt-3 border-t border-border pt-3">
-                        <div className="mb-3 text-[10px] uppercase tracking-wider text-foreground/50">
-                          {driveStatus.email || "Drive account connected"}
-                          {driveStatus.connectedAt && (
-                            <span className="ml-2">
-                              since {new Date(driveStatus.connectedAt).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDriveWrite();
-                            }}
-                            className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline"
-                          >
-                            Sync Current Ledger
-                          </button>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setShowDriveSettings((current) => !current);
-                            }}
-                            className="flex items-center gap-2 rounded-lg p-1.5 text-[10px] font-bold uppercase tracking-wider text-foreground/50 transition-colors hover:bg-foreground/5 hover:text-primary"
-                          >
-                            <Settings className="h-3.5 w-3.5" />
-                            Drive Settings
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-xs text-foreground/60">Stores data inside the extension so browser site-data clears do not wipe it.</p>
                   </div>
                 </div>
 
-                {showDriveSettings && driveStatus.connected && (
-                  <div className="mt-4 animate-in rounded-xl border-2 border-primary/20 bg-panel p-5 shadow-inner duration-300 slide-in-from-top-2">
-                    <h4 className="mb-4 flex items-center gap-2 text-sm font-bold">
-                      <Settings className="h-4 w-4 text-primary" /> Google Drive Settings
-                    </h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <button
-                        onClick={handleDisconnectDrive}
-                        className="flex w-full items-center justify-between rounded-lg border border-border bg-background p-3 text-left transition-all hover:border-danger/50 hover:bg-danger/5"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Unlink className="h-4 w-4 text-foreground/60" />
-                          <div>
-                            <p className="text-xs font-bold">Disconnect Account</p>
-                            <p className="text-[10px] text-foreground/50">
-                              Stop syncing and revoke the stored Google Drive session.
-                            </p>
-                          </div>
+                <div className="mt-6 flex flex-col gap-4">
+                  <div className={`group relative overflow-hidden rounded-2xl border-2 p-5 transition-all ${driveStatus.connected ? "border-primary/30 bg-primary/5" : "border-border bg-foreground/5 hover:border-primary/20"}`}>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${driveStatus.connected ? "bg-primary/20 text-primary" : "bg-foreground/10 text-foreground/40"}`}>
+                          <RefreshCw className={`h-6 w-6 ${driveActionBusy ? "animate-spin" : ""}`} />
                         </div>
-                        <ArrowRightLeft className="h-3 w-3 text-foreground/30" />
-                      </button>
+                        <div>
+                          <h4 className="font-bold">Google Drive Sync</h4>
+                          <p className="text-xs text-foreground/50">Direct browser-to-cloud backup</p>
+                        </div>
+                      </div>
 
-                      <button
-                        onClick={handleDeleteDriveData}
-                        className="group flex w-full items-center justify-between rounded-lg border border-danger/20 bg-danger/5 p-3 text-left transition-all hover:bg-danger/10"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Trash2 className="h-4 w-4 text-danger" />
-                          <div>
-                            <p className="text-xs font-bold text-danger">Wipe Cloud Data</p>
-                            <p className="text-[10px] text-danger/60">
-                              Permanently delete the ledger backup from Google Drive appData.
-                            </p>
-                          </div>
-                        </div>
-                        <ArrowRightLeft className="h-3 w-3 text-danger/30" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {driveStatus.connected ? (
+                          <>
+                            <button onClick={() => setShowDriveSettings(!showDriveSettings)} className="rounded-lg border border-border bg-background p-2 text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground">
+                              <Settings className="h-4 w-4" />
+                            </button>
+                            <button onClick={handleDriveLoad} disabled={driveActionBusy} className={`flex items-center gap-2 rounded-lg py-2 px-4 text-xs font-bold uppercase tracking-wider transition-all ${storageLocation === "drive" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "bg-panel text-primary border border-primary/30 hover:bg-primary/5"}`}>
+                              <Download className={`h-3.5 w-3.5 ${driveActionBusy ? "animate-bounce" : ""}`} />
+                              {storageLocation === "drive" ? "Connected" : "Load Drive"}
+                            </button>
+                          </>
+                        ) : (
+                          <button onClick={() => setShowDriveSetupDialog(true)} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground transition-all hover:bg-primary/90">
+                            Connect Drive
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {(driveSetupBusy || driveActionBusy || isMigrating) && (
-                  <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs font-medium text-amber-500">
-                    <ArrowRightLeft className="h-4 w-4 animate-spin" />
-                    {isMigrating
-                      ? "Migrating data to extension storage..."
-                      : driveSetupBusy
-                        ? "Preparing Google Drive authorization..."
-                        : "Running Drive operation..."}
+                    {showDriveSettings && driveStatus.connected && (
+                      <div className="mt-4 space-y-3 rounded-lg border border-border bg-background/50 p-4">
+                        <p className="text-xs text-foreground/60">Email: {driveStatus.email || "Unknown"}</p>
+                        <button onClick={handleDisconnectDrive} className="flex items-center gap-2 text-xs font-bold text-danger hover:text-danger/80">
+                          <Unlink className="h-3.5 w-3.5" /> Disconnect Google Drive
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {migrationComplete && (
-                  <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-success/20 bg-success/10 p-3 text-xs font-medium text-success">
-                    <ShieldCheck className="h-4 w-4" />
-                    Migration Complete! Using isolated extension storage.
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <Link
-                  href="/bmlconnect/connect"
-                  className="rounded-xl border border-border bg-panel p-3 text-center text-xs font-medium transition-colors hover:bg-foreground/5"
-                >
-                  Manage Connection Token
-                </Link>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="rounded-xl border border-border bg-panel p-3 text-center text-xs font-medium transition-colors hover:bg-foreground/5"
-                >
-                  Refresh Status
-                </button>
+                  {storageLocation === "drive" && (
+                    <button onClick={handleDriveWrite} disabled={driveActionBusy} className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-primary py-4 text-sm font-black uppercase tracking-widest text-primary-foreground transition-all hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/20 active:scale-[0.98] disabled:opacity-50">
+                      {driveActionBusy ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                      Sync Current Ledger
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
         </div>
       </main>
 
+      {/* Setup Dialogs */}
       {showDriveSetupDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-panel shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <h2 className="mb-4 text-xl font-bold tracking-tight">Google Drive Connect</h2>
-              <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm leading-relaxed text-foreground/80">
-                <p className="mb-2 font-bold text-amber-600 dark:text-amber-400">
-                  <ShieldCheck className="mr-2 inline-block h-4 w-4" />
-                  Security Notice
-                </p>
-                <p className="mb-3">
-                  Your Torn API key will be stored securely in our database. Only users with this specific API key will be able to access your Google Drive ledger backup.
-                </p>
-                <p>
-                  We recommend creating a dedicated Torn API key for this purpose named 
-                  <strong className="mx-1 rounded bg-panel px-1.5 py-0.5 text-xs font-mono">&quot;BML Drive Sync&quot;</strong>.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-foreground/50">
-                    Active Drive API Key
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showApiKey ? "text" : "password"}
-                      value={manualApiKey}
-                      onChange={(event) => setManualApiKey(event.target.value)}
-                      placeholder="Enter Torn API key"
-                      className="w-full rounded-xl border border-border bg-background py-3 pl-4 pr-12 text-sm font-mono outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/5"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <p className="mt-2 text-[10px] text-foreground/40">
-                    Modifying this key will also update your global Drive settings.
-                  </p>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8">
+            <h2 className="text-xl font-bold mb-4">Google Drive Setup</h2>
+            <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-500 leading-relaxed">
+              <ShieldCheck className="w-5 h-5 mb-2" />
+              Your API key will be stored securely and used only for sync.
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-foreground/50 mb-1.5 block">Torn API Key</label>
+                <div className="relative">
+                  <input type={showApiKey ? "text" : "password"} value={manualApiKey} onChange={(e) => setManualApiKey(e.target.value)} className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:border-primary outline-none transition-all" placeholder="Enter API Key" />
+                  <button onClick={() => setShowApiKey(!showApiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground">
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
-
-                {statusMessage && !driveSetupBusy && (
-                  <div className="rounded-xl border border-danger/20 bg-danger/5 p-3 text-xs font-semibold text-danger animate-in fade-in slide-in-from-top-1">
-                    {statusMessage}
-                  </div>
-                )}
               </div>
-
-              <div className="mt-8 flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowDriveSetupDialog(false);
-                    setShowApiKey(false);
-                  }}
-                  className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-foreground/70 transition-colors hover:bg-foreground/5"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleStartDriveSetup(undefined, true)}
-                  disabled={driveSetupBusy}
-                  className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:translate-y-[-1px] hover:shadow-xl hover:shadow-primary/30 active:translate-y-0 disabled:opacity-60"
-                >
-                  {driveSetupBusy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save & Connect
+              <div className="flex gap-3">
+                <button onClick={() => setShowDriveSetupDialog(false)} className="flex-1 py-3 text-sm font-bold text-foreground/60 hover:bg-foreground/5 rounded-xl transition-all">Cancel</button>
+                <button onClick={handleStartDriveSetup} disabled={driveSetupBusy} className="flex-1 bg-primary py-3 rounded-xl text-sm font-black text-primary-foreground hover:bg-primary/90 transition-all">
+                  {driveSetupBusy ? "Connecting..." : "Confirm Key"}
                 </button>
               </div>
             </div>
@@ -991,35 +541,70 @@ export default function BMLDashboard() {
         </div>
       )}
 
-      {showDriveAuthChoiceDialog && pendingDriveAuthUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-panel p-6 shadow-xl">
-            <h2 className="mb-3 text-xl font-bold">No Existing Drive Session</h2>
-            <p className="mb-6 text-sm text-foreground/70">
-              No Google Drive session exists for this Torn API key. You can use a different API key or continue to Google auth and start syncing.
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
+      {showDriveAuthChoiceDialog && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8 text-center">
+            <RefreshCw className="w-12 h-12 text-primary mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Authorize Drive</h2>
+            <p className="text-sm text-foreground/60 mb-8">Click below to authorize with Google.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={() => {
+                const win = window.open(pendingDriveAuthUrl!, "_blank");
+                if (win) {
                   setShowDriveAuthChoiceDialog(false);
-                  setShowDriveSetupDialog(true);
-                  setPendingDriveAuthUrl(null);
-                }}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground/70"
-              >
-                Use Different API Key
-              </button>
-              <button
-                onClick={() => {
-                  setShowDriveAuthChoiceDialog(false);
-                  window.location.assign(pendingDriveAuthUrl);
-                }}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-              >
-                Start Auth and Sync
-              </button>
+                  setStatusMessage("Waiting for authorization...");
+                } else {
+                  window.location.href = pendingDriveAuthUrl!;
+                }
+              }} className="bg-primary py-4 rounded-2xl text-sm font-black text-primary-foreground hover:scale-[1.02] active:scale-[0.98] transition-all">Open Google Auth</button>
+              <button onClick={() => {
+                setShowDriveAuthChoiceDialog(false);
+                setShowDriveSetupDialog(true);
+                setPendingDriveAuthUrl(null);
+              }} className="py-4 text-sm font-bold text-foreground/40">Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showMigrationDialog && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8">
+            <h2 className="text-xl font-bold mb-2">Switch to {pendingStorageSwitch?.label}</h2>
+            <p className="text-sm text-foreground/60 mb-6">How should we handle your transactions?</p>
+            <div className="space-y-3">
+              <button onClick={() => handleMigrationConfirm("merge")} className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all text-left">
+                <ArrowRightLeft className="w-6 h-6 text-primary" />
+                <div>
+                  <div className="font-bold text-sm">Merge Data</div>
+                  <div className="text-[10px] text-foreground/40">Combine items from both storages. No duplicates.</div>
+                </div>
+              </button>
+              <button onClick={() => handleMigrationConfirm("overwrite")} className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-danger/10 border border-transparent hover:border-danger/20 transition-all text-left">
+                <Save className="w-6 h-6 text-danger" />
+                <div>
+                  <div className="font-bold text-sm text-danger whitespace-nowrap overflow-hidden text-ellipsis">Overwrite with current</div>
+                  <div className="text-[10px] text-foreground/40">Replace target data with your current visible logs.</div>
+                </div>
+              </button>
+              <button onClick={() => handleMigrationConfirm("none")} className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-foreground/10 border border-transparent transition-all text-left">
+                <Database className="w-6 h-6 text-foreground/40" />
+                <div>
+                  <div className="font-bold text-sm">Do Nothing</div>
+                  <div className="text-[10px] text-foreground/40">Just switch storage. Keep existing data separate.</div>
+                </div>
+              </button>
+              <button onClick={() => setShowMigrationDialog(false)} className="w-full py-4 text-sm font-bold text-foreground/40 mt-2">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isMigrating && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-background/50 backdrop-blur-md">
+          <div className="text-center">
+            <RefreshCw className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-sm font-black uppercase tracking-widest text-primary">Migrating Storage...</p>
           </div>
         </div>
       )}
