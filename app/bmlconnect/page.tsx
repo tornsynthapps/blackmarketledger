@@ -223,7 +223,7 @@ export default function BMLConnectPage() {
 
       const response = await initiateGoogleDriveSetup({
         apiKey: manualApiKey,
-        redirectUri: `${window.location.origin}/bmlconnect`,
+        redirectUri: `${window.location.origin}/bmlconnect/redirect`,
       });
 
       if (response.status === "SESSION_EXISTS") {
