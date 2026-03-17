@@ -60,11 +60,47 @@ export function useJournal() {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
     const [needsMigration, setNeedsMigration] = useState(false);
+    const [hasBMLDB, setHasBMLDB] = useState(false);
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
     const [driveApiKey, setDriveApiKey] = useState("");
     const [syncState, setSyncState] = useState<SyncState>({ isSyncing: false, message: "" });
     const syncCounterRef = useRef(0);
+
+    const getActiveDB = useCallback((): idb.DBName => {
+        const pref = localStorage.getItem("bml_storage_pref");
+        return pref === "drive" ? "GoogleCacheLogsDB" : "LogsDB";
+    }, []);
+
+    const getOtherDB = useCallback((): idb.DBName => {
+        const pref = localStorage.getItem("bml_storage_pref");
+        return pref === "drive" ? "LogsDB" : "GoogleCacheLogsDB";
+    }, []);
+
+    const checkBMLDB = useCallback(async () => {
+        const exists = await idb.dbExists("BMLDB");
+        setHasBMLDB(exists);
+        return exists;
+    }, []);
+
+    const getBMLDataCount = useCallback(async () => {
+        const txns = await idb.getLegacyTransactions("BMLDB");
+        return txns.length;
+    }, []);
+
+    const performBMLMigration = useCallback(async (type: 'overwrite' | 'none') => {
+        if (type === 'overwrite') {
+            const bmlTxns = await idb.getLegacyTransactions("BMLDB");
+            if (bmlTxns.length > 0) {
+                const activeDB = getActiveDB();
+                await idb.saveTransactions(activeDB, bmlTxns);
+                setTransactions(bmlTxns);
+            }
+        }
+        
+        await idb.deleteDatabase("BMLDB");
+        setHasBMLDB(false);
+    }, [getActiveDB]);
 
     const beginSync = useCallback((message: string) => {
         syncCounterRef.current += 1;
@@ -90,16 +126,6 @@ export function useJournal() {
             endSync();
         }
     }, [beginSync, endSync]);
-
-    const getActiveDB = useCallback((): idb.DBName => {
-        const pref = localStorage.getItem("bml_storage_pref");
-        return pref === "drive" ? "GoogleCacheLogsDB" : "LogsDB";
-    }, []);
-
-    const getOtherDB = useCallback((): idb.DBName => {
-        const pref = localStorage.getItem("bml_storage_pref");
-        return pref === "drive" ? "LogsDB" : "GoogleCacheLogsDB";
-    }, []);
 
     const readCachedTransactions = useCallback(async (dbName: idb.DBName) => {
         try {
@@ -232,8 +258,8 @@ export function useJournal() {
                             "Sync in progress: downloading latest data from Google Drive...",
                             fetchDriveTransactions
                         )
-                            .then((fresh) => setTransactions(fresh))
-                            .catch(e => console.error("Background Drive refresh failed", e));
+                            .then((fresh: Transaction[]) => setTransactions(fresh))
+                            .catch((e: Error) => console.error("Background Drive refresh failed", e));
                     }
                 } else {
                     loadedTransactions = await readCachedTransactions("LogsDB");
@@ -253,6 +279,7 @@ export function useJournal() {
                 }
 
                 setTransactions(loadedTransactions);
+                await checkBMLDB();
 
                 if (parsedConfig) {
                     setWeav3rApiKey(parsedConfig.apiKey || "");
@@ -275,7 +302,7 @@ export function useJournal() {
         const storagePref = localStorage.getItem("bml_storage_pref");
 
         if (storagePref === 'extension') {
-            sendToExtension({ type: 'EXTENSION_DB_SAVE', payload: { logs: newLogs } }).catch(err => {
+            sendToExtension({ type: 'EXTENSION_DB_SAVE', payload: { logs: newLogs } }).catch((err: Error) => {
                 console.error("Failed to save to extension DB", err);
             });
             persistTransactionsCache("LogsDB", newLogs).catch(console.error);
@@ -293,7 +320,7 @@ export function useJournal() {
                     }
                     markDriveSyncComplete();
                 }
-            ).catch(err => console.error("Failed to sync to Google Drive", err));
+            ).catch((err: Error) => console.error("Failed to sync to Google Drive", err));
         } else {
             persistTransactionsCache("LogsDB", newLogs).catch(console.error);
         }
@@ -585,6 +612,9 @@ export function useJournal() {
         saveWeaverConfig,
         saveDriveApiKey,
         needsMigration,
+        hasBMLDB,
+        getBMLDataCount,
+        performBMLMigration,
         performMigration: () => window.location.reload(),
         mergeTransactions,
         refreshDriveCache,

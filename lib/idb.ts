@@ -123,3 +123,131 @@ export async function saveTransactions(dbName: DBName, txns: any[]): Promise<voi
     transaction.onerror = () => reject(transaction.error);
   }), `IndexedDB transaction write timed out for ${dbName}`);
 }
+
+// ---- Migration Utilities ----
+export async function dbExists(dbName: string): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') return false;
+  try {
+    if ('databases' in indexedDB) {
+      const dbs = await indexedDB.databases();
+      return dbs.some(db => db.name === dbName);
+    }
+  } catch (e) {
+    // Fallback if databases() fails
+  }
+  
+  // Fallback for browsers that don't support databases()
+  return new Promise((resolve) => {
+    const request = indexedDB.open(dbName);
+    let existed = true;
+    request.onupgradeneeded = (e) => {
+      if (e.oldVersion === 0) {
+        existed = false;
+        (request as any).transaction.abort();
+      }
+    };
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => db.close();
+      db.close();
+      resolve(existed);
+    };
+    request.onerror = () => resolve(false);
+  });
+}
+
+export async function deleteDatabase(dbName: string): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(dbName);
+    
+    request.onerror = () => {
+      console.error(`Error deleting database ${dbName}`, request.error);
+      reject(request.error);
+    };
+    
+    request.onsuccess = () => {
+      console.log(`Database ${dbName} deleted successfully`);
+      resolve();
+    };
+    
+    request.onblocked = () => {
+        console.warn(`Delete database ${dbName} blocked. Closing connections...`);
+        // We resolve after a delay because even if blocked, it might eventually delete 
+        // once the event loop processes connection closes.
+        setTimeout(() => {
+          console.warn(`Proceeding after blocked deletion of ${dbName}`);
+          resolve();
+        }, 1000);
+    };
+  });
+}
+
+export async function getLegacyTransactions(dbName: string): Promise<any[]> {
+    try {
+        const db = await withTimeout(new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open(dbName);
+            request.onerror = () => reject(request.error || new Error(`Failed to open ${dbName}`));
+            request.onsuccess = () => {
+                const database = request.result;
+                database.onversionchange = () => database.close();
+                resolve(database);
+            };
+        }), `Timeout opening legacy DB ${dbName}`);
+
+        const txns = await withTimeout(new Promise<any[]>((resolve, reject) => {
+            // Priority 1: Check if transactions store exists and has data
+            if (db.objectStoreNames.contains(TXN_STORE_NAME)) {
+                const transaction = db.transaction(TXN_STORE_NAME, 'readonly');
+                const store = transaction.objectStore(TXN_STORE_NAME);
+                const request = store.getAll();
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    if (request.result && request.result.length > 0) {
+                        resolve(request.result);
+                    } else if (!db.objectStoreNames.contains('keyval')) {
+                        resolve([]);
+                    } else {
+                        // Fallback to keyval check if transactions was empty
+                        checkKeyValStore(db, resolve, reject);
+                    }
+                };
+            } else if (db.objectStoreNames.contains('keyval')) {
+                checkKeyValStore(db, resolve, reject);
+            } else {
+                resolve([]);
+            }
+        }), `Timeout reading legacy txns from ${dbName}`);
+        
+        db.close();
+        return txns;
+    } catch (e) {
+        console.warn(`Failed to read legacy transactions from ${dbName}`, e);
+        return [];
+    }
+}
+
+function checkKeyValStore(db: IDBDatabase, resolve: (value: any[]) => void, reject: (reason?: any) => void) {
+    try {
+        const transaction = db.transaction('keyval', 'readonly');
+        const store = transaction.objectStore('keyval');
+        const request = store.get('torn_invest_tracker_logs');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            if (typeof request.result === 'string') {
+                try {
+                    resolve(JSON.parse(request.result));
+                } catch (e) {
+                    resolve([]);
+                }
+            } else if (Array.isArray(request.result)) {
+                resolve(request.result);
+            } else {
+                resolve([]);
+            }
+        };
+    } catch (e) {
+        resolve([]);
+    }
+}

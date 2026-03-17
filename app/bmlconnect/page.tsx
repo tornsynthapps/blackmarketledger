@@ -48,6 +48,7 @@ const EMPTY_DRIVE_STATUS: DriveStatus = {
 export default function BMLConnectPage() {
   const {
     transactions,
+    hasBMLDB,
     driveApiKey,
     saveDriveApiKey,
     switchStorageLocation,
@@ -273,6 +274,34 @@ export default function BMLConnectPage() {
       <div className="flex h-[60vh] flex-col items-center justify-center bg-background text-foreground">
         <div className="mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
         <p className="text-sm font-medium text-foreground/50">Authorizing connection...</p>
+      </div>
+    );
+  }
+
+  if (hasBMLDB) {
+    return (
+      <div className="flex flex-col items-center justify-center bg-background font-sans max-w-2xl mx-auto text-center py-12 px-6">
+        <div className="p-4 bg-primary/10 rounded-full text-primary mb-6">
+          <Database className="w-12 h-12" />
+        </div>
+        <h1 className="text-2xl font-bold mb-4">Migration Required</h1>
+        <p className="text-foreground/60 mb-8 leading-relaxed">
+          We've detected data from an older version of the Ledger (BMLDB). To prevent data conflicts and sync issues, please migrate your legacy data before using BML Connect cloud features.
+        </p>
+        <div className="bg-foreground/5 border border-border p-6 rounded-2xl w-full text-left space-y-4">
+          <h2 className="font-bold flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" />
+            How to migrate:
+          </h2>
+          <ol className="text-sm text-foreground/70 space-y-3 list-decimal list-inside">
+            <li>Click the <span className="font-bold text-primary">"Review Migration"</span> button in the banner at the top of the page.</li>
+            <li>Back up your current data when prompted.</li>
+            <li>Choose to overwrite or discard the old data.</li>
+          </ol>
+        </div>
+        <p className="mt-8 text-xs text-foreground/40 font-mono uppercase tracking-widest">
+          Cloud sync is disabled until migration is complete
+        </p>
       </div>
     );
   }

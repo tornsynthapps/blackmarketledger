@@ -6,12 +6,15 @@ import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import { useJournal } from "@/store/useJournal";
 import * as idb from '@/lib/idb';
 import { useGlobalSyncStatus } from "@/lib/syncStatus";
+import { MigrationModal } from "./MigrationModal";
+import { Database } from "lucide-react";
 
 export function Banners() {
     const [showForum, setShowForum] = useState(false);
     const { vibrate } = useHapticFeedback();
-    const { needsMigration, performMigration } = useJournal();
+    const { needsMigration, performMigration, hasBMLDB, isLoaded } = useJournal();
     const syncStatus = useGlobalSyncStatus();
+    const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
 
     // Dynamic text stats
     const [forumClicks, setForumClicks] = useState(0);
@@ -97,58 +100,83 @@ export function Banners() {
         );
     }
 
-    if (syncStatus.isSyncing) {
-        return (
-            <div className="bg-green-500/10 text-green-700 dark:text-green-400 border-b border-green-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
-                <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                        <p>{syncStatus.message}</p>
+    return (
+        <>
+            {hasBMLDB && isLoaded && (
+                <div className="bg-primary/10 text-primary border-b border-primary/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
+                    <div className="max-w-4xl mx-auto flex items-center justify-center gap-4">
+                        <div className="flex-1">
+                            <p className="font-semibold flex items-center justify-center gap-2">
+                                <Database className="w-4 h-4" />
+                                Legacy Data Detected (BMLDB)
+                            </p>
+                            <p className="mt-1 opacity-90">
+                                We found data from an older version of the Ledger. Would you like to migrate it to your current database?
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => { vibrate("success"); setIsMigrationModalOpen(true); }} 
+                            className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium text-sm transition-colors whitespace-nowrap"
+                        >
+                            Review Migration
+                        </button>
                     </div>
                 </div>
-            </div>
-        );
-    }
+            )}
 
-    if (showForum) {
-        return (
-            <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-b border-yellow-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
-                <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                        {forumClicks === 0 ? (
-                            <p>
-                                Enjoying the app? ⭐{" "}
-                                <a
-                                    href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={handleForumClick}
-                                    className="font-bold hover:underline"
-                                >
-                                    Leave a quick review on the Torn forum to help other traders discover it!
-                                </a>
-                            </p>
-                        ) : (
-                            <p>
-                                Help keep the tool visible!{" "}
-                                <a
-                                    href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={handleForumClick}
-                                    className="font-bold hover:underline"
-                                >
-                                    Give the forum thread a quick bump if you find this app useful.
-                                </a>
-                            </p>
-                        )}
+            {syncStatus.isSyncing && (
+                <div className="bg-green-500/10 text-green-700 dark:text-green-400 border-b border-green-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
+                    <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                            <p>{syncStatus.message}</p>
+                        </div>
                     </div>
-                    <button type="button" onClick={handleForumClose} className="p-1 hover:bg-yellow-500/20 rounded-full transition-colors shrink-0" aria-label="Dismiss banner">
-                        <X className="w-4 h-4" />
-                    </button>
                 </div>
-            </div>
-        );
-    }
+            )}
 
-    return null;
+            {showForum && (
+                <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-b border-yellow-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
+                    <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                            {forumClicks === 0 ? (
+                                <p>
+                                    Enjoying the app? ⭐{" "}
+                                    <a
+                                        href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={handleForumClick}
+                                        className="font-bold hover:underline"
+                                    >
+                                        Leave a quick review on the Torn forum to help other traders discover it!
+                                    </a>
+                                </p>
+                            ) : (
+                                <p>
+                                    Help keep the tool visible!{" "}
+                                    <a
+                                        href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={handleForumClick}
+                                        className="font-bold hover:underline"
+                                    >
+                                        Give the forum thread a quick bump if you find this app useful.
+                                    </a>
+                                </p>
+                            )}
+                        </div>
+                        <button type="button" onClick={handleForumClose} className="p-1 hover:bg-yellow-500/20 rounded-full transition-colors shrink-0" aria-label="Dismiss banner">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <MigrationModal 
+                isOpen={isMigrationModalOpen} 
+                onClose={() => setIsMigrationModalOpen(false)} 
+            />
+        </>
+    );
 }
