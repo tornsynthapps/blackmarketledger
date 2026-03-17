@@ -11,9 +11,9 @@ interface MigrationModalProps {
 }
 
 export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
-    const { 
-        transactions, 
-        getBMLDataCount, 
+    const {
+        transactions,
+        getBMLDataCount,
         performBMLMigration,
         hasBMLDB
     } = useJournal();
@@ -36,14 +36,14 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
     const handleExport = () => {
         vibrate("success");
         const dataStr = JSON.stringify(transactions, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
         const exportFileDefaultName = `bml_backup_${new Date().toISOString().split('T')[0]}.json`;
 
         const linkElement = document.createElement('a');
         linkElement.setAttribute('href', dataUri);
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
-        
+
         setHasExported(true);
     };
 
@@ -80,7 +80,7 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
                         <h2 className="text-xl font-bold">Data Migration</h2>
                     </div>
                     {!isMigrating && (
-                        <button 
+                        <button
                             onClick={onClose}
                             className="p-2 hover:bg-foreground/5 rounded-full transition-colors"
                             aria-label="Close"
@@ -138,7 +138,7 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
                         <button
                             disabled={!hasExported || isMigrating}
                             onClick={() => handleMigrate('overwrite')}
-                            className="w-full py-4 bg-foreground/5 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold flex items-center justify-center gap-3 transition-colors text-primary"
+                            className="w-full py-4 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold flex items-center justify-center gap-3 transition-all shadow-lg shadow-primary/20 active:scale-[0.98]"
                         >
                             {isMigrating ? (
                                 <RefreshCw className="w-5 h-5 animate-spin" />
@@ -147,10 +147,24 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
                             )}
                             {isMigrating ? "Migrating..." : "Overwrite and Migrate All Data"}
                         </button>
-                        
-                        <p className="text-[10px] text-center text-foreground/30 px-6 uppercase tracking-widest font-bold">
-                            Warning: This will permanently replace current data and remove BMLDB
-                        </p>
+
+                        <button
+                            disabled={!hasExported || isMigrating}
+                            onClick={() => handleMigrate('none')}
+                            className="w-full py-4 bg-foreground/5 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold flex items-center justify-center gap-3 transition-colors text-foreground/60"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                            Skip Overwrite & Use LogsDB
+                        </button>
+
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-center text-foreground/30 px-6 uppercase tracking-widest font-bold">
+                                Overwrite: This will permanently replace current data and remove BMLDB
+                            </p>
+                            <p className="text-[10px] text-center text-foreground/30 px-6 uppercase tracking-widest font-bold">
+                                Skip: This will keep current LogsDB data and remove BMLDB
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
