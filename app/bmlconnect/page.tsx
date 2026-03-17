@@ -26,6 +26,7 @@ import {
 } from "@/lib/drive-api";
 import { verifySubscription, SubscriptionStatus } from "@/lib/subscription-api";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import * as idb from "@/lib/idb";
 
 type StorageLocation = "browser" | "drive";
 
@@ -75,6 +76,11 @@ export default function BMLConnectPage() {
     target: "browser" | "drive";
     label: string;
   } | null>(null);
+  const [migrationCounts, setMigrationCounts] = useState<{
+    source: number;
+    target: number;
+    merge: number;
+  } | null>(null);
 
   const driveSuccessBanner = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -118,10 +124,40 @@ export default function BMLConnectPage() {
     return response;
   };
 
-  const initiateStorageSwitch = (target: "browser" | "drive", label: string) => {
+  const initiateStorageSwitch = async (target: "browser" | "drive", label: string) => {
     if (storageLocation === target) return;
-    setPendingStorageSwitch({ target, label });
-    setShowMigrationDialog(true);
+
+    // Fetch counts before showing dialog
+    const sourceDB = target === 'drive' ? 'LogsDB' : 'GoogleCacheLogsDB';
+    const targetDB = target === 'drive' ? 'GoogleCacheLogsDB' : 'LogsDB';
+
+    setIsMigrating(true);
+    try {
+      const sourceData = await idb.getAllTransactions(sourceDB);
+      const targetData = await idb.getAllTransactions(targetDB);
+
+      // Calculate merge count
+      const ids = new Set(targetData.map((t: any) => t.id));
+      let mergeCount = targetData.length;
+      sourceData.forEach((t: any) => {
+        if (!ids.has(t.id)) {
+          mergeCount++;
+        }
+      });
+
+      setMigrationCounts({
+        source: sourceData.length,
+        target: targetData.length,
+        merge: mergeCount
+      });
+      setPendingStorageSwitch({ target, label });
+      setShowMigrationDialog(true);
+    } catch (e) {
+      console.error("Failed to fetch migration counts", e);
+      alert("Error preparing migration. Please try again.");
+    } finally {
+      setIsMigrating(false);
+    }
   };
 
   const handleMigrationConfirm = async (type: "merge" | "overwrite" | "none") => {
@@ -133,6 +169,7 @@ export default function BMLConnectPage() {
       setStorageLocation(pendingStorageSwitch.target);
       setShowMigrationDialog(false);
       setPendingStorageSwitch(null);
+      setMigrationCounts(null);
       setMigrationComplete(true);
       vibrate("success");
       window.setTimeout(() => setMigrationComplete(false), 3000);
@@ -171,7 +208,7 @@ export default function BMLConnectPage() {
       setShowDriveSetupDialog(true);
       return;
     }
-    initiateStorageSwitch("drive", "Google Drive");
+    await initiateStorageSwitch("drive", "Google Drive");
   };
 
   const handleDriveWrite = async () => {
@@ -218,7 +255,7 @@ export default function BMLConnectPage() {
       // First verify subscription with the provided key
       const sub = await verifySubscription(manualApiKey);
       setUserInfo(sub);
-      
+
       // Save it as Drive API key
       await saveDriveApiKey(manualApiKey);
 
@@ -324,8 +361,8 @@ export default function BMLConnectPage() {
           <div className="flex flex-col items-end gap-2">
             <div
               className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest font-mono ${driveStatus.connected
-                  ? "border-success/20 bg-success/10 text-success"
-                  : "border-border bg-foreground/5 text-foreground/40"
+                ? "border-success/20 bg-success/10 text-success"
+                : "border-border bg-foreground/5 text-foreground/40"
                 }`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${driveStatus.connected ? "animate-pulse bg-success" : "bg-foreground/20"}`}></span>
@@ -353,8 +390,8 @@ export default function BMLConnectPage() {
 
           {statusMessage && (
             <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${statusMessage.toLowerCase().match(/fail|invalid|error|expired/)
-                ? "border-danger/20 bg-danger/5 text-danger"
-                : "border-border bg-background text-foreground/70"
+              ? "border-danger/20 bg-danger/5 text-danger"
+              : "border-border bg-background text-foreground/70"
               }`}>
               {statusMessage}
             </div>
@@ -483,7 +520,7 @@ export default function BMLConnectPage() {
                 )}
               </div>
             </div>
-            
+
             <div className="text-center pt-4">
               <Link href="/bmlconnectlegacy" className="text-[10px] font-bold uppercase tracking-widest text-foreground/30 hover:text-primary transition-colors">
                 Switch to Legacy Extension Tunnel
@@ -551,32 +588,100 @@ export default function BMLConnectPage() {
 
       {showMigrationDialog && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8">
-            <h2 className="text-xl font-bold mb-2">Switch to {pendingStorageSwitch?.label}</h2>
-            <p className="text-sm text-foreground/60 mb-6">How should we handle your transactions?</p>
-            <div className="space-y-3">
-              <button onClick={() => handleMigrationConfirm("merge")} className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all text-left">
-                <ArrowRightLeft className="w-6 h-6 text-primary" />
-                <div>
-                  <div className="font-bold text-sm">Merge Data</div>
-                  <div className="text-[10px] text-foreground/40">Combine items from both storages. No duplicates.</div>
+          <div className="w-full max-w-lg rounded-3xl bg-panel border border-border overflow-hidden shadow-2xl">
+            <div className="p-8 border-b border-border bg-foreground/[0.02]">
+              <h2 className="text-xl font-bold mb-1">Switch to {pendingStorageSwitch?.label}</h2>
+              <p className="text-xs text-foreground/50 uppercase tracking-widest font-mono">Select migration strategy</p>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl border border-border bg-foreground/[0.02] space-y-2">
+                  <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-tighter">Current Database</p>
+                  <p className="text-2xl font-black font-mono">{migrationCounts?.source.toLocaleString() || "0"}</p>
+                  <p className="text-[10px] text-foreground/30 uppercase tracking-widest">Logs Available</p>
                 </div>
-              </button>
-              <button onClick={() => handleMigrationConfirm("overwrite")} className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-danger/10 border border-transparent hover:border-danger/20 transition-all text-left">
-                <Save className="w-6 h-6 text-danger" />
-                <div>
-                  <div className="font-bold text-sm text-danger whitespace-nowrap overflow-hidden text-ellipsis">Overwrite with current</div>
-                  <div className="text-[10px] text-foreground/40">Replace target data with your current visible logs.</div>
+                <div className="p-4 rounded-2xl border border-border bg-foreground/[0.02] space-y-2">
+                  <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-tighter">Target Database</p>
+                  <p className="text-2xl font-black font-mono">{migrationCounts?.target.toLocaleString() || "0"}</p>
+                  <p className="text-[10px] text-foreground/30 uppercase tracking-widest">Existing Logs</p>
                 </div>
-              </button>
-              <button onClick={() => handleMigrationConfirm("none")} className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-foreground/10 border border-transparent transition-all text-left">
-                <Database className="w-6 h-6 text-foreground/40" />
-                <div>
-                  <div className="font-bold text-sm">Do Nothing</div>
-                  <div className="text-[10px] text-foreground/40">Just switch storage. Keep existing data separate.</div>
-                </div>
-              </button>
-              <button onClick={() => setShowMigrationDialog(false)} className="w-full py-4 text-sm font-bold text-foreground/40 mt-2">Cancel</button>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleMigrationConfirm("overwrite")}
+                  className="group w-full flex items-center gap-4 bg-primary p-4 rounded-2xl hover:bg-primary/90 transition-all text-left border-2 border-primary shadow-lg shadow-primary/20"
+                >
+                  <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                    <Save className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="font-bold text-sm text-white">Overwrite (Recommended)</div>
+                        <div className="text-[10px] text-white/50 mt-1 leading-tight">Replace target data with your current visible logs. Recommended for clean sync.</div>
+                      </div>
+                      <div className="flex flex-col items-center shrink-0 min-w-[64px]">
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1.5 font-mono">Expected</span>
+                        <div className="h-12 w-12 flex items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-black text-white shadow-inner">
+                          {migrationCounts?.source.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleMigrationConfirm("merge")}
+                  className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-primary/10 border border-border/50 hover:border-primary/20 transition-all text-left"
+                >
+                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <ArrowRightLeft className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="font-bold text-sm">Merge Data</div>
+                        <div className="text-[10px] text-foreground/40 mt-1 leading-tight">Combine items from both storages. Deduplication enabled.</div>
+                      </div>
+                      <div className="flex flex-col items-center shrink-0 min-w-[64px]">
+                        <span className="text-[9px] font-black text-foreground/30 uppercase tracking-widest mb-1.5 font-mono">Expected</span>
+                        <div className="h-12 w-12 flex items-center justify-center rounded-full bg-primary/10 border border-primary/20 text-xs font-black text-primary">
+                          ~{migrationCounts?.merge.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleMigrationConfirm("none")}
+                  className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-foreground/10 border border-border/50 transition-all text-left"
+                >
+                  <div className="h-12 w-12 rounded-xl bg-foreground/10 flex items-center justify-center shrink-0">
+                    <Database className="w-6 h-6 text-foreground/40" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="font-bold text-sm">Do Nothing</div>
+                        <div className="text-[10px] text-foreground/40 mt-1 leading-tight">Just switch storage. Keep existing data where it is.</div>
+                      </div>
+                      <div className="flex flex-col items-center shrink-0 min-w-[64px]">
+                        <span className="text-[9px] font-black text-foreground/20 uppercase tracking-widest mb-1.5 font-mono">Expected</span>
+                        <div className="h-12 w-12 flex items-center justify-center rounded-full bg-foreground/10 border border-border text-xs font-black text-foreground/40">
+                          {migrationCounts?.target.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <div className="pt-2 text-center">
+                <button onClick={() => setShowMigrationDialog(false)} className="text-[11px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors">Discard Switch Request</button>
+              </div>
             </div>
           </div>
         </div>
