@@ -6,6 +6,7 @@ import { Banners } from "@/components/Banners";
 import { VisitorCounter } from "@/components/VisitorCounter";
 import { ServiceRail } from "@/components/ServiceRail";
 import Link from "next/link";
+import { PromoBannersDesktop } from "@/components/SideBanners";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -50,6 +51,7 @@ export default function RootLayout({
       >
         <Navigation />
         <Banners />
+        <PromoBannersDesktop />
         <main className="pt-8 pb-12 min-h-screen px-4 max-w-6xl mx-auto flex-1 h-full flex flex-col">
           <div className="flex-1">
             {children}
