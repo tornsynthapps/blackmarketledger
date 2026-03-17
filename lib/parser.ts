@@ -155,6 +155,35 @@ export function parseLogLine(line: string): ParsedLog | null {
         }
     }
 
+    // e.g. "You sold a Casket on your bazaar to apneatic at $44,999 each for a total of $44,999"
+    // e.g. "You sold 2x Firewalk Virus on your bazaar to Kalisa at $20,799,999 each for a total of $41,599,998"
+    const tornBazaarSellRegex = /You sold ([\d,]+x|a|some) (.+?) on your bazaar to .+? at \$([\d,]+) each for a total of \$([\d,]+)/i;
+    const tornBazaarSellMatch = line.match(tornBazaarSellRegex);
+    if (tornBazaarSellMatch) {
+        const item = normalizeItemName(tornBazaarSellMatch[2]);
+        const price = parseInt(tornBazaarSellMatch[3].replace(/,/g, ''), 10);
+        const total = parseInt(tornBazaarSellMatch[4].replace(/,/g, ''), 10);
+        let amount = 1;
+
+        const amountMatch = tornBazaarSellMatch[1].toLowerCase();
+        if (amountMatch.endsWith('x')) {
+            amount = parseInt(amountMatch.replace(/,/g, ''), 10);
+        } else if (amountMatch === 'some' || amountMatch === 'a') {
+            if (!isNaN(total) && !isNaN(price) && price > 0) {
+                amount = Math.round(total / price);
+            }
+        }
+
+        if (!isNaN(amount) && !isNaN(price) && !isNaN(total)) {
+            return {
+                type: 'SELL',
+                item,
+                amount,
+                price: total / amount
+            } as ParsedTradeLog;
+        }
+    }
+
     const parts = line.trim().split(';');
     if (parts.length < 2) return null;
 
