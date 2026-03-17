@@ -107,8 +107,13 @@ export default function AbroadDashboard() {
 
         // Slight delay to allow UI to render spinner
         setTimeout(() => {
-            addLogs(logs);
-            setSellingItemId(null);
+            Promise.resolve(addLogs(logs))
+                .catch((error) => {
+                    console.error("Failed to save abroad self-sell logs", error);
+                })
+                .finally(() => {
+                    setSellingItemId(null);
+                });
         }, 500);
     };
 
@@ -132,7 +137,7 @@ export default function AbroadDashboard() {
                     <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <div>
                         <h3 className="font-semibold text-warning">Weav3r Config Missing</h3>
-                        <p className="text-sm text-foreground/70 mt-1">Configure your Weav3r API Key and User ID on the Add Data page to enable the "Self Sell" feature automatically using your pricelist.</p>
+                        <p className="text-sm text-foreground/70 mt-1">Configure your Weav3r API Key and User ID on the Terminal page to enable the "Self Sell" feature automatically using your pricelist.</p>
                     </div>
                 </div>
             )}

@@ -2,7 +2,7 @@
 
 import { useState, useRef, Suspense } from "react";
 import { useJournal } from "@/store/useJournal";
-import { Download, Upload, Trash2, Edit2, Search, ArrowLeft } from "lucide-react";
+import { Download, Upload, Trash2, Edit2, Search, ArrowLeft, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -10,13 +10,15 @@ import { Transaction, formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/pars
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 function LogsPageContent() {
-    const { isLoaded, transactions, deleteLog, restoreData, editLog } = useJournal();
+    const { isLoaded, transactions, deleteLog, restoreData, editLog, refreshDriveCache } = useJournal();
     const { vibrate } = useHapticFeedback();
     const searchParams = useSearchParams();
     const filterItem = searchParams.get('item');
 
     const [search, setSearch] = useState(filterItem || "");
+    const [isRefreshingDrive, setIsRefreshingDrive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const storagePref = typeof window !== "undefined" ? localStorage.getItem("bml_storage_pref") : null;
 
     if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
@@ -169,6 +171,29 @@ function LogsPageContent() {
                 </div>
 
                 <div className="flex gap-2">
+                    {storagePref === 'drive' && (
+                        <button
+                            onClick={async () => {
+                                setIsRefreshingDrive(true);
+                                vibrate("utility");
+                                try {
+                                    await refreshDriveCache();
+                                    vibrate("success");
+                                } catch (error) {
+                                    console.error("Force download failed", error);
+                                    vibrate("danger");
+                                    alert(error instanceof Error ? error.message : "Failed to download latest Drive data.");
+                                } finally {
+                                    setIsRefreshingDrive(false);
+                                }
+                            }}
+                            disabled={isRefreshingDrive}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white shadow-sm rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-60"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isRefreshingDrive ? 'animate-spin' : ''}`} />
+                            Force Download
+                        </button>
+                    )}
                     <input
                         type="file"
                         accept=".json"

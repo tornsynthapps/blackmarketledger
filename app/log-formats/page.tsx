@@ -8,7 +8,7 @@ export default function LogFormats() {
         <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
                 <Link href="/add" className="text-primary hover:underline flex items-center gap-1 text-sm font-medium mb-4 w-fit">
-                    <ArrowLeft className="w-4 h-4" /> Back to Add Logs
+                    <ArrowLeft className="w-4 h-4" /> Back to Terminal
                 </Link>
                 <h1 className="text-3xl font-bold tracking-tight">Supported Log Formats</h1>
                 <p className="text-foreground/60 mt-2">Learn how to format your data for the tracker.</p>

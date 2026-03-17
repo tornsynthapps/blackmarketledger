@@ -22,6 +22,117 @@ export default function ChangelogPage() {
                         </div>
                         <div>
                             <h2 className="text-xl font-bold">v{pkg.version} <span className="text-sm font-medium text-primary ml-2 bg-primary/10 px-2 py-0.5 rounded-full">Current</span></h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 17, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Google Drive Integration</span>
+                            <p className="text-sm text-foreground/70 mt-1">Support for persistent cloud storage and synchronization across devices using Google Drive.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">BML Connect Extension Deprecation</span>
+                            <p className="text-sm text-foreground/70 mt-1">Transitioned core sync and storage functionality directly into the web app, marking the legacy browser extension as deprecated.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Advanced Log Parsing</span>
+                            <p className="text-sm text-foreground/70 mt-1">Expanded regex engine support to handle more complex transaction types from the latest game updates.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Enhanced UI & Experience</span>
+                            <p className="text-sm text-foreground/70 mt-1">Overall UI update with improved layout stability, faster transitions, and refined visual components for a more premium feel.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* v3.0.0 */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80 mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v3.0.0</h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 15, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Shared Service Drawer & Theme Controls</span>
+                            <p className="text-sm text-foreground/70 mt-1">Added a global active-services drawer with compact status indicators, fixed light mode class handling, and cleaned up mobile stacking and overlay behavior so navigation and banners behave correctly across the app.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Weav3r & Terminal Workflow Refresh</span>
+                            <p className="text-sm text-foreground/70 mt-1">Weav3r setup now derives the Torn user ID automatically from the saved API key, the Terminal now links to a dedicated short log-formats doc page, and forum or donation banners dismiss reliably again.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">BML Connect Storage & Tunnel Options</span>
+                            <p className="text-sm text-foreground/70 mt-1">Added options to use the extension database or Google Drive for sync storage, plus a dedicated tunnel path for more reliable access to the BML Connect extension from the web app.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* v2.5.0 */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80 mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v2.5.0</h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 11, 2026</p>
+                        </div>
+                    </div>
+
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Documentation & Guides</span>
+                            <p className="text-sm text-foreground/70 mt-1">Added a beautiful, dynamic `/docs` route with sidebar navigation, rendering Markdown documentation files. Covered app features, BML Connect extension setup, and troubleshooting.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">IndexedDB V2 Migration</span>
+                            <p className="text-sm text-foreground/70 mt-1">Upgraded local storage architecture from a single JSON string block to a dedicated IndexedDB store using individual objects, radically improving performance for huge trading histories. Legacy data seamlessly migrates in the background.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* v2.4.1 */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80 mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v2.4.1</h2>
                             <p className="text-sm text-foreground/50 mt-0.5">March 11, 2026</p>
                         </div>
                     </div>

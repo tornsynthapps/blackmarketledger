@@ -16,7 +16,12 @@ const formatMoney = (val: number) => {
 };
 
 export default function Home() {
-  const { isLoaded, inventory, totalMugLoss, renameItem } = useJournal();
+  const {
+    isLoaded,
+    inventory,
+    totalMugLoss,
+    renameItem,
+  } = useJournal();
   const router = useRouter();
   const { vibrate } = useHapticFeedback();
 
@@ -84,7 +89,6 @@ export default function Home() {
   };
 
   const netTotal = stats.profit - totalMugLoss;
-
   return (
     <div
       className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -92,10 +96,18 @@ export default function Home() {
         '--primary': '#3b82f6', // Blue
       } as React.CSSProperties}
     >
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Main Dashboard</h1>
           <p className="text-foreground/60 mt-2">Track your general trading items, profits, and losses. Click an item to view history.</p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push('/docs')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-panel border border-border hover:bg-foreground/5 transition-colors font-medium text-sm text-foreground/80 hover:text-foreground"
+          >
+            Documentation
+          </button>
         </div>
       </div>
 

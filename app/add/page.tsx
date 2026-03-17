@@ -18,14 +18,12 @@ export default function AddLogs() {
     const { vibrate } = useHapticFeedback();
 
     const [tempApiKey, setTempApiKey] = useState("");
-    const [tempUserId, setTempUserId] = useState("");
 
     useEffect(() => {
         if (isLoaded) {
             setTempApiKey(weav3rApiKey);
-            setTempUserId(weav3rUserId);
         }
-    }, [isLoaded, weav3rApiKey, weav3rUserId]);
+    }, [isLoaded, weav3rApiKey]);
 
     useEffect(() => {
         let t: NodeJS.Timeout;
@@ -36,10 +34,10 @@ export default function AddLogs() {
     }, [showToast]);
 
     useEffect(() => {
-        const urlMatch = input.match(/https:\/\/weav3r\.dev\/receipt\/([A-Za-z0-9_-]+)/);
+            const urlMatch = input.match(/https:\/\/weav3r\.dev\/receipt\/([A-Za-z0-9_-]+)/);
         if (urlMatch && !isFetching) {
             if (!weav3rApiKey || !weav3rUserId) {
-                setConfigError("Please configure Weav3r API Key and User ID to fetch trades.");
+                setConfigError("Please save a valid Weav3r API key to fetch trades.");
                 return;
             }
 
@@ -78,9 +76,32 @@ export default function AddLogs() {
             return `s;${item};${qty};;${price}`;
         });
 
-        const tornBuyRegex = /.*You bought ([\d,]+)\s*x\s*(.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?:(?:(?!from).)*from\s+([a-zA-Z]+))?.*/gmi;
-        converted = converted.replace(tornBuyRegex, (match, qty, item, price, country) => {
+        const tornBuyRegex = /.*You bought ([\d,]+x|a|some) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: from ([a-zA-Z]+))?)?.*/gmi;
+        converted = converted.replace(tornBuyRegex, (match, qtyStr, item, price, total, country) => {
+            let qty = 1;
+            if (qtyStr.toLowerCase().endsWith('x')) {
+                qty = parseInt(qtyStr.replace(/,/g, ''), 10);
+            } else if (qtyStr.toLowerCase() === 'some' || qtyStr.toLowerCase() === 'a') {
+                const p = parseInt(price.replace(/,/g, ''), 10);
+                const t = total ? parseInt(total.replace(/,/g, ''), 10) : NaN;
+                if (!isNaN(p) && !isNaN(t) && p > 0) {
+                    qty = Math.round(t / p);
+                }
+            }
             return `b;${item};${qty};${price}${country ? `;Abroad` : ''}`;
+        });
+
+        const tornSellRegex = /.*You sold ([\d,]+x|a|some) (.+?) on the item market to .+? at \$([\d,]+) each for a total of \$([\d,]+).*/gmi;
+        converted = converted.replace(tornSellRegex, (match, qtyStr, item, price, total) => {
+            let qty = 1;
+            if (qtyStr.toLowerCase().endsWith('x')) {
+                qty = parseInt(qtyStr.replace(/,/g, ''), 10);
+            } else if (qtyStr.toLowerCase() === 'some' || qtyStr.toLowerCase() === 'a') {
+                const p = parseInt(price.replace(/,/g, ''), 10);
+                const t = parseInt(total.replace(/,/g, ''), 10);
+                if (p > 0) qty = Math.round(t / p);
+            }
+            return `s;${item};${qty};;${total}`;
         });
 
         if (converted !== input) {
@@ -105,13 +126,19 @@ export default function AddLogs() {
     const validCount = parsedLines.filter(p => p.parsed !== null).length;
     const inValidCount = lines.length - validCount;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const validLogs = parsedLines.map(p => p.parsed).filter((p): p is ParsedLog => p !== null);
         if (validLogs.length > 0) {
-            vibrate("success");
-            addLogs(validLogs);
-            setInput("");
-            setShowToast(true);
+            try {
+                await addLogs(validLogs);
+                vibrate("success");
+                setInput("");
+                setShowToast(true);
+            } catch (error) {
+                console.error("Failed to add logs", error);
+                vibrate("danger");
+                alert(error instanceof Error ? error.message : "Failed to add logs.");
+            }
         }
     };
 
@@ -128,7 +155,7 @@ export default function AddLogs() {
             )}
 
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Add Data Logs</h1>
+                <h1 className="text-3xl font-bold tracking-tight">Terminal</h1>
                 <p className="text-foreground/60 mt-2">Paste your shorthand logs here to add to your tracker.</p>
             </div>
 
@@ -137,15 +164,16 @@ export default function AddLogs() {
                     <label className="text-xs font-semibold text-foreground/70">Weav3r API Key</label>
                     <input type="password" value={tempApiKey} onChange={e => setTempApiKey(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter API Key" />
                 </div>
-                <div className="flex-1 flex flex-col gap-1 w-full">
-                    <label className="text-xs font-semibold text-foreground/70">Weav3r User ID</label>
-                    <input type="text" value={tempUserId} onChange={e => setTempUserId(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter User ID" />
-                </div>
                 <div className="mt-4 sm:mt-auto sm:self-end w-full sm:w-auto">
                     <button
-                        onClick={() => {
+                        onClick={async () => {
                             vibrate("utility");
-                            saveWeaverConfig(tempApiKey, tempUserId);
+                            try {
+                                await saveWeaverConfig(tempApiKey);
+                                setConfigError("");
+                            } catch (error) {
+                                setConfigError(error instanceof Error ? error.message : "Failed to save Weav3r API key.");
+                            }
                         }}
                         className="w-full sm:w-auto px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded font-medium text-sm transition-colors mb-[1px]"
                     >
@@ -160,16 +188,16 @@ export default function AddLogs() {
                 <div className="flex gap-3 items-center">
                     <Info className="w-5 h-5 shrink-0" />
                     <div>
-                        <p className="font-semibold">Supported Log Formats</p>
-                        <p className="opacity-80 text-xs">Learn how to write shorthand logs and paste Weav3r receipts or Bazaar logs.</p>
+                        <p className="font-semibold">Documentation</p>
+                        <p className="opacity-80 text-xs">Learn how to write shorthand logs and use Weav3r receipts or Bazaar logs.</p>
                     </div>
                 </div>
                 <Link
-                    href="/log-formats"
+                    href="/docs/log-formats"
                     onClick={() => vibrate("nav")}
                     className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap"
                 >
-                    View Formats &rarr;
+                    Open Docs &rarr;
                 </Link>
             </div>
 
@@ -218,12 +246,12 @@ export default function AddLogs() {
                             </div>
                         </div>
                         <button
-                            onClick={handleSave}
+                            onClick={() => void handleSave()}
                             disabled={validCount === 0}
                             className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all active:scale-95"
                         >
                             <Save className="w-4 h-4" />
-                            Save {validCount} Logs
+                            Run Import
                         </button>
                     </div>
 

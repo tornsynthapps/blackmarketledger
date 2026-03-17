@@ -1,6 +1,6 @@
 {
   "name": "blackmarket-ledger",
-  "version": "2.4.1",
+  "version": "3.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,12 +11,17 @@
     "build:extensions": "node bmlconnect/scripts/build-extensions.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
+    "@tailwindcss/typography": "^0.5.19",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "firebase": "^12.10.0",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
     "web-haptics": "^0.0.6"
   },
@@ -26,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.27.4",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
