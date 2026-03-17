@@ -184,6 +184,25 @@ export function parseLogLine(line: string): ParsedLog | null {
         }
     }
 
+    // e.g. "shabboing bought 1 x Can of X-MASS from your bazaar for $3,107,976."
+    // e.g. "19:32:19 - 16/03/26 shabboing bought 1 x Can of X-MASS from your bazaar for $3,107,976."
+    const bazaarEventRegex = /.*? bought ([\d,]+)\s*x\s*(.+?) from your bazaar for \$([\d,]+)/i;
+    const bazaarEventMatch = line.match(bazaarEventRegex);
+    if (bazaarEventMatch) {
+        const item = normalizeItemName(bazaarEventMatch[2]);
+        const amount = parseInt(bazaarEventMatch[1].replace(/,/g, ''), 10);
+        const total = parseInt(bazaarEventMatch[3].replace(/,/g, ''), 10);
+
+        if (!isNaN(amount) && !isNaN(total) && amount > 0) {
+            return {
+                type: 'SELL',
+                item,
+                amount,
+                price: total / amount
+            } as ParsedTradeLog;
+        }
+    }
+
     const parts = line.trim().split(';');
     if (parts.length < 2) return null;
 
