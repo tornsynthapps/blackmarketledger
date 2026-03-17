@@ -76,9 +76,32 @@ export default function AddLogs() {
             return `s;${item};${qty};;${price}`;
         });
 
-        const tornBuyRegex = /.*You bought ([\d,]+)\s*x\s*(.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?:(?:(?!from).)*from\s+([a-zA-Z]+))?.*/gmi;
-        converted = converted.replace(tornBuyRegex, (match, qty, item, price, country) => {
+        const tornBuyRegex = /.*You bought ([\d,]+x|a|some) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: from ([a-zA-Z]+))?)?.*/gmi;
+        converted = converted.replace(tornBuyRegex, (match, qtyStr, item, price, total, country) => {
+            let qty = 1;
+            if (qtyStr.toLowerCase().endsWith('x')) {
+                qty = parseInt(qtyStr.replace(/,/g, ''), 10);
+            } else if (qtyStr.toLowerCase() === 'some' || qtyStr.toLowerCase() === 'a') {
+                const p = parseInt(price.replace(/,/g, ''), 10);
+                const t = total ? parseInt(total.replace(/,/g, ''), 10) : NaN;
+                if (!isNaN(p) && !isNaN(t) && p > 0) {
+                    qty = Math.round(t / p);
+                }
+            }
             return `b;${item};${qty};${price}${country ? `;Abroad` : ''}`;
+        });
+
+        const tornSellRegex = /.*You sold ([\d,]+x|a|some) (.+?) on the item market to .+? at \$([\d,]+) each for a total of \$([\d,]+).*/gmi;
+        converted = converted.replace(tornSellRegex, (match, qtyStr, item, price, total) => {
+            let qty = 1;
+            if (qtyStr.toLowerCase().endsWith('x')) {
+                qty = parseInt(qtyStr.replace(/,/g, ''), 10);
+            } else if (qtyStr.toLowerCase() === 'some' || qtyStr.toLowerCase() === 'a') {
+                const p = parseInt(price.replace(/,/g, ''), 10);
+                const t = parseInt(total.replace(/,/g, ''), 10);
+                if (p > 0) qty = Math.round(t / p);
+            }
+            return `s;${item};${qty};;${total}`;
         });
 
         if (converted !== input) {

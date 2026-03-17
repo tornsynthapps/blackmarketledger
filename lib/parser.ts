@@ -94,13 +94,25 @@ export function parseLogLine(line: string): ParsedLog | null {
     // e.g. "17:49:48 - 06/03/26 You bought 19x Xanax at $688,996 each for a total of $13,090,924 from Japan"
     // e.g. "07:28:09 - 07/03/26 You bought 22x Crocus on Frengesp's bazaar at $7,099 each for a total of $156,178"
     // e.g. "07:28:33 - 07/03/26 You bought 58x Crocus on the item market from lesbiampires at $8,189 each for a total of $474,962"
-    const tornBuyRegex = /You bought ([\d,]+)x (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$[\d,]+(?: from (.+))?)?/i;
+    // e.g. "You bought a Bottle of Tequila on Botato's bazaar at $666 each for a total of $666"
+    const tornBuyRegex = /You bought ([\d,]+x|a|some) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: from (.+))?)?/i;
     const tornBuyMatch = line.match(tornBuyRegex);
     if (tornBuyMatch) {
-        const amount = parseInt(tornBuyMatch[1].replace(/,/g, ''), 10);
-        const item = normalizeItemName(tornBuyMatch[2]);
+        let amount = 1;
+        const amountMatch = tornBuyMatch[1].toLowerCase();
         const price = parseInt(tornBuyMatch[3].replace(/,/g, ''), 10);
-        const isAbroad = !!tornBuyMatch[4];
+        const total = tornBuyMatch[4] ? parseInt(tornBuyMatch[4].replace(/,/g, ''), 10) : NaN;
+        const isAbroad = !!tornBuyMatch[5];
+
+        if (amountMatch.endsWith('x')) {
+            amount = parseInt(amountMatch.replace(/,/g, ''), 10);
+        } else if (amountMatch === 'some' || amountMatch === 'a') {
+            if (!isNaN(total) && !isNaN(price) && price > 0) {
+                amount = Math.round(total / price);
+            }
+        }
+
+        const item = normalizeItemName(tornBuyMatch[2]);
 
         if (!isNaN(amount) && !isNaN(price)) {
             return {
@@ -109,6 +121,36 @@ export function parseLogLine(line: string): ParsedLog | null {
                 amount,
                 price,
                 ...(isAbroad && { tag: 'Abroad' })
+            } as ParsedTradeLog;
+        }
+    }
+
+    // e.g. "05:15:35 - 14/03/26 You sold a Feathery Hotel Coupon on the item market to basic_ash1 at $13,099,994 each for a total of $12,444,994 after $655,000 in fees"
+    // e.g. "08:39:21 - 21/02/26 You sold 2x Xanax on the item market to JohnAConstantin at $838,000 each for a total of $1,592,200 after $83,800 in fees"
+    // e.g. "07:37:32 - 22/02/26 You sold some Xanax on the item market to antilene at $840,000 each for a total of $798,000 after $42,000 in fees"
+    const tornSellRegex = /You sold ([\d,]+x|a|some) (.+?) on the item market to .+? at \$([\d,]+) each for a total of \$([\d,]+)/i;
+    const tornSellMatch = line.match(tornSellRegex);
+    if (tornSellMatch) {
+        const item = normalizeItemName(tornSellMatch[2]);
+        const price = parseInt(tornSellMatch[3].replace(/,/g, ''), 10);
+        const total = parseInt(tornSellMatch[4].replace(/,/g, ''), 10);
+        let amount = 1;
+
+        const amountMatch = tornSellMatch[1].toLowerCase();
+        if (amountMatch.endsWith('x')) {
+            amount = parseInt(amountMatch.replace(/,/g, ''), 10);
+        } else if (amountMatch === 'some' || amountMatch === 'a') {
+            if (!isNaN(total) && !isNaN(price) && price > 0) {
+                amount = Math.round(total / price);
+            }
+        }
+
+        if (!isNaN(amount) && !isNaN(price) && !isNaN(total)) {
+            return {
+                type: 'SELL',
+                item,
+                amount,
+                price: total / amount
             } as ParsedTradeLog;
         }
     }
