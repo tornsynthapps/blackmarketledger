@@ -268,7 +268,7 @@ export default function AddLogs() {
                                                 {lineText.trim() === '' ? (
                                                     <span>&nbsp;</span>
                                                 ) : (
-                                                    <span className={parsed ? "text-primary bg-primary/10 px-1 py-0.5 rounded shadow-[0_0_0_1px_rgba(var(--primary),0.1)]" : "text-danger bg-danger/10 px-1 py-0.5 rounded font-medium"} style={{ boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>
+                                                    <span className={parsed ? "text-primary bg-primary/10 rounded shadow-[0_0_0_1px_rgba(var(--primary),0.1)]" : "text-danger bg-danger/10 rounded font-medium"} style={{ boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>
                                                         {lineText}
                                                     </span>
                                                 )}
@@ -313,9 +313,13 @@ export default function AddLogs() {
                                 if (highlightRef.current) highlightRef.current.scrollTop = e.currentTarget.scrollTop;
                             }}
                             onPaste={() => setJustPasted(true)}
-                            className="absolute inset-0 w-full h-full p-4 resize-none bg-transparent text-transparent caret-foreground focus:outline-none z-20 leading-7 pb-20 overflow-y-scroll font-mono text-sm whitespace-pre-wrap break-words border-none ring-0 focus:ring-0"
+                            className="absolute inset-0 w-full h-full p-4 resize-none bg-transparent text-transparent caret-foreground focus:outline-none z-20 overflow-y-scroll font-mono text-sm whitespace-pre-wrap break-words border-none ring-0 focus:ring-0"
                             style={{ 
-                                paddingRight: 'calc(35% + 60px)' 
+                                paddingLeft: '1rem',
+                                paddingTop: '1rem',
+                                paddingRight: 'calc(35% + 60px)',
+                                paddingBottom: '5rem',
+                                lineHeight: '1.75rem',
                             }}
                             placeholder="Paste your logs here..."
                             spellCheck="false"
