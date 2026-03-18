@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
+import { calculateInventory, buildTransactionsWithLogs } from '@/lib/transactionBuilder';
 import { sendToExtension } from '@/lib/bmlconnect';
 import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
@@ -64,6 +65,7 @@ export function useJournal() {
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
     const [driveApiKey, setDriveApiKey] = useState("");
+    const [skipNegativeStock, setSkipNegativeStock] = useState(false);
     const [syncState, setSyncState] = useState<SyncState>({ isSyncing: false, message: "" });
     const syncCounterRef = useRef(0);
 
@@ -285,6 +287,7 @@ export function useJournal() {
                     setWeav3rApiKey(parsedConfig.apiKey || "");
                     setWeav3rUserId(parsedConfig.userId || "");
                     setDriveApiKey(parsedConfig.driveApiKey || "");
+                    setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
                 }
             } catch (error) {
                 console.error("Journal bootstrap failed", error);
@@ -346,7 +349,7 @@ export function useJournal() {
 
     const saveWeaverConfig = useCallback(async (apiKey: string) => {
         const trimmedApiKey = apiKey.trim();
-        const cfg = { apiKey: trimmedApiKey, userId: "", driveApiKey };
+        const cfg = { apiKey: trimmedApiKey, userId: "", driveApiKey, skipNegativeStock };
 
         if (trimmedApiKey) {
             const userId = await resolveTornUserId(trimmedApiKey);
@@ -360,13 +363,19 @@ export function useJournal() {
 
         await persistConfigCache(JSON.stringify(cfg));
         return cfg.userId;
-    }, [driveApiKey, persistConfigCache]);
+    }, [driveApiKey, skipNegativeStock, persistConfigCache]);
 
     const saveDriveApiKey = useCallback(async (apiKey: string) => {
         setDriveApiKey(apiKey);
-        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey: apiKey });
+        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey: apiKey, skipNegativeStock });
         await persistConfigCache(cfg);
-    }, [persistConfigCache, weav3rApiKey, weav3rUserId]);
+    }, [persistConfigCache, weav3rApiKey, weav3rUserId, skipNegativeStock]);
+
+    const updateSkipNegativeStock = useCallback(async (value: boolean) => {
+        setSkipNegativeStock(value);
+        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey, skipNegativeStock: value });
+        await persistConfigCache(cfg);
+    }, [weav3rApiKey, weav3rUserId, driveApiKey, persistConfigCache]);
 
     const calculateInventory = (txns: Transaction[]) => {
         const inv = new Map<string, InventoryItemStats>();
@@ -445,49 +454,225 @@ export function useJournal() {
     };
 
     const buildTransactionsWithLogs = useCallback((baseTransactions: Transaction[], parsedLogs: ParsedLog[]) => {
-        let currentTxns = [...baseTransactions];
         const initialDate = Date.now();
-        parsedLogs.forEach((p, idx) => {
-            const date = initialDate + idx;
-            if (p.type === 'SELL' && !p.tag) {
-                const currentInv = calculateInventory(currentTxns);
-                const itemStats = currentInv.get(p.item);
-                let remainingAmountToSell = p.amount;
-                const normalAvail = itemStats?.stock || 0;
-                const abroadAvail = itemStats?.abroadStock || 0;
-                const toSave: Transaction[] = [];
-                if (normalAvail >= remainingAmountToSell || (normalAvail <= 0 && abroadAvail <= 0)) {
-                    toSave.push({ ...p, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
-                } else if (normalAvail > 0 && remainingAmountToSell > normalAvail) {
-                    toSave.push({ ...p, amount: normalAvail, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
-                    remainingAmountToSell -= normalAvail;
-                    if (abroadAvail > 0) {
-                        const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
-                        toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date: date + 1, tag: 'Abroad' } as Transaction);
-                        remainingAmountToSell -= amountFromAbroad;
-                    }
-                    if (remainingAmountToSell > 0) {
-                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 2, tag: 'Normal' } as Transaction);
-                    }
-                } else if (normalAvail <= 0 && abroadAvail > 0) {
-                    const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
-                    toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date, tag: 'Abroad' } as Transaction);
-                    remainingAmountToSell -= amountFromAbroad;
-                    if (remainingAmountToSell > 0) {
-                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 1, tag: 'Normal' } as Transaction);
-                    }
-                }
-                currentTxns = [...currentTxns, ...toSave];
-            } else {
-                currentTxns.push({
-                    ...p,
-                    id: crypto.randomUUID(),
-                    date,
-                    ...(p.type === 'BUY' && !p.tag ? { tag: 'Normal' } : {})
-                } as Transaction);
-            }
+        const resultTransactions: Transaction[] = [];
+
+        // Create a deep copy of base transactions to compute initial inventory
+        const baseCopy = JSON.parse(JSON.stringify(baseTransactions));
+        const inventory = calculateInventory(baseCopy);
+
+        // Separate parsed logs by type
+        const buys: ParsedLog[] = [];
+        const converts: ParsedLog[] = [];
+        const setConverts: ParsedLog[] = [];
+        const sells: ParsedLog[] = [];
+        const mugs: ParsedLog[] = [];
+
+        parsedLogs.forEach((log, idx) => {
+            if (log.type === 'BUY') buys.push(log);
+            else if (log.type === 'CONVERT') converts.push(log);
+            else if (log.type === 'SET_CONVERT') setConverts.push(log);
+            else if (log.type === 'SELL') sells.push(log);
+            else if (log.type === 'MUG') mugs.push(log);
         });
-        return currentTxns;
+
+        // Process buys first (increase inventory)
+        buys.forEach((log, idx) => {
+            const date = initialDate + idx;
+            const tag = log.tag || 'Normal';
+            const itemStats = inventory.get(log.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+            if (tag === 'Abroad') {
+                itemStats.abroadStock += log.amount;
+                itemStats.abroadTotalCost += (log.price * log.amount);
+            } else {
+                itemStats.stock += log.amount;
+                itemStats.totalCost += (log.price * log.amount);
+            }
+            inventory.set(log.item, itemStats);
+            resultTransactions.push({
+                ...log,
+                id: crypto.randomUUID(),
+                date,
+                tag: tag as TransactionTag
+            } as Transaction);
+        });
+
+        // Process converts (transfer stock)
+        converts.forEach((log, idx) => {
+            const date = initialDate + buys.length + idx;
+            // Check fromItem stock
+            const fromStats = inventory.get(log.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+            const availableStock = fromStats.stock;
+            if (availableStock >= log.fromAmount) {
+                // Full conversion
+                const avgCost = fromStats.stock > 0 ? fromStats.totalCost / fromStats.stock : 0;
+                const costAllocated = avgCost * log.fromAmount;
+                fromStats.stock -= log.fromAmount;
+                fromStats.totalCost -= costAllocated;
+                inventory.set(log.fromItem, fromStats);
+                const toStats = inventory.get(log.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                toStats.stock += log.toAmount;
+                toStats.totalCost += costAllocated;
+                inventory.set(log.toItem, toStats);
+            } else {
+                // Insufficient stock - apply partial conversion if any stock available
+                if (availableStock > 0) {
+                    const ratio = availableStock / log.fromAmount;
+                    const actualToAmount = Math.floor(log.toAmount * ratio);
+                    const avgCost = fromStats.stock > 0 ? fromStats.totalCost / fromStats.stock : 0;
+                    const costAllocated = avgCost * availableStock;
+                    fromStats.stock = 0;
+                    fromStats.totalCost = 0;
+                    inventory.set(log.fromItem, fromStats);
+                    const toStats = inventory.get(log.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                    toStats.stock += actualToAmount;
+                    toStats.totalCost += costAllocated;
+                    inventory.set(log.toItem, toStats);
+                }
+                // If no stock available, skip conversion entirely (transaction still recorded with original amounts)
+            }
+            resultTransactions.push({
+                ...log,
+                id: crypto.randomUUID(),
+                date
+            } as Transaction);
+        });
+
+        // Process set converts
+        setConverts.forEach((log, idx) => {
+            const date = initialDate + buys.length + converts.length + idx;
+            const setItems = log.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
+            let minStock = Infinity;
+            const itemStatsMap = new Map<string, InventoryItemStats>();
+            setItems.forEach(item => {
+                const stats = inventory.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                itemStatsMap.set(item, stats);
+                minStock = Math.min(minStock, stats.stock);
+            });
+            let actualTimes = log.times;
+            let actualPointsEarned = log.pointsEarned;
+            if (minStock > 0) {
+                const timesToApply = Math.min(minStock, log.times);
+                const pointsEarned = timesToApply * 10;
+                let totalCostOfGoods = 0;
+                setItems.forEach(item => {
+                    const stats = itemStatsMap.get(item)!;
+                    const avgCost = stats.stock > 0 ? stats.totalCost / stats.stock : 0;
+                    const costOfGoods = avgCost * timesToApply;
+                    stats.stock -= timesToApply;
+                    stats.totalCost -= costOfGoods;
+                    inventory.set(item, stats);
+                    totalCostOfGoods += costOfGoods;
+                });
+                const pointsStats = inventory.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+                pointsStats.stock += pointsEarned;
+                pointsStats.totalCost += totalCostOfGoods;
+                inventory.set('points', pointsStats);
+                actualTimes = timesToApply;
+                actualPointsEarned = pointsEarned;
+            }
+            resultTransactions.push({
+                ...log,
+                times: actualTimes,
+                pointsEarned: actualPointsEarned,
+                id: crypto.randomUUID(),
+                date
+            } as Transaction);
+        });
+
+        // Process sells (consume inventory)
+        sells.forEach((log, idx) => {
+            const date = initialDate + buys.length + converts.length + setConverts.length + idx;
+            const itemStats = inventory.get(log.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+
+            let normalAvail = itemStats.stock;
+            let abroadAvail = itemStats.abroadStock;
+            let remainingAmount = log.amount;
+            const transactionsToAdd: Transaction[] = [];
+
+            if (log.tag === 'Abroad') {
+                // Only use abroad stock
+                const amountFromAbroad = Math.min(abroadAvail, remainingAmount);
+                if (amountFromAbroad > 0) {
+                    const avgCostBasis = abroadAvail > 0 ? itemStats.abroadTotalCost / abroadAvail : 0;
+                    const costOfGoodsSold = avgCostBasis * amountFromAbroad;
+                    const revenue = log.price * amountFromAbroad;
+                    itemStats.abroadStock -= amountFromAbroad;
+                    itemStats.abroadTotalCost -= costOfGoodsSold;
+                    itemStats.abroadRealizedProfit += (revenue - costOfGoodsSold);
+                    transactionsToAdd.push({ ...log, amount: amountFromAbroad, id: crypto.randomUUID(), date, tag: 'Abroad' } as Transaction);
+                    remainingAmount -= amountFromAbroad;
+                }
+                // No fallback to normal stock when tag is explicitly Abroad
+            } else if (log.tag === 'Normal') {
+                // Only use normal stock
+                const amountFromNormal = Math.min(normalAvail, remainingAmount);
+                if (amountFromNormal > 0) {
+                    const avgCostBasis = normalAvail > 0 ? itemStats.totalCost / normalAvail : 0;
+                    const costOfGoodsSold = avgCostBasis * amountFromNormal;
+                    const revenue = log.price * amountFromNormal;
+                    itemStats.stock -= amountFromNormal;
+                    itemStats.totalCost -= costOfGoodsSold;
+                    itemStats.realizedProfit += (revenue - costOfGoodsSold);
+                    transactionsToAdd.push({ ...log, amount: amountFromNormal, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                    remainingAmount -= amountFromNormal;
+                }
+                // No fallback to abroad stock when tag is explicitly Normal
+            } else {
+                // No tag specified - use normal first, then abroad
+                if (normalAvail >= remainingAmount) {
+                    // Enough normal stock for entire sell
+                    const avgCostBasis = normalAvail > 0 ? itemStats.totalCost / normalAvail : 0;
+                    const costOfGoodsSold = avgCostBasis * remainingAmount;
+                    const revenue = log.price * remainingAmount;
+                    itemStats.stock -= remainingAmount;
+                    itemStats.totalCost -= costOfGoodsSold;
+                    itemStats.realizedProfit += (revenue - costOfGoodsSold);
+                    transactionsToAdd.push({ ...log, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                    remainingAmount = 0;
+                } else if (normalAvail > 0) {
+                    // Use all normal stock, partial sell
+                    const amountFromNormal = normalAvail;
+                    const avgCostBasis = normalAvail > 0 ? itemStats.totalCost / normalAvail : 0;
+                    const costOfGoodsSold = avgCostBasis * amountFromNormal;
+                    const revenue = log.price * amountFromNormal;
+                    itemStats.stock -= amountFromNormal;
+                    itemStats.totalCost -= costOfGoodsSold;
+                    itemStats.realizedProfit += (revenue - costOfGoodsSold);
+                    transactionsToAdd.push({ ...log, amount: amountFromNormal, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                    remainingAmount -= amountFromNormal;
+                }
+                if (remainingAmount > 0 && abroadAvail > 0) {
+                    const amountFromAbroad = Math.min(abroadAvail, remainingAmount);
+                    const avgCostBasis = abroadAvail > 0 ? itemStats.abroadTotalCost / abroadAvail : 0;
+                    const costOfGoodsSold = avgCostBasis * amountFromAbroad;
+                    const revenue = log.price * amountFromAbroad;
+                    itemStats.abroadStock -= amountFromAbroad;
+                    itemStats.abroadTotalCost -= costOfGoodsSold;
+                    itemStats.abroadRealizedProfit += (revenue - costOfGoodsSold);
+                    transactionsToAdd.push({ ...log, amount: amountFromAbroad, id: crypto.randomUUID(), date: date + 1, tag: 'Abroad' } as Transaction);
+                    remainingAmount -= amountFromAbroad;
+                }
+                // If still remaining, cannot fulfill (skip)
+            }
+
+            // Update inventory
+            inventory.set(log.item, itemStats);
+            resultTransactions.push(...transactionsToAdd);
+        });
+
+        // Process mugs (no inventory effect)
+        mugs.forEach((log, idx) => {
+            const date = initialDate + buys.length + converts.length + setConverts.length + sells.length + idx;
+            resultTransactions.push({
+                ...log,
+                id: crypto.randomUUID(),
+                date
+            } as Transaction);
+        });
+
+        // Combine base transactions with new ones
+        return [...baseTransactions, ...resultTransactions];
     }, [calculateInventory]);
 
     const addLogs = useCallback(async (parsedLogs: ParsedLog[]) => {
@@ -602,6 +787,7 @@ export function useJournal() {
         editLog,
         renameItem,
         inventory,
+        calculateInventory,
         totalMugLoss,
         totalItemRealizedProfit,
         totalInventoryValue,
@@ -609,6 +795,8 @@ export function useJournal() {
         weav3rApiKey,
         weav3rUserId,
         driveApiKey,
+        skipNegativeStock,
+        updateSkipNegativeStock,
         saveWeaverConfig,
         saveDriveApiKey,
         needsMigration,
