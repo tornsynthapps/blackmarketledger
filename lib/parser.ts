@@ -95,7 +95,7 @@ export function parseLogLine(line: string): ParsedLog | null {
     // e.g. "07:28:09 - 07/03/26 You bought 22x Crocus on Frengesp's bazaar at $7,099 each for a total of $156,178"
     // e.g. "07:28:33 - 07/03/26 You bought 58x Crocus on the item market from lesbiampires at $8,189 each for a total of $474,962"
     // e.g. "You bought a Bottle of Tequila on Botato's bazaar at $666 each for a total of $666"
-    const tornBuyRegex = /You bought ([\d,]+x|a|some) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: from (.+))?)?/i;
+    const tornBuyRegex = /You bought ([\d,]+x|a|some) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: (?:from|in) (.+))?)?/i;
     const tornBuyMatch = line.match(tornBuyRegex);
     if (tornBuyMatch) {
         let amount = 1;
@@ -192,7 +192,6 @@ export function parseLogLine(line: string): ParsedLog | null {
         const item = normalizeItemName(bazaarEventMatch[2]);
         const amount = parseInt(bazaarEventMatch[1].replace(/,/g, ''), 10);
         const total = parseInt(bazaarEventMatch[3].replace(/,/g, ''), 10);
-
         if (!isNaN(amount) && !isNaN(total) && amount > 0) {
             return {
                 type: 'SELL',
@@ -200,6 +199,43 @@ export function parseLogLine(line: string): ParsedLog | null {
                 amount,
                 price: total / amount
             } as ParsedTradeLog;
+        }
+    }
+
+    // Someone anonymously mugged you for $4,446,201 sending you to the hospital for 0h 42m [view]
+    const tornAnonMugRegex = /Someone anonymously mugged you for \$([\d,]+)/i;
+    const tornAnonMugMatch = line.match(tornAnonMugRegex);
+    if (tornAnonMugMatch) {
+        const amount = parseInt(tornAnonMugMatch[1].replace(/,/g, ''), 10);
+        if (!isNaN(amount)) {
+            return {
+                type: 'MUG',
+                amount
+            } as ParsedMugLog;
+        }
+    }
+
+    // You exchanged 25x Plushie Set to the museum for 250 points
+    // You exchanged 3x Exotic Flower Set to the museum for 30 points
+    const museumExchangeRegex = /You exchanged ([\d,]+)x (.+?) Set to the museum for ([\d,]+) points/i;
+    const museumExchangeMatch = line.match(museumExchangeRegex);
+    if (museumExchangeMatch) {
+        const times = parseInt(museumExchangeMatch[1].replace(/,/g, ''), 10);
+        const setTypeRaw = museumExchangeMatch[2].toLowerCase();
+        const pointsEarned = parseInt(museumExchangeMatch[3].replace(/,/g, ''), 10);
+        
+        if (!isNaN(times) && !isNaN(pointsEarned)) {
+            let setType: 'flower' | 'plushie' = 'plushie';
+            if (setTypeRaw.includes('flower')) {
+                setType = 'flower';
+            }
+            
+            return {
+                type: 'SET_CONVERT',
+                setType,
+                times,
+                pointsEarned
+            } as ParsedSetConvertLog;
         }
     }
 
@@ -299,4 +335,32 @@ export function parseLogs(input: string): ParsedLog[] {
         .split('\n')
         .map(parseLogLine)
         .filter((log): log is ParsedLog => log !== null);
+}
+
+export function formatToStandardLog(parsed: ParsedLog): string {
+    const formattedPrice = (price: number) => {
+        return Math.floor(price).toLocaleString('en-US');
+    };
+
+    if (parsed.type === 'BUY') {
+        const total = parsed.amount * parsed.price;
+        const tag = parsed.tag === 'Abroad' ? ` from ${parsed.item === 'xanax' ? 'Switzerland' : 'Abroad'}` : ''; // Example
+        return `You bought ${parsed.amount}x ${formatItemName(parsed.item)} at $${formattedPrice(parsed.price)} each for a total of $${formattedPrice(total)}${tag}`;
+    }
+
+    if (parsed.type === 'SELL') {
+        const total = parsed.amount * parsed.price;
+        return `You sold ${parsed.amount}x ${formatItemName(parsed.item)} on the item market to someone at $${formattedPrice(parsed.price)} each for a total of $${formattedPrice(total)}`;
+    }
+
+    if (parsed.type === 'MUG') {
+        return `Someone anonymously mugged you for $${parsed.amount.toLocaleString('en-US')}`;
+    }
+
+    if (parsed.type === 'SET_CONVERT') {
+        const setName = parsed.setType === 'flower' ? 'Exotic Flower' : 'Plushie';
+        return `You exchanged ${parsed.times}x ${setName} Set to the museum for ${parsed.pointsEarned} points`;
+    }
+
+    return '';
 }

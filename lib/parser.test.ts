@@ -140,8 +140,111 @@ describe('parseLogLine', () => {
         expect(result.price).toBe(820000);
     });
 
+    it('should parse log, abroad buy (from location)', () => {
+        const line = '21:02:31 - 17/03/26 You bought 23x Xanax at $805,000 each for a total of $18,515,000 from Switzerland';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('BUY');
+        expect(result.tag).toBe('Abroad');
+    });
+
+    it('should parse log, anonymous mug', () => {
+        const line = 'Someone anonymously mugged you for $4,446,201 sending you to the hospital for 0h 42m [view]';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('MUG');
+        expect(result.amount).toBe(4446201);
+    });
+
+    it('should parse log, anonymous mug (timestamp)', () => {
+        const line = '10:42:52 - 05/03/26 Someone anonymously mugged you for $4,446,201 sending you to the hospital for 0h 42m [view]';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('MUG');
+        expect(result.amount).toBe(4446201);
+    });
+
+    it('should parse log, museum exchange (plushies)', () => {
+        const line = 'You exchanged 25x Plushie Set to the museum for 250 points';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SET_CONVERT');
+        expect(result.setType).toBe('plushie');
+        expect(result.times).toBe(25);
+        expect(result.pointsEarned).toBe(250);
+    });
+
+    it('should parse log, museum exchange (flowers)', () => {
+        const line = '02:23:27 - 13/03/26 You exchanged 3x Exotic Flower Set to the museum for 30 points';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SET_CONVERT');
+        expect(result.setType).toBe('flower');
+        expect(result.times).toBe(3);
+        expect(result.pointsEarned).toBe(30);
+    });
+
+    it('should parse log, museum exchange (plushies timestamp)', () => {
+        const line = '18:48:29 - 16/03/26 You exchanged 25x Plushie Set to the museum for 250 points';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SET_CONVERT');
+        expect(result.setType).toBe('plushie');
+    });
+
+    it('should parse log, museum exchange (flowers no-timestamp)', () => {
+        const line = 'You exchanged 3x Exotic Flower Set to the museum for 30 points';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SET_CONVERT');
+        expect(result.setType).toBe('flower');
+    });
+
     it('should return null for invalid formats', () => {
         expect(parseLogLine('invalid log line')).toBeNull();
         expect(parseLogLine('21:47:05 - 16/03/26')).toBeNull();
+    });
+});
+
+import { formatToStandardLog } from './parser';
+
+describe('formatToStandardLog', () => {
+    it('should format BUY correctly', () => {
+        const log = { type: 'BUY', item: 'xanax', amount: 10, price: 800000 } as any;
+        const result = formatToStandardLog(log);
+        expect(result).toBe('You bought 10x Xanax at $800,000 each for a total of $8,000,000');
+        expect(parseLogLine(result)).toMatchObject(log);
+    });
+
+    it('should format BUY with tag correctly', () => {
+        const log = { type: 'BUY', item: 'xanax', amount: 10, price: 800000, tag: 'Abroad' } as any;
+        const result = formatToStandardLog(log);
+        expect(result).toBe('You bought 10x Xanax at $800,000 each for a total of $8,000,000 from Switzerland');
+        expect(parseLogLine(result)).toMatchObject({ ...log, item: 'xanax' });
+    });
+
+    it('should format SELL correctly', () => {
+        const log = { type: 'SELL', item: 'xanax', amount: 5, price: 850000 } as any;
+        const result = formatToStandardLog(log);
+        expect(result).toContain('You sold 5x Xanax');
+        expect(result).toContain('$850,000 each');
+        // Note: parsing standard sell usually works due to "You sold ... on the item market" regex
+        const parsed = parseLogLine(result) as any;
+        expect(parsed.type).toBe('SELL');
+        expect(parsed.item).toBe('xanax');
+        expect(parsed.amount).toBe(5);
+        expect(parsed.price).toBe(850000);
+    });
+
+    it('should format MUG correctly', () => {
+        const log = { type: 'MUG', amount: 4446201 } as any;
+        const result = formatToStandardLog(log);
+        expect(result).toBe('Someone anonymously mugged you for $4,446,201');
+    });
+
+    it('should format SET_CONVERT correctly', () => {
+        const log = { type: 'SET_CONVERT', setType: 'flower', times: 3, pointsEarned: 30 } as any;
+        const result = formatToStandardLog(log);
+        expect(result).toBe('You exchanged 3x Exotic Flower Set to the museum for 30 points');
     });
 });

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useJournal } from "@/store/useJournal";
-import { parseLogLine, ParsedLog, formatItemName } from "@/lib/parser";
+import { parseLogLine, ParsedLog, formatItemName, formatToStandardLog } from "@/lib/parser";
 import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
@@ -34,7 +34,7 @@ export default function AddLogs() {
     }, [showToast]);
 
     useEffect(() => {
-            const urlMatch = input.match(/https:\/\/weav3r\.dev\/receipt\/([A-Za-z0-9_-]+)/);
+        const urlMatch = input.match(/https:\/\/weav3r\.dev\/receipt\/([A-Za-z0-9_-]+)/);
         if (urlMatch && !isFetching) {
             if (!weav3rApiKey || !weav3rUserId) {
                 setConfigError("Please save a valid Weav3r API key to fetch trades.");
@@ -71,10 +71,32 @@ export default function AddLogs() {
     useEffect(() => {
         if (justPasted) {
             setJustPasted(false);
+
+            // Convert shorthand logs to standard logs on paste
             const linesArr = input.split('\n');
-            const lastLine = linesArr[linesArr.length - 1];
+            const convertedLines = linesArr.map(line => {
+                const trimmed = line.trim();
+                if (trimmed === '') return line;
+
+                // Only convert if it's a shorthand log (contains ';')
+                // and it's NOT already a standard log
+                if (trimmed.includes(';') && !trimmed.includes('You bought') && !trimmed.includes('You sold')) {
+                    const parsed = parseLogLine(trimmed);
+                    if (parsed) {
+                        return formatToStandardLog(parsed);
+                    }
+                }
+                return line;
+            });
+
+            const newInput = convertedLines.join('\n');
+            const finalLines = newInput.split('\n');
+            const lastLine = finalLines[finalLines.length - 1];
+
             if (lastLine.trim() !== '' && parseLogLine(lastLine)) {
-                setInput(input + '\n');
+                setInput(newInput + '\n');
+            } else {
+                setInput(newInput);
             }
         }
     }, [input, justPasted]);
@@ -108,7 +130,7 @@ export default function AddLogs() {
     if (!isLoaded) return null;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+        <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
 
             {showToast && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-success text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-in slide-in-from-top-4 fade-in z-50">
@@ -117,72 +139,92 @@ export default function AddLogs() {
                 </div>
             )}
 
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Terminal</h1>
-                <p className="text-foreground/60 mt-2">Paste your shorthand logs here to add to your tracker.</p>
-            </div>
-
-            <div className="bg-panel border border-border p-4 rounded-xl flex flex-col sm:flex-row gap-4 items-center">
-                <div className="flex-1 flex flex-col gap-1 w-full">
-                    <label className="text-xs font-semibold text-foreground/70">Weav3r API Key</label>
-                    <input type="password" value={tempApiKey} onChange={e => setTempApiKey(e.target.value)} className="px-3 py-1.5 text-sm bg-background border border-border rounded focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Enter API Key" />
-                </div>
-                <div className="mt-4 sm:mt-auto sm:self-end w-full sm:w-auto">
-                    <button
-                        onClick={async () => {
-                            vibrate("utility");
-                            try {
-                                await saveWeaverConfig(tempApiKey);
-                                setConfigError("");
-                            } catch (error) {
-                                setConfigError(error instanceof Error ? error.message : "Failed to save Weav3r API key.");
-                            }
-                        }}
-                        className="w-full sm:w-auto px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded font-medium text-sm transition-colors mb-[1px]"
-                    >
-                        Save Config
-                    </button>
-                </div>
-            </div>
-
-            {configError && <div className="text-sm text-danger flex items-center gap-1.5 bg-danger/10 p-3 rounded-lg border border-danger/20"><AlertCircle className="w-4 h-4" /> {configError}</div>}
-
-            <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex flex-col sm:flex-row gap-4 text-sm text-primary items-start sm:items-center justify-between">
-                <div className="flex gap-3 items-center">
-                    <Info className="w-5 h-5 shrink-0" />
-                    <div>
-                        <p className="font-semibold">Documentation</p>
-                        <p className="opacity-80 text-xs">Learn how to write shorthand logs and use Weav3r receipts or Bazaar logs.</p>
-                    </div>
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-xl font-bold tracking-tight">Terminal</h1>
                 </div>
                 <Link
                     href="/docs/log-formats"
                     onClick={() => vibrate("nav")}
-                    className="px-4 py-1.5 bg-primary/10 hover:bg-primary hover:text-white rounded-lg font-medium transition-colors whitespace-nowrap"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 hover:bg-primary hover:text-white rounded-lg text-xs font-semibold text-primary transition-all whitespace-nowrap"
                 >
-                    Open Docs &rarr;
+                    <Info className="w-3.5 h-3.5" /> Docs &rarr;
                 </Link>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Editor */}
-                <div className="flex flex-col gap-4">
-                    <div className="relative font-mono text-sm w-full h-96 bg-panel rounded-xl shadow-inner border border-border overflow-hidden">
+            {/* Unified Terminal UI */}
+            <div className="flex flex-col gap-4">
+                <div className="relative font-mono text-sm w-full h-[32rem] bg-panel rounded-xl shadow-inner border border-border overflow-hidden flex flex-col">
+                    <div className="flex items-center justify-between p-3 border-b border-border bg-foreground/[0.02] z-30">
+                        <div className="flex items-center gap-6">
+                            <h2 className="font-bold text-[10px] uppercase tracking-widest text-foreground/40">Log Input</h2>
+                            <div className="h-4 w-[1px] bg-border" />
+                            <h2 className="font-bold text-[10px] uppercase tracking-widest text-foreground/40">Live Preview</h2>
+                        </div>
+                        <div className="flex gap-4 text-[10px] font-bold">
+                            <span className="text-primary flex items-center gap-1"><Check className="w-3 h-3" /> {validCount} Valid</span>
+                            {inValidCount > 0 && <span className="text-danger flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {inValidCount} Invalid</span>}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 relative overflow-hidden group">
+                        {/* Highlighting & Preview Layer */}
                         <div
                             ref={highlightRef}
-                            className="absolute inset-0 p-4 pointer-events-none whitespace-pre-wrap break-words overflow-y-auto"
-                            aria-hidden="true"
+                            className="absolute inset-0 overflow-y-scroll pointer-events-none p-4 pb-20 select-none z-0"
                         >
-                            {input.split('\n').map((l, i, arr) => {
-                                if (l.trim() === '') return <span key={i}>{l}{i < arr.length - 1 ? '\n' : ''}</span>;
-                                const parsed = parseLogLine(l);
-                                return (
-                                    <span key={i} className={parsed ? "text-transparent" : "text-danger bg-danger/10 font-medium"}>
-                                        {l}{i < arr.length - 1 ? '\n' : ''}
-                                    </span>
-                                );
-                            })}
+                            <div className="flex flex-col w-full">
+                                {input.split('\n').map((lineText, i, arr) => {
+                                    const parsed = lineText.trim() ? parseLogLine(lineText) : null;
+                                    const isLast = i === arr.length - 1;
+
+                                    return (
+                                        <div key={i} className="flex relative items-start group/line text-foreground/80 leading-7">
+                                            {/* Visual Divider (Absolute positioned to never shift layout) */}
+                                            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-foreground/[0.15] z-0" />
+                                            {/* Left Column: Editor Highlight */}
+                                            <div className="w-[65%] pr-[60px] relative break-words whitespace-pre-wrap">
+                                                {lineText.trim() === '' ? (
+                                                    <span>&nbsp;</span>
+                                                ) : (
+                                                    <span className={parsed ? "text-primary bg-primary/10 px-1 py-0.5 rounded shadow-[0_0_0_1px_rgba(var(--primary),0.1)]" : "text-danger bg-danger/10 px-1 py-0.5 rounded font-medium"} style={{ boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>
+                                                        {lineText}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Middle Column: Vertical Divider & Line Number */}
+                                            <div className="absolute left-[65%] top-0 bottom-0 w-[1px] bg-border/40 flex justify-center items-start">
+                                                {lineText.trim() !== '' && (
+                                                    <span className="absolute top-[3px] -translate-x-1/2 w-4 h-4 rounded-full bg-background border border-border text-[9px] flex items-center justify-center font-bold text-foreground/30 shadow-sm z-10 transition-colors group-hover/line:text-primary group-hover/line:border-primary/30">
+                                                        {i + 1}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Right Column: Preview Content */}
+                                            <div className="flex-1 pl-8 break-all">
+                                                {parsed ? (
+                                                    <div className="text-[11px] truncate text-primary font-medium flex items-center gap-2 h-6">
+                                                        {parsed.type === 'BUY' && <><span>{parsed.tag === 'Abroad' ? '✈️' : '🛒'}</span> <span>Bought</span> {parsed.amount}x {formatItemName(parsed.item)} @ {Math.floor(parsed.price).toLocaleString()}</>}
+                                                        {parsed.type === 'SELL' && <>💰 <span>Sold</span> {parsed.amount}x {formatItemName(parsed.item)} @ {Math.floor(parsed.price).toLocaleString()}</>}
+                                                        {parsed.type === 'MUG' && <>🥷 <span>Mug Loss</span> ${parsed.amount.toLocaleString()}</>}
+                                                        {parsed.type === 'CONVERT' && <>♻️ <span>Exchanged</span> {parsed.fromAmount.toLocaleString()} {formatItemName(parsed.fromItem)} &rarr; {parsed.toAmount.toLocaleString()} {formatItemName(parsed.toItem)}</>}
+                                                        {parsed.type === 'SET_CONVERT' && <>🏛️ <span>Museum</span> {parsed.times}x {formatItemName(parsed.setType)} &rarr; {parsed.pointsEarned} Pts</>}
+                                                    </div>
+                                                ) : lineText.trim() ? (
+                                                    <div className="text-[10px] text-danger font-bold flex items-center gap-1 h-6">
+                                                        <AlertCircle className="w-3 h-3" /> Error
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
+
+                        {/* Interactive Textarea Layer */}
                         <textarea
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
@@ -190,89 +232,60 @@ export default function AddLogs() {
                                 if (highlightRef.current) highlightRef.current.scrollTop = e.currentTarget.scrollTop;
                             }}
                             onPaste={() => setJustPasted(true)}
-                            className="absolute inset-0 w-full h-full p-4 resize-none bg-transparent text-foreground/90 caret-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 relative z-10"
-                            placeholder="Paste your logs here...&#10;b;Xanax;89;899999&#10;m;789789&#10;s;Xanax;89;900000&#10;&#10;Or paste a Weav3r receipt URL like:&#10;https://weav3r.dev/receipt/RJiDVUO9Is"
+                            className="absolute inset-0 w-full h-full p-4 resize-none bg-transparent text-transparent caret-foreground focus:outline-none z-20 leading-7 pb-20 overflow-y-scroll font-mono text-sm whitespace-pre-wrap break-words border-none ring-0 focus:ring-0"
+                            style={{ 
+                                paddingRight: 'calc(35% + 60px)' 
+                            }}
+                            placeholder="Paste your logs here..."
                             spellCheck="false"
                         />
+
                         {isFetching && (
-                            <div className="absolute inset-0 bg-panel/70 backdrop-blur-[2px] flex items-center justify-center rounded-xl z-20 transition-all">
+                            <div className="absolute inset-0 bg-panel/70 backdrop-blur-[2px] flex items-center justify-center rounded-xl z-50 transition-all">
                                 <span className="animate-pulse font-semibold text-primary text-lg">Fetching Trades...</span>
                             </div>
                         )}
                     </div>
-                    <div className="flex justify-between items-center bg-panel p-4 rounded-xl border border-border shadow-sm">
-                        <div className="text-sm">
-                            <span className="font-medium">{lines.length}</span> Total Lines
-                            <div className="flex gap-4 mt-1">
-                                <span className="text-success flex items-center gap-1"><Check className="w-3 h-3" /> {validCount} Valid</span>
-                                {inValidCount > 0 && <span className="text-danger flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {inValidCount} Invalid</span>}
-                            </div>
+
+                    {/* Footer Controls */}
+                    <div className="p-3 border-t border-border bg-foreground/[0.02] flex justify-between items-center z-30">
+                        <div className="text-[10px] items-center flex gap-4 text-foreground/40 font-bold uppercase tracking-wider">
+                            <span>{lines.length} Line Entries Found</span>
                         </div>
                         <button
                             onClick={() => void handleSave()}
                             disabled={validCount === 0}
-                            className="px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all active:scale-95"
+                            className="px-6 py-2 bg-primary text-primary-foreground font-semibold rounded-lg shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all active:scale-95 text-xs"
                         >
-                            <Save className="w-4 h-4" />
+                            <Save className="w-3.5 h-3.5" />
                             Run Import
                         </button>
                     </div>
-
-                    <div className="mt-8 pt-8 border-t border-border">
-                        <div className="bg-danger/5 border border-danger/20 p-4 rounded-xl">
-                            <h3 className="text-danger font-semibold flex items-center gap-2 mb-2">
-                                <ShieldAlert className="w-5 h-5" /> Danger Zone
-                            </h3>
-                            <p className="text-sm text-foreground/70 mb-4">This will completely erase all stored logs from your local browser.</p>
-                            <button
-                                onClick={() => {
-                                    vibrate("danger");
-                                    if (window.confirm("Are you sure you want to delete all logs permanently?")) {
-                                        vibrate("danger");
-                                        clearLogs();
-                                    }
-                                }}
-                                className="px-4 py-2 bg-danger/10 text-danger hover:bg-danger hover:text-white font-medium rounded-lg text-sm transition-colors flex items-center gap-2"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                Clear All Tracker Data
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
-                {/* Live Preview */}
-                <div className="bg-panel rounded-xl border border-border shadow-sm overflow-hidden flex flex-col h-96 lg:h-auto">
-                    <div className="p-4 border-b border-border bg-foreground/[0.02]">
-                        <h2 className="font-semibold text-lg flex items-center gap-2">Live Preview</h2>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 bg-foreground/[0.01]">
-                        {lines.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-foreground/40 italic">
-                                Start typing to see preview
+                {/* Danger Zone moved to bottom */}
+                <div className="pt-4 border-t border-border">
+                    <div className="bg-danger/5 border border-danger/20 p-3 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <ShieldAlert className="w-5 h-5 text-danger" />
+                            <div>
+                                <h3 className="text-danger font-semibold text-sm">Danger Zone</h3>
+                                <p className="text-[11px] text-foreground/60">This permanently erases all log data from your local browser storage.</p>
                             </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {parsedLines.map((p, i) => (
-                                    <div key={i} className={`p-3 rounded-lg border text-sm ${p.parsed ? 'bg-panel border-border' : 'bg-danger/5 border-danger/20'}`}>
-                                        <div className={`font-mono text-xs mb-1 ${p.parsed ? 'text-foreground/50' : 'text-danger font-semibold'}`}>{p.line}</div>
-                                        {p.parsed ? (
-                                            <div className="text-foreground/90 truncate">
-                                                {p.parsed.type === 'BUY' && <>🛒 <span className="font-medium text-primary">Bought</span> {p.parsed.amount}x {formatItemName(p.parsed.item)} @ {p.parsed.price.toLocaleString()}</>}
-                                                {p.parsed.type === 'SELL' && <>💰 <span className="font-medium text-success">Sold</span> {p.parsed.amount}x {formatItemName(p.parsed.item)} @ {p.parsed.price.toLocaleString()}</>}
-                                                {p.parsed.type === 'MUG' && <>🥷 <span className="font-medium text-danger">Mug Loss</span> ${p.parsed.amount.toLocaleString()}</>}
-                                                {p.parsed.type === 'CONVERT' && <>♻️ <span className="font-medium text-primary">Converted</span> {p.parsed.fromAmount} {formatItemName(p.parsed.fromItem)} into {p.parsed.toAmount} {formatItemName(p.parsed.toItem)}</>}
-                                                {p.parsed.type === 'SET_CONVERT' && <>🏛️ <span className="font-medium text-primary">Museum Set</span> Converted {p.parsed.times}x {formatItemName(p.parsed.setType)} Sets into {p.parsed.pointsEarned} Points</>}
-                                            </div>
-                                        ) : (
-                                            <div className="text-danger flex items-center gap-1.5 font-medium">
-                                                <AlertCircle className="w-4 h-4" /> Invalid Sequence format
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        </div>
+                        <button
+                            onClick={() => {
+                                vibrate("danger");
+                                if (window.confirm("Are you sure you want to delete all logs permanently?")) {
+                                    vibrate("danger");
+                                    clearLogs();
+                                }
+                            }}
+                            className="px-3 py-1.5 bg-danger/10 text-danger hover:bg-danger hover:text-white font-medium rounded-lg text-xs transition-colors flex items-center gap-1.5"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Clear Tracker
+                        </button>
                     </div>
                 </div>
             </div>
