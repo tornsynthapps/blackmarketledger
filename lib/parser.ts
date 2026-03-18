@@ -1,3 +1,4 @@
+export const PARSER_VERSION = '1.1.0';
 export type TransactionType = 'BUY' | 'SELL' | 'MUG' | 'CONVERT';
 
 export type TransactionTag = 'Abroad' | 'Normal';
@@ -90,6 +91,44 @@ export function formatItemName(name: string): string {
 * cp;<times> (Convert plushie sets to points)
 */
 export function parseLogLine(line: string): ParsedLog | null {
+    // e.g. "19:26:35 - 16/03/26 You sold 150x points to JjDja on the points market at $33,749 each for a total of $5,062,350"
+    // e.g. "20:39:48 - 05/03/26 You bought 15x points from CeedXXX on the points market at $33,599 each for a total of $503,985"
+    const pointsMarketLogRegex = /You (bought|sold) ([\d,]+)x (points) (?:from|to) .+? on the points market at \$([\d,]+) each for a total of \$([\d,]+)/i;
+    const pointsMarketLogMatch = line.match(pointsMarketLogRegex);
+    if (pointsMarketLogMatch) {
+        const action = pointsMarketLogMatch[1].toLowerCase();
+        const type = action === 'bought' ? 'BUY' : 'SELL';
+        const amount = parseInt(pointsMarketLogMatch[2].replace(/,/g, ''), 10);
+        const price = parseInt(pointsMarketLogMatch[4].replace(/,/g, ''), 10);
+        const total = parseInt(pointsMarketLogMatch[5].replace(/,/g, ''), 10);
+
+        if (!isNaN(amount) && !isNaN(price)) {
+            return {
+                type,
+                item: 'points',
+                amount,
+                price: type === 'SELL' ? total / amount : price
+            } as ParsedTradeLog;
+        }
+    }
+
+    // e.g. "05:10:36 - 18/03/26 Phantomic bought 3,000 of your points that were on the market for $101,100,000"
+    const pointsMarketEventRegex = /.+? bought ([\d,]+) of your points that were on the market for \$([\d,]+)/i;
+    const pointsMarketEventMatch = line.match(pointsMarketEventRegex);
+    if (pointsMarketEventMatch) {
+        const amount = parseInt(pointsMarketEventMatch[1].replace(/,/g, ''), 10);
+        const total = parseInt(pointsMarketEventMatch[2].replace(/,/g, ''), 10);
+
+        if (!isNaN(amount) && !isNaN(total) && amount > 0) {
+            return {
+                type: 'SELL',
+                item: 'points',
+                amount,
+                price: total / amount
+            } as ParsedTradeLog;
+        }
+    }
+
     // Try parsing Torn system event logs for purchases:
     // e.g. "17:49:48 - 06/03/26 You bought 19x Xanax at $688,996 each for a total of $13,090,924 from Japan"
     // e.g. "07:28:09 - 07/03/26 You bought 22x Crocus on Frengesp's bazaar at $7,099 each for a total of $156,178"

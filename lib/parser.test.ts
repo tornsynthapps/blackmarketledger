@@ -140,6 +140,66 @@ describe('parseLogLine', () => {
         expect(result.price).toBe(820000);
     });
 
+    it('should parse log, points market sell (timestamp)', () => {
+        const line = '19:26:35 - 16/03/26 You sold 150x points to JjDja on the points market at $33,749 each for a total of $5,062,350';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SELL');
+        expect(result.item).toBe('points');
+        expect(result.amount).toBe(150);
+        expect(result.price).toBe(33749);
+    });
+
+    it('should parse log, points market sell (no timestamp)', () => {
+        const line = 'You sold 150x points to JjDja on the points market at $33,749 each for a total of $5,062,350';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SELL');
+        expect(result.item).toBe('points');
+        expect(result.amount).toBe(150);
+        expect(result.price).toBe(33749);
+    });
+
+    it('should parse log, points market buy (timestamp)', () => {
+        const line = '20:39:48 - 05/03/26 You bought 15x points from CeedXXX on the points market at $33,599 each for a total of $503,985';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('BUY');
+        expect(result.item).toBe('points');
+        expect(result.amount).toBe(15);
+        expect(result.price).toBe(33599);
+    });
+
+    it('should parse log, points market buy (no timestamp)', () => {
+        const line = 'You bought 15x points from CeedXXX on the points market at $33,599 each for a total of $503,985';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('BUY');
+        expect(result.item).toBe('points');
+        expect(result.amount).toBe(15);
+        expect(result.price).toBe(33599);
+    });
+
+    it('should parse event, points market bought (timestamp)', () => {
+        const line = '05:10:36 - 18/03/26 Phantomic bought 3,000 of your points that were on the market for $101,100,000';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SELL');
+        expect(result.item).toBe('points');
+        expect(result.amount).toBe(3000);
+        expect(result.price).toBe(33700);
+    });
+
+    it('should parse event, points market bought (no timestamp)', () => {
+        const line = 'Phantomic bought 3,000 of your points that were on the market for $101,100,000';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('SELL');
+        expect(result.item).toBe('points');
+        expect(result.amount).toBe(3000);
+        expect(result.price).toBe(33700);
+    });
+
     it('should parse log, abroad buy (from location)', () => {
         const line = '21:02:31 - 17/03/26 You bought 23x Xanax at $805,000 each for a total of $18,515,000 from Switzerland';
         const result = parseLogLine(line) as any;

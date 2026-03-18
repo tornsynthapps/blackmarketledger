@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useJournal } from "@/store/useJournal";
-import { parseLogLine, ParsedLog, formatItemName, formatToStandardLog } from "@/lib/parser";
+import { parseLogLine, ParsedLog, formatItemName, formatToStandardLog, PARSER_VERSION } from "@/lib/parser";
 import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
@@ -140,8 +140,11 @@ export default function AddLogs() {
             )}
 
             <div className="flex items-center justify-between gap-4">
-                <div>
+                <div className="flex items-center gap-3">
                     <h1 className="text-xl font-bold tracking-tight">Terminal</h1>
+                    <span className="px-2 py-0.5 bg-foreground/5 border border-border rounded-full text-[10px] font-bold text-foreground/40 tracking-wider">
+                        V{PARSER_VERSION}
+                    </span>
                 </div>
                 <Link
                     href="/docs/log-formats"
