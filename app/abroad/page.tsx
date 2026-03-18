@@ -4,14 +4,24 @@ import { useState, useMemo, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
 import { formatItemName } from "@/lib/parser";
 import { Plane, AlertCircle, ArrowRightLeft, Loader2, Check } from "lucide-react";
+import StatsModal from "@/components/StatsModal";
 
 export default function AbroadDashboard() {
-    const { inventory, weav3rApiKey, weav3rUserId, isLoaded, addLogs } = useJournal();
+    const { inventory, weav3rApiKey, weav3rUserId, isLoaded, addLogs, transactions } = useJournal();
     const [prices, setPrices] = useState<Record<string, number>>({});
     const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [sellingItemId, setSellingItemId] = useState<string | null>(null);
+    const [modalState, setModalState] = useState<{
+        isOpen: boolean;
+        title: string;
+        statType: 'profit' | 'inventory' | 'mugLoss' | 'netProfit';
+    }>({
+        isOpen: false,
+        title: '',
+        statType: 'profit'
+    });
 
     // Fetch Weav3r Pricelist
     useEffect(() => {
@@ -117,6 +127,14 @@ export default function AbroadDashboard() {
         }, 500);
     };
 
+    const openStatsModal = (title: string, statType: 'profit' | 'inventory' | 'mugLoss' | 'netProfit') => {
+        setModalState({ isOpen: true, title, statType });
+    };
+
+    const closeStatsModal = () => {
+        setModalState({ isOpen: false, title: '', statType: 'profit' });
+    };
+
     if (!isLoaded) return null;
 
     return (
@@ -153,7 +171,7 @@ export default function AbroadDashboard() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden group hover:border-primary/30 transition-colors">
+                <div className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden group">
                     <div className="absolute -right-6 -top-6 bg-primary/10 w-32 h-32 rounded-full blur-2xl group-hover:bg-primary/20 transition-colors" />
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-primary/10 rounded-lg">
@@ -163,7 +181,10 @@ export default function AbroadDashboard() {
                     </div>
                     <p className="text-3xl font-bold tracking-tight">${Math.round(abroadStats.totalValue).toLocaleString()}</p>
                 </div>
-                <div className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden group hover:border-success/30 transition-colors">
+                <div 
+                    className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden group hover:border-success/30 transition-all cursor-pointer hover:scale-[1.02]"
+                    onClick={() => openStatsModal("Abroad Realized Profit", "profit")}
+                >
                     <div className="absolute -right-6 -top-6 bg-success/10 w-32 h-32 rounded-full blur-2xl group-hover:bg-success/20 transition-colors" />
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-success/10 rounded-lg">
@@ -174,6 +195,7 @@ export default function AbroadDashboard() {
                     <p className={`text-3xl font-bold tracking-tight ${abroadStats.totalProfit > 0 ? 'text-success' : abroadStats.totalProfit < 0 ? 'text-danger' : ''}`}>
                         {abroadStats.totalProfit > 0 ? '+' : ''}${Math.round(abroadStats.totalProfit).toLocaleString()}
                     </p>
+                    <p className="text-xs text-primary/70 mt-2 font-medium">Click to view trends</p>
                 </div>
             </div>
 
@@ -238,6 +260,15 @@ export default function AbroadDashboard() {
                     </table>
                 </div>
             </div>
+
+            <StatsModal
+                isOpen={modalState.isOpen}
+                onClose={closeStatsModal}
+                title={modalState.title}
+                transactions={transactions.filter(t => t.tag === 'Abroad')}
+                statType={modalState.statType}
+                inventoryScope="abroad"
+            />
         </div>
     );
 }

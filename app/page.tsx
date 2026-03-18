@@ -6,6 +6,7 @@ import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown,
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import StatsModal from "@/components/StatsModal";
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -21,6 +22,7 @@ export default function Home() {
     inventory,
     totalMugLoss,
     renameItem,
+    transactions,
   } = useJournal();
   const router = useRouter();
   const { vibrate } = useHapticFeedback();
@@ -31,6 +33,15 @@ export default function Home() {
     direction: 'desc'
   });
   const [search, setSearch] = useState("");
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    statType: 'profit' | 'inventory' | 'mugLoss' | 'netProfit';
+  }>({
+    isOpen: false,
+    title: '',
+    statType: 'profit'
+  });
 
   const { stats, sortedItems } = useMemo(() => {
     let profit = 0;
@@ -51,7 +62,7 @@ export default function Home() {
       filtered = items.filter(item => item.name.toLowerCase().includes(search.toLowerCase()));
     }
 
-    let sorted = filtered.sort((a, b) => {
+    const sorted = filtered.sort((a, b) => {
       let aVal: number | string;
       let bVal: number | string;
 
@@ -88,6 +99,15 @@ export default function Home() {
     setSortConfig({ key, direction });
   };
 
+  const openStatsModal = (title: string, statType: 'profit' | 'inventory' | 'mugLoss' | 'netProfit') => {
+    vibrate("nav");
+    setModalState({ isOpen: true, title, statType });
+  };
+
+  const closeStatsModal = () => {
+    setModalState({ isOpen: false, title: '', statType: 'profit' });
+  };
+
   const netTotal = stats.profit - totalMugLoss;
   return (
     <div
@@ -117,6 +137,7 @@ export default function Home() {
           value={formatMoney(stats.profit)}
           icon={<TrendingUp className="text-success w-5 h-5" />}
           description="From sold items only"
+          onClick={() => openStatsModal("Total Realized Profit", "profit")}
         />
         <StatCard
           title="Current Inventory Value"
@@ -130,6 +151,7 @@ export default function Home() {
           icon={<AlertTriangle className="text-danger w-5 h-5" />}
           description="Lost to muggers"
           valueClass="text-danger"
+          onClick={() => openStatsModal("Total Mug Loss", "mugLoss")}
         />
         <StatCard
           title="Net Total Profit"
@@ -137,6 +159,7 @@ export default function Home() {
           icon={<Activity className="text-primary w-5 h-5" />}
           description="Realized - Mug Loss"
           valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
+          onClick={() => openStatsModal("Net Total Profit", "netProfit")}
         />
       </div>
 
@@ -238,17 +261,32 @@ export default function Home() {
           </table>
         </div>
       </div>
+
+      <StatsModal
+        isOpen={modalState.isOpen}
+        onClose={closeStatsModal}
+        title={modalState.title}
+        transactions={transactions}
+        statType={modalState.statType}
+        excludedItems={['flushie', 'points']}
+        inventoryScope="normal"
+      />
     </div>
   );
 }
 
 function StatCard({
-  title, value, icon, description, valueClass = "", colorClass = "bg-primary"
+  title, value, icon, description, valueClass = "", colorClass = "bg-primary", onClick
 }: {
-  title: string, value: string, icon: React.ReactNode, description: string, valueClass?: string, colorClass?: string
+  title: string, value: string, icon: React.ReactNode, description: string, valueClass?: string, colorClass?: string, onClick?: () => void
 }) {
   return (
-    <div className="bg-panel p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+    <div 
+      className={`bg-panel p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-all relative overflow-hidden group ${
+        onClick ? 'cursor-pointer hover:scale-[1.02]' : ''
+      }`}
+      onClick={onClick}
+    >
       <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full blur-2xl transition-colors opacity-10 group-hover:opacity-20 ${colorClass}`} />
       <div className="flex items-center justify-between mb-4 relative z-10">
         <h3 className="text-sm font-medium text-foreground/70">{title}</h3>
@@ -257,6 +295,9 @@ function StatCard({
       <div className="relative z-10">
         <p className={`text-2xl font-bold tracking-tight ${valueClass}`}>{value}</p>
         <p className="text-xs text-foreground/50 mt-2">{description}</p>
+        {onClick && (
+          <p className="text-xs text-primary/70 mt-1 font-medium">Click to view trends</p>
+        )}
       </div>
     </div>
   );
