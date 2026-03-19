@@ -7,6 +7,7 @@ import { sendToExtension } from '@/lib/bmlconnect';
 import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
 import { loadGoogleDriveData, writeGoogleDriveData } from '@/lib/drive-api';
+import { AutoPilotImportRecord, AutoPilotTradeLink, PendingAutoPilotTrade, SyncCursor, TornTradeDetail, Weav3rReceipt } from '@/lib/torn-api';
 
 const STORAGE_KEY = 'torn_invest_tracker_logs';
 const CONFIG_KEY = 'torn_invest_tracker_config';
@@ -14,7 +15,9 @@ const DRIVE_CACHE_READY_KEY = 'bml_drive_cache_ready';
 const DRIVE_CACHE_SYNCED_AT_KEY = 'bml_drive_cache_synced_at';
 const DRIVE_BOOTSTRAP_DONE_KEY = 'bml_drive_bootstrap_done';
 const DRIVE_SYNC_MAX_AGE_MS = 10 * 60 * 1000;
-const TORN_BASIC_USER_URL = "https://api.torn.com/user/?selections=basic&key=";
+const AUTO_PILOT_DRIVE_FILE = "blackmarket-ledger-autopilot.json";
+const TORN_BASIC_USER_URL = "https://api.torn.com/v2/user/?selections=basic&key=";
+const JOURNAL_CONFIG_UPDATED_EVENT = "bml:journal-config-updated";
 
 declare global {
     interface Window {
@@ -36,6 +39,46 @@ export interface SyncState {
     message: string;
 }
 
+interface JournalConfig {
+    apiKey?: string;
+    userId?: string;
+    driveApiKey?: string;
+    skipNegativeStock?: boolean;
+    tornApiKeyFull?: string;
+    autoPilotCursor?: SyncCursor | null;
+    autoPilotStartTime?: number | null;
+    autoPilotLastSyncAt?: number | null;
+    autoPilotTradeCache?: TornTradeDetail[];
+    autoPilotReceiptCache?: Weav3rReceipt[];
+    autoPilotTradeLinks?: AutoPilotTradeLink[];
+    autoPilotTrashedReceiptIds?: string[];
+    autoPilotManuallyAddedTradeIds?: string[];
+    autoPilotPendingTrades?: PendingAutoPilotTrade[];
+    autoPilotPendingTrade?: PendingAutoPilotTrade | null;
+    autoPilotRecentImports?: AutoPilotImportRecord[];
+}
+
+type AutoPilotDriveState = Pick<JournalConfig,
+    "autoPilotCursor" |
+    "autoPilotStartTime" |
+    "autoPilotLastSyncAt" |
+    "autoPilotTradeCache" |
+    "autoPilotReceiptCache" |
+    "autoPilotTradeLinks" |
+    "autoPilotTrashedReceiptIds" |
+    "autoPilotManuallyAddedTradeIds" |
+    "autoPilotPendingTrades" |
+    "autoPilotRecentImports"
+>;
+
+function isLegacyDriveStoredPayload(value: unknown): value is { transactions: Transaction[]; autoPilotState?: AutoPilotDriveState } {
+    return Boolean(value) && typeof value === "object" && Array.isArray((value as { transactions: Transaction[] }).transactions);
+}
+
+function isAutoPilotDriveState(value: unknown): value is AutoPilotDriveState {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 async function resolveTornUserId(apiKey: string) {
     const response = await fetch(`${TORN_BASIC_USER_URL}${encodeURIComponent(apiKey)}`);
     const data = await response.json();
@@ -45,7 +88,13 @@ async function resolveTornUserId(apiKey: string) {
         throw new Error(message);
     }
 
-    const rawUserId = data?.player_id ?? data?.playerID ?? data?.user_id ?? data?.userId;
+    const rawUserId =
+        data?.profile?.id ??
+        data?.profile?.player_id ??
+        data?.player_id ??
+        data?.playerID ??
+        data?.user_id ??
+        data?.userId;
     const userId = typeof rawUserId === "number" || typeof rawUserId === "string"
         ? String(rawUserId)
         : "";
@@ -65,9 +114,22 @@ export function useJournal() {
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
     const [driveApiKey, setDriveApiKey] = useState("");
+    const [tornApiKeyFull, setTornApiKeyFull] = useState("");
     const [skipNegativeStock, setSkipNegativeStock] = useState(false);
+    const [autoPilotCursor, setAutoPilotCursor] = useState<SyncCursor | null>(null);
+    const [autoPilotStartTime, setAutoPilotStartTime] = useState<number | null>(null);
+    const [autoPilotLastSyncAt, setAutoPilotLastSyncAt] = useState<number | null>(null);
+    const [autoPilotTradeCache, setAutoPilotTradeCache] = useState<TornTradeDetail[]>([]);
+    const [autoPilotReceiptCache, setAutoPilotReceiptCache] = useState<Weav3rReceipt[]>([]);
+    const [autoPilotTradeLinks, setAutoPilotTradeLinks] = useState<AutoPilotTradeLink[]>([]);
+    const [autoPilotTrashedReceiptIds, setAutoPilotTrashedReceiptIds] = useState<string[]>([]);
+    const [autoPilotManuallyAddedTradeIds, setAutoPilotManuallyAddedTradeIds] = useState<string[]>([]);
+    const [autoPilotPendingTrades, setAutoPilotPendingTrades] = useState<PendingAutoPilotTrade[]>([]);
+    const [autoPilotRecentImports, setAutoPilotRecentImports] = useState<AutoPilotImportRecord[]>([]);
     const [syncState, setSyncState] = useState<SyncState>({ isSyncing: false, message: "" });
     const syncCounterRef = useRef(0);
+    const transactionsRef = useRef<Transaction[]>([]);
+    const bootstrapStartedRef = useRef(false);
 
     const getActiveDB = useCallback((): idb.DBName => {
         const pref = localStorage.getItem("bml_storage_pref");
@@ -161,7 +223,85 @@ export function useJournal() {
             console.error("Failed to save config to LogsDB", error);
         }
         localStorage.setItem(CONFIG_KEY, value);
+        window.dispatchEvent(new CustomEvent(JOURNAL_CONFIG_UPDATED_EVENT, { detail: value }));
     }, []);
+
+    const applyConfig = useCallback((parsedConfig: JournalConfig | null) => {
+        if (!parsedConfig) return;
+        setWeav3rApiKey(parsedConfig.apiKey || "");
+        setWeav3rUserId(parsedConfig.userId || "");
+        setDriveApiKey(parsedConfig.driveApiKey || "");
+        setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
+        setTornApiKeyFull(parsedConfig.tornApiKeyFull || "");
+        setAutoPilotCursor(parsedConfig.autoPilotCursor || null);
+        setAutoPilotStartTime(parsedConfig.autoPilotStartTime ?? null);
+        setAutoPilotLastSyncAt(parsedConfig.autoPilotLastSyncAt ?? null);
+        setAutoPilotTradeCache(Array.isArray(parsedConfig.autoPilotTradeCache) ? parsedConfig.autoPilotTradeCache : []);
+        setAutoPilotReceiptCache(Array.isArray(parsedConfig.autoPilotReceiptCache) ? parsedConfig.autoPilotReceiptCache : []);
+        setAutoPilotTradeLinks(Array.isArray(parsedConfig.autoPilotTradeLinks) ? parsedConfig.autoPilotTradeLinks : []);
+        setAutoPilotTrashedReceiptIds(Array.isArray(parsedConfig.autoPilotTrashedReceiptIds) ? parsedConfig.autoPilotTrashedReceiptIds : []);
+        setAutoPilotManuallyAddedTradeIds(Array.isArray(parsedConfig.autoPilotManuallyAddedTradeIds) ? parsedConfig.autoPilotManuallyAddedTradeIds : []);
+        setAutoPilotPendingTrades(
+            Array.isArray(parsedConfig.autoPilotPendingTrades)
+                ? parsedConfig.autoPilotPendingTrades
+                : parsedConfig.autoPilotPendingTrade
+                    ? [parsedConfig.autoPilotPendingTrade]
+                    : []
+        );
+        setAutoPilotRecentImports(Array.isArray(parsedConfig.autoPilotRecentImports) ? parsedConfig.autoPilotRecentImports : []);
+    }, []);
+
+    const buildConfigSnapshot = useCallback((overrides: Partial<JournalConfig> = {}): JournalConfig => ({
+        apiKey: weav3rApiKey,
+        userId: weav3rUserId,
+        driveApiKey,
+        skipNegativeStock,
+        tornApiKeyFull,
+        autoPilotCursor,
+        autoPilotStartTime,
+        autoPilotLastSyncAt,
+        autoPilotTradeCache,
+        autoPilotReceiptCache,
+        autoPilotTradeLinks,
+        autoPilotTrashedReceiptIds,
+        autoPilotManuallyAddedTradeIds,
+        autoPilotPendingTrades,
+        autoPilotRecentImports,
+        ...overrides
+    }), [
+        weav3rApiKey,
+        weav3rUserId,
+        driveApiKey,
+        skipNegativeStock,
+        tornApiKeyFull,
+        autoPilotCursor,
+        autoPilotStartTime,
+        autoPilotLastSyncAt,
+        autoPilotTradeCache,
+        autoPilotReceiptCache,
+        autoPilotTradeLinks,
+        autoPilotTrashedReceiptIds,
+        autoPilotManuallyAddedTradeIds,
+        autoPilotPendingTrades,
+        autoPilotRecentImports
+    ]);
+
+    const pickDriveAutoPilotState = useCallback((config: JournalConfig): AutoPilotDriveState => ({
+        autoPilotCursor: config.autoPilotCursor ?? null,
+        autoPilotStartTime: config.autoPilotStartTime ?? null,
+        autoPilotLastSyncAt: config.autoPilotLastSyncAt ?? null,
+        autoPilotTradeCache: config.autoPilotTradeCache ?? [],
+        autoPilotReceiptCache: config.autoPilotReceiptCache ?? [],
+        autoPilotTradeLinks: config.autoPilotTradeLinks ?? [],
+        autoPilotTrashedReceiptIds: config.autoPilotTrashedReceiptIds ?? [],
+        autoPilotManuallyAddedTradeIds: config.autoPilotManuallyAddedTradeIds ?? [],
+        autoPilotPendingTrades: config.autoPilotPendingTrades ?? [],
+        autoPilotRecentImports: config.autoPilotRecentImports ?? [],
+    }), []);
+
+    const persistMergedConfig = useCallback(async (overrides: Partial<JournalConfig> = {}) => {
+        await persistConfigCache(JSON.stringify(buildConfigSnapshot(overrides)));
+    }, [buildConfigSnapshot, persistConfigCache]);
 
     const markDriveSyncComplete = useCallback(() => {
         localStorage.setItem(DRIVE_CACHE_SYNCED_AT_KEY, new Date().toISOString());
@@ -188,21 +328,52 @@ export function useJournal() {
         return cachedTransactions.length > 0;
     }, []);
 
-    const fetchDriveTransactions = useCallback(async () => {
-        if (!driveApiKey) {
+    const fetchDriveTransactionsByKey = useCallback(async (apiKey: string, configSnapshot?: JournalConfig | null) => {
+        if (!apiKey) {
             throw new Error("Google Drive sync key is not configured.");
         }
 
-        const response = await loadGoogleDriveData(driveApiKey);
-        if (!response.success) {
+        const ledgerResponse = await loadGoogleDriveData(apiKey);
+        let autoPilotResponse: Awaited<ReturnType<typeof loadGoogleDriveData>> | null = null;
+
+        try {
+            autoPilotResponse = await loadGoogleDriveData(apiKey, AUTO_PILOT_DRIVE_FILE);
+        } catch (error) {
+            autoPilotResponse = null;
+        }
+
+        if (!ledgerResponse.success) {
             throw new Error("Failed to download Drive data");
         }
 
-        const driveTransactions = Array.isArray(response.data) ? response.data : [];
+        const driveTransactions = isLegacyDriveStoredPayload(ledgerResponse.data)
+            ? ledgerResponse.data.transactions
+            : Array.isArray(ledgerResponse.data)
+                ? ledgerResponse.data
+                : [];
+
+        const remoteAutoPilotState =
+            autoPilotResponse && isAutoPilotDriveState(autoPilotResponse.data)
+                ? autoPilotResponse.data
+                : isLegacyDriveStoredPayload(ledgerResponse.data) && ledgerResponse.data.autoPilotState
+                    ? ledgerResponse.data.autoPilotState
+                    : null;
+
+        if (remoteAutoPilotState) {
+            applyConfig({
+                ...(configSnapshot || buildConfigSnapshot()),
+                ...remoteAutoPilotState,
+            });
+        }
+
         await persistTransactionsCache("GoogleCacheLogsDB", driveTransactions);
         markDriveSyncComplete();
         return driveTransactions;
-    }, [driveApiKey, markDriveSyncComplete, persistTransactionsCache]);
+    }, [applyConfig, buildConfigSnapshot, markDriveSyncComplete, persistTransactionsCache]);
+
+    const fetchDriveTransactions = useCallback(async () => {
+        return fetchDriveTransactionsByKey(driveApiKey);
+    }, [driveApiKey, fetchDriveTransactionsByKey]);
 
     const refreshDriveCache = useCallback(async () => {
         const driveTransactions = await runSyncTask(
@@ -225,9 +396,14 @@ export function useJournal() {
     }, []);
 
     useEffect(() => {
+        if (bootstrapStartedRef.current) {
+            return;
+        }
+        bootstrapStartedRef.current = true;
+
         const init = async () => {
             let loadedTransactions: Transaction[] = [];
-            let parsedConfig = null;
+            let parsedConfig: JournalConfig | null = null;
             let backgroundDriveRefresh: Promise<void> | null = null;
             try {
                 const cachedConfig = await readConfigCache();
@@ -252,13 +428,14 @@ export function useJournal() {
                     }
                 } else if (storagePref === 'drive') {
                     const cachedTransactions = await readCachedTransactions("GoogleCacheLogsDB");
+                    const configuredDriveApiKey = parsedConfig?.driveApiKey || "";
                     if (isDriveCacheFresh(cachedTransactions)) {
                         loadedTransactions = cachedTransactions;
                     } else {
                         loadedTransactions = cachedTransactions;
                         backgroundDriveRefresh = runSyncTask(
                             "Sync in progress: downloading latest data from Google Drive...",
-                            fetchDriveTransactions
+                            () => fetchDriveTransactionsByKey(configuredDriveApiKey, parsedConfig)
                         )
                             .then((fresh: Transaction[]) => setTransactions(fresh))
                             .catch((e: Error) => console.error("Background Drive refresh failed", e));
@@ -280,15 +457,11 @@ export function useJournal() {
                     }
                 }
 
+                transactionsRef.current = loadedTransactions;
                 setTransactions(loadedTransactions);
                 await checkBMLDB();
 
-                if (parsedConfig) {
-                    setWeav3rApiKey(parsedConfig.apiKey || "");
-                    setWeav3rUserId(parsedConfig.userId || "");
-                    setDriveApiKey(parsedConfig.driveApiKey || "");
-                    setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
-                }
+                applyConfig(parsedConfig);
             } catch (error) {
                 console.error("Journal bootstrap failed", error);
             } finally {
@@ -298,9 +471,31 @@ export function useJournal() {
         };
 
         init();
-    }, [fetchDriveTransactions, getActiveDB, isDriveCacheFresh, persistTransactionsCache, readCachedTransactions, readConfigCache, runSyncTask]);
+    }, [applyConfig, fetchDriveTransactionsByKey, isDriveCacheFresh, persistTransactionsCache, readCachedTransactions, readConfigCache, runSyncTask]);
+
+    useEffect(() => {
+        transactionsRef.current = transactions;
+    }, [transactions]);
+
+    useEffect(() => {
+        const handleConfigUpdated = (event: Event) => {
+            const customEvent = event as CustomEvent<string | undefined>;
+            const rawConfig = customEvent.detail;
+            if (!rawConfig) return;
+
+            try {
+                applyConfig(JSON.parse(rawConfig) as JournalConfig);
+            } catch (error) {
+                console.error("Failed to apply live config update", error);
+            }
+        };
+
+        window.addEventListener(JOURNAL_CONFIG_UPDATED_EVENT, handleConfigUpdated);
+        return () => window.removeEventListener(JOURNAL_CONFIG_UPDATED_EVENT, handleConfigUpdated);
+    }, [applyConfig]);
 
     const saveTransactions = useCallback((newLogs: Transaction[]) => {
+        transactionsRef.current = newLogs;
         setTransactions(newLogs);
         const storagePref = localStorage.getItem("bml_storage_pref");
 
@@ -342,6 +537,7 @@ export function useJournal() {
             });
 
             merged.sort((a, b) => a.date - b.date);
+            transactionsRef.current = merged;
             saveTransactions(merged);
             return merged;
         });
@@ -349,7 +545,7 @@ export function useJournal() {
 
     const saveWeaverConfig = useCallback(async (apiKey: string) => {
         const trimmedApiKey = apiKey.trim();
-        const cfg = { apiKey: trimmedApiKey, userId: "", driveApiKey, skipNegativeStock };
+        const cfg: JournalConfig = buildConfigSnapshot({ apiKey: trimmedApiKey, userId: "" });
 
         if (trimmedApiKey) {
             const userId = await resolveTornUserId(trimmedApiKey);
@@ -363,28 +559,87 @@ export function useJournal() {
 
         await persistConfigCache(JSON.stringify(cfg));
         return cfg.userId;
-    }, [driveApiKey, skipNegativeStock, persistConfigCache]);
+    }, [buildConfigSnapshot, persistConfigCache]);
+
+    const saveTornApiKeyFull = useCallback(async (apiKey: string) => {
+        const trimmedApiKey = apiKey.trim();
+        setTornApiKeyFull(trimmedApiKey);
+        await persistMergedConfig({ tornApiKeyFull: trimmedApiKey });
+    }, [persistMergedConfig]);
 
     const saveDriveApiKey = useCallback(async (apiKey: string) => {
         setDriveApiKey(apiKey);
-        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey: apiKey, skipNegativeStock });
-        await persistConfigCache(cfg);
-    }, [persistConfigCache, weav3rApiKey, weav3rUserId, skipNegativeStock]);
+        await persistMergedConfig({ driveApiKey: apiKey });
+    }, [persistMergedConfig]);
 
     const updateSkipNegativeStock = useCallback(async (value: boolean) => {
         setSkipNegativeStock(value);
-        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey, skipNegativeStock: value });
-        await persistConfigCache(cfg);
-    }, [weav3rApiKey, weav3rUserId, driveApiKey, persistConfigCache]);
+        await persistMergedConfig({ skipNegativeStock: value });
+    }, [persistMergedConfig]);
 
-    const addLogs = useCallback(async (parsedLogs: ParsedLog[]) => {
+    const addLogs = useCallback(async (parsedLogs: ParsedLog[], options?: { skipNegativeStock?: boolean }) => {
         const storagePref = localStorage.getItem("bml_storage_pref");
         const baseTransactions = storagePref === 'drive'
             ? await runSyncTask("Syncing...", fetchDriveTransactions)
-            : transactions;
-        const nextTransactions = buildTransactionsWithLogs(baseTransactions, parsedLogs, skipNegativeStock);
+            : transactionsRef.current;
+        const nextTransactions = buildTransactionsWithLogs(
+            baseTransactions,
+            parsedLogs,
+            options?.skipNegativeStock ?? skipNegativeStock
+        );
         saveTransactions(nextTransactions);
-    }, [fetchDriveTransactions, runSyncTask, saveTransactions, skipNegativeStock, transactions]);
+    }, [fetchDriveTransactions, runSyncTask, saveTransactions, skipNegativeStock]);
+
+    const saveAutoPilotState = useCallback(async (patch: Partial<JournalConfig>) => {
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotCursor")) {
+            setAutoPilotCursor(patch.autoPilotCursor ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotStartTime")) {
+            setAutoPilotStartTime(patch.autoPilotStartTime ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotLastSyncAt")) {
+            setAutoPilotLastSyncAt(patch.autoPilotLastSyncAt ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeCache")) {
+            setAutoPilotTradeCache(patch.autoPilotTradeCache || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotReceiptCache")) {
+            setAutoPilotReceiptCache(patch.autoPilotReceiptCache || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeLinks")) {
+            setAutoPilotTradeLinks(patch.autoPilotTradeLinks || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTrashedReceiptIds")) {
+            setAutoPilotTrashedReceiptIds(patch.autoPilotTrashedReceiptIds || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotManuallyAddedTradeIds")) {
+            setAutoPilotManuallyAddedTradeIds(patch.autoPilotManuallyAddedTradeIds || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotPendingTrades")) {
+            setAutoPilotPendingTrades(patch.autoPilotPendingTrades || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotRecentImports")) {
+            setAutoPilotRecentImports(patch.autoPilotRecentImports || []);
+        }
+        await persistMergedConfig(patch);
+        const storagePref = localStorage.getItem("bml_storage_pref");
+        if (storagePref === "drive" && driveApiKey) {
+            await runSyncTask(
+                "Sync in progress: uploading Auto-Pilot state to Google Drive...",
+                async () => {
+                    const response = await writeGoogleDriveData(
+                        driveApiKey,
+                        pickDriveAutoPilotState(buildConfigSnapshot(patch)),
+                        AUTO_PILOT_DRIVE_FILE,
+                    );
+                    if (!response.success) {
+                        throw new Error("Failed to sync Auto-Pilot state to Google Drive");
+                    }
+                    markDriveSyncComplete();
+                }
+            );
+        }
+    }, [buildConfigSnapshot, driveApiKey, markDriveSyncComplete, persistMergedConfig, pickDriveAutoPilotState, runSyncTask]);
 
     const clearLogs = useCallback(() => {
         localStorage.removeItem(DRIVE_CACHE_READY_KEY);
@@ -497,10 +752,23 @@ export function useJournal() {
         weav3rApiKey,
         weav3rUserId,
         driveApiKey,
+        tornApiKeyFull,
         skipNegativeStock,
         updateSkipNegativeStock,
         saveWeaverConfig,
+        saveTornApiKeyFull,
         saveDriveApiKey,
+        autoPilotCursor,
+        autoPilotStartTime,
+        autoPilotLastSyncAt,
+        autoPilotTradeCache,
+        autoPilotReceiptCache,
+        autoPilotTradeLinks,
+        autoPilotTrashedReceiptIds,
+        autoPilotManuallyAddedTradeIds,
+        autoPilotPendingTrades,
+        autoPilotRecentImports,
+        saveAutoPilotState,
         needsMigration,
         hasBMLDB,
         getBMLDataCount,

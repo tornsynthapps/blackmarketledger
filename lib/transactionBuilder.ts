@@ -1,5 +1,11 @@
 import { Transaction, ParsedLog, TransactionTag, FLOWER_SET, PLUSHIE_SET } from './parser';
 
+type ParsedBuyLog = ParsedLog & { type: 'BUY'; item: string; amount: number; price: number };
+type ParsedSellLog = ParsedLog & { type: 'SELL'; item: string; amount: number; price: number };
+type ParsedConvertOnlyLog = ParsedLog & { type: 'CONVERT'; fromItem: string; toItem: string; fromAmount: number; toAmount: number };
+type ParsedSetConvertOnlyLog = ParsedLog & { type: 'SET_CONVERT'; setType: 'flower' | 'plushie'; times: number; pointsEarned: number };
+type ParsedMugOnlyLog = ParsedLog & { type: 'MUG'; amount: number };
+
 export interface LogBreakdown {
     completeCount: number;
     partialCount: number;
@@ -86,29 +92,44 @@ export function calculateInventory(txns: Transaction[]): Map<string, any> {
 export function buildTransactionsWithLogs(baseTransactions: Transaction[], parsedLogs: ParsedLog[], skipNegativeStock: boolean = false): Transaction[] {
     const initialDate = Date.now();
     const resultTransactions: Transaction[] = [];
+    const existingTornLogIds = new Set(
+        baseTransactions
+            .map((transaction) => transaction.tornLogId)
+            .filter((value): value is string => Boolean(value))
+    );
 
     // Create a deep copy of base transactions to compute initial inventory
     const baseCopy = JSON.parse(JSON.stringify(baseTransactions));
     const inventory = calculateInventory(baseCopy);
 
+    const hasImportedTornLog = (log: ParsedLog) => Boolean(log.tornLogId && existingTornLogIds.has(log.tornLogId));
+    const getTransactionDate = (log: ParsedLog, fallback: number) => log.loggedAt ?? fallback;
+    const toTransaction = (log: ParsedLog, date: number, overrides: Partial<Transaction> = {}): Transaction => ({
+        ...log,
+        ...overrides,
+        id: crypto.randomUUID(),
+        date
+    } as Transaction);
+
     // Separate parsed logs by type
-    const buys: ParsedLog[] = [];
-    const converts: ParsedLog[] = [];
-    const setConverts: ParsedLog[] = [];
-    const sells: ParsedLog[] = [];
-    const mugs: ParsedLog[] = [];
+    const buys: ParsedBuyLog[] = [];
+    const converts: ParsedConvertOnlyLog[] = [];
+    const setConverts: ParsedSetConvertOnlyLog[] = [];
+    const sells: ParsedSellLog[] = [];
+    const mugs: ParsedMugOnlyLog[] = [];
 
     parsedLogs.forEach((log) => {
-        if (log.type === 'BUY') buys.push(log);
-        else if (log.type === 'CONVERT') converts.push(log);
-        else if (log.type === 'SET_CONVERT') setConverts.push(log);
-        else if (log.type === 'SELL') sells.push(log);
-        else if (log.type === 'MUG') mugs.push(log);
+        if (log.type === 'BUY') buys.push(log as ParsedBuyLog);
+        else if (log.type === 'CONVERT') converts.push(log as ParsedConvertOnlyLog);
+        else if (log.type === 'SET_CONVERT') setConverts.push(log as ParsedSetConvertOnlyLog);
+        else if (log.type === 'SELL') sells.push(log as ParsedSellLog);
+        else if (log.type === 'MUG') mugs.push(log as ParsedMugOnlyLog);
     });
 
     // Process buys first (increase inventory)
     buys.forEach((log, idx) => {
-        const date = initialDate + idx;
+        if (hasImportedTornLog(log)) return;
+        const date = getTransactionDate(log, initialDate + idx);
         const tag = log.tag || 'Normal';
         const itemStats = inventory.get(log.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
         if (tag === 'Abroad') {
@@ -119,17 +140,13 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
             itemStats.totalCost += (log.price * log.amount);
         }
         inventory.set(log.item, itemStats);
-        resultTransactions.push({
-            ...log,
-            id: crypto.randomUUID(),
-            date,
-            tag: tag as TransactionTag
-        } as Transaction);
+        resultTransactions.push(toTransaction(log, date, { tag: tag as TransactionTag }));
     });
 
     // Process converts (transfer stock)
     converts.forEach((log, idx) => {
-        const date = initialDate + buys.length + idx;
+        if (hasImportedTornLog(log)) return;
+        const date = getTransactionDate(log, initialDate + buys.length + idx);
         const fromStats = inventory.get(log.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
         const availableStock = fromStats.stock;
 
@@ -145,7 +162,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                 toStats.stock += log.toAmount;
                 toStats.totalCost += costAllocated;
                 inventory.set(log.toItem, toStats);
-                resultTransactions.push({ ...log, id: crypto.randomUUID(), date } as Transaction);
+                resultTransactions.push(toTransaction(log, date));
             } else if (availableStock > 0) {
                 // Partial conversion
                 const ratio = availableStock / log.fromAmount;
@@ -159,7 +176,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                 toStats.stock += actualToAmount;
                 toStats.totalCost += costAllocated;
                 inventory.set(log.toItem, toStats);
-                resultTransactions.push({ ...log, fromAmount: availableStock, toAmount: actualToAmount, id: crypto.randomUUID(), date } as Transaction);
+                resultTransactions.push(toTransaction(log, date, { fromAmount: availableStock, toAmount: actualToAmount } as Partial<Transaction>));
             }
             // If skipNegativeStock is ON and availableStock <= 0, skip
         } else {
@@ -173,13 +190,14 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
             toStats.stock += log.toAmount;
             toStats.totalCost += costAllocated;
             inventory.set(log.toItem, toStats);
-            resultTransactions.push({ ...log, id: crypto.randomUUID(), date } as Transaction);
+            resultTransactions.push(toTransaction(log, date));
         }
     });
 
     // Process set converts
     setConverts.forEach((log, idx) => {
-        const date = initialDate + buys.length + converts.length + idx;
+        if (hasImportedTornLog(log)) return;
+        const date = getTransactionDate(log, initialDate + buys.length + converts.length + idx);
         const setItems = log.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
         let minStock = Infinity;
         const itemStatsMap = new Map<string, any>();
@@ -207,7 +225,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                 pointsStats.stock += pointsEarned;
                 pointsStats.totalCost += totalCostOfGoods;
                 inventory.set('points', pointsStats);
-                resultTransactions.push({ ...log, times: timesToApply, pointsEarned, id: crypto.randomUUID(), date } as Transaction);
+                resultTransactions.push(toTransaction(log, date, { times: timesToApply, pointsEarned } as Partial<Transaction>));
             }
             // skip if minStock <= 0
         } else {
@@ -226,13 +244,14 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
             pointsStats.stock += log.pointsEarned;
             pointsStats.totalCost += totalCostOfGoods;
             inventory.set('points', pointsStats);
-            resultTransactions.push({ ...log, id: crypto.randomUUID(), date } as Transaction);
+            resultTransactions.push(toTransaction(log, date));
         }
     });
 
     // Process sells (consume inventory)
     sells.forEach((log, idx) => {
-        const date = initialDate + buys.length + converts.length + setConverts.length + idx;
+        if (hasImportedTornLog(log)) return;
+        const date = getTransactionDate(log, initialDate + buys.length + converts.length + setConverts.length + idx);
         const itemStats = inventory.get(log.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
 
         if (skipNegativeStock) {
@@ -250,7 +269,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                     itemStats.abroadStock -= amountFromAbroad;
                     itemStats.abroadTotalCost -= costOfGoodsSold;
                     itemStats.abroadRealizedProfit += (revenue - costOfGoodsSold);
-                    transactionsToAdd.push({ ...log, amount: amountFromAbroad, id: crypto.randomUUID(), date, tag: 'Abroad' } as Transaction);
+                    transactionsToAdd.push(toTransaction(log, date, { amount: amountFromAbroad, tag: 'Abroad' }));
                 }
             } else if (log.tag === 'Normal') {
                 const amountFromNormal = Math.min(normalAvail, remainingAmount);
@@ -261,7 +280,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                     itemStats.stock -= amountFromNormal;
                     itemStats.totalCost -= costOfGoodsSold;
                     itemStats.realizedProfit += (revenue - costOfGoodsSold);
-                    transactionsToAdd.push({ ...log, amount: amountFromNormal, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                    transactionsToAdd.push(toTransaction(log, date, { amount: amountFromNormal, tag: 'Normal' }));
                 }
             } else {
                 if (normalAvail >= remainingAmount) {
@@ -272,7 +291,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                     itemStats.stock -= remainingAmount;
                     itemStats.totalCost -= costOfGoodsSold;
                     itemStats.realizedProfit += (revenue - costOfGoodsSold);
-                    transactionsToAdd.push({ ...log, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                    transactionsToAdd.push(toTransaction(log, date, { tag: 'Normal' }));
                     remainingAmount = 0;
                 } else {
                     // Use all normal, then some abroad
@@ -284,7 +303,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                         itemStats.stock -= amountFromNormal;
                         itemStats.totalCost -= costOfGoodsSold;
                         itemStats.realizedProfit += (revenue - costOfGoodsSold);
-                        transactionsToAdd.push({ ...log, amount: amountFromNormal, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
+                        transactionsToAdd.push(toTransaction(log, date, { amount: amountFromNormal, tag: 'Normal' }));
                         remainingAmount -= amountFromNormal;
                     }
                     if (remainingAmount > 0 && abroadAvail > 0) {
@@ -295,7 +314,7 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                         itemStats.abroadStock -= amountFromAbroad;
                         itemStats.abroadTotalCost -= costOfGoodsSold;
                         itemStats.abroadRealizedProfit += (revenue - costOfGoodsSold);
-                        transactionsToAdd.push({ ...log, amount: amountFromAbroad, id: crypto.randomUUID(), date: date + 1, tag: 'Abroad' } as Transaction);
+                        transactionsToAdd.push(toTransaction(log, date + 1, { amount: amountFromAbroad, tag: 'Abroad' }));
                     }
                 }
             }
@@ -320,14 +339,15 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
                 itemStats.realizedProfit += (revenue - costOfGoodsSold);
             }
             inventory.set(log.item, itemStats);
-            resultTransactions.push({ ...log, id: crypto.randomUUID(), date, tag: tag as TransactionTag } as Transaction);
+            resultTransactions.push(toTransaction(log, date, { tag: tag as TransactionTag }));
         }
     });
 
     // Process mugs (no inventory effect)
     mugs.forEach((log, idx) => {
-        const date = initialDate + buys.length + converts.length + setConverts.length + sells.length + idx;
-        resultTransactions.push({ ...log, id: crypto.randomUUID(), date } as Transaction);
+        if (hasImportedTornLog(log)) return;
+        const date = getTransactionDate(log, initialDate + buys.length + converts.length + setConverts.length + sells.length + idx);
+        resultTransactions.push(toTransaction(log, date));
     });
 
     return [...baseTransactions, ...resultTransactions];
@@ -353,18 +373,18 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
     const inventory = calculateInventory(baseCopy);
 
     // Separate parsed logs by type
-    const buys: ParsedLog[] = [];
-    const converts: ParsedLog[] = [];
-    const setConverts: ParsedLog[] = [];
-    const sells: ParsedLog[] = [];
-    const mugs: ParsedLog[] = [];
+    const buys: ParsedBuyLog[] = [];
+    const converts: ParsedConvertOnlyLog[] = [];
+    const setConverts: ParsedSetConvertOnlyLog[] = [];
+    const sells: ParsedSellLog[] = [];
+    const mugs: ParsedMugOnlyLog[] = [];
 
     parsedLogs.forEach((log) => {
-        if (log.type === 'BUY') buys.push(log);
-        else if (log.type === 'CONVERT') converts.push(log);
-        else if (log.type === 'SET_CONVERT') setConverts.push(log);
-        else if (log.type === 'SELL') sells.push(log);
-        else if (log.type === 'MUG') mugs.push(log);
+        if (log.type === 'BUY') buys.push(log as ParsedBuyLog);
+        else if (log.type === 'CONVERT') converts.push(log as ParsedConvertOnlyLog);
+        else if (log.type === 'SET_CONVERT') setConverts.push(log as ParsedSetConvertOnlyLog);
+        else if (log.type === 'SELL') sells.push(log as ParsedSellLog);
+        else if (log.type === 'MUG') mugs.push(log as ParsedMugOnlyLog);
     });
 
     // Step 1: Process Buys (always complete)

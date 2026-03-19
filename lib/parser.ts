@@ -2,11 +2,17 @@ export const PARSER_VERSION = '1.1.0';
 export type TransactionType = 'BUY' | 'SELL' | 'MUG' | 'CONVERT';
 
 export type TransactionTag = 'Abroad' | 'Normal';
+export type TransactionSourceType = 'item-market' | 'bazaar' | 'trade';
 
 export interface BaseTransaction {
     id: string;
     date: number; // timestamp
     tag?: TransactionTag; // Used to differentiate source of items
+    sourceType?: TransactionSourceType;
+    loggedAt?: number;
+    tornLogId?: string;
+    weav3rReceiptId?: string;
+    tradeGroupId?: string;
 }
 
 export interface TradeTransaction extends BaseTransaction {
@@ -56,7 +62,7 @@ export const PLUSHIE_SET = [
     'stingray plushie'
 ];
 
-function normalizeItemName(name: string): string {
+export function normalizeItemName(name: string): string {
     const lower = name.trim().toLowerCase();
 
     // Handle aliases

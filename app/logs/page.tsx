@@ -1,26 +1,38 @@
 "use client";
 
-import { useState, useRef, Suspense } from "react";
+import { useMemo, useState, useRef, Suspense } from "react";
 import { useJournal } from "@/store/useJournal";
-import { Download, Upload, Trash2, Edit2, Search, ArrowLeft, RefreshCw } from "lucide-react";
+import { Download, Upload, Trash2, Edit2, Search, ArrowLeft, RefreshCw, Link2Off, CheckCircle2, Store, Tags } from "lucide-react";
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Transaction, formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { Transaction, TransactionSourceType, formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
+function getSourceLabel(sourceType?: TransactionSourceType) {
+    if (sourceType === 'item-market') return 'Item Market';
+    if (sourceType === 'bazaar') return 'Bazaar';
+    if (sourceType === 'trade') return 'Trade';
+    return '';
+}
+
+function inferSourceType(transaction: Transaction): TransactionSourceType | undefined {
+    if (transaction.sourceType) return transaction.sourceType;
+    if (transaction.tradeGroupId || transaction.weav3rReceiptId || transaction.tornLogId?.startsWith('trade:')) return 'trade';
+    return undefined;
+}
+
 function LogsPageContent() {
-    const { isLoaded, transactions, deleteLog, restoreData, editLog, refreshDriveCache } = useJournal();
+    const { isLoaded, transactions, deleteLog, restoreData, editLog, refreshDriveCache, autoPilotRecentImports } = useJournal();
     const { vibrate } = useHapticFeedback();
     const searchParams = useSearchParams();
     const filterItem = searchParams.get('item');
 
     const [search, setSearch] = useState(filterItem || "");
+    const [showLinkedIds, setShowLinkedIds] = useState(false);
     const [isRefreshingDrive, setIsRefreshingDrive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const storagePref = typeof window !== "undefined" ? localStorage.getItem("bml_storage_pref") : null;
-
-    if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
     const filteredLogs = transactions
         .filter(t => {
@@ -33,9 +45,26 @@ function LogsPageContent() {
                 const itemsToSearch = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
                 return itemsToSearch.some(item => item.toLowerCase().includes(term));
             }
-            return t.item.toLowerCase().includes(term);
+            if (t.item.toLowerCase().includes(term)) return true;
+            if (!showLinkedIds) return false;
+            return Boolean(
+                t.tornLogId?.toLowerCase().includes(term) ||
+                t.tradeGroupId?.toLowerCase().includes(term) ||
+                t.weav3rReceiptId?.toLowerCase().includes(term)
+            );
         })
         .sort((a, b) => b.date - a.date);
+
+    const autoPilotActivity = useMemo(() => {
+        return [...autoPilotRecentImports].sort((a, b) => b.timestamp - a.timestamp);
+    }, [autoPilotRecentImports]);
+
+    const unmatchedTrades = autoPilotActivity.filter(record => record.sourceType === 'trade' && record.status === 'manual_required');
+    const successfulTrades = autoPilotActivity.filter(record => record.sourceType === 'trade' && record.status === 'imported');
+    const itemMarketImports = autoPilotActivity.filter(record => record.sourceType === 'item-market');
+    const bazaarImports = autoPilotActivity.filter(record => record.sourceType === 'bazaar');
+
+    if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
     const handleBackup = () => {
         const dataStr = JSON.stringify(transactions, null, 2);
@@ -74,6 +103,8 @@ function LogsPageContent() {
     };
 
     const renderTransactionRow = (t: Transaction) => {
+        const sourceType = inferSourceType(t);
+        const sourceLabel = getSourceLabel(sourceType);
         return (
             <tr key={t.id} className="hover:bg-foreground/[0.02] transition-colors border-b border-border/50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/70">
@@ -96,6 +127,18 @@ function LogsPageContent() {
                         {t.type === 'SET_CONVERT' ? `${t.times}x ${formatItemName(t.setType)} Set → ${t.pointsEarned} Points` : ''}
                         {t.type === 'MUG' ? 'Money' : ''}
                     </div>
+                    {(sourceLabel || (showLinkedIds && (t.tornLogId || t.tradeGroupId || t.weav3rReceiptId))) && (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-foreground/50">
+                            {sourceLabel && (
+                                <span className="rounded-full border border-border px-2 py-0.5 font-semibold uppercase tracking-wider">
+                                    {sourceLabel}
+                                </span>
+                            )}
+                            {showLinkedIds && t.tornLogId && <span>Torn: {t.tornLogId}</span>}
+                            {showLinkedIds && t.tradeGroupId && <span>Trade: {t.tradeGroupId}</span>}
+                            {showLinkedIds && t.weav3rReceiptId && <span>Receipt: {t.weav3rReceiptId}</span>}
+                        </div>
+                    )}
                 </td>
                 <td className="px-6 py-4 text-right">
                     {t.type === 'BUY' || t.type === 'SELL' ? t.amount.toLocaleString() : ''}
@@ -222,23 +265,57 @@ function LogsPageContent() {
                 </div>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-border bg-panel p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold"><Link2Off className="h-4 w-4 text-warning" /> Unlinked Trades</div>
+                    <div className="mt-2 text-2xl font-bold">{unmatchedTrades.length}</div>
+                    <p className="mt-1 text-xs text-foreground/55">Trades fetched but not imported because they were not linked exactly.</p>
+                </div>
+                <div className="rounded-xl border border-border bg-panel p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold"><CheckCircle2 className="h-4 w-4 text-success" /> Successful Trades</div>
+                    <div className="mt-2 text-2xl font-bold">{successfulTrades.length}</div>
+                    <p className="mt-1 text-xs text-foreground/55">Trades imported from matched Torn + Weav3r receipts.</p>
+                </div>
+                <div className="rounded-xl border border-border bg-panel p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold"><Tags className="h-4 w-4 text-primary" /> Item Market</div>
+                    <div className="mt-2 text-2xl font-bold">{itemMarketImports.length}</div>
+                    <p className="mt-1 text-xs text-foreground/55">Imported Item Market logs.</p>
+                </div>
+                <div className="rounded-xl border border-border bg-panel p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold"><Store className="h-4 w-4 text-primary" /> Bazaar</div>
+                    <div className="mt-2 text-2xl font-bold">{bazaarImports.length}</div>
+                    <p className="mt-1 text-xs text-foreground/55">Imported Bazaar logs.</p>
+                </div>
+            </div>
+
             <div className="bg-panel rounded-xl border border-border shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                 <div className="p-4 border-b border-border bg-foreground/[0.02] flex items-center justify-between">
                     <h2 className="font-semibold">{filteredLogs.length} Transactions</h2>
-                    <div className="relative w-64">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
-                        <input
-                            type="text"
-                            placeholder="Search items..."
-                            value={search}
-                            onChange={(e) => {
-                                if (!search && e.target.value) {
-                                    vibrate("utility");
-                                }
-                                setSearch(e.target.value);
-                            }}
-                            className="w-full pl-9 pr-4 py-2 text-sm bg-panel border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        />
+                    <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-xs text-foreground/60">
+                            <input
+                                type="checkbox"
+                                checked={showLinkedIds}
+                                onChange={(event) => setShowLinkedIds(event.target.checked)}
+                                className="rounded border-border"
+                            />
+                            Show Linked IDs
+                        </label>
+                        <div className="relative w-64">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                            <input
+                                type="text"
+                                placeholder={showLinkedIds ? "Search items or IDs..." : "Search items..."}
+                                value={search}
+                                onChange={(e) => {
+                                    if (!search && e.target.value) {
+                                        vibrate("utility");
+                                    }
+                                    setSearch(e.target.value);
+                                }}
+                                className="w-full pl-9 pr-4 py-2 text-sm bg-panel border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -266,6 +343,84 @@ function LogsPageContent() {
                             )}
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div className="bg-panel rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-border bg-foreground/[0.02]">
+                    <h2 className="font-semibold">Auto-Pilot Activity</h2>
+                    <p className="mt-1 text-sm text-foreground/55">Shows counted Bazaar and Item Market imports, plus linked and unlinked trades requiring manual input.</p>
+                </div>
+                <div className="divide-y divide-border/50">
+                    {autoPilotActivity.length === 0 ? (
+                        <div className="px-6 py-10 text-sm text-foreground/50 italic">No Auto-Pilot activity recorded yet.</div>
+                    ) : (
+                        <>
+                            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                    <Tags className="h-4 w-4 text-primary" />
+                                    <span className="font-medium">Item Market</span>
+                                </div>
+                                <div className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                    {itemMarketImports.length} logs imported
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                    <Store className="h-4 w-4 text-primary" />
+                                    <span className="font-medium">Bazaar</span>
+                                </div>
+                                <div className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                    {bazaarImports.length} logs imported
+                                </div>
+                            </div>
+
+                            {successfulTrades.map((record) => (
+                                <div key={`${record.id}-${record.status}`} className="flex flex-wrap items-start justify-between gap-3 px-6 py-4">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4 text-success" />
+                                            <span className="font-medium">{record.title}</span>
+                                            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                                Trade
+                                            </span>
+                                        </div>
+                                        <div className="mt-1 text-sm text-foreground/55">
+                                            {format(new Date(record.timestamp * 1000), 'MMM d, yyyy HH:mm')}
+                                            {record.tornLogId && ` · ${record.tornLogId}`}
+                                            {record.weav3rReceiptId && ` · Receipt ${record.weav3rReceiptId}`}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                        linked
+                                    </div>
+                                </div>
+                            ))}
+
+                            {unmatchedTrades.map((record) => (
+                                <div key={`${record.id}-${record.status}`} className="flex flex-wrap items-start justify-between gap-3 px-6 py-4">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <Link2Off className="h-4 w-4 text-warning" />
+                                            <span className="font-medium">{record.title}</span>
+                                            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                                Trade
+                                            </span>
+                                        </div>
+                                        <div className="mt-1 text-sm text-foreground/55">
+                                            {format(new Date(record.timestamp * 1000), 'MMM d, yyyy HH:mm')}
+                                            {record.tornLogId && ` · ${record.tornLogId}`}
+                                            {record.weav3rReceiptId && ` · Receipt ${record.weav3rReceiptId}`}
+                                        </div>
+                                        {record.note && <div className="mt-1 text-sm text-foreground/60">{record.note}</div>}
+                                    </div>
+                                    <div className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                        manual input
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    )}
                 </div>
             </div>
         </div>

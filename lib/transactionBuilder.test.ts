@@ -107,5 +107,16 @@ describe('transactionBuilder', () => {
             expect((setConvertTxn as any).times).toBe(1);
             expect((setConvertTxn as any).pointsEarned).toBe(10);
         });
+
+        it('should skip logs that were already imported by Torn log id', () => {
+            const baseTxns: Transaction[] = [
+                { id: '1', date: 100, type: 'BUY', item: 'xanax', amount: 10, price: 800000, tag: 'Normal', tornLogId: '123' }
+            ];
+            const logs: ParsedLog[] = [
+                { type: 'BUY', item: 'xanax', amount: 5, price: 700000, tornLogId: '123', loggedAt: 1000 }
+            ];
+            const result = buildTransactionsWithLogs(baseTxns, logs, false);
+            expect(result).toHaveLength(1);
+        });
     });
 });
