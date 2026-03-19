@@ -1,4 +1,15 @@
-import { Transaction, ParsedLog, TransactionTag, FLOWER_SET, PLUSHIE_SET } from './parser';
+import { 
+    Transaction, 
+    ParsedLog, 
+    TransactionTag, 
+    FLOWER_SET, 
+    PLUSHIE_SET,
+    ParsedTradeLog,
+    ParsedConvertLog,
+    ParsedSetConvertLog,
+    ParsedMugLog
+} from './parser';
+
 
 export interface LogBreakdown {
     completeCount: number;
@@ -7,8 +18,19 @@ export interface LogBreakdown {
     filteredLogs: ParsedLog[];
 }
 
-export function calculateInventory(txns: Transaction[]): Map<string, any> {
-    const inv = new Map<string, any>();
+export interface InventoryStats {
+    stock: number;
+    totalCost: number;
+    realizedProfit: number;
+    abroadStock: number;
+    abroadTotalCost: number;
+    abroadRealizedProfit: number;
+}
+
+
+export function calculateInventory(txns: Transaction[]): Map<string, InventoryStats> {
+    const inv = new Map<string, InventoryStats>();
+
     // Add/Subtract 0.1 to date of each transaction based on BUY or SELL
     txns.forEach(t => {
         if (t.type === 'BUY') {
@@ -92,11 +114,16 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
     const inventory = calculateInventory(baseCopy);
 
     // Separate parsed logs by type
-    const buys: ParsedLog[] = [];
-    const converts: ParsedLog[] = [];
-    const setConverts: ParsedLog[] = [];
-    const sells: ParsedLog[] = [];
-    const mugs: ParsedLog[] = [];
+    const buys: ParsedTradeLog[] = [];
+
+    const converts: ParsedConvertLog[] = [];
+
+    const setConverts: ParsedSetConvertLog[] = [];
+
+    const sells: ParsedTradeLog[] = [];
+
+    const mugs: ParsedMugLog[] = [];
+
 
     parsedLogs.forEach((log) => {
         if (log.type === 'BUY') buys.push(log);
@@ -182,7 +209,8 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
         const date = initialDate + buys.length + converts.length + idx;
         const setItems = log.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
         let minStock = Infinity;
-        const itemStatsMap = new Map<string, any>();
+        const itemStatsMap = new Map<string, InventoryStats>();
+
         setItems.forEach(item => {
             const stats = inventory.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
             itemStatsMap.set(item, stats);
@@ -236,8 +264,9 @@ export function buildTransactionsWithLogs(baseTransactions: Transaction[], parse
         const itemStats = inventory.get(log.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
 
         if (skipNegativeStock) {
-            let normalAvail = itemStats.stock;
-            let abroadAvail = itemStats.abroadStock;
+            const normalAvail = itemStats.stock;
+            const abroadAvail = itemStats.abroadStock;
+
             let remainingAmount = log.amount;
             const transactionsToAdd: Transaction[] = [];
 
@@ -353,11 +382,11 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
     const inventory = calculateInventory(baseCopy);
 
     // Separate parsed logs by type
-    const buys: ParsedLog[] = [];
-    const converts: ParsedLog[] = [];
-    const setConverts: ParsedLog[] = [];
-    const sells: ParsedLog[] = [];
-    const mugs: ParsedLog[] = [];
+    const buys: ParsedTradeLog[] = [];
+    const converts: ParsedConvertLog[] = [];
+    const setConverts: ParsedSetConvertLog[] = [];
+    const sells: ParsedTradeLog[] = [];
+    const mugs: ParsedMugLog[] = [];
 
     parsedLogs.forEach((log) => {
         if (log.type === 'BUY') buys.push(log);
@@ -372,14 +401,14 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
         completeCount++;
         filteredLogs.push(log);
         // Update inventory for subsequent logs
-        const tag = (log as any).tag || 'Normal';
-        const stats = inventory.get((log as any).item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+        const tag = log.tag || 'Normal';
+        const stats = inventory.get(log.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
         if (tag === 'Abroad') {
-            stats.abroadStock += (log as any).amount;
+            stats.abroadStock += log.amount;
         } else {
-            stats.stock += (log as any).amount;
+            stats.stock += log.amount;
         }
-        inventory.set((log as any).item, stats);
+        inventory.set(log.item, stats);
     });
 
     // Step 2: Process Mugs (always complete)
@@ -390,27 +419,28 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
 
     // Step 3: Process Converts
     converts.forEach(log => {
-        const stats = inventory.get((log as any).fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+        const stats = inventory.get(log.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
         const available = stats.stock;
 
-        if (available >= (log as any).fromAmount) {
+        if (available >= log.fromAmount) {
             completeCount++;
             filteredLogs.push(log);
-            stats.stock -= (log as any).fromAmount;
-            const toStats = inventory.get((log as any).toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-            toStats.stock += (log as any).toAmount;
-            inventory.set((log as any).fromItem, stats);
-            inventory.set((log as any).toItem, toStats);
+            stats.stock -= log.fromAmount;
+            const toStats = inventory.get(log.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+            toStats.stock += log.toAmount;
+            inventory.set(log.fromItem, stats);
+            inventory.set(log.toItem, toStats);
         } else if (available > 0) {
             partialCount++;
-            const ratio = available / (log as any).fromAmount;
-            const actualToAmount = Math.floor((log as any).toAmount * ratio);
-            filteredLogs.push({ ...log, fromAmount: available, toAmount: actualToAmount } as any);
+            const ratio = available / log.fromAmount;
+            const actualToAmount = Math.floor(log.toAmount * ratio);
+            filteredLogs.push({ ...log, fromAmount: available, toAmount: actualToAmount } as ParsedConvertLog);
+
             stats.stock = 0;
-            const toStats = inventory.get((log as any).toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+            const toStats = inventory.get(log.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
             toStats.stock += actualToAmount;
-            inventory.set((log as any).fromItem, stats);
-            inventory.set((log as any).toItem, toStats);
+            inventory.set(log.fromItem, stats);
+            inventory.set(log.toItem, toStats);
         } else {
             skippedCount++;
         }
@@ -418,26 +448,27 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
 
     // Step 4: Process Set Converts
     setConverts.forEach(log => {
-        const setItems = (log as any).setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
+        const setItems = log.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
         let minStock = Infinity;
         setItems.forEach(item => {
             const stats = inventory.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
             minStock = Math.min(minStock, stats.stock);
         });
 
-        if (minStock >= (log as any).times) {
+        if (minStock >= log.times) {
             completeCount++;
             filteredLogs.push(log);
             setItems.forEach(item => {
                 const stats = inventory.get(item)!;
-                stats.stock -= (log as any).times;
+                stats.stock -= log.times;
                 inventory.set(item, stats);
             });
         } else if (minStock > 0) {
             partialCount++;
             const timesToApply = minStock;
             const pointsEarned = timesToApply * 10;
-            filteredLogs.push({ ...log, times: timesToApply, pointsEarned } as any);
+            filteredLogs.push({ ...log, times: timesToApply, pointsEarned } as ParsedSetConvertLog);
+
             setItems.forEach(item => {
                 const stats = inventory.get(item)!;
                 stats.stock -= timesToApply;
@@ -450,25 +481,26 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
 
     // Step 5: Process Sells
     sells.forEach(log => {
-        const stats = inventory.get((log as any).item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-        let normalAvail = stats.stock;
-        let abroadAvail = stats.abroadStock;
-        let remaining = (log as any).amount;
+        const stats = inventory.get(log.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
+        const normalAvail = stats.stock;
+        const abroadAvail = stats.abroadStock;
 
-        if ((log as any).tag === 'Abroad') {
+        let remaining = log.amount;
+
+        if (log.tag === 'Abroad') {
             const fromAbroad = Math.min(abroadAvail, remaining);
             if (fromAbroad > 0) {
-                if (fromAbroad === (log as any).amount) completeCount++; else partialCount++;
-                filteredLogs.push({ ...log, amount: fromAbroad } as any);
+                if (fromAbroad === log.amount) completeCount++; else partialCount++;
+                filteredLogs.push({ ...log, amount: fromAbroad } as ParsedTradeLog);
                 stats.abroadStock -= fromAbroad;
             } else {
                 skippedCount++;
             }
-        } else if ((log as any).tag === 'Normal') {
+        } else if (log.tag === 'Normal') {
             const fromNormal = Math.min(normalAvail, remaining);
             if (fromNormal > 0) {
-                if (fromNormal === (log as any).amount) completeCount++; else partialCount++;
-                filteredLogs.push({ ...log, amount: fromNormal } as any);
+                if (fromNormal === log.amount) completeCount++; else partialCount++;
+                filteredLogs.push({ ...log, amount: fromNormal } as ParsedTradeLog);
                 stats.stock -= fromNormal;
             } else {
                 skippedCount++;
@@ -486,16 +518,17 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
 
             const totalSold = soldNormal + soldAbroad;
             if (totalSold > 0) {
-                if (totalSold === (log as any).amount) completeCount++; else partialCount++;
+                if (totalSold === log.amount) completeCount++; else partialCount++;
                 
                 if (soldNormal > 0 && soldAbroad > 0) {
-                    filteredLogs.push({ ...log, amount: soldNormal, tag: 'Normal' } as any);
-                    filteredLogs.push({ ...log, amount: soldAbroad, tag: 'Abroad' } as any);
+                    filteredLogs.push({ ...log, amount: soldNormal, tag: 'Normal' } as ParsedTradeLog);
+                    filteredLogs.push({ ...log, amount: soldAbroad, tag: 'Abroad' } as ParsedTradeLog);
                 } else if (soldNormal > 0) {
-                    filteredLogs.push({ ...log, amount: soldNormal, tag: 'Normal' } as any);
+                    filteredLogs.push({ ...log, amount: soldNormal, tag: 'Normal' } as ParsedTradeLog);
                 } else {
-                    filteredLogs.push({ ...log, amount: soldAbroad, tag: 'Abroad' } as any);
+                    filteredLogs.push({ ...log, amount: soldAbroad, tag: 'Abroad' } as ParsedTradeLog);
                 }
+
                 
                 stats.stock -= soldNormal;
                 stats.abroadStock -= soldAbroad;
@@ -503,7 +536,7 @@ export function getLogBreakdown(baseTransactions: Transaction[], parsedLogs: Par
                 skippedCount++;
             }
         }
-        inventory.set((log as any).item, stats);
+        inventory.set(log.item, stats);
     });
 
     return { completeCount, partialCount, skippedCount, filteredLogs };
