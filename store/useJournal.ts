@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
+import { calculateInventory, buildTransactionsWithLogs } from '@/lib/transactionBuilder';
 import { sendToExtension } from '@/lib/bmlconnect';
 import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
@@ -64,6 +65,7 @@ export function useJournal() {
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
     const [driveApiKey, setDriveApiKey] = useState("");
+    const [skipNegativeStock, setSkipNegativeStock] = useState(false);
     const [syncState, setSyncState] = useState<SyncState>({ isSyncing: false, message: "" });
     const syncCounterRef = useRef(0);
 
@@ -285,6 +287,7 @@ export function useJournal() {
                     setWeav3rApiKey(parsedConfig.apiKey || "");
                     setWeav3rUserId(parsedConfig.userId || "");
                     setDriveApiKey(parsedConfig.driveApiKey || "");
+                    setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
                 }
             } catch (error) {
                 console.error("Journal bootstrap failed", error);
@@ -346,7 +349,7 @@ export function useJournal() {
 
     const saveWeaverConfig = useCallback(async (apiKey: string) => {
         const trimmedApiKey = apiKey.trim();
-        const cfg = { apiKey: trimmedApiKey, userId: "", driveApiKey };
+        const cfg = { apiKey: trimmedApiKey, userId: "", driveApiKey, skipNegativeStock };
 
         if (trimmedApiKey) {
             const userId = await resolveTornUserId(trimmedApiKey);
@@ -360,144 +363,28 @@ export function useJournal() {
 
         await persistConfigCache(JSON.stringify(cfg));
         return cfg.userId;
-    }, [driveApiKey, persistConfigCache]);
+    }, [driveApiKey, skipNegativeStock, persistConfigCache]);
 
     const saveDriveApiKey = useCallback(async (apiKey: string) => {
         setDriveApiKey(apiKey);
-        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey: apiKey });
+        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey: apiKey, skipNegativeStock });
         await persistConfigCache(cfg);
-    }, [persistConfigCache, weav3rApiKey, weav3rUserId]);
+    }, [persistConfigCache, weav3rApiKey, weav3rUserId, skipNegativeStock]);
 
-    const calculateInventory = (txns: Transaction[]) => {
-        const inv = new Map<string, InventoryItemStats>();
-        // Add/Subtract 0.1 to date of each transaction based on BUY or SELL
-        txns.forEach(t => {
-            if (t.type === 'BUY') {
-                t.date -= 0.1;
-            } else {
-                t.date += 0.1
-            }
-        })
-
-        // Sort transactions by date.
-        txns.sort((a, b) => a.date - b.date);
-        txns.forEach(t => {
-            if (t.type === 'BUY') {
-                const isAbroad = t.tag === 'Abroad';
-                const current = inv.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                if (isAbroad) {
-                    current.abroadStock += t.amount;
-                    current.abroadTotalCost += (t.price * t.amount);
-                } else {
-                    current.stock += t.amount;
-                    current.totalCost += (t.price * t.amount);
-                }
-                inv.set(t.item, current);
-            } else if (t.type === 'SELL') {
-                const isAbroad = t.tag === 'Abroad';
-                const current = inv.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                if (isAbroad) {
-                    const avgCostBasis = current.abroadStock > 0 ? (current.abroadTotalCost / current.abroadStock) : 0;
-                    const costOfGoodsSold = avgCostBasis * t.amount;
-                    const revenue = t.price * t.amount;
-                    current.abroadStock -= t.amount;
-                    current.abroadTotalCost -= costOfGoodsSold;
-                    current.abroadRealizedProfit += (revenue - costOfGoodsSold);
-                } else {
-                    const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
-                    const costOfGoodsSold = avgCostBasis * t.amount;
-                    const revenue = t.price * t.amount;
-                    current.stock -= t.amount;
-                    current.totalCost -= costOfGoodsSold;
-                    current.realizedProfit += (revenue - costOfGoodsSold);
-                }
-                inv.set(t.item, current);
-            } else if (t.type === 'CONVERT') {
-                const fromCurr = inv.get(t.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                const fromAvgCost = fromCurr.stock > 0 ? (fromCurr.totalCost / fromCurr.stock) : 0;
-                const fromCostOfGoods = fromAvgCost * t.fromAmount;
-                fromCurr.stock -= t.fromAmount;
-                fromCurr.totalCost -= fromCostOfGoods;
-                inv.set(t.fromItem, fromCurr);
-                const toCurr = inv.get(t.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                toCurr.stock += t.toAmount;
-                toCurr.totalCost += fromCostOfGoods;
-                inv.set(t.toItem, toCurr);
-            } else if (t.type === 'SET_CONVERT') {
-                const setItems = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
-                let totalCostOfGoods = 0;
-                setItems.forEach(item => {
-                    const curr = inv.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                    const avgCost = curr.stock > 0 ? (curr.totalCost / curr.stock) : 0;
-                    const costOfGoods = avgCost * t.times;
-                    curr.stock -= t.times;
-                    curr.totalCost -= costOfGoods;
-                    inv.set(item, curr);
-                    totalCostOfGoods += costOfGoods;
-                });
-                const pointsCurr = inv.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                pointsCurr.stock += t.pointsEarned;
-                pointsCurr.totalCost += totalCostOfGoods;
-                inv.set('points', pointsCurr);
-            }
-        });
-        return inv;
-    };
-
-    const buildTransactionsWithLogs = useCallback((baseTransactions: Transaction[], parsedLogs: ParsedLog[]) => {
-        let currentTxns = [...baseTransactions];
-        const initialDate = Date.now();
-        parsedLogs.forEach((p, idx) => {
-            const date = initialDate + idx;
-            if (p.type === 'SELL' && !p.tag) {
-                const currentInv = calculateInventory(currentTxns);
-                const itemStats = currentInv.get(p.item);
-                let remainingAmountToSell = p.amount;
-                const normalAvail = itemStats?.stock || 0;
-                const abroadAvail = itemStats?.abroadStock || 0;
-                const toSave: Transaction[] = [];
-                if (normalAvail >= remainingAmountToSell || (normalAvail <= 0 && abroadAvail <= 0)) {
-                    toSave.push({ ...p, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
-                } else if (normalAvail > 0 && remainingAmountToSell > normalAvail) {
-                    toSave.push({ ...p, amount: normalAvail, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
-                    remainingAmountToSell -= normalAvail;
-                    if (abroadAvail > 0) {
-                        const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
-                        toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date: date + 1, tag: 'Abroad' } as Transaction);
-                        remainingAmountToSell -= amountFromAbroad;
-                    }
-                    if (remainingAmountToSell > 0) {
-                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 2, tag: 'Normal' } as Transaction);
-                    }
-                } else if (normalAvail <= 0 && abroadAvail > 0) {
-                    const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
-                    toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date, tag: 'Abroad' } as Transaction);
-                    remainingAmountToSell -= amountFromAbroad;
-                    if (remainingAmountToSell > 0) {
-                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 1, tag: 'Normal' } as Transaction);
-                    }
-                }
-                currentTxns = [...currentTxns, ...toSave];
-            } else {
-                currentTxns.push({
-                    ...p,
-                    id: crypto.randomUUID(),
-                    date,
-                    ...(p.type === 'BUY' && !p.tag ? { tag: 'Normal' } : {})
-                } as Transaction);
-            }
-        });
-        return currentTxns;
-    }, [calculateInventory]);
+    const updateSkipNegativeStock = useCallback(async (value: boolean) => {
+        setSkipNegativeStock(value);
+        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey, skipNegativeStock: value });
+        await persistConfigCache(cfg);
+    }, [weav3rApiKey, weav3rUserId, driveApiKey, persistConfigCache]);
 
     const addLogs = useCallback(async (parsedLogs: ParsedLog[]) => {
         const storagePref = localStorage.getItem("bml_storage_pref");
         const baseTransactions = storagePref === 'drive'
             ? await runSyncTask("Syncing...", fetchDriveTransactions)
             : transactions;
-        const nextTransactions = buildTransactionsWithLogs(baseTransactions, parsedLogs);
+        const nextTransactions = buildTransactionsWithLogs(baseTransactions, parsedLogs, skipNegativeStock);
         saveTransactions(nextTransactions);
-    }, [buildTransactionsWithLogs, fetchDriveTransactions, runSyncTask, saveTransactions, transactions]);
+    }, [fetchDriveTransactions, runSyncTask, saveTransactions, skipNegativeStock, transactions]);
 
     const clearLogs = useCallback(() => {
         localStorage.removeItem(DRIVE_CACHE_READY_KEY);
@@ -602,6 +489,7 @@ export function useJournal() {
         editLog,
         renameItem,
         inventory,
+        calculateInventory,
         totalMugLoss,
         totalItemRealizedProfit,
         totalInventoryValue,
@@ -609,6 +497,8 @@ export function useJournal() {
         weav3rApiKey,
         weav3rUserId,
         driveApiKey,
+        skipNegativeStock,
+        updateSkipNegativeStock,
         saveWeaverConfig,
         saveDriveApiKey,
         needsMigration,
