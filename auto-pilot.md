@@ -44,6 +44,50 @@ Based on user input:
 - Endpoint: `https://weav3r.dev/api/trades/${weav3rUserId}/${receiptId}?apiKey=${weav3rApiKey}`
 - Converts fetched items to shorthand format
 
+## API Schema Analysis
+
+### Torn API (`/user/log` endpoint)
+**Response Schema**: `UserLogsResponse` with `log` array of `UserLog` objects:
+- `id`: Log ID (string/number)
+- `timestamp`: Unix timestamp (integer)
+- `details`: Object with `id` (log type ID), `title`, `category`
+- `data`: Dynamic key-value pairs related to the log (contains item details, quantities, prices, etc.)
+- `params`: Dynamic key-value pairs (additional parameters)
+
+**Key Fields for Parsing**:
+- `details.category`: Identifies log category (e.g., "Trade", "Bazaar", "Item Market", "Points")
+- `data`: Contains transaction-specific data (items, quantities, prices, total values)
+- Need to map Torn log categories to existing parser transaction types
+
+**Pagination Parameters**:
+- `from`: Unix timestamp, fetch logs newer than this
+- `to`: Unix timestamp, fetch logs older than this
+- `limit`: Max 100 logs per request (default 20)
+
+### Weav3r API (Trade Receipts)
+**Endpoints**:
+- `GET /trades/{userID}`: List recent trades (receipts) with pagination via `from`/`to` timestamps
+- `GET /trades/{userID}/{receiptId}`: Get detailed trade receipt
+
+**Trade Detail Response**:
+- `id`: Weav3r receipt ID (string)
+- `trade_id`: External/game trade ID (string) - likely matches Torn trade log ID
+- `buyer_name`: Name of buyer
+- `total_value`: Total trade value
+- `item_count`: Number of items
+- `created_at`, `updated_at`: Unix timestamps
+- `items`: Array of `TradeDetailItem` objects:
+  - `item_id`: Torn item ID (integer)
+  - `item_name`: Item name (string)
+  - `quantity`: Quantity (integer)
+  - `price_used`: Price per item (integer)
+  - `total_value`: Total value for this item (integer)
+  - `market_price_at_time`: Market price at trade time (integer)
+
+**Matching Torn Logs with Weav3r Receipts**:
+- Match using `trade_id` from Weav3r receipt with Torn log `id` or `data.trade_id`
+- Timestamp alignment for verification
+
 ## Requirements
 
 ### Functional Requirements
@@ -126,6 +170,33 @@ Based on user input:
 4. **UI Layer**: New Auto-Pilot page with sync controls, discrepancy modal
 5. **Integration**: Connect to existing parser and transaction storage
 
+### 6. Clustering and Pausing Logic
+**Clustering Approach**:
+- Process logs in time-based clusters (e.g., 1-hour windows) to manage memory and user interaction
+- Each cluster contains logs fetched within a specific time range
+- Insert logs cluster-by-cluster, allowing user review before moving to next cluster
+
+**Trade Detection and Pausing**:
+- Within each cluster, identify "trade complete" logs (category "Trade" with completed status)
+- For each trade log, fetch matching Weav3r receipt using `trade_id` matching
+- Compare Torn log items with Weav3r receipt items for discrepancies
+- If discrepancies found OR if trade requires verification, pause cluster processing
+- Show discrepancy modal with item comparisons and ask user to confirm/reject each discrepancy
+- User can opt to continue logging trades directly if no discrepancies (skip verification for future trades)
+
+**Resume Flow**:
+1. Pause automatic logging when trade discrepancy detected
+2. Present modal with Torn log vs Weav3r receipt comparison
+3. User reviews discrepancies, confirms or adjusts values
+4. User clicks "Continue" to resume processing current cluster
+5. After cluster completed, move to next time cluster
+
+**Implementation Details**:
+- Maintain `currentCluster` state with logs to be inserted
+- Track `pausedAtTradeId` when pausing for user input
+- Use `pendingDiscrepancies` array in store to hold items needing review
+- Resume processing from paused point after user confirmation
+
 ## Implementation Phases
 
 ### Phase 1: Extend Data Models
@@ -162,11 +233,15 @@ Based on user input:
 
 **New files:**
 - `/home/jayampatel/Codehub/projects/tornsynthapps/blackmarketledger/lib/torn-api.ts`
-  - `fetchLogs(apiKey: string, from: number, to?: number): Promise<TornLogEntry[]>`
-  - `parseLogEntries(entries: TornLogEntry[]): ParsedLogWithMetadata[]`
-  - `fetchWeav3rTrades(apiKey: string, userId: string, from: number, to: number): Promise<Weav3rReceipt[]>`
-  - `matchTradeWithReceipt(parsedLog: ParsedLogWithMetadata, receipts: Weav3rReceipt[]): MatchResult`
-  - `detectDiscrepancies(parsedLog: ParsedLogWithMetadata, receipt: Weav3rReceipt): Discrepancy[]`
+  - `fetchLogs(apiKey: string, from: number, to?: number, limit?: number): Promise<TornLogEntry[]>` - Fetch logs with pagination
+  - `fetchLogsByTimeClusters(apiKey: string, startTime: number, endTime: number, clusterSizeHours: number = 1): Promise<Array<{start: number, end: number, logs: TornLogEntry[]}>>` - Fetch logs in time-based clusters
+  - `parseLogEntries(entries: TornLogEntry[]): ParsedLogWithMetadata[]` - Convert Torn API logs to internal format
+  - `fetchWeav3rTrades(apiKey: string, userId: string, from: number, to: number): Promise<Weav3rReceipt[]>` - Fetch trades within time range
+  - `fetchWeav3rReceipt(apiKey: string, userId: string, receiptId: string): Promise<Weav3rReceipt>` - Fetch single receipt
+  - `matchTradeWithReceipt(parsedLog: ParsedLogWithMetadata, receipts: Weav3rReceipt[]): MatchResult` - Match Torn log with Weav3r receipt using trade_id
+  - `detectDiscrepancies(parsedLog: ParsedLogWithMetadata, receipt: Weav3rReceipt): Discrepancy[]` - Compare items and detect mismatches
+  - `createLogClusters(logs: TornLogEntry[], clusterSizeMs: number): Array<{start: number, end: number, logs: TornLogEntry[]}>` - Group logs into time clusters
+  - `extractTradeInfoFromLog(log: TornLogEntry): TradeInfo | null` - Extract trade details from Torn log data
 
 **Key considerations:**
 - Torn API `/user/log` endpoint with `from` parameter for incremental fetching
