@@ -1,5 +1,8 @@
 # BlackMarket Ledger Version History
 
+## v4.2.1 (2026-03-20)
+- **Non-anonymous Mug Parsing**: Updated parser (v1.2) to support non-anonymous mugs and mug logs containing timestamps.
+
 ## v4.2.0 (2026-03-20)
 - **Interactive Multi-Chart Dashboard**: Replaced static profit stats with dynamic Recharts-powered data visualization. Support for Area, Line, and Bar charts.
 - **Museum & Abroad Analytics**: Specialized analytics views for Point Market conversions and international market trends.

@@ -1,4 +1,4 @@
-export const PARSER_VERSION = '1.1.0';
+export const PARSER_VERSION = '1.2.0';
 export type TransactionType = 'BUY' | 'SELL' | 'MUG' | 'CONVERT';
 
 export type TransactionTag = 'Abroad' | 'Normal';
@@ -248,10 +248,11 @@ export function parseLogLine(line: string): ParsedLog | null {
     }
 
     // Someone anonymously mugged you for $4,446,201 sending you to the hospital for 0h 42m [view]
-    const tornAnonMugRegex = /Someone anonymously mugged you for \$([\d,]+)/i;
-    const tornAnonMugMatch = line.match(tornAnonMugRegex);
-    if (tornAnonMugMatch) {
-        const amount = parseInt(tornAnonMugMatch[1].replace(/,/g, ''), 10);
+    // 03:36:09 19/03/26 tayzarstar mugged you for $13,584 sending you to the hospital for Oh 39m
+    const tornMugRegex = /.*?mugged you for \$([\d,]+)/i;
+    const tornMugMatch = line.match(tornMugRegex);
+    if (tornMugMatch) {
+        const amount = parseInt(tornMugMatch[1].replace(/,/g, ''), 10);
         if (!isNaN(amount)) {
             return {
                 type: 'MUG',
