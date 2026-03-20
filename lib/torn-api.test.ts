@@ -8,7 +8,7 @@ afterEach(() => {
 describe("torn-api helpers", () => {
     it("parses a normalized bazaar sell log into a ledger sell", () => {
         const result = parseNormalizedLog({
-            id: 1001,
+            id: "1001",
             timestamp: 1710000000,
             category: "Bazaars",
             typeId: 0,
@@ -34,7 +34,7 @@ describe("torn-api helpers", () => {
 
     it("parses nested Torn items arrays for market logs", () => {
         const result = parseNormalizedLog({
-            id: 1002,
+            id: "1002",
             timestamp: 1710000001,
             category: "Item market",
             typeId: 0,
@@ -60,7 +60,7 @@ describe("torn-api helpers", () => {
 
     it("resolves item ids through the Torn items map when names are missing", () => {
         const result = parseNormalizedLog({
-            id: 1003,
+            id: "1003",
             timestamp: 1710000002,
             category: "Bazaars",
             typeId: 0,
@@ -85,7 +85,7 @@ describe("torn-api helpers", () => {
 
     it("infers market action from data keys when title does not include buy or sell", () => {
         const result = parseNormalizedLog({
-            id: 1004,
+            id: "1004",
             timestamp: 1710000003,
             category: "Item market",
             typeId: 0,
@@ -234,6 +234,83 @@ describe("torn-api helpers", () => {
         });
     });
 
+    it("parses points market logs using explicit type IDs", () => {
+        const buyResult = parseNormalizedLog({
+            id: "points-buy-1",
+            timestamp: 1710000000,
+            category: "Points Market",
+            typeId: 5010,
+            title: "Points Market buy",
+            data: {
+                points: 100,
+                cost_total: 3400000
+            },
+            params: {}
+        });
+
+        expect(buyResult.kind).toBe("parsed");
+        if (buyResult.kind === "parsed") {
+            expect(buyResult.logs[0]).toMatchObject({
+                type: "BUY",
+                item: "points",
+                amount: 100,
+                price: 34000,
+                sourceType: "points-market"
+            });
+        }
+
+        const sellResult = parseNormalizedLog({
+            id: "points-sell-1",
+            timestamp: 1710000001,
+            category: "Points Market",
+            typeId: 5011,
+            title: "Points Market sell",
+            data: {
+                points: 50,
+                cost_total: 1750000
+            },
+            params: {}
+        });
+
+        expect(sellResult.kind).toBe("parsed");
+        if (sellResult.kind === "parsed") {
+            expect(sellResult.logs[0]).toMatchObject({
+                type: "SELL",
+                item: "points",
+                amount: 50,
+                price: 35000,
+                sourceType: "points-market"
+            });
+        }
+    });
+
+    it("parses museum exchange logs (7000)", () => {
+        const result = parseNormalizedLog({
+            id: "museum-1",
+            timestamp: 1710000002,
+            category: "Museum",
+            typeId: 7000,
+            title: "Museum exchange",
+            data: {
+                set: "Plushie Set",
+                quantity: 10,
+                points_received: 100
+            },
+            params: {}
+        });
+
+        expect(result.kind).toBe("parsed");
+        if (result.kind === "parsed") {
+            expect(result.logs[0]).toMatchObject({
+                type: "SET_CONVERT",
+                setType: "plushie",
+                times: 10,
+                pointsEarned: 100,
+                sourceType: "museum"
+            });
+        }
+    });
+
     it("flags a mismatch when receipt money differs from Torn trade money", () => {
         const comparison = compareTradeAgainstReceipt({
             id: 500,
@@ -330,6 +407,10 @@ describe("torn-api helpers", () => {
 
     it("paginates category logs by keeping from fixed and moving to backward", async () => {
         const fetchMock = vi.spyOn(globalThis, "fetch")
+            .mockResolvedValue({
+                ok: true,
+                json: async () => ({ log: [], _metadata: { links: { prev: null, next: null } } })
+            } as Response)
             .mockResolvedValueOnce({
                 ok: true,
                 json: async () => ({
@@ -355,20 +436,12 @@ describe("torn-api helpers", () => {
                         }
                     }
                 })
-            } as Response)
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ log: [], _metadata: { links: { prev: null, next: null } } })
-            } as Response)
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ log: [], _metadata: { links: { prev: null, next: null } } })
             } as Response);
 
         await getNewLogs("test-key", { lastTimestamp: 1772217000, lastLogId: "" });
 
         const firstUrl = new URL(String(fetchMock.mock.calls[0][0]));
-        const secondUrl = new URL(String(fetchMock.mock.calls[2][0]));
+        const secondUrl = new URL(String(fetchMock.mock.calls[3][0])); // 11, 18, 6 are first three, then 11 follow-up
 
         expect(firstUrl.searchParams.get("from")).toBe("1772217000");
         expect(secondUrl.searchParams.get("from")).toBe("1772217000");
@@ -381,7 +454,15 @@ describe("torn-api helpers", () => {
 
     it("continues following prev links even when a page has no new logs after filtering", async () => {
         const fetchMock = vi.spyOn(globalThis, "fetch")
-            .mockResolvedValueOnce({
+            .mockResolvedValue({
+                ok: true,
+                json: async () => ({ log: [], _metadata: { links: { prev: null, next: null } } })
+            } as Response)
+            .mockResolvedValueOnce({ // 11
+                ok: true,
+                json: async () => ({ log: [], _metadata: { links: { prev: null, next: null } } })
+            } as Response)
+            .mockResolvedValueOnce({ // 18
                 ok: true,
                 json: async () => ({
                     log: [
@@ -401,14 +482,11 @@ describe("torn-api helpers", () => {
                     }
                 })
             } as Response)
-            .mockResolvedValueOnce({
+            .mockResolvedValueOnce({ // 6
                 ok: true,
-                json: async () => ({
-                    log: [],
-                    _metadata: { links: { prev: null, next: null } }
-                })
+                json: async () => ({ log: [], _metadata: { links: { prev: null, next: null } } })
             } as Response)
-            .mockResolvedValueOnce({
+            .mockResolvedValueOnce({ // 18 follow-up
                 ok: true,
                 json: async () => ({
                     log: [
@@ -422,19 +500,12 @@ describe("torn-api helpers", () => {
                     ],
                     _metadata: { links: { prev: null, next: null } }
                 })
-            } as Response)
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({
-                    log: [],
-                    _metadata: { links: { prev: null, next: null } }
-                })
             } as Response);
 
         const result = await getNewLogs("test-key", { lastTimestamp: 1772217000, lastLogId: "zzzz" });
 
-        expect(fetchMock.mock.calls[2]).toBeTruthy();
-        const thirdUrl = new URL(String(fetchMock.mock.calls[2][0]));
+        expect(fetchMock.mock.calls[3]).toBeTruthy();
+        const thirdUrl = new URL(String(fetchMock.mock.calls[3][0])); 
         expect(thirdUrl.searchParams.get("cat")).toBe("18");
         expect(thirdUrl.searchParams.get("to")).toBe("1772216999");
         expect(thirdUrl.searchParams.get("key")).toBe("test-key");

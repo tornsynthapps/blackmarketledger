@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useRef, Suspense } from "react";
 import { useJournal } from "@/store/useJournal";
-import { Download, Upload, Trash2, Edit2, Search, ArrowLeft, RefreshCw, Link2Off, CheckCircle2, Store, Tags } from "lucide-react";
+import { Download, Upload, Trash2, Edit2, Search, ArrowLeft, RefreshCw, Link2Off, CheckCircle2, Store, Tags, Coins, Box } from "lucide-react";
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -13,6 +13,8 @@ function getSourceLabel(sourceType?: TransactionSourceType) {
     if (sourceType === 'item-market') return 'Item Market';
     if (sourceType === 'bazaar') return 'Bazaar';
     if (sourceType === 'trade') return 'Trade';
+    if (sourceType === 'points-market') return 'Points Market';
+    if (sourceType === 'museum') return 'Museum';
     return '';
 }
 
@@ -63,6 +65,8 @@ function LogsPageContent() {
     const successfulTrades = autoPilotActivity.filter(record => record.sourceType === 'trade' && record.status === 'imported');
     const itemMarketImports = autoPilotActivity.filter(record => record.sourceType === 'item-market');
     const bazaarImports = autoPilotActivity.filter(record => record.sourceType === 'bazaar');
+    const pointsMarketImports = autoPilotActivity.filter(record => record.sourceType === 'points-market');
+    const museumImports = autoPilotActivity.filter(record => record.sourceType === 'museum');
 
     if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
@@ -265,7 +269,7 @@ function LogsPageContent() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <div className="rounded-xl border border-border bg-panel p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold"><Link2Off className="h-4 w-4 text-warning" /> Unlinked Trades</div>
                     <div className="mt-2 text-2xl font-bold">{unmatchedTrades.length}</div>
@@ -285,6 +289,16 @@ function LogsPageContent() {
                     <div className="flex items-center gap-2 text-sm font-semibold"><Store className="h-4 w-4 text-primary" /> Bazaar</div>
                     <div className="mt-2 text-2xl font-bold">{bazaarImports.length}</div>
                     <p className="mt-1 text-xs text-foreground/55">Imported Bazaar logs.</p>
+                </div>
+                <div className="rounded-xl border border-border bg-panel p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold"><Coins className="h-4 w-4 text-primary" /> Points Market</div>
+                    <div className="mt-2 text-2xl font-bold">{pointsMarketImports.length}</div>
+                    <p className="mt-1 text-xs text-foreground/55">Imported Points Market logs.</p>
+                </div>
+                <div className="rounded-xl border border-border bg-panel p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold"><Box className="h-4 w-4 text-primary" /> Museum</div>
+                    <div className="mt-2 text-2xl font-bold">{museumImports.length}</div>
+                    <p className="mt-1 text-xs text-foreground/55">Imported Museum logs.</p>
                 </div>
             </div>
 
@@ -372,6 +386,24 @@ function LogsPageContent() {
                                 </div>
                                 <div className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
                                     {bazaarImports.length} logs imported
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                    <Coins className="h-4 w-4 text-primary" />
+                                    <span className="font-medium">Points Market</span>
+                                </div>
+                                <div className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                    {pointsMarketImports.length} logs imported
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                    <Box className="h-4 w-4 text-primary" />
+                                    <span className="font-medium">Museum</span>
+                                </div>
+                                <div className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-foreground/55">
+                                    {museumImports.length} logs imported
                                 </div>
                             </div>
 

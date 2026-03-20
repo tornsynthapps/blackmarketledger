@@ -2,12 +2,14 @@ import { ParsedLog, TransactionSourceType, normalizeItemName } from "./parser";
 
 const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
-const AUTO_PILOT_LOG_CATEGORIES = [11, 18];
+const AUTO_PILOT_LOG_CATEGORIES = [11, 18, 6];
 const MARKET_LOG_TYPE_MAP: Record<number, { type: "BUY" | "SELL"; sourceType: TransactionSourceType }> = {
   1112: { type: "BUY", sourceType: "item-market" },
   1113: { type: "SELL", sourceType: "item-market" },
   1225: { type: "BUY", sourceType: "bazaar" },
   1226: { type: "SELL", sourceType: "bazaar" },
+  5010: { type: "BUY", sourceType: "points-market" },
+  5011: { type: "SELL", sourceType: "points-market" },
 };
 const RELEVANT_LOG_TITLES = [
   "bazaar",
@@ -15,6 +17,7 @@ const RELEVANT_LOG_TITLES = [
   "points market",
   "points",
   "trade",
+  "museum",
 ];
 
 export interface SyncCursor {
@@ -236,6 +239,8 @@ function extractTotal(source: Record<string, unknown>) {
     "total",
     "total_value",
     "total_price",
+    "cost_total",
+    "price_total",
     "cost",
     "value",
     "money",
@@ -354,6 +359,38 @@ function parsePointLog(log: NormalizedLog): ParsedLog[] {
       item: "points",
       amount: quantity,
       price,
+      sourceType: "points-market",
+      loggedAt: log.timestamp * 1000,
+      tornLogId: String(log.id),
+    },
+  ];
+}
+
+function parseMuseumLog(log: NormalizedLog): ParsedLog[] {
+  const pointsEarned =
+    pickNumber(log.data, ["points", "points_earned", "points_received"]) ||
+    pickNumber(log.params, ["points", "points_earned", "points_received"]);
+  const times =
+    pickNumber(log.data, ["sets", "times", "amount", "quantity", "qty"]) ||
+    pickNumber(log.params, ["sets", "times", "amount", "quantity", "qty"]);
+  const typeStr = (
+    pickString(log.data, ["set_type", "type", "set"]) ||
+    pickString(log.params, ["set_type", "type", "set"])
+  ).toLowerCase();
+
+  if (!pointsEarned || !times) return [];
+
+  const setType: "flower" | "plushie" = typeStr.includes("flower")
+    ? "flower"
+    : "plushie";
+
+  return [
+    {
+      type: "SET_CONVERT",
+      setType,
+      times,
+      pointsEarned,
+      sourceType: "museum",
       loggedAt: log.timestamp * 1000,
       tornLogId: String(log.id),
     },
@@ -415,8 +452,13 @@ export function parseNormalizedLog(
 
   const haystack = `${log.category} ${log.title}`.toLowerCase();
 
-  if (haystack.includes("points")) {
+  if (haystack.includes("points") || [5010, 5011].includes(log.typeId)) {
     const logs = parsePointLog(log);
+    return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
+  }
+
+  if (haystack.includes("museum") || log.typeId === 7000) {
+    const logs = parseMuseumLog(log);
     return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
   }
 
