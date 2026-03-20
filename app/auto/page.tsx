@@ -41,6 +41,8 @@ function getImportSourceTypeFromTitle(title: string): TransactionSourceType | un
   if (haystack.includes("bazaar")) return "bazaar";
   if (haystack.includes("item market")) return "item-market";
   if (haystack.includes("trade")) return "trade";
+  if (haystack.includes("points market")) return "points-market";
+  if (haystack.includes("museum")) return "museum";
   return undefined;
 }
 
@@ -305,44 +307,61 @@ export default function AutoPilotPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold">Sync Controls</h2>
-              <p className="text-sm text-foreground/55">First run initializes the cursor to the current time. Later runs continue from the last imported Torn log.</p>
+        <div className="space-y-4">
+          <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Sync Controls</h2>
+                <p className="text-sm text-foreground/55">First run initializes the cursor to the current time. Later runs continue from the last imported Torn log.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void syncNow()}
+                disabled={isRunning || autoPilotPendingTrades.length > 0}
+                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCcw className={`h-4 w-4 ${isRunning ? "animate-spin" : ""}`} />
+                {isRunning ? "Syncing..." : autoPilotCursor ? "Sync Now" : "Initialize Auto-Pilot"}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => void syncNow()}
-              disabled={isRunning || autoPilotPendingTrades.length > 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RefreshCcw className={`h-4 w-4 ${isRunning ? "animate-spin" : ""}`} />
-              {isRunning ? "Syncing..." : autoPilotCursor ? "Sync Now" : "Initialize Auto-Pilot"}
-            </button>
-          </div>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-border bg-background/70 p-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Current Cursor</div>
-              <div className="mt-2 text-sm text-foreground/70">{formatCursor(autoPilotCursor)}</div>
-            </div>
-            <div className="rounded-xl border border-border bg-background/70 p-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Last Sync</div>
-              <div className="mt-2 text-sm text-foreground/70">
-                {autoPilotLastSyncAt ? new Date(autoPilotLastSyncAt).toLocaleString() : "No sync run yet"}
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-border bg-background/70 p-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Current Cursor</div>
+                <div className="mt-2 text-sm text-foreground/70">{formatCursor(autoPilotCursor)}</div>
+              </div>
+              <div className="rounded-xl border border-border bg-background/70 p-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Last Sync</div>
+                <div className="mt-2 text-sm text-foreground/70">
+                  {autoPilotLastSyncAt ? new Date(autoPilotLastSyncAt).toLocaleString() : "No sync run yet"}
+                </div>
               </div>
             </div>
-          </div>
 
-          {(statusMessage || pageError) && (
-            <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
-              pageError ? "border-danger/30 bg-danger/5 text-danger" : "border-orange-500/20 bg-orange-500/5 text-foreground/75"
-            }`}>
-              {pageError || statusMessage}
+            {(statusMessage || pageError) && (
+              <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+                pageError ? "border-danger/30 bg-danger/5 text-danger" : "border-orange-500/20 bg-orange-500/5 text-foreground/75"
+              }`}>
+                {pageError || statusMessage}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
+            <h2 className="text-lg font-bold">Review Queue</h2>
+            <div className="mt-4 space-y-3 text-sm text-foreground/65">
+              <p>{reviewCounts.pendingTrades} trade{reviewCounts.pendingTrades === 1 ? "" : "s"} currently block the next sync.</p>
+              <p>{reviewCounts.unlinkedTrades} unlinked trade{reviewCounts.unlinkedTrades === 1 ? "" : "s"} still need review.</p>
+              <p>{reviewCounts.unlinkedReceipts} unlinked receipt{reviewCounts.unlinkedReceipts === 1 ? "" : "s"} are available for matching or trashing.</p>
             </div>
-          )}
-        </section>
+            <Link
+              href="/auto/receipts"
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground/75 shadow-sm transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+            >
+              Open Receipt Review
+            </Link>
+          </section>
+        </div>
 
         <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-6">
@@ -374,21 +393,6 @@ export default function AutoPilotPage() {
                 </div>
               </Link>
             ))}
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-border/50">
-            <h2 className="text-lg font-bold">Review Queue</h2>
-            <div className="mt-4 space-y-3 text-sm text-foreground/65">
-              <p>{reviewCounts.pendingTrades} trade{reviewCounts.pendingTrades === 1 ? "" : "s"} currently block the next sync.</p>
-              <p>{reviewCounts.unlinkedTrades} unlinked trade{reviewCounts.unlinkedTrades === 1 ? "" : "s"} still need review.</p>
-              <p>{reviewCounts.unlinkedReceipts} unlinked receipt{reviewCounts.unlinkedReceipts === 1 ? "" : "s"} are available for matching or trashing.</p>
-            </div>
-            <Link
-              href="/auto/receipts"
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground/75 shadow-sm transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
-            >
-              Open Receipt Review
-            </Link>
           </div>
         </section>
       </div>
