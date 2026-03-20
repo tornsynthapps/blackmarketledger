@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, PauseCircle, Radar, RefreshCcw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, PauseCircle, Radar, RefreshCcw, Tags, Store, Coins, Box, Link2Off, ChevronRight, Activity } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import {
   AutoPilotImportRecord,
@@ -108,6 +108,24 @@ export default function AutoPilotPage() {
     linkedReceiptIds,
     linkedTradeIds
   ]);
+
+  const autoPilotStats = useMemo(() => {
+    const unlinkedTrades = autoPilotRecentImports.filter(record => record.sourceType === 'trade' && record.status === 'manual_required');
+    const successfulTrades = autoPilotRecentImports.filter(record => record.sourceType === 'trade' && record.status === 'imported');
+    const itemMarketImports = autoPilotRecentImports.filter(record => record.sourceType === 'item-market');
+    const bazaarImports = autoPilotRecentImports.filter(record => record.sourceType === 'bazaar');
+    const pointsMarketImports = autoPilotRecentImports.filter(record => record.sourceType === 'points-market');
+    const museumImports = autoPilotRecentImports.filter(record => record.sourceType === 'museum');
+
+    return [
+      { id: 'trade-unlinked', label: "Unlinked Trades", count: unlinkedTrades.length, icon: Link2Off, type: 'trade' as const, color: "orange" },
+      { id: 'trade-success', label: "Successful Trades", count: successfulTrades.length, icon: CheckCircle2, type: 'trade' as const, color: "green" },
+      { id: 'item-market', label: "Item Market Logs", count: itemMarketImports.length, icon: Tags, type: 'item-market' as const, color: "violet" },
+      { id: 'bazaar', label: "Bazaar Logs", count: bazaarImports.length, icon: Store, type: 'bazaar' as const, color: "blue" },
+      { id: 'points-market', label: "Points Market Logs", count: pointsMarketImports.length, icon: Coins, type: 'points-market' as const, color: "amber" },
+      { id: 'museum', label: "Museum Logs", count: museumImports.length, icon: Box, type: 'museum' as const, color: "rose" },
+    ];
+  }, [autoPilotRecentImports]);
 
   const initializeCursorNow = async () => {
     const now = Math.floor(Date.now() / 1000);
@@ -327,18 +345,51 @@ export default function AutoPilotPage() {
         </section>
 
         <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
-          <h2 className="text-lg font-bold">Review Queue</h2>
-          <div className="mt-4 space-y-3 text-sm text-foreground/65">
-            <p>{reviewCounts.pendingTrades} trade{reviewCounts.pendingTrades === 1 ? "" : "s"} currently block the next sync.</p>
-            <p>{reviewCounts.unlinkedTrades} unlinked trade{reviewCounts.unlinkedTrades === 1 ? "" : "s"} still need review.</p>
-            <p>{reviewCounts.unlinkedReceipts} unlinked receipt{reviewCounts.unlinkedReceipts === 1 ? "" : "s"} are available for matching or trashing.</p>
+          <div className="flex items-center gap-2 mb-6">
+            <Activity className="h-5 w-5 text-orange-500" />
+            <h2 className="text-xl font-bold">Auto-Pilot Overview</h2>
           </div>
-          <Link
-            href="/auto/receipts"
-            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground/75 transition-colors hover:bg-foreground/5 hover:text-foreground"
-          >
-            Open Receipt Review
-          </Link>
+          
+          <div className="space-y-4">
+            {autoPilotStats.map((stat) => (
+              <Link 
+                key={stat.id} 
+                href={`/auto/activity?type=${stat.type}`}
+                className="group flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border hover:border-orange-500/30 hover:bg-orange-500/[0.02] transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-2.5 rounded-xl bg-${stat.color}-500/10`}>
+                    <stat.icon className={`h-5 w-5 text-${stat.color}-500`} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm tracking-tight">{stat.label}</h3>
+                    <p className="text-xs text-foreground/45 mt-0.5">Click to view full history</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xl font-bold tabular-nums group-hover:text-orange-500 transition-colors">
+                    {stat.count}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-foreground/30 group-hover:text-orange-500 transition-all group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-border/50">
+            <h2 className="text-lg font-bold">Review Queue</h2>
+            <div className="mt-4 space-y-3 text-sm text-foreground/65">
+              <p>{reviewCounts.pendingTrades} trade{reviewCounts.pendingTrades === 1 ? "" : "s"} currently block the next sync.</p>
+              <p>{reviewCounts.unlinkedTrades} unlinked trade{reviewCounts.unlinkedTrades === 1 ? "" : "s"} still need review.</p>
+              <p>{reviewCounts.unlinkedReceipts} unlinked receipt{reviewCounts.unlinkedReceipts === 1 ? "" : "s"} are available for matching or trashing.</p>
+            </div>
+            <Link
+              href="/auto/receipts"
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground/75 shadow-sm transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
+            >
+              Open Receipt Review
+            </Link>
+          </div>
         </section>
       </div>
 
@@ -365,31 +416,46 @@ export default function AutoPilotPage() {
             </div>
           )}
 
-          {autoPilotRecentImports.map((record) => (
-            <div key={`${record.id}-${record.status}-${record.note || ""}`} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-background/70 px-4 py-3">
+          {autoPilotRecentImports.slice(0, 5).map((record) => (
+            <div key={`${record.id}-${record.status}-${record.note || ""}`} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-background/50 px-5 py-4 transition-colors hover:border-orange-500/20 shadow-sm">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   {record.status === "imported" ? (
-                    <CheckCircle2 className="h-4 w-4 text-success" />
+                    <CheckCircle2 className="h-4 w-4 text-green-500 font-bold" />
                   ) : record.status === "manual_required" ? (
-                    <PauseCircle className="h-4 w-4 text-warning" />
+                    <PauseCircle className="h-4 w-4 text-orange-500" />
                   ) : (
                     <AlertTriangle className="h-4 w-4 text-foreground/50" />
                   )}
-                  <p className="font-semibold">{record.title}</p>
+                  <p className="font-bold tracking-tight">{record.title}</p>
+                  <span className="text-[10px] bg-foreground/5 py-0.5 px-2 rounded font-bold text-foreground/50 uppercase tracking-widest">{record.sourceType?.replace("-", " ")}</span>
                 </div>
-                <p className="mt-1 text-sm text-foreground/55">
+                <p className="mt-1 text-xs text-foreground/55 font-medium">
                   {new Date(record.timestamp * 1000).toLocaleString()}
                   {record.tornLogId ? ` · ${record.tornLogId}` : ""}
                   {record.weav3rReceiptId ? ` · receipt ${record.weav3rReceiptId}` : ""}
                 </p>
-                {record.note && <p className="mt-1 text-sm text-foreground/60">{record.note}</p>}
+                {record.note && <p className="mt-1.5 text-xs text-orange-600 font-medium">{record.note}</p>}
               </div>
-              <div className="rounded-full border border-border px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-foreground/55">
+              <div className={`rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                record.status === 'imported' 
+                ? 'bg-green-500/10 border-green-500/20 text-green-700' 
+                : 'bg-orange-500/10 border-orange-500/20 text-orange-700'
+              }`}>
                 {record.status.replace("_", " ")}
               </div>
             </div>
           ))}
+
+          {autoPilotRecentImports.length > 5 && (
+            <Link 
+              href="/auto/activity"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/80 py-4 text-sm font-bold text-orange-500 transition-all hover:bg-orange-500 hover:text-white"
+            >
+              Show All Activity History
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
       </section>
     </div>
