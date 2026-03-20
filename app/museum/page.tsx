@@ -1,7 +1,7 @@
 "use client";
 
 import { useJournal, InventoryItemStats } from "@/store/useJournal";
-import { Coins, Droplet, ArrowRightLeft, TrendingUp, Flower2, Ghost, Box, Activity, Calendar, BarChart3, BarChart, LineChart as LucideLineChart, Layers } from "lucide-react";
+import { Coins, Droplet, ArrowRightLeft, TrendingUp, Flower2, Ghost, Box, Activity, Calendar, BarChart3, BarChart as LucideBarChart, LineChart as LucideLineChart, Layers } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatItemName, FLOWER_SET, PLUSHIE_SET, Transaction } from "@/lib/parser";
 import { 
@@ -268,7 +268,7 @@ export default function MuseumDashboard() {
                             <div className="flex bg-foreground/5 p-1 rounded-xl">
                                 <ChartControlBtn active={chartType === 'line'} onClick={() => setChartType('line')} icon={<Activity className="w-3.5 h-3.5" />} />
                                 <ChartControlBtn active={chartType === 'area'} onClick={() => setChartType('area')} icon={<Layers className="w-3.5 h-3.5" />} />
-                                <ChartControlBtn active={chartType === 'bar'} onClick={() => setChartType('bar')} icon={<BarChart className="w-3.5 h-3.5" />} />
+                                <ChartControlBtn active={chartType === 'bar'} onClick={() => setChartType('bar')} icon={<LucideBarChart className="w-3.5 h-3.5" />} />
                             </div>
                         </div>
                     </div>
