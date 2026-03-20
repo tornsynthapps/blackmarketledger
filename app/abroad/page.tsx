@@ -1,15 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
 import { formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
-import { Plane, AlertCircle, ArrowRightLeft, Loader2, Check, TrendingUp, Box, Activity, Calendar, BarChart3, BarChart as LucideBarChart, LineChart as LucideLineChart, Layers } from "lucide-react";
+import { Plane, AlertCircle, ArrowRightLeft, Loader2, Check, TrendingUp, Box } from "lucide-react";
 import StatsModal from "@/components/StatsModal";
-import { 
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-    LineChart, Line, BarChart, Bar, ReferenceLine 
-} from 'recharts';
-import { format, subDays, subMonths, startOfDay, endOfDay, endOfMonth } from 'date-fns';
+import { ProfitChart } from '@/components/ProfitChart';
+import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, startOfYear, endOfYear } from 'date-fns';
 
 const formatMoney = (val: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -102,9 +99,28 @@ export default function AbroadDashboard() {
         return { items, totalValue, totalProfit };
     }, [inventory]);
 
-    const [timeRange, setTimeRange] = useState<'daily' | 'monthly' | 'yearly'>('daily');
+    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('abroad-range');
+            if (saved && ['daily', 'weekly', 'monthly', 'yearly'].includes(saved)) return saved as any;
+        }
+        return 'daily';
+    });
     const [chartType, setChartType] = useState<'line' | 'area' | 'bar'>('area');
-    const [viewType, setViewType] = useState<'daily' | 'total'>('total');
+    const [viewType, setViewType] = useState<'daily' | 'total'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('abroad-view');
+            if (saved && ['daily', 'total'].includes(saved)) return saved as any;
+        }
+        return 'total';
+    });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('abroad-range', timeRange);
+            localStorage.setItem('abroad-view', viewType);
+        }
+    }, [timeRange, viewType]);
 
     const chartData = useMemo(() => {
         if (!isLoaded || !transactions.length) return [];
@@ -115,6 +131,9 @@ export default function AbroadDashboard() {
 
         if (timeRange === 'daily') {
             periods = Array.from({ length: 30 }, (_, i) => subDays(now, 29 - i));
+        } else if (timeRange === 'weekly') {
+            periods = Array.from({ length: 12 }, (_, i) => subWeeks(now, 11 - i));
+            dateFormat = 'MMM dd';
         } else if (timeRange === 'monthly') {
             periods = Array.from({ length: 12 }, (_, i) => subMonths(now, 11 - i));
             dateFormat = 'MMM yyyy';
@@ -137,6 +156,7 @@ export default function AbroadDashboard() {
         return periods.map(period => {
             let periodEnd: Date;
             if (timeRange === 'daily') periodEnd = endOfDay(startOfDay(period));
+            else if (timeRange === 'weekly') periodEnd = endOfWeek(period);
             else periodEnd = endOfMonth(period);
 
             while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
@@ -170,14 +190,28 @@ export default function AbroadDashboard() {
 
             return {
                 date: format(period, dateFormat),
-                profit: Math.round(value)
+                profit: Math.round(value),
+                ts: periodEnd.getTime()
             };
         });
     }, [isLoaded, transactions, timeRange, viewType]);
 
+    const firstRelevantTxDate = useMemo(() => {
+        const abroadTxs = transactions.filter(t => t.tag === 'Abroad');
+        return abroadTxs.length > 0 ? Math.min(...abroadTxs.map(t => t.date)) : Infinity;
+    }, [transactions]);
+
     const averageProfit = useMemo(() => {
-        return chartData.length > 0 ? chartData.reduce((acc, curr) => acc + curr.profit, 0) / chartData.length : 0;
+        const relevantPeriods = chartData.filter(p => p.ts >= firstRelevantTxDate);
+        if (relevantPeriods.length === 0) return 0;
+        return relevantPeriods.reduce((acc, curr) => acc + curr.profit, 0) / relevantPeriods.length;
+    }, [chartData, firstRelevantTxDate]);
+
+    const finalTotalValue = useMemo(() => {
+        return chartData.length > 0 ? chartData[chartData.length - 1].profit : 0;
     }, [chartData]);
+
+    const referenceValue = viewType === 'daily' ? averageProfit : finalTotalValue;
 
     const handleSelfSell = (itemGroup: { name: string; stock: number }) => {
         if (itemGroup.stock <= 0) return;
@@ -312,87 +346,17 @@ export default function AbroadDashboard() {
 
                 {/* Chart Area (2/3) */}
                 <div className="lg:col-span-2 pl-0 lg:pl-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-8">
-                            <div>
-                                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1 flex items-center gap-2">
-                                    <Activity className="w-3" />
-                                    Profit Dynamics
-                                </h2>
-                                <div className="flex items-center gap-2">
-                                    <p className="text-lg font-bold">{viewType === 'total' ? 'Cumulative' : 'Incremental'} Growth</p>
-                                    <div className="flex bg-foreground/5 p-1 rounded-lg">
-                                        <button 
-                                            onClick={() => setViewType('daily')}
-                                            className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${viewType === 'daily' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
-                                        >Daily</button>
-                                        <button 
-                                            onClick={() => setViewType('total')}
-                                            className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${viewType === 'total' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
-                                        >Total</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="hidden sm:block">
-                                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1">Total Realized</h2>
-                                <p className="text-lg font-bold text-primary tracking-tight">{formatMoney(abroadStats.totalProfit)}</p>
-                                <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Avg: ${formatLargeNumber(averageProfit)}</p>
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex bg-foreground/5 p-1 rounded-xl">
-                                <button onClick={() => setTimeRange('daily')} className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-lg transition-all ${timeRange === 'daily' ? 'bg-primary text-white shadow-md' : 'text-foreground/40 hover:text-foreground/60'}`}>D</button>
-                                <button onClick={() => setTimeRange('monthly')} className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-lg transition-all ${timeRange === 'monthly' ? 'bg-primary text-white shadow-md' : 'text-foreground/40 hover:text-foreground/60'}`}>M</button>
-                                <button onClick={() => setTimeRange('yearly')} className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-lg transition-all ${timeRange === 'yearly' ? 'bg-primary text-white shadow-md' : 'text-foreground/40 hover:text-foreground/60'}`}>Y</button>
-                            </div>
-                            <div className="flex bg-foreground/5 p-1 rounded-xl">
-                                <ChartControlBtn active={chartType === 'line'} onClick={() => setChartType('line')} icon={<Activity className="w-3.5 h-3.5" />} />
-                                <ChartControlBtn active={chartType === 'area'} onClick={() => setChartType('area')} icon={<Layers className="w-3.5 h-3.5" />} />
-                                <ChartControlBtn active={chartType === 'bar'} onClick={() => setChartType('bar')} icon={<LucideBarChart className="w-3.5 h-3.5" />} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="h-[320px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            {chartType === 'bar' ? (
-                                <BarChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#0d9488', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [`$${formatLargeNumber(value)}`, viewType === 'total' ? "Total Profit" : "Period Profit"]} />
-                                    <Bar dataKey="profit" fill="#0d9488" radius={[6, 6, 0, 0]} />
-                                    <ReferenceLine y={averageProfit} stroke="#0d9488" strokeDasharray="3 3" opacity={0.2} label={{ value: 'Avg', position: 'right', fill: '#0d9488', fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
-                                </BarChart>
-                            ) : chartType === 'line' ? (
-                                <LineChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#0d9488', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [`$${formatLargeNumber(value)}`, viewType === 'total' ? "Total Profit" : "Period Profit"]} />
-                                    <Line type="monotone" dataKey="profit" stroke="#0d9488" strokeWidth={2} dot={{ fill: '#0d9488', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
-                                    <ReferenceLine y={averageProfit} stroke="#0d9488" strokeDasharray="3 3" opacity={0.2} label={{ value: 'Avg', position: 'right', fill: '#0d9488', fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
-                                </LineChart>
-                            ) : (
-                                <AreaChart data={chartData}>
-                                    <defs>
-                                        <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#0d9488', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [`$${formatLargeNumber(value)}`, viewType === 'total' ? "Total Profit" : "Period Profit"]} />
-                                    <Area type="monotone" dataKey="profit" stroke="#0d9488" strokeWidth={2} fillOpacity={1} fill="url(#colorProfit)" animationDuration={1500} />
-                                    <ReferenceLine y={averageProfit} stroke="#0d9488" strokeDasharray="3 3" opacity={0.2} label={{ value: 'Avg', position: 'right', fill: '#0d9488', fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
-                                </AreaChart>
-                            )}
-                        </ResponsiveContainer>
-                    </div>
+                    <ProfitChart 
+                        chartId="abroad-profits"
+                        data={chartData}
+                        viewType={viewType}
+                        setViewType={setViewType}
+                        timeRange={timeRange}
+                        setTimeRange={setTimeRange}
+                        referenceValue={referenceValue}
+                        primaryColor="#0d9488"
+                        formatValue={formatMoney}
+                    />
                 </div>
             </div>
 
@@ -489,13 +453,3 @@ function OverviewItem({ icon, label, value, subValue }: { icon: React.ReactNode,
     );
 }
 
-function ChartControlBtn({ active, onClick, icon }: { active: boolean, onClick: () => void, icon: React.ReactNode }) {
-    return (
-        <button 
-            onClick={onClick}
-            className={`p-2 rounded-lg transition-all ${active ? 'bg-primary text-white shadow-md' : 'text-foreground/40 hover:text-foreground/60 hover:bg-foreground/5'}`}
-        >
-            {icon}
-        </button>
-    );
-}
