@@ -1,5 +1,10 @@
 # BlackMarket Ledger Version History
 
+## v4.2.0 (2026-03-20)
+- **Interactive Multi-Chart Dashboard**: Replaced static profit stats with dynamic Recharts-powered data visualization. Support for Area, Line, and Bar charts.
+- **Museum & Abroad Analytics**: Specialized analytics views for Point Market conversions and international market trends.
+- **Historical Scaling**: Smooth transition between Daily, Weekly, Monthly, and Yearly historical views with cumulative/incremental toggles to track long-term progress.
+
 ## v4.1.1 (2026-03-20)
 - **Dynamic Changelog Parser**: Refactored the version history page into a dynamic Server Component. It now automatically parses version-history.md for seamless, hands-off historical tracking and rendering.
 
