@@ -313,23 +313,31 @@ export default function AbroadDashboard() {
                 {/* Chart Area (2/3) */}
                 <div className="lg:col-span-2 pl-0 lg:pl-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                        <div>
-                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1 flex items-center gap-2">
-                                <Activity className="w-3" />
-                                Profit Dynamics
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <p className="text-lg font-bold">{viewType === 'total' ? 'Cumulative' : 'Incremental'} Growth</p>
-                                <div className="flex bg-foreground/5 p-1 rounded-lg">
-                                    <button 
-                                        onClick={() => setViewType('daily')}
-                                        className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${viewType === 'daily' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
-                                    >Daily</button>
-                                    <button 
-                                        onClick={() => setViewType('total')}
-                                        className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${viewType === 'total' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
-                                    >Total</button>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-8">
+                            <div>
+                                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1 flex items-center gap-2">
+                                    <Activity className="w-3" />
+                                    Profit Dynamics
+                                </h2>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-lg font-bold">{viewType === 'total' ? 'Cumulative' : 'Incremental'} Growth</p>
+                                    <div className="flex bg-foreground/5 p-1 rounded-lg">
+                                        <button 
+                                            onClick={() => setViewType('daily')}
+                                            className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${viewType === 'daily' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
+                                        >Daily</button>
+                                        <button 
+                                            onClick={() => setViewType('total')}
+                                            className={`px-2 py-0.5 text-[9px] font-black uppercase rounded ${viewType === 'total' ? 'bg-primary text-white shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
+                                        >Total</button>
+                                    </div>
                                 </div>
+                            </div>
+
+                            <div className="hidden sm:block">
+                                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1">Total Realized</h2>
+                                <p className="text-lg font-bold text-primary tracking-tight">{formatMoney(abroadStats.totalProfit)}</p>
+                                <p className="text-[9px] font-black uppercase tracking-widest opacity-40">Avg: ${formatLargeNumber(averageProfit)}</p>
                             </div>
                         </div>
                         

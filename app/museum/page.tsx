@@ -267,6 +267,14 @@ export default function MuseumDashboard() {
                                 </div>
                             </div>
                         </div>
+
+                        <div className="text-right">
+                             <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-success/60 mb-1">Total Realized Profit</h2>
+                             <p className="text-2xl font-black text-success tracking-tight">{formatMoney(pointsStats.realizedProfit)}</p>
+                             <div className="mt-1 flex items-center justify-end gap-1.5 opacity-40">
+                                 <p className="text-[9px] font-black uppercase tracking-widest">Avg {timeRange === 'daily' ? 'Daily' : timeRange === 'monthly' ? 'Monthly' : 'Yearly'}: ${formatLargeNumber(averageProfit)}</p>
+                             </div>
+                        </div>
                         
                         <div className="flex flex-wrap items-center gap-3">
                             {/* Time Select */}
