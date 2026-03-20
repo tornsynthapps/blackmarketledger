@@ -18,7 +18,14 @@ function ActivityPageContent() {
     const filteredActivities = useMemo(() => {
         return [...autoPilotRecentImports]
             .filter((record) => {
-                const matchesType = !filterType || record.sourceType === filterType;
+                const effectiveType = record.sourceType || (
+                    record.title.toLowerCase().includes("bazaar") ? "bazaar" :
+                    record.title.toLowerCase().includes("item market") ? "item-market" :
+                    record.title.toLowerCase().includes("trade") ? "trade" :
+                    record.title.toLowerCase().includes("points market") ? "points-market" :
+                    record.title.toLowerCase().includes("museum") ? "museum" : undefined
+                );
+                const matchesType = !filterType || effectiveType === filterType;
                 const matchesSearch = !search || 
                     record.title.toLowerCase().includes(search.toLowerCase()) ||
                     record.tornLogId?.toLowerCase().includes(search.toLowerCase()) ||
@@ -114,7 +121,13 @@ function ActivityPageContent() {
                                     )}
                                     <p className="font-bold">{record.title}</p>
                                     <span className="text-[10px] bg-foreground/5 border border-border px-2 py-0.5 rounded uppercase tracking-wider font-bold text-foreground/50">
-                                        {record.sourceType?.replace("-", " ")}
+                                        {(record.sourceType || (
+                                            record.title.toLowerCase().includes("bazaar") ? "bazaar" :
+                                            record.title.toLowerCase().includes("item market") ? "item-market" :
+                                            record.title.toLowerCase().includes("trade") ? "trade" :
+                                            record.title.toLowerCase().includes("points market") ? "points-market" :
+                                            record.title.toLowerCase().includes("museum") ? "museum" : undefined
+                                        ))?.replace("-", " ")}
                                     </span>
                                 </div>
                                 <p className="mt-1 text-sm text-foreground/55">

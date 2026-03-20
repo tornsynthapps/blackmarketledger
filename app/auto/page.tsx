@@ -112,12 +112,23 @@ export default function AutoPilotPage() {
   ]);
 
   const autoPilotStats = useMemo(() => {
-    const unlinkedTrades = autoPilotRecentImports.filter(record => record.sourceType === 'trade' && record.status === 'manual_required');
-    const successfulTrades = autoPilotRecentImports.filter(record => record.sourceType === 'trade' && record.status === 'imported');
-    const itemMarketImports = autoPilotRecentImports.filter(record => record.sourceType === 'item-market');
-    const bazaarImports = autoPilotRecentImports.filter(record => record.sourceType === 'bazaar');
-    const pointsMarketImports = autoPilotRecentImports.filter(record => record.sourceType === 'points-market');
-    const museumImports = autoPilotRecentImports.filter(record => record.sourceType === 'museum');
+    const getSource = (record: AutoPilotImportRecord) => {
+      if (record.sourceType) return record.sourceType;
+      const t = record.title.toLowerCase();
+      if (t.includes("bazaar")) return "bazaar";
+      if (t.includes("item market")) return "item-market";
+      if (t.includes("trade")) return "trade";
+      if (t.includes("points market")) return "points-market";
+      if (t.includes("museum")) return "museum";
+      return undefined;
+    };
+
+    const unlinkedTrades = autoPilotRecentImports.filter(record => getSource(record) === 'trade' && record.status === 'manual_required');
+    const successfulTrades = autoPilotRecentImports.filter(record => getSource(record) === 'trade' && record.status === 'imported');
+    const itemMarketImports = autoPilotRecentImports.filter(record => getSource(record) === 'item-market');
+    const bazaarImports = autoPilotRecentImports.filter(record => getSource(record) === 'bazaar');
+    const pointsMarketImports = autoPilotRecentImports.filter(record => getSource(record) === 'points-market');
+    const museumImports = autoPilotRecentImports.filter(record => getSource(record) === 'museum');
 
     return [
       { id: 'trade-unlinked', label: "Unlinked Trades", count: unlinkedTrades.length, icon: Link2Off, type: 'trade' as const, color: "orange" },
@@ -178,7 +189,7 @@ export default function AutoPilotPage() {
             timestamp: log.timestamp,
             title: log.title || log.category || "Torn log",
             status: "imported",
-            sourceType: getImportSourceTypeFromTitle(log.title || log.category || ""),
+            sourceType: result.logs[0]?.sourceType,
             tornLogId: String(log.id)
           }));
         }
@@ -432,7 +443,15 @@ export default function AutoPilotPage() {
                     <AlertTriangle className="h-4 w-4 text-foreground/50" />
                   )}
                   <p className="font-bold tracking-tight">{record.title}</p>
-                  <span className="text-[10px] bg-foreground/5 py-0.5 px-2 rounded font-bold text-foreground/50 uppercase tracking-widest">{record.sourceType?.replace("-", " ")}</span>
+                  <span className="text-[10px] bg-foreground/5 py-0.5 px-2 rounded font-bold text-foreground/50 uppercase tracking-widest">
+                    {(record.sourceType || (
+                      record.title.toLowerCase().includes("bazaar") ? "bazaar" :
+                      record.title.toLowerCase().includes("item market") ? "item-market" :
+                      record.title.toLowerCase().includes("trade") ? "trade" :
+                      record.title.toLowerCase().includes("points market") ? "points-market" :
+                      record.title.toLowerCase().includes("museum") ? "museum" : ""
+                    ))?.replace("-", " ")}
+                  </span>
                 </div>
                 <p className="mt-1 text-xs text-foreground/55 font-medium">
                   {new Date(record.timestamp * 1000).toLocaleString()}
