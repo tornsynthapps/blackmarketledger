@@ -3,7 +3,17 @@
 import { useJournal, InventoryItemStats } from "@/store/useJournal";
 import { Coins, Droplet, ArrowRightLeft, TrendingUp, Flower2, Ghost, Box } from "lucide-react";
 import { useMemo } from "react";
-import { formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { formatItemName, FLOWER_SET, PLUSHIE_SET, Transaction } from "@/lib/parser";
+import { 
+    AreaChart, 
+    Area, 
+    XAxis, 
+    YAxis, 
+    CartesianGrid, 
+    Tooltip, 
+    ResponsiveContainer 
+} from 'recharts';
+import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 
 const formatMoney = (val: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -14,7 +24,7 @@ const formatMoney = (val: number) => {
 };
 
 export default function MuseumDashboard() {
-    const { isLoaded, inventory } = useJournal();
+    const { isLoaded, inventory, transactions } = useJournal();
 
     const {
         flushieStats,
@@ -58,6 +68,82 @@ export default function MuseumDashboard() {
             totalProfit
         };
     }, [inventory]);
+
+    const chartData = useMemo(() => {
+        if (!isLoaded || !transactions.length) return [];
+
+        const now = new Date();
+        const periods = Array.from({ length: 30 }, (_, i) => subDays(now, 29 - i));
+        
+        // Use the same sort logic as StatsModal to ensure consistent calculation
+        const sortedTransactions = [...transactions].sort((a, b) => {
+            if (a.date !== b.date) return a.date - b.date;
+            return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
+        });
+
+        const tempInventory = new Map<string, any>();
+        let transactionIndex = 0;
+        
+        return periods.map(period => {
+            const periodEnd = endOfDay(startOfDay(period));
+
+            while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
+                const t = sortedTransactions[transactionIndex];
+                
+                // Simplified applyTransaction for Point Profit calculation
+                if (t.type === 'BUY') {
+                    const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+                    current.stock += t.amount;
+                    current.totalCost += (t.price * t.amount);
+                    tempInventory.set(t.item, current);
+                } else if (t.type === 'SELL') {
+                    const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+                    const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
+                    const costOfGoodsSold = avgCostBasis * t.amount;
+                    current.stock -= t.amount;
+                    current.totalCost -= costOfGoodsSold;
+                    current.realizedProfit += (t.price * t.amount - costOfGoodsSold);
+                    tempInventory.set(t.item, current);
+                } else if (t.type === 'CONVERT') {
+                    const fromCurr = tempInventory.get(t.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+                    const fromAvgCost = fromCurr.stock > 0 ? (fromCurr.totalCost / fromCurr.stock) : 0;
+                    const fromCostOfGoods = fromAvgCost * t.fromAmount;
+                    fromCurr.stock -= t.fromAmount;
+                    fromCurr.totalCost -= fromCostOfGoods;
+                    tempInventory.set(t.fromItem, fromCurr);
+
+                    const toCurr = tempInventory.get(t.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+                    toCurr.stock += t.toAmount;
+                    toCurr.totalCost += fromCostOfGoods;
+                    tempInventory.set(t.toItem, toCurr);
+                } else if (t.type === 'SET_CONVERT') {
+                    const setItems = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
+                    let totalCostOfGoods = 0;
+                    setItems.forEach(item => {
+                        const curr = tempInventory.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+                        const avgCost = curr.stock > 0 ? (curr.totalCost / curr.stock) : 0;
+                        const costOfGoods = avgCost * t.times;
+                        curr.stock -= t.times;
+                        curr.totalCost -= costOfGoods;
+                        tempInventory.set(item, curr);
+                        totalCostOfGoods += costOfGoods;
+                    });
+                    const pointsCurr = tempInventory.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0 };
+                    pointsCurr.stock += t.pointsEarned;
+                    pointsCurr.totalCost += totalCostOfGoods;
+                    tempInventory.set('points', pointsCurr);
+                }
+                
+                transactionIndex += 1;
+            }
+
+            const pointsEntry = tempInventory.get('points') || { realizedProfit: 0 };
+            return {
+                date: format(period, 'MMM dd'),
+                profit: Math.round(pointsEntry.realizedProfit)
+            };
+        });
+    }, [isLoaded, transactions]);
 
     if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
@@ -174,6 +260,74 @@ export default function MuseumDashboard() {
                             </span>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Profit Trend Chart */}
+            <div className="bg-panel rounded-xl border border-border shadow-sm p-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-bl-full -z-10 pointer-events-none" />
+                <div className="flex items-center justify-between mb-8 relative z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-primary/10 rounded-xl">
+                            <TrendingUp className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold">Points Profit Trend</h2>
+                            <p className="text-sm text-foreground/60">30-day cumulative points realized profit tracking</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs text-foreground/40 font-medium uppercase tracking-wider">Total Realized</p>
+                        <p className="text-2xl font-black text-primary">{formatMoney(pointsStats.realizedProfit)}</p>
+                    </div>
+                </div>
+
+                <div className="h-[300px] w-full relative z-10">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData}>
+                            <defs>
+                                <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
+                            <XAxis 
+                                dataKey="date" 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 11 }}
+                                dy={10}
+                            />
+                            <YAxis 
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 11 }}
+                                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
+                            />
+                            <Tooltip 
+                                contentStyle={{ 
+                                    backgroundColor: 'hsl(var(--panel))', 
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: '12px',
+                                    padding: '12px',
+                                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
+                                }}
+                                itemStyle={{ color: '#f59e0b', fontWeight: 'bold' }}
+                                labelStyle={{ opacity: 0.5, marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                                formatter={(value: any) => [formatMoney(value), "Cumulative Profit"]}
+                            />
+                            <Area 
+                                type="monotone" 
+                                dataKey="profit" 
+                                stroke="#f59e0b" 
+                                strokeWidth={3}
+                                fillOpacity={1} 
+                                fill="url(#colorProfit)" 
+                                animationDuration={1500}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 
