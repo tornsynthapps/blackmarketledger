@@ -158,176 +158,123 @@ export default function MuseumDashboard() {
         >
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-primary">Museum</h1>
-                    <p className="text-foreground/60 mt-2">Specialized dashboard for tracking flushies, plushies, flowers, and point conversions.</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-primary">Museum Dashboard</h1>
+                    <p className="text-foreground/60 mt-2">Specialized tracking for points conversions, item sets, and market economics.</p>
                 </div>
-                <div className="hidden sm:flex items-center justify-center p-4 bg-primary/10 rounded-full border border-primary/20">
-                    <Box className="w-8 h-8 text-primary" />
+                <div className="hidden sm:flex items-center justify-center p-3 bg-primary/10 rounded-2xl border border-primary/20">
+                    <Box className="w-8 h-8 text-primary shadow-[0_0_15px_-3px_#f59e0b20]" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    title="Points Stock"
-                    value={pointsStats.stock.toLocaleString()}
-                    icon={<Coins className="text-primary w-5 h-5" />}
-                    description={`Avg Cost: ${formatMoney(pointsAvg)}`}
-                />
-                <StatCard
-                    title="Flower Stock"
-                    value={flowersData.reduce((acc, curr) => acc + curr.stats.stock, 0).toLocaleString()}
-                    icon={<Flower2 className="text-primary w-5 h-5" />}
-                    description="Total flowers acquired"
-                />
-                <StatCard
-                    title="Plushie Stock"
-                    value={plushiesData.reduce((acc, curr) => acc + curr.stats.stock, 0).toLocaleString()}
-                    icon={<Ghost className="text-primary w-5 h-5" />}
-                    description="Total plushies acquired"
-                />
-                <StatCard
-                    title="Museum Inventory Value"
-                    value={formatMoney(totalValue)}
-                    icon={<Box className="text-primary w-5 h-5" />}
-                    description="Total cost basis of sets & points"
-                />
-            </div>
+            {/* Hero Section: 1/3 Stats List - 2/3 Chart */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-panel rounded-[2rem] border border-border shadow-2xl p-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-bl-[10rem] -z-10 pointer-events-none transition-transform group-hover:scale-110 duration-700" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-tr-[8rem] -z-10 pointer-events-none transition-transform group-hover:scale-110 duration-700" />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Points Detail */}
-                <div className="bg-panel rounded-xl border border-border shadow-sm p-6 relative overflow-hidden">
-                    <div className="absolute -right-10 -top-10 opacity-[0.03] pointer-events-none">
-                        <Coins className="w-64 h-64" />
-                    </div>
-                    <div className="flex items-center gap-3 mb-6 relative z-10">
-                        <div className="p-3 bg-primary/10 rounded-xl">
-                            <Coins className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">Points Ledger</h2>
-                            <p className="text-sm text-foreground/60">Converted inventory & sales</p>
+                {/* Overview List (1/3) */}
+                <div className="space-y-8 pr-0 lg:pr-8 border-r-0 lg:border-r border-border/50">
+                    <div>
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-6 flex items-center gap-2">
+                            <TrendingUp className="w-3 h-3" />
+                            Inventory Overview
+                        </h2>
+                        
+                        <div className="space-y-6">
+                            <OverviewItem 
+                                icon={<Coins className="w-4 h-4" />}
+                                label="Points Stock"
+                                value={pointsStats.stock.toLocaleString()}
+                                subValue={`Avg Cost: ${formatMoney(pointsAvg)}`}
+                            />
+                            <OverviewItem 
+                                icon={<Flower2 className="w-4 h-4" />}
+                                label="Flower Stock"
+                                value={flowersData.reduce((acc, curr) => acc + curr.stats.stock, 0).toLocaleString()}
+                                subValue={`${flowerSetsPossible} Sets Ready`}
+                            />
+                            <OverviewItem 
+                                icon={<Ghost className="w-4 h-4" />}
+                                label="Plushie Stock"
+                                value={plushiesData.reduce((acc, curr) => acc + curr.stats.stock, 0).toLocaleString()}
+                                subValue={`${plushieSetsPossible} Sets Ready`}
+                            />
                         </div>
                     </div>
 
-                    <div className="space-y-4 relative z-10">
-                        <div className="flex justify-between items-center py-3 border-b border-border/50">
-                            <span className="text-foreground/70">Cost Basis (From Sets/Flushies)</span>
-                            <span className="font-medium">{formatMoney(pointsStats.totalCost)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-3 border-b border-border/50">
-                            <span className="text-foreground/70">Avg Cost Per Point</span>
-                            <span className="font-medium bg-foreground/5 px-2 py-1 rounded">{formatMoney(pointsAvg)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-3">
-                            <span className="text-foreground/70">Profit from Point sales</span>
-                            <span className={`font-bold ${pointsStats.realizedProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-                                {formatMoney(pointsStats.realizedProfit)}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Set Values */}
-                <div className="bg-panel rounded-xl border border-border shadow-sm p-6 relative overflow-hidden">
-                    <div className="absolute -right-6 -top-6 bg-primary/10 w-32 h-32 rounded-full blur-2xl pointer-events-none" />
-                    <div className="flex items-center gap-3 mb-6 relative z-10">
-                        <div className="p-3 bg-primary/10 rounded-xl">
-                            <Box className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">Set Assembly Cost</h2>
-                            <p className="text-sm text-foreground/60">Calculated sum of avg costs</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4 relative z-10">
-                        <div className="flex justify-between items-center py-3 border-b border-border/50">
-                            <div className="flex items-center gap-2">
-                                <Flower2 className="w-4 h-4 text-foreground/50" />
-                                <span className="text-foreground/70">Avg Cost of Flower Set</span>
+                    <div className="pt-8 border-t border-border/50">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-primary/10 rounded-xl">
+                                <Box className="w-6 h-6 text-primary" />
                             </div>
-                            <span className="font-medium bg-foreground/5 px-2 py-1 rounded">
-                                {formatMoney(flowersData.reduce((acc, curr) => acc + (curr.stats.stock > 0 ? curr.stats.totalCost / curr.stats.stock : 0), 0))}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center py-3">
-                            <div className="flex items-center gap-2">
-                                <Ghost className="w-4 h-4 text-foreground/50" />
-                                <span className="text-foreground/70">Avg Cost of Plushie Set</span>
+                            <div>
+                                <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">Total Inventory Value</p>
+                                <p className="text-2xl font-black tracking-tight">{formatMoney(totalValue)}</p>
                             </div>
-                            <span className="font-medium bg-foreground/5 px-2 py-1 rounded">
-                                {formatMoney(plushiesData.reduce((acc, curr) => acc + (curr.stats.stock > 0 ? curr.stats.totalCost / curr.stats.stock : 0), 0))}
-                            </span>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Profit Trend Chart */}
-            <div className="bg-panel rounded-xl border border-border shadow-sm p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-bl-full -z-10 pointer-events-none" />
-                <div className="flex items-center justify-between mb-8 relative z-10">
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 bg-primary/10 rounded-xl">
-                            <TrendingUp className="w-6 h-6 text-primary" />
-                        </div>
+                {/* Chart Area (2/3) */}
+                <div className="lg:col-span-2 pl-0 lg:pl-4">
+                    <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h2 className="text-xl font-bold">Points Profit Trend</h2>
-                            <p className="text-sm text-foreground/60">30-day cumulative points realized profit tracking</p>
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1">Point Profit Trends</h2>
+                            <p className="text-lg font-bold">30-Day Growth</p>
+                        </div>
+                        <div className="text-right">
+                             <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-success/60 mb-1">Total Realized Profit</h2>
+                             <p className="text-2xl font-black text-success tracking-tight">{formatMoney(pointsStats.realizedProfit)}</p>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <p className="text-xs text-foreground/40 font-medium uppercase tracking-wider">Total Realized</p>
-                        <p className="text-2xl font-black text-primary">{formatMoney(pointsStats.realizedProfit)}</p>
-                    </div>
-                </div>
 
-                <div className="h-[300px] w-full relative z-10">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData}>
-                            <defs>
-                                <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
-                            <XAxis 
-                                dataKey="date" 
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 11 }}
-                                dy={10}
-                            />
-                            <YAxis 
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 11 }}
-                                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
-                            />
-                            <Tooltip 
-                                contentStyle={{ 
-                                    backgroundColor: 'hsl(var(--panel))', 
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '12px',
-                                    padding: '12px',
-                                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-                                }}
-                                itemStyle={{ color: '#f59e0b', fontWeight: 'bold' }}
-                                labelStyle={{ opacity: 0.5, marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                                formatter={(value: any) => [formatMoney(value), "Cumulative Profit"]}
-                            />
-                            <Area 
-                                type="monotone" 
-                                dataKey="profit" 
-                                stroke="#f59e0b" 
-                                strokeWidth={3}
-                                fillOpacity={1} 
-                                fill="url(#colorProfit)" 
-                                animationDuration={1500}
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                    <div className="h-[320px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData}>
+                                <defs>
+                                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
+                                <XAxis 
+                                    dataKey="date" 
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }}
+                                    dy={10}
+                                />
+                                <YAxis 
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }}
+                                    tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
+                                />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: 'hsl(var(--panel))', 
+                                        border: '1px solid hsl(var(--border))',
+                                        borderRadius: '16px',
+                                        padding: '16px',
+                                        boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                                        backdropFilter: 'blur(8px)'
+                                    }}
+                                    itemStyle={{ color: '#f59e0b', fontWeight: '900' }}
+                                    labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                                    formatter={(value: any) => [formatMoney(value), "Cumulative Profit"]}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="profit" 
+                                    stroke="#f59e0b" 
+                                    strokeWidth={4}
+                                    fillOpacity={1} 
+                                    fill="url(#colorProfit)" 
+                                    animationDuration={1500}
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
 
@@ -390,6 +337,25 @@ function StatCard({
             <div className="relative z-10">
                 <p className={`text-2xl font-bold tracking-tight ${valueClass}`}>{value}</p>
                 <p className="text-xs text-foreground/50 mt-1">{description}</p>
+            </div>
+        </div>
+    );
+}
+
+function OverviewItem({ icon, label, value, subValue }: { icon: React.ReactNode, label: string, value: string, subValue: string }) {
+    return (
+        <div className="flex items-center justify-between group/item">
+            <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 rounded-lg text-primary group-hover/item:scale-110 transition-transform">
+                    {icon}
+                </div>
+                <div>
+                    <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">{label}</p>
+                    <p className="text-sm font-bold text-foreground/70">{subValue}</p>
+                </div>
+            </div>
+            <div className="text-right">
+                <p className="text-xl font-black tracking-tight text-foreground/90">{value}</p>
             </div>
         </div>
     );
