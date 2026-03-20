@@ -13,7 +13,7 @@ export default function ChangelogPage() {
 
             <div className="space-y-6">
 
-                {/* v4.0.0 */}
+                {/* v4.1.0 */}
                 <div className="bg-panel border border-border p-6 rounded-xl relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-10" />
                     <div className="flex items-center gap-3 mb-6">
@@ -22,10 +22,46 @@ export default function ChangelogPage() {
                         </div>
                         <div>
                             <h2 className="text-xl font-bold">v{pkg.version} <span className="text-sm font-medium text-primary ml-2 bg-primary/10 px-2 py-0.5 rounded-full">Current</span></h2>
-                            <p className="text-sm text-foreground/50 mt-0.5">March 19, 2026</p>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 20, 2026</p>
                         </div>
                     </div>
 
+                    <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Auto-Pilot UI Refactor</span>
+                            <p className="text-sm text-foreground/70 mt-1">Dedicated Auto-Pilot activity page with advanced filtering (Bazaar, Item Market, Trade, Points Market, Museum) and historical search.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Points Market & Museum Integration</span>
+                            <p className="text-sm text-foreground/70 mt-1">Automatic fetching and parsing of Points Market sales and Museum exchanges. Includes custom labels and historical count tracking.</p>
+                        </li>
+                        <li className="relative pl-8">
+                            <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
+                                <GitCommitHorizontal className="w-4 h-4 text-foreground/40" />
+                            </div>
+                            <span className="font-semibold text-foreground/90">Layout Optimizations</span>
+                            <p className="text-sm text-foreground/70 mt-1">Improved dashboard organization by moving the Review Queue for better visibility and workflow efficiency.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {/* v4.0.0 */}
+                <div className="bg-panel/50 border border-border/50 p-6 rounded-xl relative opacity-80 mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-foreground/5 rounded-lg text-foreground/60">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground/80">v4.0.0</h2>
+                            <p className="text-sm text-foreground/50 mt-0.5">March 19, 2026</p>
+                        </div>
+                    </div>
                     <ul className="space-y-3 relative before:absolute before:inset-y-0 before:left-[11px] before:w-px before:bg-border/60 ml-2">
                         <li className="relative pl-8">
                             <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
