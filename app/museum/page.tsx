@@ -182,7 +182,7 @@ export default function MuseumDashboard() {
             </div>
 
             {/* Hero Section: 1/3 Stats List - 2/3 Chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-panel rounded-[2rem] border border-border shadow-2xl p-8 relative overflow-hidden group">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-panel rounded-3xl border border-border shadow-2xl p-8 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-bl-[10rem] -z-10 pointer-events-none transition-transform group-hover:scale-110 duration-700" />
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-tr-[8rem] -z-10 pointer-events-none transition-transform group-hover:scale-110 duration-700" />
 
@@ -281,7 +281,7 @@ export default function MuseumDashboard() {
                                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
                                     <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatMoney(value), viewType === 'total' ? "Total Profit" : "Daily Profit"]} />
-                                    <Bar dataKey="profit" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="profit" fill="#f59e0b" radius={[6, 6, 0, 0]} />
                                 </BarChart>
                             ) : chartType === 'line' ? (
                                 <LineChart data={chartData}>
@@ -289,7 +289,7 @@ export default function MuseumDashboard() {
                                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
                                     <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatMoney(value), viewType === 'total' ? "Total Profit" : "Daily Profit"]} />
-                                    <Line type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, strokeWidth: 0 }} />
+                                    <Line type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
                                 </LineChart>
                             ) : (
                                 <AreaChart data={chartData}>
@@ -303,7 +303,7 @@ export default function MuseumDashboard() {
                                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
                                     <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatMoney(value), viewType === 'total' ? "Total Profit" : "Daily Profit"]} />
-                                    <Area type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={4} fillOpacity={1} fill="url(#colorProfit)" animationDuration={1500} />
+                                    <Area type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorProfit)" animationDuration={1500} />
                                 </AreaChart>
                             )}
                         </ResponsiveContainer>
