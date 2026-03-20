@@ -260,7 +260,7 @@ export default function MuseumDashboard() {
                             {/* Time Select */}
                             <div className="flex bg-foreground/5 p-1 rounded-xl">
                                 <ChartControlBtn active={timeRange === 'daily'} onClick={() => setTimeRange('daily')} icon={<Calendar className="w-3.5 h-3.5" />} />
-                                <ChartControlBtn active={timeRange === 'weekly'} onClick={() => setTimeRange('weekly'} icon={<BarChart3 className="w-3.5 h-3.5" />} />
+                                <ChartControlBtn active={timeRange === 'weekly'} onClick={() => setTimeRange('weekly')} icon={<BarChart3 className="w-3.5 h-3.5" />} />
                                 <ChartControlBtn active={timeRange === 'monthly'} onClick={() => setTimeRange('monthly')} icon={<TrendingUp className="w-3.5 h-3.5" />} />
                             </div>
 
