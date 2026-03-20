@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { formatItemName, FLOWER_SET, PLUSHIE_SET, Transaction } from "@/lib/parser";
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-    LineChart, Line, BarChart, Bar 
+    LineChart, Line, BarChart, Bar, ReferenceLine 
 } from 'recharts';
 import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -16,6 +16,14 @@ const formatMoney = (val: number) => {
         currency: 'USD',
         maximumFractionDigits: 0
     }).format(val);
+};
+
+const formatLargeNumber = (val: number) => {
+    const absVal = Math.abs(val);
+    if (absVal >= 1e9) return (val / 1e9).toFixed(1) + 'B';
+    if (absVal >= 1e6) return (val / 1e6).toFixed(1) + 'M';
+    if (absVal >= 1e3) return (val / 1e3).toFixed(0) + 'K';
+    return val.toString();
 };
 
 export default function MuseumDashboard() {
@@ -64,7 +72,7 @@ export default function MuseumDashboard() {
         };
     }, [inventory]);
 
-    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+    const [timeRange, setTimeRange] = useState<'daily' | 'monthly' | 'yearly'>('daily');
     const [chartType, setChartType] = useState<'line' | 'area' | 'bar'>('area');
     const [viewType, setViewType] = useState<'daily' | 'total'>('total');
 
@@ -77,11 +85,12 @@ export default function MuseumDashboard() {
 
         if (timeRange === 'daily') {
             periods = Array.from({ length: 30 }, (_, i) => subDays(now, 29 - i));
-        } else if (timeRange === 'weekly') {
-            periods = Array.from({ length: 12 }, (_, i) => subWeeks(now, 11 - i));
-        } else {
+        } else if (timeRange === 'monthly') {
             periods = Array.from({ length: 12 }, (_, i) => subMonths(now, 11 - i));
             dateFormat = 'MMM yyyy';
+        } else {
+            periods = Array.from({ length: 5 }, (_, i) => subMonths(now, (4 - i) * 12)); // 5 years
+            dateFormat = 'yyyy';
         }
         
         const sortedTransactions = [...transactions].sort((a, b) => {
@@ -96,8 +105,8 @@ export default function MuseumDashboard() {
         return periods.map(period => {
             let periodEnd: Date;
             if (timeRange === 'daily') periodEnd = endOfDay(startOfDay(period));
-            else if (timeRange === 'weekly') periodEnd = endOfWeek(period);
-            else periodEnd = endOfMonth(period);
+            else if (timeRange === 'monthly') periodEnd = endOfMonth(period);
+            else periodEnd = endOfMonth(period); // Yearly end
 
             while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
                 const t = sortedTransactions[transactionIndex];
@@ -163,6 +172,9 @@ export default function MuseumDashboard() {
     if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
     const pointsAvg = pointsStats.stock > 0 ? pointsStats.totalCost / pointsStats.stock : 0;
+    const averageProfit = chartData.length > 0 
+        ? chartData.reduce((acc, curr) => acc + curr.profit, 0) / chartData.length 
+        : 0;
 
     return (
         <div
@@ -259,9 +271,18 @@ export default function MuseumDashboard() {
                         <div className="flex flex-wrap items-center gap-3">
                             {/* Time Select */}
                             <div className="flex bg-foreground/5 p-1 rounded-xl">
-                                <ChartControlBtn active={timeRange === 'daily'} onClick={() => setTimeRange('daily')} icon={<Calendar className="w-3.5 h-3.5" />} />
-                                <ChartControlBtn active={timeRange === 'weekly'} onClick={() => setTimeRange('weekly')} icon={<BarChart3 className="w-3.5 h-3.5" />} />
-                                <ChartControlBtn active={timeRange === 'monthly'} onClick={() => setTimeRange('monthly')} icon={<TrendingUp className="w-3.5 h-3.5" />} />
+                                <button 
+                                    onClick={() => setTimeRange('daily')}
+                                    className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-lg transition-all ${timeRange === 'daily' ? 'bg-primary text-white shadow-md' : 'text-foreground/40 hover:text-foreground/60'}`}
+                                >D</button>
+                                <button 
+                                    onClick={() => setTimeRange('monthly')}
+                                    className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-lg transition-all ${timeRange === 'monthly' ? 'bg-primary text-white shadow-md' : 'text-foreground/40 hover:text-foreground/60'}`}
+                                >M</button>
+                                <button 
+                                    onClick={() => setTimeRange('yearly')}
+                                    className={`w-8 h-8 flex items-center justify-center text-[10px] font-black rounded-lg transition-all ${timeRange === 'yearly' ? 'bg-primary text-white shadow-md' : 'text-foreground/40 hover:text-foreground/60'}`}
+                                >Y</button>
                             </div>
 
                             {/* Type Select */}
@@ -279,17 +300,19 @@ export default function MuseumDashboard() {
                                 <BarChart data={chartData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
                                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatMoney(value), viewType === 'total' ? "Total Profit" : "Daily Profit"]} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [`$${formatLargeNumber(value)}`, viewType === 'total' ? "Total Profit" : "Period Profit"]} />
                                     <Bar dataKey="profit" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                                    <ReferenceLine y={averageProfit} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.2} label={{ value: 'Avg', position: 'right', fill: '#f59e0b', fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
                                 </BarChart>
                             ) : chartType === 'line' ? (
                                 <LineChart data={chartData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
                                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatMoney(value), viewType === 'total' ? "Total Profit" : "Daily Profit"]} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [`$${formatLargeNumber(value)}`, viewType === 'total' ? "Total Profit" : "Period Profit"]} />
                                     <Line type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b', strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                                    <ReferenceLine y={averageProfit} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.2} label={{ value: 'Avg', position: 'right', fill: '#f59e0b', fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
                                 </LineChart>
                             ) : (
                                 <AreaChart data={chartData}>
@@ -301,9 +324,10 @@ export default function MuseumDashboard() {
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
                                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatMoney(value), viewType === 'total' ? "Total Profit" : "Daily Profit"]} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#f59e0b', fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [`$${formatLargeNumber(value)}`, viewType === 'total' ? "Total Profit" : "Period Profit"]} />
                                     <Area type="monotone" dataKey="profit" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorProfit)" animationDuration={1500} />
+                                    <ReferenceLine y={averageProfit} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.2} label={{ value: 'Avg', position: 'right', fill: '#f59e0b', fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
                                 </AreaChart>
                             )}
                         </ResponsiveContainer>
