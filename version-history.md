@@ -1,5 +1,8 @@
 # BlackMarket Ledger Version History
 
+## v4.1.1 (2026-03-20)
+- **Dynamic Changelog Parser**: Refactored the version history page into a dynamic Server Component. It now automatically parses version-history.md for seamless, hands-off historical tracking and rendering.
+
 ## v4.1.0 (2026-03-20)
 - **Auto-Pilot UI Refactor**: Dedicated Auto-Pilot activity page with advanced filtering and historical search.
 - **Points Market & Museum Integration**: Automatic fetching and parsing of Points Market sales and Museum exchanges.
