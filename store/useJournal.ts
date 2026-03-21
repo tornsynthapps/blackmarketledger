@@ -131,6 +131,9 @@ export function useJournal() {
     const transactionsRef = useRef<Transaction[]>([]);
     const bootstrapStartedRef = useRef(false);
 
+    /**
+     * Returns the active DB name based on the current storage preference.
+     */
     const getActiveDB = useCallback((): idb.DBName => {
         const pref = localStorage.getItem("bml_storage_pref");
         return pref === "drive" ? "GoogleCacheLogsDB" : "LogsDB";

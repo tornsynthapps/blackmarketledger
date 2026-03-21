@@ -1,8 +1,9 @@
 import { ParsedLog, TransactionSourceType, normalizeItemName } from "./parser";
+export type { ParsedLog };
 
-const TORN_V2_API_BASE = "https://api.torn.com/v2";
+export const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
-const AUTO_PILOT_LOG_CATEGORIES = [11, 18, 6];
+const AUTO_PILOT_LOG_CATEGORIES = ["Market", "Bazaar", "Points", "Museum", "Attacks"];
 const MARKET_LOG_TYPE_MAP: Record<number, { type: "BUY" | "SELL"; sourceType: TransactionSourceType }> = {
   1112: { type: "BUY", sourceType: "item-market" },
   1113: { type: "SELL", sourceType: "item-market" },
@@ -28,6 +29,7 @@ export interface SyncCursor {
 export interface TornLogEntry {
   id: number | string;
   timestamp: number;
+  title?: string;
   details?: {
     id?: number;
     title?: string;
@@ -125,8 +127,49 @@ export interface AutoPilotTradeLink {
   manual?: boolean;
 }
 
-function compareLogIds(left: string, right: string) {
+export interface TornLogsParams {
+  log?: number[];
+  cat?: number;
+  target?: number;
+  limit?: number;
+  to?: number;
+  from?: number;
+  timestamp?: string;
+  comment?: string;
+  nextUrl?: string;
+  sort?: "asc" | "desc";
+}
+
+export interface TornLogsResponse {
+  log: TornLogEntry[];
+  _metadata: {
+    links: {
+      next: string;
+      prev: string;
+    };
+  };
+}
+
+export function compareLogIds(left: string, right: string) {
+  if (left.length !== right.length) {
+    return left.length - right.length;
+  }
   return left.localeCompare(right);
+}
+
+export async function getTornLogs(
+  apiKey: string,
+  params: TornLogsParams,
+): Promise<TornLogsResponse> {
+  const url = params.nextUrl
+    ? withApiKey(params.nextUrl, apiKey)
+    : buildUrl(TORN_V2_API_BASE, "/user/log", {
+        ...params,
+        log: params.log?.join(","),
+        key: apiKey,
+      });
+  const response = await fetch(url, { cache: "no-store" });
+  return await parseJson(response);
 }
 
 type ParseResult =
@@ -152,7 +195,7 @@ async function parseJson(response: Response) {
   return data;
 }
 
-function buildUrl(
+export function buildUrl(
   base: string,
   path: string,
   params: Record<string, string | number | undefined>,
@@ -334,7 +377,7 @@ export function normalizeTornLog(entry: TornLogEntry): NormalizedLog {
     timestamp: Number(entry.timestamp),
     category: entry.details?.category || "",
     typeId: Number(entry.details?.id || 0),
-    title: entry.details?.title || "",
+    title: entry.title || entry.details?.title || "",
     data: (entry.data as Record<string, unknown>) || {},
     params: (entry.params as Record<string, unknown>) || {},
   };
@@ -462,6 +505,22 @@ export function parseNormalizedLog(
     return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
   }
 
+  if (haystack.includes("mugged") || [8101, 8102].includes(log.typeId)) {
+    const moneyMatch = String(log.title).match(/\$([\d,]+)/);
+    const amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : undefined;
+    if (amount) {
+      return {
+        kind: "parsed",
+        logs: [{
+          type: "MUG",
+          amount,
+          loggedAt: log.timestamp * 1000,
+          tornLogId: String(log.id),
+        }]
+      };
+    }
+  }
+
   if (haystack.includes("bazaar") || haystack.includes("item market")) {
     const logs = parseBazaarOrMarketLog(log, itemNameMap);
     return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
@@ -472,23 +531,24 @@ export function parseNormalizedLog(
 
 async function getLogsForCategory(
   apiKey: string,
-  categoryId: number,
+  category: string,
   cursor: SyncCursor,
 ) {
   let nextUrl = buildUrl(TORN_V2_API_BASE, "/user/log", {
-    cat: categoryId,
+    category,
     from: cursor.lastTimestamp,
     to: Math.floor(Date.now() / 1000),
-    limit: 20,
+    limit: 100,
     sort: "desc",
     key: apiKey,
+    _cb: Date.now(),
   });
   const collected: NormalizedLog[] = [];
   let workingCursor = { ...cursor };
   const seenLogIds = new Set<string>();
 
   while (nextUrl) {
-    const response = await fetch(nextUrl);
+    const response = await fetch(nextUrl, { cache: "no-store" });
     const data = await parseJson(response);
     const page: NormalizedLog[] = Array.isArray(data?.log)
       ? (data.log as TornLogEntry[]).map(normalizeTornLog)
@@ -513,11 +573,10 @@ async function getLogsForCategory(
 
     if (filtered.length) {
       collected.push(...filtered);
-      const last = filtered[filtered.length - 1];
-      workingCursor = { lastTimestamp: last.timestamp, lastLogId: last.id };
     }
 
-    if (!page.length || !prevLink) {
+    // Stop if we found fewer results than the limit, or if even one log in the page was older than our cursor
+    if (!page.length || !prevLink || filtered.length < page.length) {
       break;
     }
 
@@ -530,7 +589,10 @@ async function getLogsForCategory(
 export async function getNewLogs(apiKey: string, cursor: SyncCursor) {
   const categoryPages = await Promise.all(
     AUTO_PILOT_LOG_CATEGORIES.map((categoryId) =>
-      getLogsForCategory(apiKey, categoryId, cursor),
+      getLogsForCategory(apiKey, categoryId, cursor).catch((err) => {
+        console.error(`Failed to fetch logs for category ${categoryId}:`, err);
+        return [];
+      }),
     ),
   );
   const logs = categoryPages
@@ -548,19 +610,19 @@ export async function getTornItems(apiKey: string) {
   const url = buildUrl(TORN_V2_API_BASE, "/torn/items", {
     key: apiKey,
   });
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   const data = await parseJson(response);
-  const itemsSource = Array.isArray(data?.items)
-    ? data.items
-    : Array.isArray(data?.data?.items)
-      ? data.data.items
-      : [];
+  const itemsSource = data?.items || data?.data?.items || {};
   const itemMap: TornItemNameMap = new Map();
 
-  for (const item of itemsSource) {
+  const entries = Array.isArray(itemsSource) 
+    ? itemsSource 
+    : Object.entries(itemsSource).map(([id, val]) => ({ id, ...(val as object) }));
+
+  for (const item of entries) {
     const id = Number(item?.id);
     const name =
-      typeof item?.name === "string" ? normalizeItemName(item.name) : "";
+      typeof (item as any)?.name === "string" ? normalizeItemName((item as any).name) : "";
     if (Number.isFinite(id) && name) {
       itemMap.set(id, name);
     }
@@ -585,7 +647,7 @@ export async function getCompletedTrades(
       sort: "ASC",
       key: apiKey,
     });
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: "no-store" });
     const data = await parseJson(response);
     const page: TornTradeListItem[] = Array.isArray(data?.trades)
       ? (data.trades as TornTradeListItem[])
@@ -624,7 +686,7 @@ export async function getTradeDetail(apiKey: string, tradeId: string | number) {
   const url = buildUrl(TORN_V2_API_BASE, `/user/${tradeId}/trade`, {
     key: apiKey,
   });
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   const data = await parseJson(response);
   return data?.trade as TornTradeDetail;
 }
@@ -638,12 +700,13 @@ export async function getWeav3rTrades(
   let nextUrl = buildUrl(WEAV3R_API_BASE, `/trades/${userId}`, {
     apiKey,
     limit: 100,
+    from: startTimestamp,
   });
   const collected: Weav3rReceipt[] = [];
   const cachedReceiptMap = new Map(cachedReceipts.map((receipt) => [receipt.id, receipt]));
 
   while (true) {
-    const response = await fetch(nextUrl);
+    const response = await fetch(nextUrl, { cache: "no-store" });
     const data = await parseJson(response);
     const page: Weav3rTradeListItem[] = Array.isArray(data?.trades)
       ? (data.trades as Weav3rTradeListItem[])
@@ -656,10 +719,6 @@ export async function getWeav3rTrades(
 
     for (const trade of page) {
       const receipt = cachedReceiptMap.get(trade.id) || await getWeav3rReceipt(apiKey, userId, trade.id);
-      if (Number(receipt.created_at) < startTimestamp) {
-        shouldContinue = false;
-        continue;
-      }
       collected.push(receipt);
     }
 
@@ -681,7 +740,7 @@ export async function getWeav3rReceipt(
   const url = buildUrl(WEAV3R_API_BASE, `/trades/${userId}/${receiptId}`, {
     apiKey,
   });
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   const data = await parseJson(response);
   return data as Weav3rReceipt;
 }
@@ -814,11 +873,16 @@ export function compareTradeAgainstReceipt(
   }
 
   const maxAgeSeconds = 6 * 60 * 60;
-  if (receipt.created_at > Number(detail.timestamp) || receipt.created_at < Number(detail.timestamp) - maxAgeSeconds) {
-    pending.differences.push({
-      kind: "direction",
-      message: "Receipt timestamp is not within 6 hours before the Torn trade timestamp.",
-    });
+  const tradeIdStr = String(detail.id);
+  const isExactTradeIdMatch = receipt && String(receipt.trade_id) === tradeIdStr;
+
+  if (receipt && !isExactTradeIdMatch) {
+    if (receipt.created_at > Number(detail.timestamp) || receipt.created_at < Number(detail.timestamp) - maxAgeSeconds) {
+      pending.differences.push({
+        kind: "direction",
+        message: "Receipt timestamp is not within 6 hours before the Torn trade timestamp.",
+      });
+    }
   }
 
   return pending;
@@ -830,6 +894,19 @@ export function findMatchingReceipt(
   currentUserId: string,
   excludedReceiptIds: Set<string> = new Set(),
 ) {
+  // 1. Try exact trade_id match first
+  const tradeIdStr = String(detail.id);
+  const exactMatch = receipts.find(
+    (r) => String(r.trade_id) === tradeIdStr && !excludedReceiptIds.has(r.id)
+  );
+  if (exactMatch) {
+    const comparison = compareTradeAgainstReceipt(detail, exactMatch, currentUserId);
+    if (comparison.differences.length === 0) {
+      return exactMatch;
+    }
+  }
+
+  // 2. Fallback to fuzzy matching
   const matches = receipts
     .filter((receipt) => !excludedReceiptIds.has(receipt.id))
     .map((receipt) => ({

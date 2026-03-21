@@ -11,19 +11,18 @@ import {
   compareTradeAgainstReceipt,
   createParsedLogsFromReceipt,
   findMatchingReceipt,
-  getCompletedTrades,
-  getNewLogs,
   getTornItems,
   getTradeDetail,
   getWeav3rTrades,
-  parseNormalizedLog,
+  NormalizedLog,
   PendingAutoPilotTrade,
   SyncCursor
 } from "@/lib/torn-api";
 import { TornTradeDetail } from "@/lib/torn-api";
 import { TransactionSourceType } from "@/lib/parser";
+import { TronWrapper } from "@/lib/torn-wrapper";
 
-const MAX_RECENT_IMPORTS = 40;
+const MAX_RECENT_IMPORTS = 500;
 
 function mergeRecentImports(current: AutoPilotImportRecord[], incoming: AutoPilotImportRecord[]) {
   const merged = [...incoming, ...current];
@@ -36,13 +35,16 @@ function mergeRecentImports(current: AutoPilotImportRecord[], incoming: AutoPilo
   }).slice(0, MAX_RECENT_IMPORTS);
 }
 
-function getImportSourceTypeFromTitle(title: string): TransactionSourceType | undefined {
-  const haystack = title.toLowerCase();
-  if (haystack.includes("bazaar")) return "bazaar";
-  if (haystack.includes("item market")) return "item-market";
+function getImportSourceType(log: NormalizedLog): TransactionSourceType | undefined {
+  const { typeId, title, category } = log;
+  const haystack = `${title} ${category}`.toLowerCase();
+  
+  if ([1112, 1113].includes(typeId) || haystack.includes("item market")) return "item-market";
+  if ([1225, 1226].includes(typeId) || haystack.includes("bazaar")) return "bazaar";
+  if ([5010, 5011].includes(typeId) || haystack.includes("points")) return "points-market";
+  if (typeId === 7000 || haystack.includes("museum")) return "museum";
   if (haystack.includes("trade")) return "trade";
-  if (haystack.includes("points market")) return "points-market";
-  if (haystack.includes("museum")) return "museum";
+  
   return undefined;
 }
 
@@ -118,7 +120,7 @@ export default function AutoPilotPage() {
       if (t.includes("bazaar")) return "bazaar";
       if (t.includes("item market")) return "item-market";
       if (t.includes("trade")) return "trade";
-      if (t.includes("points market")) return "points-market";
+      if (t.includes("points")) return "points-market";
       if (t.includes("museum")) return "museum";
       return undefined;
     };
@@ -169,47 +171,34 @@ export default function AutoPilotPage() {
 
     try {
       const currentCursor = autoPilotCursor || await initializeCursorNow();
-      if (!autoPilotCursor) {
+      if (!currentCursor) {
         setIsRunning(false);
         return;
       }
 
       setStatusMessage("Fetching Torn logs...");
-      const itemNameMap = await getTornItems(tornApiKeyFull);
-      const { logs, nextCursor } = await getNewLogs(tornApiKeyFull, currentCursor);
-      const nonTradeLogs = [];
+      const wrapper = new TronWrapper(tornApiKeyFull);
+      const result = await wrapper.getNewLogs(currentCursor);
+      const { logs, parsedLogs, nextCursor } = result;
+      const allNewParsedLogs = [...parsedLogs];
       const batchRecords: AutoPilotImportRecord[] = [];
 
       for (const log of logs) {
-        const result = parseNormalizedLog(log, itemNameMap);
-        if (result.kind === "parsed") {
-          nonTradeLogs.push(...result.logs);
-          batchRecords.push(buildImportRecord({
-            id: `log:${log.id}`,
-            timestamp: log.timestamp,
-            title: log.title || log.category || "Torn log",
-            status: "imported",
-            sourceType: result.logs[0]?.sourceType,
-            tornLogId: String(log.id)
-          }));
-        }
+        batchRecords.push(buildImportRecord({
+          id: `log:${log.id}`,
+          timestamp: log.timestamp,
+          title: log.title || log.category || "Torn log",
+          status: "imported",
+          sourceType: getImportSourceType(log),
+          tornLogId: String(log.id)
+        }));
       }
-
-      if (nonTradeLogs.length) {
-        setStatusMessage(`Importing ${nonTradeLogs.length} Torn market logs...`);
-        await addLogs(nonTradeLogs, { skipNegativeStock: false });
-      }
-
-      await saveAutoPilotState({
-        autoPilotCursor: nextCursor,
-        autoPilotRecentImports: mergeRecentImports(autoPilotRecentImports, batchRecords)
-      });
 
       setStatusMessage("Fetching completed trades...");
       const tradeStart = currentCursor.lastTimestamp;
       const [tornTrades, weav3rTrades] = await Promise.all([
-        getCompletedTrades(tornApiKeyFull, tradeStart),
-        getWeav3rTrades(weav3rApiKey, weav3rUserId, tradeStart, autoPilotReceiptCache)
+        wrapper.getTornTrades(tradeStart),
+        getWeav3rTrades(weav3rApiKey, weav3rUserId, tradeStart - 10 * 60 * 60, autoPilotReceiptCache)
       ]);
       const existingIds = new Set(importedTradeIds);
       const pendingTrades: PendingAutoPilotTrade[] = [];
@@ -220,6 +209,8 @@ export default function AutoPilotPage() {
       let recentImports = mergeRecentImports(autoPilotRecentImports, batchRecords);
 
       weav3rTrades.forEach((receipt) => nextReceiptCacheMap.set(receipt.id, receipt));
+      const allReceipts = Array.from(nextReceiptCacheMap.values());
+      const excludedIds = new Set([...linkedReceiptIds, ...autoPilotTrashedReceiptIds]);
 
       for (const trade of tornTrades) {
         const tradeLogId = `trade:${trade.id}`;
@@ -228,9 +219,25 @@ export default function AutoPilotPage() {
         }
 
         setStatusMessage(`Checking trade ${trade.id}...`);
-        const detail = await getTradeDetail(tornApiKeyFull, trade.id);
-        nextTradeCache.push(detail);
-        const receipt = findMatchingReceipt(detail, [...nextReceiptCacheMap.values()], weav3rUserId, new Set([...linkedReceiptIds, ...autoPilotTrashedReceiptIds]));
+        
+        // Check cache first
+        let detail = nextTradeCache.find((t) => String(t.id) === String(trade.id));
+        if (!detail) {
+          try {
+            detail = await getTradeDetail(tornApiKeyFull, trade.id);
+            if (detail) {
+              nextTradeCache.push(detail);
+            }
+          } catch (e) {
+            console.error(`Failed to fetch detail for trade ${trade.id}`, e);
+          }
+        }
+
+        if (!detail) {
+          continue;
+        }
+
+        const receipt = findMatchingReceipt(detail, allReceipts, weav3rUserId, excludedIds);
         const comparison = compareTradeAgainstReceipt(detail, receipt, weav3rUserId);
 
         if (comparison.differences.length) {
@@ -249,8 +256,8 @@ export default function AutoPilotPage() {
           continue;
         }
 
-        const parsedLogs = createParsedLogsFromReceipt(detail, receipt!);
-        await addLogs(parsedLogs, { skipNegativeStock: false });
+        const parsedTradeLogs = createParsedLogsFromReceipt(detail, receipt!);
+        allNewParsedLogs.push(...parsedTradeLogs);
         existingIds.add(tradeLogId);
         nextTradeLinks.push({ tradeId: String(trade.id), receiptId: receipt!.id });
         recentImports = mergeRecentImports(recentImports, [buildImportRecord({
@@ -262,6 +269,11 @@ export default function AutoPilotPage() {
           tornLogId: tradeLogId,
           weav3rReceiptId: receipt!.id
         })]);
+      }
+
+      if (allNewParsedLogs.length) {
+        setStatusMessage(`Importing ${allNewParsedLogs.length} total logs into your ledger...`);
+        await addLogs(allNewParsedLogs, { skipNegativeStock: false });
       }
 
       await saveAutoPilotState({
