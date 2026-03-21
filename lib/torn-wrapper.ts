@@ -1,3 +1,4 @@
+import { xAxisDefaultProps } from 'recharts/types/cartesian/XAxis';
 import { getTornLogs as fetchTornLogs, TornLogsParams, TornLogEntry, SyncCursor, NormalizedLog, normalizeTornLog, compareLogIds, ParsedLog, parseNormalizedLog, getTornItems, TornItemNameMap, TornTradeListItem, buildUrl, TORN_V2_API_BASE } from './torn-api';
 
 export class TronWrapper {
@@ -47,7 +48,7 @@ export class TronWrapper {
    * @param cursor The sync cursor (timestamp and last log ID).
    * @returns An object containing the new logs and the updated cursor.
    */
-  async getNewLogs(cursor: SyncCursor): Promise<{ logs: NormalizedLog[]; parsedLogs: ParsedLog[]; nextCursor: SyncCursor }> {
+  async getNewLogs(cursor: SyncCursor, toTimeStamp?: number): Promise<{ logs: NormalizedLog[]; parsedLogs: ParsedLog[]; nextCursor: SyncCursor }> {
     const categories: TornLogsParams[] = [
       { cat: 11 }, // item-market
       { cat: 18 }, // bazaar
@@ -76,10 +77,11 @@ export class TronWrapper {
             ...params,
             from: cursor.lastTimestamp,
             sort: "desc",
-            limit: 100
+            limit: 100,
+            to: toTimeStamp
           });
         } catch (err) {
-          console.error(`Failed to fetch logs for ${params.cat || params.category}:`, err);
+          console.error(`Failed to fetch logs for category ${params.cat}:`, err);
           return [] as TornLogEntry[];
         }
       })
@@ -103,9 +105,11 @@ export class TronWrapper {
       .sort((a, b) => a.timestamp - b.timestamp || compareLogIds(a.id, b.id));
 
     const last = logs[logs.length - 1];
-    const nextCursor = last
+    const nextCursor = toTimeStamp ?
+     { lastTimestamp: toTimeStamp, lastLogId: cursor.lastLogId }
+     : last
       ? { lastTimestamp: last.timestamp, lastLogId: last.id }
-      : { ...cursor };
+      : { ...cursor }
 
     // Clean up logs that are not relevant to the current sync.
     const relevantLogs = logs.filter((log) => logTypesNeeded.has(log.typeId));
@@ -142,6 +146,10 @@ export class TronWrapper {
     while (true) {
       const response = await fetch(currentUrl, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
+
+      if (data?.error?.code === 17) {
+        return [];
+      }
       
       if (data?.error) {
         throw new Error(data.error.error || "Torn API error during trades fetch");

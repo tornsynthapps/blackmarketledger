@@ -8,6 +8,7 @@ import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
 import { loadGoogleDriveData, writeGoogleDriveData } from '@/lib/drive-api';
 import { AutoPilotImportRecord, AutoPilotTradeLink, PendingAutoPilotTrade, SyncCursor, TornTradeDetail, Weav3rReceipt } from '@/lib/torn-api';
+import { DualCursor, createDualCursor } from '@/lib/cursor';
 
 const STORAGE_KEY = 'torn_invest_tracker_logs';
 const CONFIG_KEY = 'torn_invest_tracker_config';
@@ -45,7 +46,11 @@ interface JournalConfig {
     driveApiKey?: string;
     skipNegativeStock?: boolean;
     tornApiKeyFull?: string;
+    // Legacy single cursor - kept for migration
     autoPilotCursor?: SyncCursor | null;
+    // New dual cursor system
+    autoPilotTradeCursor?: SyncCursor | null;
+    autoPilotItemCursor?: SyncCursor | null;
     autoPilotStartTime?: number | null;
     autoPilotLastSyncAt?: number | null;
     autoPilotTradeCache?: TornTradeDetail[];
@@ -60,6 +65,8 @@ interface JournalConfig {
 
 type AutoPilotDriveState = Pick<JournalConfig,
     "autoPilotCursor" |
+    "autoPilotTradeCursor" |
+    "autoPilotItemCursor" |
     "autoPilotStartTime" |
     "autoPilotLastSyncAt" |
     "autoPilotTradeCache" |
@@ -116,7 +123,11 @@ export function useJournal() {
     const [driveApiKey, setDriveApiKey] = useState("");
     const [tornApiKeyFull, setTornApiKeyFull] = useState("");
     const [skipNegativeStock, setSkipNegativeStock] = useState(false);
+    // Legacy cursor - kept for migration
     const [autoPilotCursor, setAutoPilotCursor] = useState<SyncCursor | null>(null);
+    // New dual cursor system
+    const [autoPilotTradeCursor, setAutoPilotTradeCursor] = useState<SyncCursor | null>(null);
+    const [autoPilotItemCursor, setAutoPilotItemCursor] = useState<SyncCursor | null>(null);
     const [autoPilotStartTime, setAutoPilotStartTime] = useState<number | null>(null);
     const [autoPilotLastSyncAt, setAutoPilotLastSyncAt] = useState<number | null>(null);
     const [autoPilotTradeCache, setAutoPilotTradeCache] = useState<TornTradeDetail[]>([]);
@@ -229,6 +240,18 @@ export function useJournal() {
         window.dispatchEvent(new CustomEvent(JOURNAL_CONFIG_UPDATED_EVENT, { detail: value }));
     }, []);
 
+    // Migration helper: convert legacy single cursor to dual cursors
+    const migrateLegacyCursor = useCallback((legacyCursor: SyncCursor | null | undefined): { tradeCursor: SyncCursor | null; itemCursor: SyncCursor | null } => {
+        if (!legacyCursor || !legacyCursor.lastTimestamp) {
+            return { tradeCursor: null, itemCursor: null };
+        }
+        // Migrate legacy cursor to both trade and item cursors
+        return {
+            tradeCursor: { ...legacyCursor },
+            itemCursor: { ...legacyCursor },
+        };
+    }, []);
+
     const applyConfig = useCallback((parsedConfig: JournalConfig | null) => {
         if (!parsedConfig) return;
         setWeav3rApiKey(parsedConfig.apiKey || "");
@@ -236,6 +259,19 @@ export function useJournal() {
         setDriveApiKey(parsedConfig.driveApiKey || "");
         setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
         setTornApiKeyFull(parsedConfig.tornApiKeyFull || "");
+        
+        // Handle legacy cursor migration
+        if (parsedConfig.autoPilotCursor && !parsedConfig.autoPilotTradeCursor) {
+            // Legacy migration: single cursor -> dual cursors
+            const migrated = migrateLegacyCursor(parsedConfig.autoPilotCursor);
+            setAutoPilotTradeCursor(migrated.tradeCursor);
+            setAutoPilotItemCursor(migrated.itemCursor);
+        } else {
+            // New dual cursor system
+            setAutoPilotTradeCursor(parsedConfig.autoPilotTradeCursor || null);
+            setAutoPilotItemCursor(parsedConfig.autoPilotItemCursor || null);
+        }
+        // Keep legacy cursor for backwards compatibility
         setAutoPilotCursor(parsedConfig.autoPilotCursor || null);
         setAutoPilotStartTime(parsedConfig.autoPilotStartTime ?? null);
         setAutoPilotLastSyncAt(parsedConfig.autoPilotLastSyncAt ?? null);
@@ -252,7 +288,7 @@ export function useJournal() {
                     : []
         );
         setAutoPilotRecentImports(Array.isArray(parsedConfig.autoPilotRecentImports) ? parsedConfig.autoPilotRecentImports : []);
-    }, []);
+    }, [migrateLegacyCursor]);
 
     const buildConfigSnapshot = useCallback((overrides: Partial<JournalConfig> = {}): JournalConfig => ({
         apiKey: weav3rApiKey,
@@ -261,6 +297,8 @@ export function useJournal() {
         skipNegativeStock,
         tornApiKeyFull,
         autoPilotCursor,
+        autoPilotTradeCursor,
+        autoPilotItemCursor,
         autoPilotStartTime,
         autoPilotLastSyncAt,
         autoPilotTradeCache,
@@ -278,6 +316,8 @@ export function useJournal() {
         skipNegativeStock,
         tornApiKeyFull,
         autoPilotCursor,
+        autoPilotTradeCursor,
+        autoPilotItemCursor,
         autoPilotStartTime,
         autoPilotLastSyncAt,
         autoPilotTradeCache,
@@ -291,6 +331,8 @@ export function useJournal() {
 
     const pickDriveAutoPilotState = useCallback((config: JournalConfig): AutoPilotDriveState => ({
         autoPilotCursor: config.autoPilotCursor ?? null,
+        autoPilotTradeCursor: config.autoPilotTradeCursor ?? null,
+        autoPilotItemCursor: config.autoPilotItemCursor ?? null,
         autoPilotStartTime: config.autoPilotStartTime ?? null,
         autoPilotLastSyncAt: config.autoPilotLastSyncAt ?? null,
         autoPilotTradeCache: config.autoPilotTradeCache ?? [],
@@ -597,6 +639,12 @@ export function useJournal() {
         if (Object.prototype.hasOwnProperty.call(patch, "autoPilotCursor")) {
             setAutoPilotCursor(patch.autoPilotCursor ?? null);
         }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeCursor")) {
+            setAutoPilotTradeCursor(patch.autoPilotTradeCursor ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotItemCursor")) {
+            setAutoPilotItemCursor(patch.autoPilotItemCursor ?? null);
+        }
         if (Object.prototype.hasOwnProperty.call(patch, "autoPilotStartTime")) {
             setAutoPilotStartTime(patch.autoPilotStartTime ?? null);
         }
@@ -762,6 +810,8 @@ export function useJournal() {
         saveTornApiKeyFull,
         saveDriveApiKey,
         autoPilotCursor,
+        autoPilotTradeCursor,
+        autoPilotItemCursor,
         autoPilotStartTime,
         autoPilotLastSyncAt,
         autoPilotTradeCache,

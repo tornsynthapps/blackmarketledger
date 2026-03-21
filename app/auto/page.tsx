@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, PauseCircle, Radar, RefreshCcw, Tags, Store, Coins, Box, Link2Off, ChevronRight, Activity } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import {
@@ -21,6 +21,7 @@ import {
 import { TornTradeDetail } from "@/lib/torn-api";
 import { TransactionSourceType } from "@/lib/parser";
 import { TronWrapper } from "@/lib/torn-wrapper";
+import { needsItemSync } from "@/lib/cursor";
 
 const MAX_RECENT_IMPORTS = 500;
 
@@ -38,19 +39,43 @@ function mergeRecentImports(current: AutoPilotImportRecord[], incoming: AutoPilo
 function getImportSourceType(log: NormalizedLog): TransactionSourceType | undefined {
   const { typeId, title, category } = log;
   const haystack = `${title} ${category}`.toLowerCase();
-  
+
   if ([1112, 1113].includes(typeId) || haystack.includes("item market")) return "item-market";
   if ([1225, 1226].includes(typeId) || haystack.includes("bazaar")) return "bazaar";
   if ([5010, 5011].includes(typeId) || haystack.includes("points")) return "points-market";
   if (typeId === 7000 || haystack.includes("museum")) return "museum";
   if (haystack.includes("trade")) return "trade";
-  
+
   return undefined;
 }
 
 function formatCursor(cursor: SyncCursor | null) {
-  if (!cursor) return "Not initialized";
-  return `${new Date(cursor.lastTimestamp * 1000).toLocaleString()} · log ${cursor.lastLogId || "start"}`;
+  if (!cursor) return { timeAgo: "Not initialized", timestamp: "", isStale: false, timeAgoStyle: "text-foreground/70" };
+  
+  const cursorTime = new Date(cursor.lastTimestamp * 1000);
+  const timestamp = cursorTime.toLocaleString();
+  const now = new Date();
+  const diffMs = now.getTime() - cursorTime.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffSeconds = Math.floor(diffMs / 1000);
+  
+  let timeAgo: string;
+  if (diffMinutes < 1) {
+    timeAgo = `${diffSeconds}s ago`;
+  } else if (diffMinutes < 60) {
+    timeAgo = `${diffMinutes}m ago`;
+  } else if (diffHours < 24) {
+    timeAgo = `${diffHours}h ago`;
+  } else {
+    const diffDays = Math.floor(diffHours / 24);
+    timeAgo = `${diffDays}d ago`;
+  }
+  
+  const isStale = diffMinutes > 30;
+  const timeAgoStyle = isStale ? "text-orange-500 font-bold" : "text-foreground/70";
+  
+  return { timeAgo, timestamp, isStale, timeAgoStyle };
 }
 
 export default function AutoPilotPage() {
@@ -62,6 +87,8 @@ export default function AutoPilotPage() {
     weav3rUserId,
     tornApiKeyFull,
     autoPilotCursor,
+    autoPilotTradeCursor,
+    autoPilotItemCursor,
     autoPilotLastSyncAt,
     autoPilotTradeCache,
     autoPilotReceiptCache,
@@ -76,6 +103,7 @@ export default function AutoPilotPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [pageError, setPageError] = useState("");
+  const isAutoSyncRef = useRef(false);
 
   const importedTradeIds = useMemo(() => {
     return new Set(
@@ -142,17 +170,66 @@ export default function AutoPilotPage() {
     ];
   }, [autoPilotRecentImports]);
 
+  // Helper to determine if there are unlinked trades
+  const hasUnlinkedTrades = useMemo(() => {
+    return autoPilotTradeCache.some((trade) => {
+      const tradeId = String(trade.id);
+      return !linkedTradeIds.has(tradeId) && !autoPilotManuallyAddedTradeIds.includes(tradeId);
+    });
+  }, [autoPilotTradeCache, linkedTradeIds, autoPilotManuallyAddedTradeIds]);
+
+  // Check if items need syncing (item cursor behind trade cursor)
+  const itemsNeedSync = useMemo(() => {
+    if (!autoPilotTradeCursor || !autoPilotItemCursor) return false;
+    return needsItemSync({ tradeCursor: autoPilotTradeCursor, itemCursor: autoPilotItemCursor });
+  }, [autoPilotTradeCursor, autoPilotItemCursor]);
+
+  // Check if we need "Continue Sync" - trade cursor > item cursor (needs item fetch)
+  const needsContinueSync = useMemo(() => {
+    if (!autoPilotTradeCursor || !autoPilotItemCursor) return false;
+    return autoPilotTradeCursor.lastTimestamp > autoPilotItemCursor.lastTimestamp;
+  }, [autoPilotTradeCursor, autoPilotItemCursor]);
+
+  // Determine if sync should be disabled
+  const isSyncDisabled = useMemo(() => {
+    // Has pending trades requiring manual review
+    if (autoPilotPendingTrades.length > 0) return true;
+    // Has unlinked trades in cache
+    if (hasUnlinkedTrades) return true;
+    return false;
+  }, [autoPilotPendingTrades.length, hasUnlinkedTrades]);
+
+  // Get sync status message
+  const getSyncStatusMessage = useMemo(() => {
+    if (autoPilotPendingTrades.length > 0) {
+      return `Resolve ${autoPilotPendingTrades.length} pending trade${autoPilotPendingTrades.length === 1 ? '' : 's'} before syncing`;
+    }
+    if (hasUnlinkedTrades) {
+      return 'Review unlinked trades before syncing';
+    }
+    if (itemsNeedSync) {
+      return 'Items need syncing - will fetch up to trade cursor';
+    }
+    return 'Ready to sync';
+  }, [autoPilotPendingTrades.length, hasUnlinkedTrades, itemsNeedSync]);
+
   const initializeCursorNow = async () => {
     const now = Math.floor(Date.now() / 1000);
+    const newCursor = { lastTimestamp: now, lastLogId: "" };
+    // Initialize both cursors to the same timestamp
     await saveAutoPilotState({
-      autoPilotCursor: { lastTimestamp: now, lastLogId: "" }
+      autoPilotCursor: newCursor,
+      autoPilotTradeCursor: newCursor,
+      autoPilotItemCursor: newCursor
     });
     setStatusMessage(`Auto-Pilot initialized at ${new Date(now * 1000).toLocaleString()}. Future syncs will start from this cursor.`);
     setPageError("");
-    return { lastTimestamp: now, lastLogId: "" } satisfies SyncCursor;
+    return newCursor;
   };
 
+
   const syncNow = async () => {
+    // 1. Handle Errors.
     if (!tornApiKeyFull) {
       setPageError("Save a Torn full-access key in Service Access before syncing.");
       return;
@@ -161,135 +238,219 @@ export default function AutoPilotPage() {
       setPageError("Save your Weav3r/Torn API key first so receipts can be fetched.");
       return;
     }
+
+    // Check for unlinked trades FIRST - disable sync if any exist
+    if (hasUnlinkedTrades) {
+      setPageError("Review unlinked trades in the cache before running another sync.");
+      return;
+    }
     if (autoPilotPendingTrades.length) {
       setPageError("Resolve the pending trades before running another sync.");
       return;
     }
 
+    // 2. Start sync.
     setPageError("");
     setIsRunning(true);
+    let syncType: 'trade' | 'item' | null = null;
 
     try {
-      const currentCursor = autoPilotCursor || await initializeCursorNow();
-      if (!currentCursor) {
-        setIsRunning(false);
-        return;
+      // 2.1 Initialize cursors if not set (first run)
+      let tradeCursor = autoPilotTradeCursor;
+      let itemCursor = autoPilotItemCursor;
+
+      // Handle legacy cursor migration or first initialization
+      if (!tradeCursor || !itemCursor) {
+        // Check if we have a legacy cursor to migrate from
+        if (autoPilotCursor && autoPilotCursor.lastTimestamp) {
+          // Migrate legacy cursor to dual cursors
+          tradeCursor = { ...autoPilotCursor };
+          itemCursor = { ...autoPilotCursor };
+          await saveAutoPilotState({
+            autoPilotTradeCursor: tradeCursor,
+            autoPilotItemCursor: itemCursor
+          });
+          setStatusMessage(`Migrated from legacy cursor. Starting sync...`);
+        } else {
+          // Fresh initialization
+          const now = Math.floor(Date.now() / 1000);
+          const newCursor = { lastTimestamp: now, lastLogId: "" };
+          tradeCursor = newCursor;
+          itemCursor = newCursor;
+          await saveAutoPilotState({
+            autoPilotCursor: newCursor,
+            autoPilotTradeCursor: newCursor,
+            autoPilotItemCursor: newCursor
+          });
+          setStatusMessage(`Auto-Pilot initialized. Starting sync...`);
+        }
       }
 
-      setStatusMessage("Fetching Torn logs...");
       const wrapper = new TronWrapper(tornApiKeyFull);
-      const result = await wrapper.getNewLogs(currentCursor);
-      const { logs, parsedLogs, nextCursor } = result;
-      const allNewParsedLogs = [...parsedLogs];
+      const allNewParsedLogs: any[] = [];
       const batchRecords: AutoPilotImportRecord[] = [];
+      let nextTradeCursor = tradeCursor;
+      let nextItemCursor = itemCursor;
 
-      for (const log of logs) {
-        batchRecords.push(buildImportRecord({
-          id: `log:${log.id}`,
-          timestamp: log.timestamp,
-          title: log.title || log.category || "Torn log",
-          status: "imported",
-          sourceType: getImportSourceType(log),
-          tornLogId: String(log.id)
-        }));
+      // 2.2 Handle items fetch.
+      // DUAL CURSOR LOGIC:
+      // If Trade Cursor > Item Cursor, we need to fetch items first to catch up
+      if (tradeCursor.lastTimestamp > itemCursor.lastTimestamp) {
+        syncType = 'item';
+        setStatusMessage(`Fetching item logs up to trade cursor (${new Date(tradeCursor.lastTimestamp * 1000).toLocaleString()})...`);
+
+        // Fetch items up to the trade cursor timestamp
+        const itemResult = await wrapper.getNewLogs({
+          lastTimestamp: itemCursor.lastTimestamp,
+          lastLogId: itemCursor.lastLogId
+        }, tradeCursor.lastTimestamp);
+
+        const { logs: itemLogs, parsedLogs: itemParsedLogs, nextCursor: newItemCursor } = itemResult;
+
+        // Add items to the import
+        for (const log of itemLogs) {
+          batchRecords.push(buildImportRecord({
+            id: `log:${log.id}`,
+            timestamp: log.timestamp,
+            title: log.title || log.category || "Torn log",
+            status: "imported",
+            sourceType: getImportSourceType(log),
+            tornLogId: String(log.id)
+          }));
+        }
+        allNewParsedLogs.push(...itemParsedLogs);
+        console.log(newItemCursor)
+        nextItemCursor = newItemCursor;
+
+        setStatusMessage(`Item sync complete.`);
+        await saveAutoPilotState({
+          autoPilotItemCursor: nextItemCursor,
+          autoPilotLastSyncAt: Date.now(),
+        });
       }
 
-      setStatusMessage("Fetching completed trades...");
-      const tradeStart = currentCursor.lastTimestamp;
-      const [tornTrades, weav3rTrades] = await Promise.all([
-        wrapper.getTornTrades(tradeStart),
-        getWeav3rTrades(weav3rApiKey, weav3rUserId, tradeStart - 10 * 60 * 60, autoPilotReceiptCache)
-      ]);
-      const existingIds = new Set(importedTradeIds);
-      const pendingTrades: PendingAutoPilotTrade[] = [];
-      const nextTradeCache: TornTradeDetail[] = [...autoPilotTradeCache];
-      const nextReceiptCacheMap = new Map(autoPilotReceiptCache.map((receipt) => [receipt.id, receipt]));
-      const nextTradeLinks: AutoPilotTradeLink[] = [...autoPilotTradeLinks];
+      // 2.3 Handle trade fetch.
+      else {
+        syncType = 'trade';
+        // Fetch trades from trade cursor position
+        setStatusMessage("Fetching completed trades...");
+        const tradeStart = tradeCursor.lastTimestamp;
 
-      let recentImports = mergeRecentImports(autoPilotRecentImports, batchRecords);
+        // Fetch trades with error handling for Torn API error 17
+        let tornTrades: any[] = [];
+        tornTrades = await wrapper.getTornTrades(tradeStart);
 
-      weav3rTrades.forEach((receipt) => nextReceiptCacheMap.set(receipt.id, receipt));
-      const allReceipts = Array.from(nextReceiptCacheMap.values());
-      const excludedIds = new Set([...linkedReceiptIds, ...autoPilotTrashedReceiptIds]);
+        const weav3rTrades = await getWeav3rTrades(weav3rApiKey, weav3rUserId, tradeStart - 10 * 60 * 60, autoPilotReceiptCache);
 
-      for (const trade of tornTrades) {
-        const tradeLogId = `trade:${trade.id}`;
-        if (existingIds.has(tradeLogId) || manuallyHandledTrades.has(tradeLogId) || linkedTradeIds.has(String(trade.id))) {
-          continue;
-        }
+        const existingIds = new Set(importedTradeIds);
+        const pendingTrades: PendingAutoPilotTrade[] = [];
+        const nextTradeCache: TornTradeDetail[] = [...autoPilotTradeCache];
+        const nextReceiptCacheMap = new Map(autoPilotReceiptCache.map((receipt) => [receipt.id, receipt]));
+        const nextTradeLinks: AutoPilotTradeLink[] = [...autoPilotTradeLinks];
 
-        setStatusMessage(`Checking trade ${trade.id}...`);
-        
-        // Check cache first
-        let detail = nextTradeCache.find((t) => String(t.id) === String(trade.id));
-        if (!detail) {
-          try {
-            detail = await getTradeDetail(tornApiKeyFull, trade.id);
-            if (detail) {
-              nextTradeCache.push(detail);
-            }
-          } catch (e) {
-            console.error(`Failed to fetch detail for trade ${trade.id}`, e);
+        let recentImports = mergeRecentImports(autoPilotRecentImports, batchRecords);
+
+        weav3rTrades.forEach((receipt) => nextReceiptCacheMap.set(receipt.id, receipt));
+        const allReceipts = Array.from(nextReceiptCacheMap.values());
+        const excludedIds = new Set([...linkedReceiptIds, ...autoPilotTrashedReceiptIds]);
+
+        for (const trade of tornTrades) {
+          const tradeLogId = `trade:${trade.id}`;
+          if (existingIds.has(tradeLogId) || manuallyHandledTrades.has(tradeLogId) || linkedTradeIds.has(String(trade.id))) {
+            continue;
           }
-        }
 
-        if (!detail) {
-          continue;
-        }
+          setStatusMessage(`Checking trade ${trade.id}...`);
 
-        const receipt = findMatchingReceipt(detail, allReceipts, weav3rUserId, excludedIds);
-        const comparison = compareTradeAgainstReceipt(detail, receipt, weav3rUserId);
+          // Check cache first
+          let detail = nextTradeCache.find((t) => String(t.id) === String(trade.id));
+          if (!detail) {
+            try {
+              detail = await getTradeDetail(tornApiKeyFull, trade.id);
+              if (detail) {
+                nextTradeCache.push(detail);
+              }
+            } catch (e) {
+              console.error(`Failed to fetch detail for trade ${trade.id}`, e);
+            }
+          }
 
-        if (comparison.differences.length) {
-          const record = buildImportRecord({
+          if (!detail) {
+            continue;
+          }
+
+          const receipt = findMatchingReceipt(detail, allReceipts, weav3rUserId, excludedIds);
+          const comparison = compareTradeAgainstReceipt(detail, receipt, weav3rUserId);
+
+          if (comparison.differences.length) {
+            const record = buildImportRecord({
+              id: `trade:${trade.id}`,
+              timestamp: Number(trade.timestamp),
+              title: `Trade ${trade.id}`,
+              status: "manual_required",
+              sourceType: "trade",
+              tornLogId: tradeLogId,
+              weav3rReceiptId: receipt?.id,
+              note: comparison.differences.map((difference) => difference.message).join(" ")
+            });
+            pendingTrades.push(comparison);
+            recentImports = mergeRecentImports(recentImports, [record]);
+            continue;
+          }
+
+          const parsedTradeLogs = createParsedLogsFromReceipt(detail, receipt!);
+          allNewParsedLogs.push(...parsedTradeLogs);
+          existingIds.add(tradeLogId);
+          nextTradeLinks.push({ tradeId: String(trade.id), receiptId: receipt!.id });
+          recentImports = mergeRecentImports(recentImports, [buildImportRecord({
             id: `trade:${trade.id}`,
             timestamp: Number(trade.timestamp),
             title: `Trade ${trade.id}`,
-            status: "manual_required",
+            status: "imported",
             sourceType: "trade",
             tornLogId: tradeLogId,
-            weav3rReceiptId: receipt?.id,
-            note: comparison.differences.map((difference) => difference.message).join(" ")
-          });
-          pendingTrades.push(comparison);
-          recentImports = mergeRecentImports(recentImports, [record]);
-          continue;
+            weav3rReceiptId: receipt!.id
+          })]);
         }
 
-        const parsedTradeLogs = createParsedLogsFromReceipt(detail, receipt!);
-        allNewParsedLogs.push(...parsedTradeLogs);
-        existingIds.add(tradeLogId);
-        nextTradeLinks.push({ tradeId: String(trade.id), receiptId: receipt!.id });
-        recentImports = mergeRecentImports(recentImports, [buildImportRecord({
-          id: `trade:${trade.id}`,
-          timestamp: Number(trade.timestamp),
-          title: `Trade ${trade.id}`,
-          status: "imported",
-          sourceType: "trade",
-          tornLogId: tradeLogId,
-          weav3rReceiptId: receipt!.id
-        })]);
+        // Update trade cursor.
+        const now = Math.floor(Date.now() / 1000);
+        nextTradeCursor = { lastTimestamp: now, lastLogId: "" };
+
+        await saveAutoPilotState({
+          autoPilotCursor: nextTradeCursor,
+          autoPilotTradeCursor: nextTradeCursor,
+          autoPilotItemCursor: nextItemCursor,
+          autoPilotLastSyncAt: Date.now(),
+          autoPilotTradeCache: nextTradeCache.filter((trade, index, all) => index === all.findIndex((candidate) => String(candidate.id) === String(trade.id))),
+          autoPilotReceiptCache: [...nextReceiptCacheMap.values()],
+          autoPilotTradeLinks: nextTradeLinks.filter((link, index, all) => index === all.findIndex((candidate) => candidate.tradeId === link.tradeId)),
+          autoPilotPendingTrades: pendingTrades,
+          autoPilotRecentImports: recentImports
+        });
+        const syncCompletedMessage = pendingTrades.length
+          ? `Auto-Pilot sync completed with ${pendingTrades.length} trades requiring manual input.`
+          : "Auto-Pilot sync completed.";
+        setStatusMessage(syncCompletedMessage);
+        
+        // If no discrepancies (pending trades) and not already in auto-sync, auto-sync items
+        if (pendingTrades.length === 0 && !isAutoSyncRef.current) {
+          isAutoSyncRef.current = true;
+          setStatusMessage("Trade sync complete. Starting item sync...");
+          // Small delay to let the UI update
+          setTimeout(() => {
+            syncNow();
+          }, 500);
+        } else {
+          isAutoSyncRef.current = false;
+        }
       }
 
+      // 3. Add Logs and update cursors.
       if (allNewParsedLogs.length) {
         setStatusMessage(`Importing ${allNewParsedLogs.length} total logs into your ledger...`);
         await addLogs(allNewParsedLogs, { skipNegativeStock: false });
       }
-
-      await saveAutoPilotState({
-        autoPilotCursor: nextCursor,
-        autoPilotLastSyncAt: Date.now(),
-        autoPilotTradeCache: nextTradeCache.filter((trade, index, all) => index === all.findIndex((candidate) => String(candidate.id) === String(trade.id))),
-        autoPilotReceiptCache: [...nextReceiptCacheMap.values()],
-        autoPilotTradeLinks: nextTradeLinks.filter((link, index, all) => index === all.findIndex((candidate) => candidate.tradeId === link.tradeId)),
-        autoPilotPendingTrades: pendingTrades,
-        autoPilotRecentImports: recentImports
-      });
-      setStatusMessage(
-        pendingTrades.length
-          ? `Auto-Pilot sync completed with ${pendingTrades.length} trades requiring manual input.`
-          : "Auto-Pilot sync completed."
-      );
     } catch (error) {
       setPageError(error instanceof Error ? error.message : "Auto-Pilot sync failed.");
       setStatusMessage("");
@@ -340,31 +501,59 @@ export default function AutoPilotPage() {
               <button
                 type="button"
                 onClick={() => void syncNow()}
-                disabled={isRunning || autoPilotPendingTrades.length > 0}
+                disabled={isRunning || isSyncDisabled}
                 className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCcw className={`h-4 w-4 ${isRunning ? "animate-spin" : ""}`} />
-                {isRunning ? "Syncing..." : autoPilotCursor ? "Sync Now" : "Initialize Auto-Pilot"}
+                {isRunning ? "Syncing..." : !autoPilotTradeCursor ? "Initialize Auto-Pilot" : needsContinueSync ? "Continue Sync" : "Sync Now"}
               </button>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border border-border bg-background/70 p-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Current Cursor</div>
-                <div className="mt-2 text-sm text-foreground/70">{formatCursor(autoPilotCursor)}</div>
+                <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Trade Cursor</div>
+                <div className="mt-2 text-sm">
+                  {(() => {
+                    const cursorInfo = formatCursor(autoPilotTradeCursor);
+                    if (typeof cursorInfo === 'object' && cursorInfo.timestamp) {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="text-foreground/50 text-xs">{cursorInfo.timestamp}</span>
+                          <span className={cursorInfo.timeAgoStyle}>{cursorInfo.timeAgo}</span>
+                        </div>
+                      );
+                    }
+                    return typeof cursorInfo === 'object' ? cursorInfo.timeAgo : cursorInfo;
+                  })()}
+                </div>
               </div>
               <div className="rounded-xl border border-border bg-background/70 p-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Last Sync</div>
-                <div className="mt-2 text-sm text-foreground/70">
-                  {autoPilotLastSyncAt ? new Date(autoPilotLastSyncAt).toLocaleString() : "No sync run yet"}
+                <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Item Cursor</div>
+                <div className="mt-2 text-sm">
+                  {(() => {
+                    const cursorInfo = formatCursor(autoPilotItemCursor);
+                    if (typeof cursorInfo === 'object' && cursorInfo.timestamp) {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="text-foreground/50 text-xs">{cursorInfo.timestamp}</span>
+                          <span className={cursorInfo.timeAgoStyle}>{cursorInfo.timeAgo}</span>
+                        </div>
+                      );
+                    }
+                    return typeof cursorInfo === 'object' ? cursorInfo.timeAgo : cursorInfo;
+                  })()}
                 </div>
               </div>
             </div>
 
+            <div className="mt-4 rounded-xl border border-border bg-background/70 p-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-foreground/55">Sync Status</div>
+              <div className="mt-2 text-sm text-foreground/70">{getSyncStatusMessage}</div>
+            </div>
+
             {(statusMessage || pageError) && (
-              <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
-                pageError ? "border-danger/30 bg-danger/5 text-danger" : "border-orange-500/20 bg-orange-500/5 text-foreground/75"
-              }`}>
+              <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${pageError ? "border-danger/30 bg-danger/5 text-danger" : "border-orange-500/20 bg-orange-500/5 text-foreground/75"
+                }`}>
                 {pageError || statusMessage}
               </div>
             )}
@@ -391,11 +580,11 @@ export default function AutoPilotPage() {
             <Activity className="h-5 w-5 text-orange-500" />
             <h2 className="text-xl font-bold">Auto-Pilot Overview</h2>
           </div>
-          
+
           <div className="space-y-4">
             {autoPilotStats.map((stat) => (
-              <Link 
-                key={stat.id} 
+              <Link
+                key={stat.id}
                 href={`/auto/activity?type=${stat.type}`}
                 className="group flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border hover:border-orange-500/30 hover:bg-orange-500/[0.02] transition-all"
               >
@@ -458,10 +647,10 @@ export default function AutoPilotPage() {
                   <span className="text-[10px] bg-foreground/5 py-0.5 px-2 rounded font-bold text-foreground/50 uppercase tracking-widest">
                     {(record.sourceType || (
                       record.title.toLowerCase().includes("bazaar") ? "bazaar" :
-                      record.title.toLowerCase().includes("item market") ? "item-market" :
-                      record.title.toLowerCase().includes("trade") ? "trade" :
-                      record.title.toLowerCase().includes("points market") ? "points-market" :
-                      record.title.toLowerCase().includes("museum") ? "museum" : ""
+                        record.title.toLowerCase().includes("item market") ? "item-market" :
+                          record.title.toLowerCase().includes("trade") ? "trade" :
+                            record.title.toLowerCase().includes("points market") ? "points-market" :
+                              record.title.toLowerCase().includes("museum") ? "museum" : ""
                     ))?.replace("-", " ")}
                   </span>
                 </div>
@@ -472,18 +661,17 @@ export default function AutoPilotPage() {
                 </p>
                 {record.note && <p className="mt-1.5 text-xs text-orange-600 font-medium">{record.note}</p>}
               </div>
-              <div className={`rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                record.status === 'imported' 
-                ? 'bg-green-500/10 border-green-500/20 text-green-700' 
+              <div className={`rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${record.status === 'imported'
+                ? 'bg-green-500/10 border-green-500/20 text-green-700'
                 : 'bg-orange-500/10 border-orange-500/20 text-orange-700'
-              }`}>
+                }`}>
                 {record.status.replace("_", " ")}
               </div>
             </div>
           ))}
 
           {autoPilotRecentImports.length > 5 && (
-            <Link 
+            <Link
               href="/auto/activity"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/80 py-4 text-sm font-bold text-orange-500 transition-all hover:bg-orange-500 hover:text-white"
             >
