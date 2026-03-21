@@ -1,5 +1,8 @@
 # BlackMarket Ledger Version History
 
+## v4.3.0 (2026-03-22)
+- **Advanced Dashboard Visualization**: Enhanced profit tracking with stacked area charts and incremental view options for more granular portfolio analysis.
+
 ## v4.2.3 (2026-03-21)
 - **Dual Cursor Sync**: Implemented a dual-cursor system for more precise synchronization and log management in Auto-Pilot.
 
