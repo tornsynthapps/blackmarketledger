@@ -1,5 +1,12 @@
 # BlackMarket Ledger Version History
 
+## v4.2.2 (2026-03-21)
+- **Squash Merge v4.2.2 Improvements**: Optimized trade detail fetching and enhanced receipt matching logic.
+- **Auto-Pilot Reset Control**: Implemented `ResetCursorPage` for managing Auto-Pilot cursor resets.
+- **Torn API Wrapper**: Integrated `TornWrapper` for more robust API interactions.
+- **Log Parsing Fixes**: Updated regex for item purchase logs to handle points and museum categories correctly.
+- **Sync Enhancements**: Fixed paging and added missing categories (mugs, points, museum) with overall sync performance optimizations.
+
 ## v4.2.1 (2026-03-20)
 - **Non-anonymous Mug Parsing**: Updated parser (v1.2) to support non-anonymous mugs and mug logs containing timestamps.
 
