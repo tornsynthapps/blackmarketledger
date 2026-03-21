@@ -224,6 +224,22 @@ describe('parseLogLine', () => {
         expect(result.amount).toBe(4446201);
     });
 
+    it('should parse log, non-anonymous mug', () => {
+        const line = 'tayzarstar mugged you for $13,584 sending you to the hospital for Oh 39m';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('MUG');
+        expect(result.amount).toBe(13584);
+    });
+
+    it('should parse log, non-anonymous mug (timestamp)', () => {
+        const line = '03:36:09 - 19/03/26 tayzarstar mugged you for $13,584 sending you to the hospital for Oh 39m';
+        const result = parseLogLine(line) as any;
+        expect(result).not.toBeNull();
+        expect(result.type).toBe('MUG');
+        expect(result.amount).toBe(13584);
+    });
+
     it('should parse log, museum exchange (plushies)', () => {
         const line = 'You exchanged 25x Plushie Set to the museum for 250 points';
         const result = parseLogLine(line) as any;
