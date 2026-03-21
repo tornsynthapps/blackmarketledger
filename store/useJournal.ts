@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from '@/lib/parser';
+import { calculateInventory, buildTransactionsWithLogs } from '@/lib/transactionBuilder';
 import { sendToExtension } from '@/lib/bmlconnect';
 import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
 import { loadGoogleDriveData, writeGoogleDriveData } from '@/lib/drive-api';
+import { AutoPilotImportRecord, AutoPilotTradeLink, PendingAutoPilotTrade, SyncCursor, TornTradeDetail, Weav3rReceipt } from '@/lib/torn-api';
+import { DualCursor, createDualCursor } from '@/lib/cursor';
 
 const STORAGE_KEY = 'torn_invest_tracker_logs';
 const CONFIG_KEY = 'torn_invest_tracker_config';
@@ -13,7 +16,9 @@ const DRIVE_CACHE_READY_KEY = 'bml_drive_cache_ready';
 const DRIVE_CACHE_SYNCED_AT_KEY = 'bml_drive_cache_synced_at';
 const DRIVE_BOOTSTRAP_DONE_KEY = 'bml_drive_bootstrap_done';
 const DRIVE_SYNC_MAX_AGE_MS = 10 * 60 * 1000;
-const TORN_BASIC_USER_URL = "https://api.torn.com/user/?selections=basic&key=";
+const AUTO_PILOT_DRIVE_FILE = "blackmarket-ledger-autopilot.json";
+const TORN_BASIC_USER_URL = "https://api.torn.com/v2/user/?selections=basic&key=";
+const JOURNAL_CONFIG_UPDATED_EVENT = "bml:journal-config-updated";
 
 declare global {
     interface Window {
@@ -35,6 +40,52 @@ export interface SyncState {
     message: string;
 }
 
+interface JournalConfig {
+    apiKey?: string;
+    userId?: string;
+    driveApiKey?: string;
+    skipNegativeStock?: boolean;
+    tornApiKeyFull?: string;
+    // Legacy single cursor - kept for migration
+    autoPilotCursor?: SyncCursor | null;
+    // New dual cursor system
+    autoPilotTradeCursor?: SyncCursor | null;
+    autoPilotItemCursor?: SyncCursor | null;
+    autoPilotStartTime?: number | null;
+    autoPilotLastSyncAt?: number | null;
+    autoPilotTradeCache?: TornTradeDetail[];
+    autoPilotReceiptCache?: Weav3rReceipt[];
+    autoPilotTradeLinks?: AutoPilotTradeLink[];
+    autoPilotTrashedReceiptIds?: string[];
+    autoPilotManuallyAddedTradeIds?: string[];
+    autoPilotPendingTrades?: PendingAutoPilotTrade[];
+    autoPilotPendingTrade?: PendingAutoPilotTrade | null;
+    autoPilotRecentImports?: AutoPilotImportRecord[];
+}
+
+type AutoPilotDriveState = Pick<JournalConfig,
+    "autoPilotCursor" |
+    "autoPilotTradeCursor" |
+    "autoPilotItemCursor" |
+    "autoPilotStartTime" |
+    "autoPilotLastSyncAt" |
+    "autoPilotTradeCache" |
+    "autoPilotReceiptCache" |
+    "autoPilotTradeLinks" |
+    "autoPilotTrashedReceiptIds" |
+    "autoPilotManuallyAddedTradeIds" |
+    "autoPilotPendingTrades" |
+    "autoPilotRecentImports"
+>;
+
+function isLegacyDriveStoredPayload(value: unknown): value is { transactions: Transaction[]; autoPilotState?: AutoPilotDriveState } {
+    return Boolean(value) && typeof value === "object" && Array.isArray((value as { transactions: Transaction[] }).transactions);
+}
+
+function isAutoPilotDriveState(value: unknown): value is AutoPilotDriveState {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 async function resolveTornUserId(apiKey: string) {
     const response = await fetch(`${TORN_BASIC_USER_URL}${encodeURIComponent(apiKey)}`);
     const data = await response.json();
@@ -44,7 +95,13 @@ async function resolveTornUserId(apiKey: string) {
         throw new Error(message);
     }
 
-    const rawUserId = data?.player_id ?? data?.playerID ?? data?.user_id ?? data?.userId;
+    const rawUserId =
+        data?.profile?.id ??
+        data?.profile?.player_id ??
+        data?.player_id ??
+        data?.playerID ??
+        data?.user_id ??
+        data?.userId;
     const userId = typeof rawUserId === "number" || typeof rawUserId === "string"
         ? String(rawUserId)
         : "";
@@ -64,9 +121,30 @@ export function useJournal() {
     const [weav3rApiKey, setWeav3rApiKey] = useState("");
     const [weav3rUserId, setWeav3rUserId] = useState("");
     const [driveApiKey, setDriveApiKey] = useState("");
+    const [tornApiKeyFull, setTornApiKeyFull] = useState("");
+    const [skipNegativeStock, setSkipNegativeStock] = useState(false);
+    // Legacy cursor - kept for migration
+    const [autoPilotCursor, setAutoPilotCursor] = useState<SyncCursor | null>(null);
+    // New dual cursor system
+    const [autoPilotTradeCursor, setAutoPilotTradeCursor] = useState<SyncCursor | null>(null);
+    const [autoPilotItemCursor, setAutoPilotItemCursor] = useState<SyncCursor | null>(null);
+    const [autoPilotStartTime, setAutoPilotStartTime] = useState<number | null>(null);
+    const [autoPilotLastSyncAt, setAutoPilotLastSyncAt] = useState<number | null>(null);
+    const [autoPilotTradeCache, setAutoPilotTradeCache] = useState<TornTradeDetail[]>([]);
+    const [autoPilotReceiptCache, setAutoPilotReceiptCache] = useState<Weav3rReceipt[]>([]);
+    const [autoPilotTradeLinks, setAutoPilotTradeLinks] = useState<AutoPilotTradeLink[]>([]);
+    const [autoPilotTrashedReceiptIds, setAutoPilotTrashedReceiptIds] = useState<string[]>([]);
+    const [autoPilotManuallyAddedTradeIds, setAutoPilotManuallyAddedTradeIds] = useState<string[]>([]);
+    const [autoPilotPendingTrades, setAutoPilotPendingTrades] = useState<PendingAutoPilotTrade[]>([]);
+    const [autoPilotRecentImports, setAutoPilotRecentImports] = useState<AutoPilotImportRecord[]>([]);
     const [syncState, setSyncState] = useState<SyncState>({ isSyncing: false, message: "" });
     const syncCounterRef = useRef(0);
+    const transactionsRef = useRef<Transaction[]>([]);
+    const bootstrapStartedRef = useRef(false);
 
+    /**
+     * Returns the active DB name based on the current storage preference.
+     */
     const getActiveDB = useCallback((): idb.DBName => {
         const pref = localStorage.getItem("bml_storage_pref");
         return pref === "drive" ? "GoogleCacheLogsDB" : "LogsDB";
@@ -159,7 +237,116 @@ export function useJournal() {
             console.error("Failed to save config to LogsDB", error);
         }
         localStorage.setItem(CONFIG_KEY, value);
+        window.dispatchEvent(new CustomEvent(JOURNAL_CONFIG_UPDATED_EVENT, { detail: value }));
     }, []);
+
+    // Migration helper: convert legacy single cursor to dual cursors
+    const migrateLegacyCursor = useCallback((legacyCursor: SyncCursor | null | undefined): { tradeCursor: SyncCursor | null; itemCursor: SyncCursor | null } => {
+        if (!legacyCursor || !legacyCursor.lastTimestamp) {
+            return { tradeCursor: null, itemCursor: null };
+        }
+        // Migrate legacy cursor to both trade and item cursors
+        return {
+            tradeCursor: { ...legacyCursor },
+            itemCursor: { ...legacyCursor },
+        };
+    }, []);
+
+    const applyConfig = useCallback((parsedConfig: JournalConfig | null) => {
+        if (!parsedConfig) return;
+        setWeav3rApiKey(parsedConfig.apiKey || "");
+        setWeav3rUserId(parsedConfig.userId || "");
+        setDriveApiKey(parsedConfig.driveApiKey || "");
+        setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
+        setTornApiKeyFull(parsedConfig.tornApiKeyFull || "");
+        
+        // Handle legacy cursor migration
+        if (parsedConfig.autoPilotCursor && !parsedConfig.autoPilotTradeCursor) {
+            // Legacy migration: single cursor -> dual cursors
+            const migrated = migrateLegacyCursor(parsedConfig.autoPilotCursor);
+            setAutoPilotTradeCursor(migrated.tradeCursor);
+            setAutoPilotItemCursor(migrated.itemCursor);
+        } else {
+            // New dual cursor system
+            setAutoPilotTradeCursor(parsedConfig.autoPilotTradeCursor || null);
+            setAutoPilotItemCursor(parsedConfig.autoPilotItemCursor || null);
+        }
+        // Keep legacy cursor for backwards compatibility
+        setAutoPilotCursor(parsedConfig.autoPilotCursor || null);
+        setAutoPilotStartTime(parsedConfig.autoPilotStartTime ?? null);
+        setAutoPilotLastSyncAt(parsedConfig.autoPilotLastSyncAt ?? null);
+        setAutoPilotTradeCache(Array.isArray(parsedConfig.autoPilotTradeCache) ? parsedConfig.autoPilotTradeCache : []);
+        setAutoPilotReceiptCache(Array.isArray(parsedConfig.autoPilotReceiptCache) ? parsedConfig.autoPilotReceiptCache : []);
+        setAutoPilotTradeLinks(Array.isArray(parsedConfig.autoPilotTradeLinks) ? parsedConfig.autoPilotTradeLinks : []);
+        setAutoPilotTrashedReceiptIds(Array.isArray(parsedConfig.autoPilotTrashedReceiptIds) ? parsedConfig.autoPilotTrashedReceiptIds : []);
+        setAutoPilotManuallyAddedTradeIds(Array.isArray(parsedConfig.autoPilotManuallyAddedTradeIds) ? parsedConfig.autoPilotManuallyAddedTradeIds : []);
+        setAutoPilotPendingTrades(
+            Array.isArray(parsedConfig.autoPilotPendingTrades)
+                ? parsedConfig.autoPilotPendingTrades
+                : parsedConfig.autoPilotPendingTrade
+                    ? [parsedConfig.autoPilotPendingTrade]
+                    : []
+        );
+        setAutoPilotRecentImports(Array.isArray(parsedConfig.autoPilotRecentImports) ? parsedConfig.autoPilotRecentImports : []);
+    }, [migrateLegacyCursor]);
+
+    const buildConfigSnapshot = useCallback((overrides: Partial<JournalConfig> = {}): JournalConfig => ({
+        apiKey: weav3rApiKey,
+        userId: weav3rUserId,
+        driveApiKey,
+        skipNegativeStock,
+        tornApiKeyFull,
+        autoPilotCursor,
+        autoPilotTradeCursor,
+        autoPilotItemCursor,
+        autoPilotStartTime,
+        autoPilotLastSyncAt,
+        autoPilotTradeCache,
+        autoPilotReceiptCache,
+        autoPilotTradeLinks,
+        autoPilotTrashedReceiptIds,
+        autoPilotManuallyAddedTradeIds,
+        autoPilotPendingTrades,
+        autoPilotRecentImports,
+        ...overrides
+    }), [
+        weav3rApiKey,
+        weav3rUserId,
+        driveApiKey,
+        skipNegativeStock,
+        tornApiKeyFull,
+        autoPilotCursor,
+        autoPilotTradeCursor,
+        autoPilotItemCursor,
+        autoPilotStartTime,
+        autoPilotLastSyncAt,
+        autoPilotTradeCache,
+        autoPilotReceiptCache,
+        autoPilotTradeLinks,
+        autoPilotTrashedReceiptIds,
+        autoPilotManuallyAddedTradeIds,
+        autoPilotPendingTrades,
+        autoPilotRecentImports
+    ]);
+
+    const pickDriveAutoPilotState = useCallback((config: JournalConfig): AutoPilotDriveState => ({
+        autoPilotCursor: config.autoPilotCursor ?? null,
+        autoPilotTradeCursor: config.autoPilotTradeCursor ?? null,
+        autoPilotItemCursor: config.autoPilotItemCursor ?? null,
+        autoPilotStartTime: config.autoPilotStartTime ?? null,
+        autoPilotLastSyncAt: config.autoPilotLastSyncAt ?? null,
+        autoPilotTradeCache: config.autoPilotTradeCache ?? [],
+        autoPilotReceiptCache: config.autoPilotReceiptCache ?? [],
+        autoPilotTradeLinks: config.autoPilotTradeLinks ?? [],
+        autoPilotTrashedReceiptIds: config.autoPilotTrashedReceiptIds ?? [],
+        autoPilotManuallyAddedTradeIds: config.autoPilotManuallyAddedTradeIds ?? [],
+        autoPilotPendingTrades: config.autoPilotPendingTrades ?? [],
+        autoPilotRecentImports: config.autoPilotRecentImports ?? [],
+    }), []);
+
+    const persistMergedConfig = useCallback(async (overrides: Partial<JournalConfig> = {}) => {
+        await persistConfigCache(JSON.stringify(buildConfigSnapshot(overrides)));
+    }, [buildConfigSnapshot, persistConfigCache]);
 
     const markDriveSyncComplete = useCallback(() => {
         localStorage.setItem(DRIVE_CACHE_SYNCED_AT_KEY, new Date().toISOString());
@@ -186,21 +373,52 @@ export function useJournal() {
         return cachedTransactions.length > 0;
     }, []);
 
-    const fetchDriveTransactions = useCallback(async () => {
-        if (!driveApiKey) {
+    const fetchDriveTransactionsByKey = useCallback(async (apiKey: string, configSnapshot?: JournalConfig | null) => {
+        if (!apiKey) {
             throw new Error("Google Drive sync key is not configured.");
         }
 
-        const response = await loadGoogleDriveData(driveApiKey);
-        if (!response.success) {
+        const ledgerResponse = await loadGoogleDriveData(apiKey);
+        let autoPilotResponse: Awaited<ReturnType<typeof loadGoogleDriveData>> | null = null;
+
+        try {
+            autoPilotResponse = await loadGoogleDriveData(apiKey, AUTO_PILOT_DRIVE_FILE);
+        } catch (error) {
+            autoPilotResponse = null;
+        }
+
+        if (!ledgerResponse.success) {
             throw new Error("Failed to download Drive data");
         }
 
-        const driveTransactions = Array.isArray(response.data) ? response.data : [];
+        const driveTransactions = isLegacyDriveStoredPayload(ledgerResponse.data)
+            ? ledgerResponse.data.transactions
+            : Array.isArray(ledgerResponse.data)
+                ? ledgerResponse.data
+                : [];
+
+        const remoteAutoPilotState =
+            autoPilotResponse && isAutoPilotDriveState(autoPilotResponse.data)
+                ? autoPilotResponse.data
+                : isLegacyDriveStoredPayload(ledgerResponse.data) && ledgerResponse.data.autoPilotState
+                    ? ledgerResponse.data.autoPilotState
+                    : null;
+
+        if (remoteAutoPilotState) {
+            applyConfig({
+                ...(configSnapshot || buildConfigSnapshot()),
+                ...remoteAutoPilotState,
+            });
+        }
+
         await persistTransactionsCache("GoogleCacheLogsDB", driveTransactions);
         markDriveSyncComplete();
         return driveTransactions;
-    }, [driveApiKey, markDriveSyncComplete, persistTransactionsCache]);
+    }, [applyConfig, buildConfigSnapshot, markDriveSyncComplete, persistTransactionsCache]);
+
+    const fetchDriveTransactions = useCallback(async () => {
+        return fetchDriveTransactionsByKey(driveApiKey);
+    }, [driveApiKey, fetchDriveTransactionsByKey]);
 
     const refreshDriveCache = useCallback(async () => {
         const driveTransactions = await runSyncTask(
@@ -223,9 +441,14 @@ export function useJournal() {
     }, []);
 
     useEffect(() => {
+        if (bootstrapStartedRef.current) {
+            return;
+        }
+        bootstrapStartedRef.current = true;
+
         const init = async () => {
             let loadedTransactions: Transaction[] = [];
-            let parsedConfig = null;
+            let parsedConfig: JournalConfig | null = null;
             let backgroundDriveRefresh: Promise<void> | null = null;
             try {
                 const cachedConfig = await readConfigCache();
@@ -250,13 +473,14 @@ export function useJournal() {
                     }
                 } else if (storagePref === 'drive') {
                     const cachedTransactions = await readCachedTransactions("GoogleCacheLogsDB");
+                    const configuredDriveApiKey = parsedConfig?.driveApiKey || "";
                     if (isDriveCacheFresh(cachedTransactions)) {
                         loadedTransactions = cachedTransactions;
                     } else {
                         loadedTransactions = cachedTransactions;
                         backgroundDriveRefresh = runSyncTask(
                             "Sync in progress: downloading latest data from Google Drive...",
-                            fetchDriveTransactions
+                            () => fetchDriveTransactionsByKey(configuredDriveApiKey, parsedConfig)
                         )
                             .then((fresh: Transaction[]) => setTransactions(fresh))
                             .catch((e: Error) => console.error("Background Drive refresh failed", e));
@@ -278,14 +502,11 @@ export function useJournal() {
                     }
                 }
 
+                transactionsRef.current = loadedTransactions;
                 setTransactions(loadedTransactions);
                 await checkBMLDB();
 
-                if (parsedConfig) {
-                    setWeav3rApiKey(parsedConfig.apiKey || "");
-                    setWeav3rUserId(parsedConfig.userId || "");
-                    setDriveApiKey(parsedConfig.driveApiKey || "");
-                }
+                applyConfig(parsedConfig);
             } catch (error) {
                 console.error("Journal bootstrap failed", error);
             } finally {
@@ -295,9 +516,31 @@ export function useJournal() {
         };
 
         init();
-    }, [fetchDriveTransactions, getActiveDB, isDriveCacheFresh, persistTransactionsCache, readCachedTransactions, readConfigCache, runSyncTask]);
+    }, [applyConfig, fetchDriveTransactionsByKey, isDriveCacheFresh, persistTransactionsCache, readCachedTransactions, readConfigCache, runSyncTask]);
+
+    useEffect(() => {
+        transactionsRef.current = transactions;
+    }, [transactions]);
+
+    useEffect(() => {
+        const handleConfigUpdated = (event: Event) => {
+            const customEvent = event as CustomEvent<string | undefined>;
+            const rawConfig = customEvent.detail;
+            if (!rawConfig) return;
+
+            try {
+                applyConfig(JSON.parse(rawConfig) as JournalConfig);
+            } catch (error) {
+                console.error("Failed to apply live config update", error);
+            }
+        };
+
+        window.addEventListener(JOURNAL_CONFIG_UPDATED_EVENT, handleConfigUpdated);
+        return () => window.removeEventListener(JOURNAL_CONFIG_UPDATED_EVENT, handleConfigUpdated);
+    }, [applyConfig]);
 
     const saveTransactions = useCallback((newLogs: Transaction[]) => {
+        transactionsRef.current = newLogs;
         setTransactions(newLogs);
         const storagePref = localStorage.getItem("bml_storage_pref");
 
@@ -339,6 +582,7 @@ export function useJournal() {
             });
 
             merged.sort((a, b) => a.date - b.date);
+            transactionsRef.current = merged;
             saveTransactions(merged);
             return merged;
         });
@@ -346,7 +590,7 @@ export function useJournal() {
 
     const saveWeaverConfig = useCallback(async (apiKey: string) => {
         const trimmedApiKey = apiKey.trim();
-        const cfg = { apiKey: trimmedApiKey, userId: "", driveApiKey };
+        const cfg: JournalConfig = buildConfigSnapshot({ apiKey: trimmedApiKey, userId: "" });
 
         if (trimmedApiKey) {
             const userId = await resolveTornUserId(trimmedApiKey);
@@ -360,144 +604,93 @@ export function useJournal() {
 
         await persistConfigCache(JSON.stringify(cfg));
         return cfg.userId;
-    }, [driveApiKey, persistConfigCache]);
+    }, [buildConfigSnapshot, persistConfigCache]);
+
+    const saveTornApiKeyFull = useCallback(async (apiKey: string) => {
+        const trimmedApiKey = apiKey.trim();
+        setTornApiKeyFull(trimmedApiKey);
+        await persistMergedConfig({ tornApiKeyFull: trimmedApiKey });
+    }, [persistMergedConfig]);
 
     const saveDriveApiKey = useCallback(async (apiKey: string) => {
         setDriveApiKey(apiKey);
-        const cfg = JSON.stringify({ apiKey: weav3rApiKey, userId: weav3rUserId, driveApiKey: apiKey });
-        await persistConfigCache(cfg);
-    }, [persistConfigCache, weav3rApiKey, weav3rUserId]);
+        await persistMergedConfig({ driveApiKey: apiKey });
+    }, [persistMergedConfig]);
 
-    const calculateInventory = (txns: Transaction[]) => {
-        const inv = new Map<string, InventoryItemStats>();
-        // Add/Subtract 0.1 to date of each transaction based on BUY or SELL
-        txns.forEach(t => {
-            if (t.type === 'BUY') {
-                t.date -= 0.1;
-            } else {
-                t.date += 0.1
-            }
-        })
+    const updateSkipNegativeStock = useCallback(async (value: boolean) => {
+        setSkipNegativeStock(value);
+        await persistMergedConfig({ skipNegativeStock: value });
+    }, [persistMergedConfig]);
 
-        // Sort transactions by date.
-        txns.sort((a, b) => a.date - b.date);
-        txns.forEach(t => {
-            if (t.type === 'BUY') {
-                const isAbroad = t.tag === 'Abroad';
-                const current = inv.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                if (isAbroad) {
-                    current.abroadStock += t.amount;
-                    current.abroadTotalCost += (t.price * t.amount);
-                } else {
-                    current.stock += t.amount;
-                    current.totalCost += (t.price * t.amount);
-                }
-                inv.set(t.item, current);
-            } else if (t.type === 'SELL') {
-                const isAbroad = t.tag === 'Abroad';
-                const current = inv.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                if (isAbroad) {
-                    const avgCostBasis = current.abroadStock > 0 ? (current.abroadTotalCost / current.abroadStock) : 0;
-                    const costOfGoodsSold = avgCostBasis * t.amount;
-                    const revenue = t.price * t.amount;
-                    current.abroadStock -= t.amount;
-                    current.abroadTotalCost -= costOfGoodsSold;
-                    current.abroadRealizedProfit += (revenue - costOfGoodsSold);
-                } else {
-                    const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
-                    const costOfGoodsSold = avgCostBasis * t.amount;
-                    const revenue = t.price * t.amount;
-                    current.stock -= t.amount;
-                    current.totalCost -= costOfGoodsSold;
-                    current.realizedProfit += (revenue - costOfGoodsSold);
-                }
-                inv.set(t.item, current);
-            } else if (t.type === 'CONVERT') {
-                const fromCurr = inv.get(t.fromItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                const fromAvgCost = fromCurr.stock > 0 ? (fromCurr.totalCost / fromCurr.stock) : 0;
-                const fromCostOfGoods = fromAvgCost * t.fromAmount;
-                fromCurr.stock -= t.fromAmount;
-                fromCurr.totalCost -= fromCostOfGoods;
-                inv.set(t.fromItem, fromCurr);
-                const toCurr = inv.get(t.toItem) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                toCurr.stock += t.toAmount;
-                toCurr.totalCost += fromCostOfGoods;
-                inv.set(t.toItem, toCurr);
-            } else if (t.type === 'SET_CONVERT') {
-                const setItems = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
-                let totalCostOfGoods = 0;
-                setItems.forEach(item => {
-                    const curr = inv.get(item) || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                    const avgCost = curr.stock > 0 ? (curr.totalCost / curr.stock) : 0;
-                    const costOfGoods = avgCost * t.times;
-                    curr.stock -= t.times;
-                    curr.totalCost -= costOfGoods;
-                    inv.set(item, curr);
-                    totalCostOfGoods += costOfGoods;
-                });
-                const pointsCurr = inv.get('points') || { stock: 0, totalCost: 0, realizedProfit: 0, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 };
-                pointsCurr.stock += t.pointsEarned;
-                pointsCurr.totalCost += totalCostOfGoods;
-                inv.set('points', pointsCurr);
-            }
-        });
-        return inv;
-    };
-
-    const buildTransactionsWithLogs = useCallback((baseTransactions: Transaction[], parsedLogs: ParsedLog[]) => {
-        let currentTxns = [...baseTransactions];
-        const initialDate = Date.now();
-        parsedLogs.forEach((p, idx) => {
-            const date = initialDate + idx;
-            if (p.type === 'SELL' && !p.tag) {
-                const currentInv = calculateInventory(currentTxns);
-                const itemStats = currentInv.get(p.item);
-                let remainingAmountToSell = p.amount;
-                const normalAvail = itemStats?.stock || 0;
-                const abroadAvail = itemStats?.abroadStock || 0;
-                const toSave: Transaction[] = [];
-                if (normalAvail >= remainingAmountToSell || (normalAvail <= 0 && abroadAvail <= 0)) {
-                    toSave.push({ ...p, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
-                } else if (normalAvail > 0 && remainingAmountToSell > normalAvail) {
-                    toSave.push({ ...p, amount: normalAvail, id: crypto.randomUUID(), date, tag: 'Normal' } as Transaction);
-                    remainingAmountToSell -= normalAvail;
-                    if (abroadAvail > 0) {
-                        const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
-                        toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date: date + 1, tag: 'Abroad' } as Transaction);
-                        remainingAmountToSell -= amountFromAbroad;
-                    }
-                    if (remainingAmountToSell > 0) {
-                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 2, tag: 'Normal' } as Transaction);
-                    }
-                } else if (normalAvail <= 0 && abroadAvail > 0) {
-                    const amountFromAbroad = Math.min(abroadAvail, remainingAmountToSell);
-                    toSave.push({ ...p, amount: amountFromAbroad, id: crypto.randomUUID(), date, tag: 'Abroad' } as Transaction);
-                    remainingAmountToSell -= amountFromAbroad;
-                    if (remainingAmountToSell > 0) {
-                        toSave.push({ ...p, amount: remainingAmountToSell, id: crypto.randomUUID(), date: date + 1, tag: 'Normal' } as Transaction);
-                    }
-                }
-                currentTxns = [...currentTxns, ...toSave];
-            } else {
-                currentTxns.push({
-                    ...p,
-                    id: crypto.randomUUID(),
-                    date,
-                    ...(p.type === 'BUY' && !p.tag ? { tag: 'Normal' } : {})
-                } as Transaction);
-            }
-        });
-        return currentTxns;
-    }, [calculateInventory]);
-
-    const addLogs = useCallback(async (parsedLogs: ParsedLog[]) => {
+    const addLogs = useCallback(async (parsedLogs: ParsedLog[], options?: { skipNegativeStock?: boolean }) => {
         const storagePref = localStorage.getItem("bml_storage_pref");
         const baseTransactions = storagePref === 'drive'
             ? await runSyncTask("Syncing...", fetchDriveTransactions)
-            : transactions;
-        const nextTransactions = buildTransactionsWithLogs(baseTransactions, parsedLogs);
+            : transactionsRef.current;
+        const nextTransactions = buildTransactionsWithLogs(
+            baseTransactions,
+            parsedLogs,
+            options?.skipNegativeStock ?? skipNegativeStock
+        );
         saveTransactions(nextTransactions);
-    }, [buildTransactionsWithLogs, fetchDriveTransactions, runSyncTask, saveTransactions, transactions]);
+    }, [fetchDriveTransactions, runSyncTask, saveTransactions, skipNegativeStock]);
+
+    const saveAutoPilotState = useCallback(async (patch: Partial<JournalConfig>) => {
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotCursor")) {
+            setAutoPilotCursor(patch.autoPilotCursor ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeCursor")) {
+            setAutoPilotTradeCursor(patch.autoPilotTradeCursor ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotItemCursor")) {
+            setAutoPilotItemCursor(patch.autoPilotItemCursor ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotStartTime")) {
+            setAutoPilotStartTime(patch.autoPilotStartTime ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotLastSyncAt")) {
+            setAutoPilotLastSyncAt(patch.autoPilotLastSyncAt ?? null);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeCache")) {
+            setAutoPilotTradeCache(patch.autoPilotTradeCache || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotReceiptCache")) {
+            setAutoPilotReceiptCache(patch.autoPilotReceiptCache || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeLinks")) {
+            setAutoPilotTradeLinks(patch.autoPilotTradeLinks || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTrashedReceiptIds")) {
+            setAutoPilotTrashedReceiptIds(patch.autoPilotTrashedReceiptIds || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotManuallyAddedTradeIds")) {
+            setAutoPilotManuallyAddedTradeIds(patch.autoPilotManuallyAddedTradeIds || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotPendingTrades")) {
+            setAutoPilotPendingTrades(patch.autoPilotPendingTrades || []);
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, "autoPilotRecentImports")) {
+            setAutoPilotRecentImports(patch.autoPilotRecentImports || []);
+        }
+        await persistMergedConfig(patch);
+        const storagePref = localStorage.getItem("bml_storage_pref");
+        if (storagePref === "drive" && driveApiKey) {
+            await runSyncTask(
+                "Sync in progress: uploading Auto-Pilot state to Google Drive...",
+                async () => {
+                    const response = await writeGoogleDriveData(
+                        driveApiKey,
+                        pickDriveAutoPilotState(buildConfigSnapshot(patch)),
+                        AUTO_PILOT_DRIVE_FILE,
+                    );
+                    if (!response.success) {
+                        throw new Error("Failed to sync Auto-Pilot state to Google Drive");
+                    }
+                    markDriveSyncComplete();
+                }
+            );
+        }
+    }, [buildConfigSnapshot, driveApiKey, markDriveSyncComplete, persistMergedConfig, pickDriveAutoPilotState, runSyncTask]);
 
     const clearLogs = useCallback(() => {
         localStorage.removeItem(DRIVE_CACHE_READY_KEY);
@@ -602,6 +795,7 @@ export function useJournal() {
         editLog,
         renameItem,
         inventory,
+        calculateInventory,
         totalMugLoss,
         totalItemRealizedProfit,
         totalInventoryValue,
@@ -609,8 +803,25 @@ export function useJournal() {
         weav3rApiKey,
         weav3rUserId,
         driveApiKey,
+        tornApiKeyFull,
+        skipNegativeStock,
+        updateSkipNegativeStock,
         saveWeaverConfig,
+        saveTornApiKeyFull,
         saveDriveApiKey,
+        autoPilotCursor,
+        autoPilotTradeCursor,
+        autoPilotItemCursor,
+        autoPilotStartTime,
+        autoPilotLastSyncAt,
+        autoPilotTradeCache,
+        autoPilotReceiptCache,
+        autoPilotTradeLinks,
+        autoPilotTrashedReceiptIds,
+        autoPilotManuallyAddedTradeIds,
+        autoPilotPendingTrades,
+        autoPilotRecentImports,
+        saveAutoPilotState,
         needsMigration,
         hasBMLDB,
         getBMLDataCount,

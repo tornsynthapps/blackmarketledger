@@ -68,45 +68,45 @@ export async function completeGoogleDriveSetup(input: {
   }>(response);
 }
 
-export async function getGoogleDriveStatus(apiKey: string) {
+export async function getGoogleDriveStatus(apiKey: string, file?: string) {
   const response = await fetch(getFunctionUrl("sync-google-drive"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey, action: "status" }),
+    body: JSON.stringify({ apiKey, action: "status", file }),
   });
 
   return readJson<{ success: true; data: GoogleDriveStatusResponse }>(response);
 }
 
-export async function loadGoogleDriveData(apiKey: string) {
+export async function loadGoogleDriveData(apiKey: string, file?: string) {
   const response = await fetch(getFunctionUrl("sync-google-drive"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey, action: "read" }),
+    body: JSON.stringify({ apiKey, action: "read", file }),
   });
 
   return readJson<{
     success: true;
-    data: any[];
+    data: unknown;
     meta: { connection: GoogleDriveStatusResponse };
   }>(response);
 }
 
-export async function writeGoogleDriveData(apiKey: string, data: any[]) {
+export async function writeGoogleDriveData(apiKey: string, data: unknown, file?: string) {
   const response = await fetch(getFunctionUrl("sync-google-drive"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey, action: "write", data }),
+    body: JSON.stringify({ apiKey, action: "write", data, file }),
   });
 
   return readJson<{ success: true; data: GoogleDriveStatusResponse }>(response);
 }
 
-export async function deleteGoogleDriveData(apiKey: string) {
+export async function deleteGoogleDriveData(apiKey: string, file?: string) {
   const response = await fetch(getFunctionUrl("sync-google-drive"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ apiKey, action: "delete" }),
+    body: JSON.stringify({ apiKey, action: "delete", file }),
   });
 
   return readJson<{ success: true; data: GoogleDriveStatusResponse }>(response);

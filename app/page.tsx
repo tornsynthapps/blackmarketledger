@@ -2,11 +2,13 @@
 
 import { useJournal, InventoryItemStats } from "@/store/useJournal";
 import { formatItemName } from "@/lib/parser";
-import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown, ArrowUp, ArrowDown, Search, Coins } from "lucide-react";
+import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import StatsModal from "@/components/StatsModal";
+import { ProfitChart } from "@/components/ProfitChart";
+import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, endOfYear } from "date-fns";
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -42,6 +44,10 @@ export default function Home() {
     title: '',
     statType: 'profit'
   });
+
+  // Chart state
+  const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
+  const [viewType, setViewType] = useState<'daily' | 'total'>('daily');
 
   const { stats, sortedItems } = useMemo(() => {
     let profit = 0;
@@ -88,8 +94,6 @@ export default function Home() {
     };
   }, [inventory, sortConfig, search]);
 
-  if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
-
   const handleSort = (key: SortKey) => {
     vibrate("utility");
     let direction: 'asc' | 'desc' = 'desc';
@@ -109,6 +113,117 @@ export default function Home() {
   };
 
   const netTotal = stats.profit - totalMugLoss;
+
+
+  // Chart data generation
+  const chartData = useMemo(() => {
+    if (!isLoaded || !transactions.length) return [];
+
+    const now = new Date();
+    let periods: Date[] = [];
+    let dateFormat = 'MMM dd';
+
+    if (timeRange === 'daily') {
+      periods = Array.from({ length: 30 }, (_, i) => subDays(now, 29 - i));
+    } else if (timeRange === 'weekly') {
+      periods = Array.from({ length: 12 }, (_, i) => subWeeks(now, 11 - i));
+      dateFormat = 'MMM dd';
+    } else if (timeRange === 'monthly') {
+      periods = Array.from({ length: 12 }, (_, i) => subMonths(now, 11 - i));
+      dateFormat = 'MMM yyyy';
+    } else {
+      periods = Array.from({ length: 5 }, (_, i) => subMonths(now, (4 - i) * 12));
+      dateFormat = 'yyyy';
+    }
+    
+    const sortedTransactions = [...transactions].sort((a, b) => {
+      if (a.date !== b.date) return a.date - b.date;
+      return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
+    });
+
+    // Process transactions similar to StatsModal but for all items (excluding flushie and points)
+    const tempInventory = new Map<string, { stock: number; totalCost: number; realizedProfit: number }>();
+    let totalMug = 0;
+    let transactionIndex = 0;
+    
+    // Track previous totals for incremental view
+    let lastPeriodRealized = 0;
+    let lastPeriodMug = 0;
+    
+    return periods.map(period => {
+      let periodEnd: Date;
+      if (timeRange === 'daily') periodEnd = endOfDay(startOfDay(period));
+      else if (timeRange === 'weekly') periodEnd = endOfWeek(startOfWeek(period));
+      else if (timeRange === 'monthly') periodEnd = endOfMonth(startOfMonth(period));
+      else periodEnd = endOfYear(startOfMonth(period));
+
+      while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
+        const t = sortedTransactions[transactionIndex];
+        
+        if (t.type === 'MUG') {
+          totalMug += t.amount;
+        } else if ('item' in t && t.item) {
+          // Skip flushie and points
+          if (t.item.toLowerCase() === 'flushie' || t.item.toLowerCase() === 'points') {
+            transactionIndex++;
+            continue;
+          }
+          
+          if (t.type === 'BUY') {
+            const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+            current.stock += t.amount;
+            current.totalCost += (t.price * t.amount);
+            tempInventory.set(t.item, current);
+          } else if (t.type === 'SELL') {
+            const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
+            const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
+            const costOfGoodsSold = avgCostBasis * t.amount;
+            current.stock -= t.amount;
+            current.totalCost -= costOfGoodsSold;
+            current.realizedProfit += (t.price * t.amount - costOfGoodsSold);
+            tempInventory.set(t.item, current);
+          }
+        }
+        
+        transactionIndex++;
+      }
+
+      // Calculate totals
+      let totalRealized = 0;
+      tempInventory.forEach(item => {
+        totalRealized += item.realizedProfit;
+      });
+      
+      const totalMugLoss = totalMug;
+      const netProfit = totalRealized - totalMugLoss;
+      
+      // For incremental view, get period-over-period values
+      const incrementalRealized = totalRealized - lastPeriodRealized;
+      const incrementalMug = totalMugLoss - lastPeriodMug;
+      const incrementalNet = netProfit - (lastPeriodRealized - lastPeriodMug);
+      
+      lastPeriodRealized = totalRealized;
+      lastPeriodMug = totalMugLoss;
+
+      return {
+        date: format(period, dateFormat),
+        ts: periodEnd.getTime(),
+        realizedProfit: Math.round(viewType === 'total' ? totalRealized : incrementalRealized),
+        mugLoss: -Math.round(viewType === 'total' ? totalMugLoss : incrementalMug), // Negative so it shows below axis
+        netProfit: Math.round(viewType === 'total' ? netProfit : incrementalNet)
+      };
+    });
+  }, [isLoaded, transactions, timeRange, viewType]);
+  
+  if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
+
+
+  // Calculate reference values
+  const finalNetProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0;
+  const averageNetProfit = chartData.length > 0 
+    ? Math.round(chartData.reduce((acc, curr) => acc + curr.netProfit, 0) / chartData.length) 
+    : 0;
+  const referenceValue = viewType === 'daily' ? averageNetProfit : finalNetProfit;
   return (
     <div
       className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -131,36 +246,66 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Realized Profit"
-          value={formatMoney(stats.profit)}
-          icon={<TrendingUp className="text-success w-5 h-5" />}
-          description="From sold items only"
-          onClick={() => openStatsModal("Total Realized Profit", "profit")}
-        />
-        <StatCard
-          title="Current Inventory Value"
-          value={formatMoney(stats.invValue)}
-          icon={<PackageSearch className="text-primary w-5 h-5" />}
-          description="Cost basis of stock"
-        />
-        <StatCard
-          title="Total Mug Loss"
-          value={formatMoney(totalMugLoss)}
-          icon={<AlertTriangle className="text-danger w-5 h-5" />}
-          description="Lost to muggers"
-          valueClass="text-danger"
-          onClick={() => openStatsModal("Total Mug Loss", "mugLoss")}
-        />
-        <StatCard
-          title="Net Total Profit"
-          value={formatMoney(netTotal)}
-          icon={<Activity className="text-primary w-5 h-5" />}
-          description="Realized - Mug Loss"
-          valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
-          onClick={() => openStatsModal("Net Total Profit", "netProfit")}
-        />
+      {/* Hero Section: 1/3 Stats List - 2/3 Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-panel rounded-3xl border border-border shadow-2xl p-8 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-bl-[10rem] -z-10 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-tr-[8rem] -z-10 pointer-events-none" />
+
+        {/* Overview List (1/3) */}
+        <div className="space-y-8 pr-0 lg:pr-8 border-r-0 lg:border-r border-border/50">
+          <div>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-6 flex items-center gap-2">
+              <Activity className="w-3 h-3" />
+              Profit Overview
+            </h2>
+            
+            <div className="space-y-6">
+              <OverviewItem 
+                icon={<TrendingUp className="w-4 h-4" />}
+                label="Total Realized Profit"
+                value={formatMoney(stats.profit)}
+                subValue="From sold items"
+                valueClass="text-success"
+              />
+              <OverviewItem 
+                icon={<AlertTriangle className="w-4 h-4" />}
+                label="Total Mug Loss"
+                value={formatMoney(totalMugLoss)}
+                subValue="Lost to muggers"
+                valueClass="text-danger"
+              />
+              <OverviewItem 
+                icon={<Activity className="w-4 h-4" />}
+                label="Net Total Profit"
+                value={formatMoney(netTotal)}
+                subValue="Realized - Mug"
+                valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
+              />
+              <OverviewItem 
+                icon={<PackageSearch className="w-4 h-4" />}
+                label="Inventory Value"
+                value={formatMoney(stats.invValue)}
+                subValue="Cost basis"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Chart Area (2/3) */}
+        <div className="lg:col-span-2 pl-0 lg:pl-4 mt-6 lg:mt-0">
+          <ProfitChart 
+            chartId="dashboard-main"
+            data={chartData}
+            viewType={viewType}
+            setViewType={setViewType}
+            timeRange={timeRange}
+            setTimeRange={setTimeRange}
+            referenceValue={referenceValue}
+            primaryColor="#3b82f6"
+            formatValue={formatMoney}
+            stackedMode={true}
+          />
+        </div>
       </div>
 
       <div className="mt-8 bg-panel rounded-xl border border-border shadow-sm overflow-hidden">
@@ -298,6 +443,25 @@ function StatCard({
         {onClick && (
           <p className="text-xs text-primary/70 mt-1 font-medium">Click to view trends</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+function OverviewItem({
+  icon, label, value, subValue, valueClass = ""
+}: {
+  icon: React.ReactNode, label: string, value: string, subValue: string, valueClass?: string
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="p-2 bg-foreground/5 rounded-lg mt-0.5">
+        {icon}
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-foreground/40">{label}</p>
+        <p className={`text-lg font-black tracking-tight ${valueClass}`}>{value}</p>
+        <p className="text-[9px] font-medium text-foreground/30 mt-0.5">{subValue}</p>
       </div>
     </div>
   );
