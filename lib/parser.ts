@@ -140,7 +140,7 @@ export function parseLogLine(line: string): ParsedLog | null {
     // e.g. "07:28:09 - 07/03/26 You bought 22x Crocus on Frengesp's bazaar at $7,099 each for a total of $156,178"
     // e.g. "07:28:33 - 07/03/26 You bought 58x Crocus on the item market from lesbiampires at $8,189 each for a total of $474,962"
     // e.g. "You bought a Bottle of Tequila on Botato's bazaar at $666 each for a total of $666"
-    const tornBuyRegex = /You bought ([\d,]+x|a|some) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: (?:from|in) (.+))?)?/i;
+    const tornBuyRegex = /You bought ([\d,]+x|a|some|an) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: (?:from|in) (.+))?)?/i;
     const tornBuyMatch = line.match(tornBuyRegex);
     if (tornBuyMatch) {
         let amount = 1;
