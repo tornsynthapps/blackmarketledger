@@ -490,6 +490,21 @@ export default function AutoPilotPage() {
         </div>
       </div>
 
+      {/* Beta Warning Banner */}
+      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+              Beta Feature
+            </p>
+            <p className="text-sm text-yellow-700/80 dark:text-yellow-300/80">
+              Auto-Pilot is currently in beta. Dual-cursor sync across devices via Google Drive may not work reliably yet. Use with caution and keep backups of your data.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <div className="space-y-4">
           <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
