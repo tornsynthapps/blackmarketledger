@@ -404,11 +404,9 @@ export function useJournal() {
                     ? ledgerResponse.data.autoPilotState
                     : null;
 
-        // Apply remote auto-pilot state if it exists
-        // This ensures dual-cursor syncs properly across devices via Google Drive
         if (remoteAutoPilotState) {
             applyConfig({
-                ...buildConfigSnapshot(),
+                ...(configSnapshot || buildConfigSnapshot()),
                 ...remoteAutoPilotState,
             });
         }
