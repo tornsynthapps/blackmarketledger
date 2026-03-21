@@ -9,8 +9,12 @@ import { Activity, Layers, BarChart3 as LucideBarChart } from 'lucide-react';
 
 interface ChartDataPoint {
     date: string;
-    profit: number;
+    profit?: number;
     ts: number;
+    // For stacked mode
+    mugLoss?: number;
+    realizedProfit?: number;
+    netProfit?: number;
 }
 
 interface ProfitChartProps {
@@ -24,6 +28,7 @@ interface ProfitChartProps {
     primaryColor?: string;
     accentColor?: string;
     formatValue?: (val: number) => string;
+    stackedMode?: boolean;
 }
 
 export function ProfitChart({ 
@@ -36,9 +41,10 @@ export function ProfitChart({
     referenceValue,
     primaryColor = "#0d9488", // Default teal
     accentColor = "#0d9488",
-    formatValue = (val) => `$${val.toLocaleString()}`
+    formatValue = (val) => `${val.toLocaleString()}`,
+    stackedMode = false
 }: ProfitChartProps) {
-    const [chartType, setChartType] = useState<'line' | 'area' | 'bar'>('area');
+    const [chartType, setChartType] = useState<'line' | 'area' | 'bar'>(stackedMode ? 'area' : 'area');
 
     // Persistence
     React.useEffect(() => {
@@ -110,23 +116,69 @@ export function ProfitChart({
                         ))}
                     </div>
                     
-                    {/* Chart Type Select */}
-                    <div className="flex bg-foreground/5 p-1 rounded-xl">
-                        <ChartControlBtn active={chartType === 'line'} onClick={() => handleChartTypeChange('line')} icon={<Activity className="w-3.5 h-3.5" />} />
-                        <ChartControlBtn active={chartType === 'area'} onClick={() => handleChartTypeChange('area')} icon={<Layers className="w-3.5 h-3.5" />} />
-                        <ChartControlBtn active={chartType === 'bar'} onClick={() => handleChartTypeChange('bar')} icon={<LucideBarChart className="w-3.5 h-3.5" />} />
-                    </div>
+                    {!stackedMode && (
+                        <div className="flex bg-foreground/5 p-1 rounded-xl">
+                            <ChartControlBtn active={chartType === 'line'} onClick={() => handleChartTypeChange('line')} icon={<Activity className="w-3.5 h-3.5" />} />
+                            <ChartControlBtn active={chartType === 'area'} onClick={() => handleChartTypeChange('area')} icon={<Layers className="w-3.5 h-3.5" />} />
+                            <ChartControlBtn active={chartType === 'bar'} onClick={() => handleChartTypeChange('bar')} icon={<LucideBarChart className="w-3.5 h-3.5" />} />
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Chart Container */}
             <div className="h-[320px] w-full flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
-                    {chartType === 'bar' ? (
+                    {stackedMode ? (
+                        <AreaChart data={data}>
+                            <defs>
+                                <linearGradient id="colorRealized" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.8} />
+                                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0.1} />
+                                </linearGradient>
+                                <linearGradient id="colorMug" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1} />
+                                    <stop offset="50%" stopColor="#ef4444" stopOpacity={0.4} />
+                                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.8} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `${formatLargeNumber(val)}`} />
+                            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', opacity: 1 }} labelStyle={{ opacity: 0.7, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any, name) => [formatValue(value), name === 'netProfit' ? 'Net Profit' : name === 'realizedProfit' ? 'Realized Profit' : 'Mug Loss']} />
+                            {/* Mug Loss Area - shown as negative (red) - no stacking, just overlay */}
+                            <Area
+                                type="monotone"
+                                dataKey="mugLoss"
+                                stroke="#ef4444"
+                                strokeWidth={2}
+                                fill="url(#colorMug)"
+                                fillOpacity={0.6}
+                            />
+                            {/* Realized Profit Area - shown as positive (green) - no stacking, just overlay */}
+                            <Area
+                                type="monotone"
+                                dataKey="realizedProfit"
+                                stroke="#22c55e"
+                                strokeWidth={2}
+                                fill="url(#colorRealized)"
+                                fillOpacity={0.6}
+                            />
+                            {/* Net Profit Line - white */}
+                            <Line
+                                type="monotone"
+                                dataKey="netProfit"
+                                stroke="#ffffff"
+                                strokeWidth={3}
+                                dot={{ fill: '#ffffff', strokeWidth: 1.5, r: 3 }}
+                                activeDot={{ r: 5, strokeWidth: 0 }}
+                            />
+                        </AreaChart>
+                    ) : chartType === 'bar' ? (
                         <RechartsBarChart data={data}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
                             <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `${formatLargeNumber(val)}`} />
                             <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: primaryColor, fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatValue(value), viewType === 'total' ? "Total Profit" : "Period Profit"]} />
                             <Bar dataKey="profit" fill={primaryColor} radius={[6, 6, 0, 0]} />
                             <ReferenceLine y={referenceValue} stroke={primaryColor} strokeDasharray="3 3" opacity={0.2} label={{ value: viewType === 'daily' ? 'Avg' : 'Total', position: 'right', fill: primaryColor, fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
@@ -135,7 +187,7 @@ export function ProfitChart({
                         <LineChart data={data}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
                             <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `${formatLargeNumber(val)}`} />
                             <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: primaryColor, fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatValue(value), viewType === 'total' ? "Total Profit" : "Period Profit"]} />
                             <Line type="monotone" dataKey="profit" stroke={primaryColor} strokeWidth={2} dot={{ fill: primaryColor, strokeWidth: 1.5, r: 3 }} activeDot={{ r: 5, strokeWidth: 0 }} />
                             <ReferenceLine y={referenceValue} stroke={primaryColor} strokeDasharray="3 3" opacity={0.2} label={{ value: viewType === 'daily' ? 'Avg' : 'Total', position: 'right', fill: primaryColor, fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
@@ -150,7 +202,7 @@ export function ProfitChart({
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
                             <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `$${formatLargeNumber(val)}`} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `${formatLargeNumber(val)}`} />
                             <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--panel))', border: '1px solid hsl(var(--border))', borderRadius: '16px', padding: '16px', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: primaryColor, fontWeight: '900' }} labelStyle={{ opacity: 0.5, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any) => [formatValue(value), viewType === 'total' ? "Total Profit" : "Period Profit"]} />
                             <Area type="monotone" dataKey="profit" stroke={primaryColor} strokeWidth={2} fillOpacity={1} fill="url(#colorProfit)" animationDuration={1500} />
                             <ReferenceLine y={referenceValue} stroke={primaryColor} strokeDasharray="3 3" opacity={0.2} label={{ value: viewType === 'daily' ? 'Avg' : 'Total', position: 'right', fill: primaryColor, fontSize: 9, opacity: 0.4, fontWeight: 'bold' }} />
