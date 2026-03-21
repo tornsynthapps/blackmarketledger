@@ -1,5 +1,8 @@
 # BlackMarket Ledger Version History
 
+## v4.2.3 (2026-03-21)
+- **Dual Cursor Sync**: Implemented a dual-cursor system for more precise synchronization and log management in Auto-Pilot.
+
 ## v4.2.2 (2026-03-21)
 - **Squash Merge v4.2.2 Improvements**: Optimized trade detail fetching and enhanced receipt matching logic.
 - **Auto-Pilot Reset Control**: Implemented `ResetCursorPage` for managing Auto-Pilot cursor resets.
