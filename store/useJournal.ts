@@ -7,7 +7,7 @@ import { sendToExtension } from '@/lib/bmlconnect';
 import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
 import { loadGoogleDriveData, writeGoogleDriveData } from '@/lib/drive-api';
-import { AutoPilotImportRecord, AutoPilotTradeLink, PendingAutoPilotTrade, SyncCursor, TornTradeDetail, Weav3rReceipt } from '@/lib/torn-api';
+import { AutoPilotImportRecord, AutoPilotTradeLink, PendingAutoPilotTrade, SyncCursor, TornTradeDetail, Weav3rReceipt, refreshApiRateLimiters } from '@/lib/torn-api';
 import { DualCursor, createDualCursor } from '@/lib/cursor';
 
 const STORAGE_KEY = 'torn_invest_tracker_logs';
@@ -46,6 +46,8 @@ interface JournalConfig {
     driveApiKey?: string;
     skipNegativeStock?: boolean;
     tornApiKeyFull?: string;
+    tornApiRateLimit?: number;
+    weav3rApiRateLimit?: number;
     // Legacy single cursor - kept for migration
     autoPilotCursor?: SyncCursor | null;
     // New dual cursor system
@@ -122,6 +124,8 @@ export function useJournal() {
     const [weav3rUserId, setWeav3rUserId] = useState("");
     const [driveApiKey, setDriveApiKey] = useState("");
     const [tornApiKeyFull, setTornApiKeyFull] = useState("");
+    const [tornApiRateLimit, setTornApiRateLimit] = useState(60);
+    const [weav3rApiRateLimit, setWeav3rApiRateLimit] = useState(60);
     const [skipNegativeStock, setSkipNegativeStock] = useState(false);
     // Legacy cursor - kept for migration
     const [autoPilotCursor, setAutoPilotCursor] = useState<SyncCursor | null>(null);
@@ -259,6 +263,8 @@ export function useJournal() {
         setDriveApiKey(parsedConfig.driveApiKey || "");
         setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
         setTornApiKeyFull(parsedConfig.tornApiKeyFull || "");
+        setTornApiRateLimit(parsedConfig.tornApiRateLimit ?? 60);
+        setWeav3rApiRateLimit(parsedConfig.weav3rApiRateLimit ?? 60);
         
         // Handle legacy cursor migration
         if (parsedConfig.autoPilotCursor && !parsedConfig.autoPilotTradeCursor) {
@@ -296,6 +302,8 @@ export function useJournal() {
         driveApiKey,
         skipNegativeStock,
         tornApiKeyFull,
+        tornApiRateLimit,
+        weav3rApiRateLimit,
         autoPilotCursor,
         autoPilotTradeCursor,
         autoPilotItemCursor,
@@ -315,6 +323,8 @@ export function useJournal() {
         driveApiKey,
         skipNegativeStock,
         tornApiKeyFull,
+        tornApiRateLimit,
+        weav3rApiRateLimit,
         autoPilotCursor,
         autoPilotTradeCursor,
         autoPilotItemCursor,
@@ -624,6 +634,20 @@ export function useJournal() {
         await persistMergedConfig({ skipNegativeStock: value });
     }, [persistMergedConfig]);
 
+    const updateTornApiRateLimit = useCallback(async (value: number) => {
+        const clamped = Math.max(10, Math.min(80, value));
+        setTornApiRateLimit(clamped);
+        await persistMergedConfig({ tornApiRateLimit: clamped });
+        refreshApiRateLimiters();
+    }, [persistMergedConfig]);
+
+    const updateWeav3rApiRateLimit = useCallback(async (value: number) => {
+        const clamped = Math.max(10, Math.min(80, value));
+        setWeav3rApiRateLimit(clamped);
+        await persistMergedConfig({ weav3rApiRateLimit: clamped });
+        refreshApiRateLimiters();
+    }, [persistMergedConfig]);
+
     const addLogs = useCallback(async (parsedLogs: ParsedLog[], options?: { skipNegativeStock?: boolean }) => {
         const storagePref = localStorage.getItem("bml_storage_pref");
         const baseTransactions = storagePref === 'drive'
@@ -806,8 +830,12 @@ export function useJournal() {
         weav3rUserId,
         driveApiKey,
         tornApiKeyFull,
+        tornApiRateLimit,
+        weav3rApiRateLimit,
         skipNegativeStock,
         updateSkipNegativeStock,
+        updateTornApiRateLimit,
+        updateWeav3rApiRateLimit,
         saveWeaverConfig,
         saveTornApiKeyFull,
         saveDriveApiKey,

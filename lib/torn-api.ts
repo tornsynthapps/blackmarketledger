@@ -1,8 +1,34 @@
 import { ParsedLog, TransactionSourceType, normalizeItemName } from "./parser";
+import { createRateLimiter } from "./rate-limiter";
 export type { ParsedLog };
 
 export const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
+
+const CONFIG_KEY = 'torn_invest_tracker_config';
+
+function getStoredRateLimits(): { torn: number; weav3r: number } {
+  try {
+    const stored = localStorage.getItem(CONFIG_KEY);
+    if (stored) {
+      const config = JSON.parse(stored);
+      return {
+        torn: config.tornApiRateLimit ?? 60,
+        weav3r: config.weav3rApiRateLimit ?? 60,
+      };
+    }
+  } catch {}
+  return { torn: 60, weav3r: 60 };
+}
+
+let tornRateLimiter = createRateLimiter(getStoredRateLimits().torn);
+let weav3rRateLimiter = createRateLimiter(getStoredRateLimits().weav3r);
+
+export function refreshApiRateLimiters() {
+  const limits = getStoredRateLimits();
+  tornRateLimiter = createRateLimiter(limits.torn);
+  weav3rRateLimiter = createRateLimiter(limits.weav3r);
+}
 const AUTO_PILOT_LOG_CATEGORIES = ["Market", "Bazaar", "Points", "Museum", "Attacks"];
 const MARKET_LOG_TYPE_MAP: Record<number, { type: "BUY" | "SELL"; sourceType: TransactionSourceType }> = {
   1112: { type: "BUY", sourceType: "item-market" },
@@ -168,7 +194,7 @@ export async function getTornLogs(
         log: params.log?.join(","),
         key: apiKey,
       });
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetchWithTornRateLimit(url, { cache: "no-store" });
   return await parseJson(response);
 }
 
@@ -193,6 +219,16 @@ async function parseJson(response: Response) {
   }
 
   return data;
+}
+
+async function fetchWithTornRateLimit(url: string, options?: RequestInit): Promise<Response> {
+  await tornRateLimiter.acquire();
+  return fetch(url, options);
+}
+
+async function fetchWithWeav3rRateLimit(url: string, options?: RequestInit): Promise<Response> {
+  await weav3rRateLimiter.acquire();
+  return fetch(url, options);
 }
 
 export function buildUrl(
@@ -548,7 +584,7 @@ async function getLogsForCategory(
   const seenLogIds = new Set<string>();
 
   while (nextUrl) {
-    const response = await fetch(nextUrl, { cache: "no-store" });
+    const response = await fetchWithTornRateLimit(nextUrl, { cache: "no-store" });
     const data = await parseJson(response);
     const page: NormalizedLog[] = Array.isArray(data?.log)
       ? (data.log as TornLogEntry[]).map(normalizeTornLog)
@@ -610,7 +646,7 @@ export async function getTornItems(apiKey: string) {
   const url = buildUrl(TORN_V2_API_BASE, "/torn/items", {
     key: apiKey,
   });
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetchWithTornRateLimit(url, { cache: "no-store" });
   const data = await parseJson(response);
   const itemsSource = data?.items || data?.data?.items || {};
   const itemMap: TornItemNameMap = new Map();
@@ -647,7 +683,7 @@ export async function getCompletedTrades(
       sort: "ASC",
       key: apiKey,
     });
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetchWithTornRateLimit(url, { cache: "no-store" });
     const data = await parseJson(response);
     const page: TornTradeListItem[] = Array.isArray(data?.trades)
       ? (data.trades as TornTradeListItem[])
@@ -686,7 +722,7 @@ export async function getTradeDetail(apiKey: string, tradeId: string | number) {
   const url = buildUrl(TORN_V2_API_BASE, `/user/${tradeId}/trade`, {
     key: apiKey,
   });
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetchWithTornRateLimit(url, { cache: "no-store" });
   const data = await parseJson(response);
   return data?.trade as TornTradeDetail;
 }
@@ -706,7 +742,7 @@ export async function getWeav3rTrades(
   const cachedReceiptMap = new Map(cachedReceipts.map((receipt) => [receipt.id, receipt]));
 
   while (true) {
-    const response = await fetch(nextUrl, { cache: "no-store" });
+    const response = await fetchWithWeav3rRateLimit(nextUrl, { cache: "no-store" });
     const data = await parseJson(response);
     const page: Weav3rTradeListItem[] = Array.isArray(data?.trades)
       ? (data.trades as Weav3rTradeListItem[])
@@ -740,7 +776,7 @@ export async function getWeav3rReceipt(
   const url = buildUrl(WEAV3R_API_BASE, `/trades/${userId}/${receiptId}`, {
     apiKey,
   });
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetchWithWeav3rRateLimit(url, { cache: "no-store" });
   const data = await parseJson(response);
   return data as Weav3rReceipt;
 }

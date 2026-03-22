@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ChevronLeft, Crown, Eye, EyeOff, HardDrive, KeyRound, Save, X } from "lucide-react";
+import { Check, ChevronLeft, Crown, Eye, EyeOff, HardDrive, KeyRound, Save, X, Zap } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import { sendToExtension } from "@/lib/bmlconnect";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
@@ -19,9 +19,13 @@ export function ServiceRail() {
     weav3rUserId,
     driveApiKey,
     tornApiKeyFull,
+    tornApiRateLimit,
+    weav3rApiRateLimit,
     saveWeaverConfig,
     saveTornApiKeyFull,
     saveDriveApiKey,
+    updateTornApiRateLimit,
+    updateWeav3rApiRateLimit,
   } = useJournal();
   const { vibrate } = useHapticFeedback();
   const [isOpen, setIsOpen] = useState(false);
@@ -39,6 +43,8 @@ export function ServiceRail() {
   const [weav3rError, setWeav3rError] = useState("");
   const [driveError, setDriveError] = useState("");
   const [tornFullError, setTornFullError] = useState("");
+  const [tempTornRateLimit, setTempTornRateLimit] = useState(tornApiRateLimit);
+  const [tempWeav3rRateLimit, setTempWeav3rRateLimit] = useState(weav3rApiRateLimit);
 
   useEffect(() => {
     setTempWeav3rApiKey(weav3rApiKey);
@@ -51,6 +57,14 @@ export function ServiceRail() {
   useEffect(() => {
     setTempTornApiKeyFull(tornApiKeyFull);
   }, [tornApiKeyFull]);
+
+  useEffect(() => {
+    setTempTornRateLimit(tornApiRateLimit);
+  }, [tornApiRateLimit]);
+
+  useEffect(() => {
+    setTempWeav3rRateLimit(weav3rApiRateLimit);
+  }, [weav3rApiRateLimit]);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,6 +303,84 @@ export function ServiceRail() {
                   {isSavingDriveKey ? "Saving..." : "Save Drive Key"}
                 </button>
               </label>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/65 p-3">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
+                <Zap className="h-4 w-4 text-primary" />
+                Rate Limits
+              </div>
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
+                    Torn API Rate Limit
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="10"
+                      max="80"
+                      value={tempTornRateLimit}
+                      onChange={(event) => setTempTornRateLimit(Number(event.target.value))}
+                      className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <span className="w-12 text-right text-sm font-semibold text-primary">
+                      {tempTornRateLimit}/min
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-foreground/55">
+                    Requests per minute (10-80)
+                  </p>
+                  {tempTornRateLimit !== tornApiRateLimit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        vibrate("utility");
+                        void updateTornApiRateLimit(tempTornRateLimit);
+                      }}
+                      className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Save Limit
+                    </button>
+                  )}
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
+                    Weav3r API Rate Limit
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="10"
+                      max="80"
+                      value={tempWeav3rRateLimit}
+                      onChange={(event) => setTempWeav3rRateLimit(Number(event.target.value))}
+                      className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <span className="w-12 text-right text-sm font-semibold text-primary">
+                      {tempWeav3rRateLimit}/min
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-foreground/55">
+                    Requests per minute (10-80)
+                  </p>
+                  {tempWeav3rRateLimit !== weav3rApiRateLimit && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        vibrate("utility");
+                        void updateWeav3rApiRateLimit(tempWeav3rRateLimit);
+                      }}
+                      className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Save Limit
+                    </button>
+                  )}
+                </label>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-background/65 p-3">
