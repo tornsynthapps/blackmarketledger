@@ -6,7 +6,7 @@ import { Radar, Calendar, RefreshCw, ArrowLeft, ShieldAlert } from "lucide-react
 import Link from "next/link";
 
 export default function ResetCursorPage() {
-  const { isLoaded, autoPilotCursor, saveAutoPilotState } = useJournal();
+  const { isLoaded, autoPilotCursor, autoPilotTradeCursor, autoPilotItemCursor, saveAutoPilotState } = useJournal();
   const [selectedDate, setSelectedDate] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState("");
@@ -24,15 +24,15 @@ export default function ResetCursorPage() {
 
     try {
       const timestamp = Math.floor(new Date(selectedDate).getTime() / 1000);
+      const newCursor = { lastTimestamp: timestamp, lastLogId: "" };
       
       await saveAutoPilotState({
-        autoPilotCursor: {
-          lastTimestamp: timestamp,
-          lastLogId: ""
-        }
+        autoPilotCursor: newCursor,
+        autoPilotTradeCursor: newCursor,
+        autoPilotItemCursor: newCursor
       });
 
-      setMessage(`Cursor successfully reset to ${new Date(selectedDate).toLocaleString()}`);
+      setMessage(`Cursors successfully reset to ${new Date(selectedDate).toLocaleString()}`);
     } catch (error) {
       setMessage(`Error: ${error instanceof Error ? error.message : "Failed to reset cursor"}`);
     } finally {
@@ -40,6 +40,13 @@ export default function ResetCursorPage() {
     }
   };
 
+  const useDualCursors = autoPilotTradeCursor !== null || autoPilotItemCursor !== null;
+  const currentTradeCursorDate = autoPilotTradeCursor 
+    ? new Date(autoPilotTradeCursor.lastTimestamp * 1000).toLocaleString() 
+    : "Not initialized";
+  const currentItemCursorDate = autoPilotItemCursor 
+    ? new Date(autoPilotItemCursor.lastTimestamp * 1000).toLocaleString() 
+    : "Not initialized";
   const currentCursorDate = autoPilotCursor 
     ? new Date(autoPilotCursor.lastTimestamp * 1000).toLocaleString() 
     : "Not initialized";
@@ -94,19 +101,50 @@ export default function ResetCursorPage() {
               <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">
                 Current Cursor Status
               </label>
-              <div className="p-4 rounded-2xl bg-panel border border-border shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-5 w-5 text-foreground/30" />
-                    <span className="font-mono text-sm">{currentCursorDate}</span>
+              {useDualCursors ? (
+                <div className="space-y-2">
+                  <div className="p-4 rounded-2xl bg-panel border border-border shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="h-5 w-5 text-foreground/30" />
+                        <span className="font-mono text-sm">Trade: {currentTradeCursorDate}</span>
+                      </div>
+                      {autoPilotTradeCursor && (
+                        <span className="text-[10px] font-bold bg-foreground/5 px-2 py-1 rounded text-foreground/40">
+                          ID: {autoPilotTradeCursor.lastLogId || "START"}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {autoPilotCursor && (
-                    <span className="text-[10px] font-bold bg-foreground/5 px-2 py-1 rounded text-foreground/40">
-                      ID: {autoPilotCursor.lastLogId || "START"}
-                    </span>
-                  )}
+                  <div className="p-4 rounded-2xl bg-panel border border-border shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="h-5 w-5 text-foreground/30" />
+                        <span className="font-mono text-sm">Item: {currentItemCursorDate}</span>
+                      </div>
+                      {autoPilotItemCursor && (
+                        <span className="text-[10px] font-bold bg-foreground/5 px-2 py-1 rounded text-foreground/40">
+                          ID: {autoPilotItemCursor.lastLogId || "START"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-panel border border-border shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5 text-foreground/30" />
+                      <span className="font-mono text-sm">{currentCursorDate}</span>
+                    </div>
+                    {autoPilotCursor && (
+                      <span className="text-[10px] font-bold bg-foreground/5 px-2 py-1 rounded text-foreground/40">
+                        ID: {autoPilotCursor.lastLogId || "START"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-2">
