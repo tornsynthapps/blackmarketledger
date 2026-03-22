@@ -1,5 +1,10 @@
 # BlackMarket Ledger Version History
 
+## v4.3.1 (2026-03-22)
+- **Optional Timestamp in Auto-Pilot Fetch**: Enhanced dual-cursor trade synchronization with optional timestamp parameters.
+- **Beta Warning Banner**: Added a beta disclaimer for the Auto-Pilot feature.
+- **Google Drive Sync Enhancements**: Improved sync reliability and state management for Google Drive workflows.
+
 ## v4.3.0 (2026-03-22)
 - **Advanced Dashboard Visualization**: Enhanced profit tracking with stacked area charts and incremental view options for more granular portfolio analysis.
 
