@@ -417,10 +417,12 @@ export function useJournal() {
         // Apply remote auto-pilot state if it exists
         // This ensures dual-cursor syncs properly across devices via Google Drive
         if (remoteAutoPilotState) {
-            applyConfig({
+            const updatedConfig = {
                 ...buildConfigSnapshot(),
                 ...remoteAutoPilotState,
-            });
+            };
+            applyConfig(updatedConfig);
+            await persistConfigCache(JSON.stringify(updatedConfig));
         }
 
         await persistTransactionsCache("GoogleCacheLogsDB", driveTransactions);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useRef, useEffect } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, PauseCircle, Radar, RefreshCcw, Tags, Store, Coins, Box, Link2Off, ChevronRight, Activity } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, PauseCircle, Radar, RefreshCcw, Tags, Store, Coins, Box, Link2Off, ChevronRight, ChevronDown, Activity, CloudDownload } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import {
   AutoPilotImportRecord,
@@ -104,19 +104,41 @@ export default function AutoPilotPage() {
   } = useJournal();
 
   const [isDriveLoaded, setIsDriveLoaded] = useState(false);
+  const [showRepositionMenu, setShowRepositionMenu] = useState(false);
+
+  const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const storagePref = localStorage.getItem("bml_storage_pref");
+    
     if (storagePref === 'drive' && driveApiKey && !isDriveLoaded) {
-      refreshDriveCache().then(() => setIsDriveLoaded(true)).catch(console.error);
+      const needsReposition = !autoPilotTradeCursor || !autoPilotItemCursor || 
+        !autoPilotLastSyncAt || 
+        (Date.now() - autoPilotLastSyncAt > THIRTY_MINUTES_MS);
+      
+      if (needsReposition) {
+        refreshDriveCache().then(() => setIsDriveLoaded(true)).catch(console.error);
+      } else {
+        setIsDriveLoaded(true);
+      }
     }
-  }, [driveApiKey, refreshDriveCache, isDriveLoaded]);
+  }, [driveApiKey, refreshDriveCache, isDriveLoaded, autoPilotTradeCursor, autoPilotItemCursor, autoPilotLastSyncAt]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [pageError, setPageError] = useState("");
   const isAutoSyncRef = useRef(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showRepositionMenu) {
+        setShowRepositionMenu(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showRepositionMenu]);
 
   const importedTradeIds = useMemo(() => {
     return new Set(
@@ -539,15 +561,51 @@ export default function AutoPilotPage() {
                 <h2 className="text-lg font-bold">Sync Controls</h2>
                 <p className="text-sm text-foreground/55">First run initializes the cursor to the current time. Later runs continue from the last imported Torn log.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => void syncNow()}
-                disabled={isRunning || isSyncDisabled}
-                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RefreshCcw className={`h-4 w-4 ${isRunning || isFetchingFromDrive ? "animate-spin" : ""}`} />
-                {isFetchingFromDrive ? "Positioning ..." : isRunning ? "Syncing..." : !autoPilotTradeCursor ? "Initialize Auto-Pilot" : needsContinueSync ? "Continue Sync" : "Sync Now"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void syncNow()}
+                  disabled={isRunning || isSyncDisabled}
+                  className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCcw className={`h-4 w-4 ${isRunning || isFetchingFromDrive ? "animate-spin" : ""}`} />
+                  {isFetchingFromDrive ? "Positioning ..." : isRunning ? "Syncing..." : !autoPilotTradeCursor ? "Initialize Auto-Pilot" : needsContinueSync ? "Continue Sync" : "Sync Now"}
+                </button>
+                <div className="relative">
+                  {typeof window !== 'undefined' && localStorage.getItem("bml_storage_pref") === 'drive' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowRepositionMenu(!showRepositionMenu);
+                        }}
+                        disabled={isRunning || isSyncDisabled}
+                        className="inline-flex items-center justify-center rounded-xl border border-orange-500/30 bg-orange-500/10 px-2.5 py-2.5 text-sm font-semibold text-orange-500 transition-opacity hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform ${showRepositionMenu ? "rotate-180" : ""}`} />
+                      </button>
+                      {showRepositionMenu && (
+                        <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-panel shadow-lg z-10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowRepositionMenu(false);
+                              setIsDriveLoaded(false);
+                              void refreshDriveCache().then(() => setIsDriveLoaded(true));
+                            }}
+                            disabled={isRunning || isFetchingFromDrive}
+                            className="flex w-full items-center gap-2 rounded-t-xl px-4 py-3 text-sm font-semibold text-foreground hover:bg-background/50 transition-colors disabled:opacity-50"
+                          >
+                            <CloudDownload className="h-4 w-4" />
+                            Sync Cursor
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
