@@ -1,5 +1,12 @@
 # BlackMarket Ledger Version History
 
+## v4.3.2 (2026-03-22)
+- **Rate Limit & API Stability**: Integrated rate limiting for Torn and Weav3r API requests to prevent bans and improve overall reliability.
+- **Drive Cache & Loading State Enhancements**: Improved Google Drive cache management, added reposition menus for sync controls, and added clear loading states for better feedback.
+- **Auto-Pilot & Sync Fixes**: Resolved cursor reset issues and improved status visibility for dual-cursor synchronization.
+- **Museum Dashboard Update**: Updated point conversion logic to use average points value for more accurate calculations.
+- **Profit Chart UX**: Enhanced chart tooltip styling and simplified visualization area fills for a cleaner dashboard experience.
+
 ## v4.3.1 (2026-03-22)
 - **Optional Timestamp in Auto-Pilot Fetch**: Enhanced dual-cursor trade synchronization with optional timestamp parameters.
 - **Beta Warning Banner**: Added a beta disclaimer for the Auto-Pilot feature.
