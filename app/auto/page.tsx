@@ -360,12 +360,6 @@ export default function AutoPilotPage() {
         allNewParsedLogs.push(...itemParsedLogs);
         console.log(newItemCursor)
         nextItemCursor = newItemCursor;
-
-        setStatusMessage(`Item sync complete.`);
-        await saveAutoPilotState({
-          autoPilotItemCursor: nextItemCursor,
-          autoPilotLastSyncAt: Date.now(),
-        });
       }
 
       // 2.3 Handle trade fetch.
@@ -443,6 +437,7 @@ export default function AutoPilotPage() {
           allNewParsedLogs.push(...parsedTradeLogs);
           existingIds.add(tradeLogId);
           nextTradeLinks.push({ tradeId: String(trade.id), receiptId: receipt!.id });
+          excludedIds.add(receipt!.id);
           recentImports = mergeRecentImports(recentImports, [buildImportRecord({
             id: `trade:${trade.id}`,
             timestamp: Number(trade.timestamp),
