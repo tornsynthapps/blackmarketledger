@@ -97,7 +97,9 @@ export default function AutoPilotPage() {
     autoPilotManuallyAddedTradeIds,
     autoPilotPendingTrades,
     autoPilotRecentImports,
-    saveAutoPilotState
+    saveAutoPilotState,
+    syncState,
+    driveApiKey
   } = useJournal();
 
   const [isRunning, setIsRunning] = useState(false);
@@ -190,17 +192,27 @@ export default function AutoPilotPage() {
     return autoPilotTradeCursor.lastTimestamp > autoPilotItemCursor.lastTimestamp;
   }, [autoPilotTradeCursor, autoPilotItemCursor]);
 
+  // Check if Google Drive is currently fetching data
+  const isFetchingFromDrive = useMemo(() => {
+    return syncState.isSyncing && syncState.message.toLowerCase().includes("google drive");
+  }, [syncState.isSyncing, syncState.message]);
+
   // Determine if sync should be disabled
   const isSyncDisabled = useMemo(() => {
+    // Currently fetching from Google Drive
+    if (isFetchingFromDrive) return true;
     // Has pending trades requiring manual review
     if (autoPilotPendingTrades.length > 0) return true;
     // Has unlinked trades in cache
     if (hasUnlinkedTrades) return true;
     return false;
-  }, [autoPilotPendingTrades.length, hasUnlinkedTrades]);
+  }, [isFetchingFromDrive, autoPilotPendingTrades.length, hasUnlinkedTrades]);
 
   // Get sync status message
   const getSyncStatusMessage = useMemo(() => {
+    if (isFetchingFromDrive) {
+      return syncState.message || "Fetching latest cursor position from Google Drive...";
+    }
     if (autoPilotPendingTrades.length > 0) {
       return `Resolve ${autoPilotPendingTrades.length} pending trade${autoPilotPendingTrades.length === 1 ? '' : 's'} before syncing`;
     }
@@ -211,7 +223,7 @@ export default function AutoPilotPage() {
       return 'Items need syncing - will fetch up to trade cursor';
     }
     return 'Ready to sync';
-  }, [autoPilotPendingTrades.length, hasUnlinkedTrades, itemsNeedSync]);
+  }, [isFetchingFromDrive, syncState.message, autoPilotPendingTrades.length, hasUnlinkedTrades, itemsNeedSync]);
 
   const initializeCursorNow = async () => {
     const now = Math.floor(Date.now() / 1000);
@@ -516,8 +528,8 @@ export default function AutoPilotPage() {
                 disabled={isRunning || isSyncDisabled}
                 className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <RefreshCcw className={`h-4 w-4 ${isRunning ? "animate-spin" : ""}`} />
-                {isRunning ? "Syncing..." : !autoPilotTradeCursor ? "Initialize Auto-Pilot" : needsContinueSync ? "Continue Sync" : "Sync Now"}
+                <RefreshCcw className={`h-4 w-4 ${isRunning || isFetchingFromDrive ? "animate-spin" : ""}`} />
+                {isFetchingFromDrive ? "Fetching..." : isRunning ? "Syncing..." : !autoPilotTradeCursor ? "Initialize Auto-Pilot" : needsContinueSync ? "Continue Sync" : "Sync Now"}
               </button>
             </div>
 
