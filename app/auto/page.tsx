@@ -291,6 +291,11 @@ export default function AutoPilotPage() {
       const batchRecords: AutoPilotImportRecord[] = [];
       let nextTradeCursor = tradeCursor;
       let nextItemCursor = itemCursor;
+      let nextTradeCache: TornTradeDetail[] = [...autoPilotTradeCache];
+      let nextReceiptCacheMap = new Map(autoPilotReceiptCache.map((receipt) => [receipt.id, receipt]));
+      let nextTradeLinks: AutoPilotTradeLink[] = [...autoPilotTradeLinks];
+      let pendingTrades: PendingAutoPilotTrade[] = [];
+      let recentImports = autoPilotRecentImports;
 
       // 2.2 Handle items fetch.
       // DUAL CURSOR LOGIC:
@@ -337,18 +342,20 @@ export default function AutoPilotPage() {
         const tradeStart = tradeCursor.lastTimestamp;
 
         // Fetch trades with error handling for Torn API error 17
+        const now = Math.floor(Date.now() / 1000);
+        const toTimestamp = now - 1;
         let tornTrades: any[] = [];
-        tornTrades = await wrapper.getTornTrades(tradeStart);
+        tornTrades = await wrapper.getTornTrades(tradeStart, toTimestamp);
 
         const weav3rTrades = await getWeav3rTrades(weav3rApiKey, weav3rUserId, tradeStart - 10 * 60 * 60, autoPilotReceiptCache);
 
         const existingIds = new Set(importedTradeIds);
-        const pendingTrades: PendingAutoPilotTrade[] = [];
-        const nextTradeCache: TornTradeDetail[] = [...autoPilotTradeCache];
-        const nextReceiptCacheMap = new Map(autoPilotReceiptCache.map((receipt) => [receipt.id, receipt]));
-        const nextTradeLinks: AutoPilotTradeLink[] = [...autoPilotTradeLinks];
+        pendingTrades = [];
+        nextTradeCache = [...autoPilotTradeCache];
+        nextReceiptCacheMap = new Map(autoPilotReceiptCache.map((receipt) => [receipt.id, receipt]));
+        nextTradeLinks = [...autoPilotTradeLinks];
 
-        let recentImports = mergeRecentImports(autoPilotRecentImports, batchRecords);
+        recentImports = mergeRecentImports(autoPilotRecentImports, batchRecords);
 
         weav3rTrades.forEach((receipt) => nextReceiptCacheMap.set(receipt.id, receipt));
         const allReceipts = Array.from(nextReceiptCacheMap.values());
@@ -414,36 +421,7 @@ export default function AutoPilotPage() {
         }
 
         // Update trade cursor.
-        const now = Math.floor(Date.now() / 1000);
-        nextTradeCursor = { lastTimestamp: now, lastLogId: "" };
-
-        await saveAutoPilotState({
-          autoPilotCursor: nextTradeCursor,
-          autoPilotTradeCursor: nextTradeCursor,
-          autoPilotItemCursor: nextItemCursor,
-          autoPilotLastSyncAt: Date.now(),
-          autoPilotTradeCache: nextTradeCache.filter((trade, index, all) => index === all.findIndex((candidate) => String(candidate.id) === String(trade.id))),
-          autoPilotReceiptCache: [...nextReceiptCacheMap.values()],
-          autoPilotTradeLinks: nextTradeLinks.filter((link, index, all) => index === all.findIndex((candidate) => candidate.tradeId === link.tradeId)),
-          autoPilotPendingTrades: pendingTrades,
-          autoPilotRecentImports: recentImports
-        });
-        const syncCompletedMessage = pendingTrades.length
-          ? `Auto-Pilot sync completed with ${pendingTrades.length} trades requiring manual input.`
-          : "Auto-Pilot sync completed.";
-        setStatusMessage(syncCompletedMessage);
-        
-        // If no discrepancies (pending trades) and not already in auto-sync, auto-sync items
-        if (pendingTrades.length === 0 && !isAutoSyncRef.current) {
-          isAutoSyncRef.current = true;
-          setStatusMessage("Trade sync complete. Starting item sync...");
-          // Small delay to let the UI update
-          setTimeout(() => {
-            syncNow();
-          }, 500);
-        } else {
-          isAutoSyncRef.current = false;
-        }
+        nextTradeCursor = { lastTimestamp: toTimestamp, lastLogId: "" };
       }
 
       // 3. Add Logs and update cursors.
@@ -451,6 +429,25 @@ export default function AutoPilotPage() {
         setStatusMessage(`Importing ${allNewParsedLogs.length} total logs into your ledger...`);
         await addLogs(allNewParsedLogs, { skipNegativeStock: false });
       }
+
+      // Save state after addLogs succeeds
+      if (nextTradeCursor || nextItemCursor) {
+        await saveAutoPilotState({
+          autoPilotCursor: nextTradeCursor,
+          autoPilotTradeCursor: nextTradeCursor,
+          autoPilotItemCursor: nextItemCursor,
+          autoPilotLastSyncAt: Date.now(),
+          autoPilotTradeCache: nextTradeCache.filter((trade, index, all) => index === all.findIndex((candidate) => String(candidate.id) === String(trade.id))),
+          autoPilotReceiptCache: Array.from(nextReceiptCacheMap.values()),
+          autoPilotTradeLinks: nextTradeLinks.filter((link, index, all) => index === all.findIndex((candidate) => candidate.tradeId === link.tradeId)),
+          autoPilotPendingTrades: pendingTrades,
+          autoPilotRecentImports: recentImports
+        });
+      }
+      const syncCompletedMessage = pendingTrades.length
+        ? `Auto-Pilot sync completed with ${pendingTrades.length} trades requiring manual input.`
+        : "Auto-Pilot sync completed.";
+      setStatusMessage(syncCompletedMessage);
     } catch (error) {
       setPageError(error instanceof Error ? error.message : "Auto-Pilot sync failed.");
       setStatusMessage("");

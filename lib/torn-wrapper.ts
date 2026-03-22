@@ -131,17 +131,22 @@ export class TronWrapper {
   /**
    * Fetches completed trades from Torn API, handling pagination via metadata links.
    * @param startTimestamp The timestamp to fetch trades from.
+   * @param toTimestamp Optional timestamp to fetch trades up to.
    * @returns A combined array of all trades found.
    */
-  async getTornTrades(startTimestamp: number): Promise<TornTradeListItem[]> {
+  async getTornTrades(startTimestamp: number, toTimestamp?: number): Promise<TornTradeListItem[]> {
     let allTrades: TornTradeListItem[] = [];
-    let currentUrl = buildUrl(TORN_V2_API_BASE, "/user/trades", {
+    const queryParams: Record<string, string> = {
       cat: "finished",
-      from: startTimestamp,
+      from: String(startTimestamp),
       limit: "100",
       sort: "DESC",
       key: this.apiKey,
-    });
+    };
+    if (toTimestamp !== undefined) {
+      queryParams.to = String(toTimestamp);
+    }
+    let currentUrl = buildUrl(TORN_V2_API_BASE, "/user/trades", queryParams);
 
     while (true) {
       const response = await fetch(currentUrl, { cache: "no-store" });
