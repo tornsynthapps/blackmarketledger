@@ -280,7 +280,7 @@ export default function MuseumDashboard() {
                             <div className="w-1.5 h-1.5 rounded-full bg-primary/40 ml-5" />
                             <div>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-foreground/30">Points Cost Basis</p>
-                                <p className="text-sm font-bold text-foreground/60">{formatMoney(pointsStats.totalCost)}</p>
+                                <p className="text-sm font-bold text-foreground/60">{formatMoney(pointsAvg)}</p>
                             </div>
                         </div>
                     </div>
