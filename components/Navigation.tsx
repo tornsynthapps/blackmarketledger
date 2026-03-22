@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import pkg from '@/package.json';
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import { LayoutDashboard, Database, Terminal, List, Moon, Sun, Landmark, Plane, ArrowRightLeft, Menu, X } from "lucide-react";
+import { LayoutDashboard, Database, Terminal, List, Moon, Sun, Landmark, Plane, ArrowRightLeft, Menu, X, Radar } from "lucide-react";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -19,17 +19,19 @@ const navItems = [
     { name: "Abroad", href: "/abroad", icon: Plane, color: "#0d9488" },
     { name: "Logs", href: "/logs", icon: List, color: "#8b5cf6" },
     { name: "Terminal", href: "/add", icon: Terminal, color: "#8b5cf6" },
+    { name: "Auto-Pilot", href: "/auto", icon: Radar, color: "#f97316" },
     { name: "BML Connect", href: "/bmlconnect", icon: ArrowRightLeft, color: "#ec4899" },
 ];
 
 export function Navigation() {
     const pathname = usePathname();
-    const [isDark, setIsDark] = useState(() => {
-        if (typeof window === "undefined") return false;
-        return document.documentElement.classList.contains("dark");
-    });
+    const [isDark, setIsDark] = useState(false);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { vibrate } = useHapticFeedback();
+
+    useEffect(() => {
+        setIsDark(document.documentElement.classList.contains("dark"));
+    }, []);
 
     const applyTheme = (theme: "dark" | "light") => {
         const root = document.documentElement;

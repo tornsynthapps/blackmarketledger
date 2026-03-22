@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { FLOWER_SET, PLUSHIE_SET, Transaction } from '@/lib/parser';
 import { format, startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth, subDays, subWeeks, subMonths } from 'date-fns';
 
@@ -17,7 +17,6 @@ interface StatsModalProps {
 }
 
 type TimeRange = 'daily' | 'weekly' | 'monthly';
-type ChartType = 'area' | 'bar';
 type InventorySnapshot = {
   stock: number;
   totalCost: number;
@@ -38,7 +37,7 @@ export default function StatsModal({
   inventoryScope = 'normal'
 }: StatsModalProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('daily');
-  const [chartType, setChartType] = useState<ChartType>('area');
+  const [viewType, setViewType] = useState<'cumulative' | 'incremental'>('cumulative');
 
   if (!isOpen) return null;
 
@@ -181,16 +180,29 @@ export default function StatsModal({
     };
   };
 
-  const getChartValue = (currentTotals: LedgerTotals, previousTotals: LedgerTotals) => {
-    switch (statType) {
-      case 'profit':
-        return currentTotals.profit - previousTotals.profit;
-      case 'inventory':
-        return currentTotals.inventory;
-      case 'mugLoss':
-        return currentTotals.mugLoss - previousTotals.mugLoss;
-      case 'netProfit':
-        return currentTotals.netProfit - previousTotals.netProfit;
+  const getChartValue = (currentTotals: LedgerTotals, previousTotals: LedgerTotals, cumulative: boolean) => {
+    if (cumulative) {
+      switch (statType) {
+        case 'profit':
+          return currentTotals.profit;
+        case 'inventory':
+          return currentTotals.inventory;
+        case 'mugLoss':
+          return currentTotals.mugLoss;
+        case 'netProfit':
+          return currentTotals.netProfit;
+      }
+    } else {
+      switch (statType) {
+        case 'profit':
+          return currentTotals.profit - previousTotals.profit;
+        case 'inventory':
+          return currentTotals.inventory;
+        case 'mugLoss':
+          return currentTotals.mugLoss - previousTotals.mugLoss;
+        case 'netProfit':
+          return currentTotals.netProfit - previousTotals.netProfit;
+      }
     }
   };
 
@@ -250,28 +262,40 @@ export default function StatsModal({
       }
 
       const currentTotals = getTotals(inventory, mugState.total);
-      const value = getChartValue(currentTotals, previousTotals);
+      
+      const realizedProfit = currentTotals.profit;
+      const mugLoss = currentTotals.mugLoss;
+      const netProfit = currentTotals.netProfit;
+      
+      // For incremental view, calculate period-over-period values
+      const incrementalRealized = realizedProfit - previousTotals.profit;
+      const incrementalMug = mugLoss - previousTotals.mugLoss;
+      const incrementalNet = netProfit - previousTotals.netProfit;
+      
       previousTotals = currentTotals;
 
       return {
         period: format(period, formatStr),
-        value: Math.round(value),
+        realizedProfit: Math.round(viewType === 'cumulative' ? realizedProfit : incrementalRealized),
+        mugLoss: -Math.round(viewType === 'cumulative' ? mugLoss : incrementalMug), // Negative so it shows below axis
+        netProfit: Math.round(viewType === 'cumulative' ? netProfit : incrementalNet),
         date: period.toISOString()
       };
     });
   };
 
   const chartData = generateChartData();
-  const chartColor = statType === 'mugLoss' ? '#ef4444' : '#3b82f6';
-  const totalValue = chartData.reduce((sum, item) => sum + item.value, 0);
-  const latestValue = chartData.length > 0 ? chartData[chartData.length - 1].value : 0;
-  const averageValue = chartData.length > 0
-    ? Math.round(totalValue / chartData.length)
+  
+  // Calculate stats based on net profit for the summary
+  const totalNetProfit = chartData.reduce((sum, item) => sum + item.netProfit, 0);
+  const latestNetProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0;
+  const averageNetProfit = chartData.length > 0
+    ? Math.round(totalNetProfit / chartData.length)
     : 0;
-  const highestValue = chartData.length > 0 ? Math.max(...chartData.map(item => item.value)) : 0;
-  const lowestValue = chartData.length > 0 ? Math.min(...chartData.map(item => item.value)) : 0;
-  const primarySummaryLabel = statType === 'inventory' ? 'Latest' : 'Total';
-  const primarySummaryValue = statType === 'inventory' ? latestValue : Math.round(totalValue);
+  const highestNetProfit = chartData.length > 0 ? Math.max(...chartData.map(item => item.netProfit)) : 0;
+  const lowestNetProfit = chartData.length > 0 ? Math.min(...chartData.map(item => item.netProfit)) : 0;
+  const primarySummaryLabel = 'Latest Net';
+  const primarySummaryValue = latestNetProfit;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -310,87 +334,92 @@ export default function StatsModal({
             </div>
 
             <div className="flex gap-2">
-              {(['area', 'bar'] as ChartType[]).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setChartType(type)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${chartType === type
-                    ? 'bg-primary text-white'
-                    : 'bg-foreground/5 hover:bg-foreground/10 text-foreground/70'
-                    }`}
-                >
-                  {type === 'area' ? 'Area Chart' : 'Bar Chart'}
-                </button>
-              ))}
+              <button
+                onClick={() => setViewType('cumulative')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewType === 'cumulative'
+                  ? 'bg-primary text-white'
+                  : 'bg-foreground/5 hover:bg-foreground/10 text-foreground/70'
+                  }`}
+              >
+                Cumulative
+              </button>
+              <button
+                onClick={() => setViewType('incremental')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewType === 'incremental'
+                  ? 'bg-primary text-white'
+                  : 'bg-foreground/5 hover:bg-foreground/10 text-foreground/70'
+                  }`}
+              >
+                Incremental
+              </button>
             </div>
           </div>
 
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              {chartType === 'area' ? (
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                  <XAxis
-                    dataKey="period"
-                    stroke="currentColor"
-                    opacity={0.6}
-                    fontSize={12}
-                  />
-                  <YAxis
-                    stroke="currentColor"
-                    opacity={0.6}
-                    fontSize={12}
-                    tickFormatter={(value) => formatCompactCurrency(Number(value))}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--panel))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      color: 'hsl(var(--foreground))'
-                    }}
-                    formatter={(value) => [formatCompactCurrency(Number(value || 0)), title]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke={chartColor}
-                    strokeWidth={2}
-                    fill={chartColor}
-                    fillOpacity={0.25}
-                  />
-                </AreaChart>
-              ) : (
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-                  <XAxis
-                    dataKey="period"
-                    stroke="currentColor"
-                    opacity={0.6}
-                    fontSize={12}
-                  />
-                  <YAxis
-                    stroke="currentColor"
-                    opacity={0.6}
-                    fontSize={12}
-                    tickFormatter={(value) => formatCompactCurrency(Number(value))}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--panel))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      color: 'hsl(var(--foreground))'
-                    }}
-                    formatter={(value) => [formatCompactCurrency(Number(value || 0)), title]}
-                  />
-                  <Bar
-                    dataKey="value"
-                    fill={chartColor}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              )}
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorRealized" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorMug" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
+                <XAxis
+                  dataKey="period"
+                  stroke="currentColor"
+                  opacity={0.6}
+                  fontSize={12}
+                />
+                <YAxis
+                  stroke="currentColor"
+                  opacity={0.6}
+                  fontSize={12}
+                  tickFormatter={(value) => formatCompactCurrency(Number(value))}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--panel))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  formatter={(value, name) => [formatCompactCurrency(Number(value || 0)), name === 'netProfit' ? 'Net Profit' : name === 'realizedProfit' ? 'Realized Profit' : 'Mug Loss']}
+                />
+                {/* Mug Loss Area - shown as negative (red) */}
+                <Area
+                  type="monotone"
+                  dataKey="mugLoss"
+                  stackId="1"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  fill="url(#colorMug)"
+                  fillOpacity={0.6}
+                />
+                {/* Realized Profit Area - shown as positive (green) */}
+                <Area
+                  type="monotone"
+                  dataKey="realizedProfit"
+                  stackId="1"
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  fill="url(#colorRealized)"
+                  fillOpacity={0.6}
+                />
+                {/* Net Profit Line - black */}
+                <Line
+                  type="monotone"
+                  dataKey="netProfit"
+                  stroke="#000000"
+                  strokeWidth={3}
+                  dot={{ fill: '#000000', strokeWidth: 1.5, r: 3 }}
+                  activeDot={{ r: 5, strokeWidth: 0 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
 
@@ -402,21 +431,21 @@ export default function StatsModal({
               </div>
             </div>
             <div className="bg-foreground/5 rounded-lg p-3">
-              <div className="text-foreground/60">Average</div>
+              <div className="text-foreground/60">Average Net</div>
               <div className="font-semibold">
-                {formatCompactCurrency(averageValue)}
+                {formatCompactCurrency(averageNetProfit)}
               </div>
             </div>
             <div className="bg-foreground/5 rounded-lg p-3">
-              <div className="text-foreground/60">Highest</div>
+              <div className="text-foreground/60">Highest Net</div>
               <div className="font-semibold">
-                {formatCompactCurrency(highestValue)}
+                {formatCompactCurrency(highestNetProfit)}
               </div>
             </div>
             <div className="bg-foreground/5 rounded-lg p-3">
-              <div className="text-foreground/60">Lowest</div>
+              <div className="text-foreground/60">Lowest Net</div>
               <div className="font-semibold">
-                {formatCompactCurrency(lowestValue)}
+                {formatCompactCurrency(lowestNetProfit)}
               </div>
             </div>
           </div>

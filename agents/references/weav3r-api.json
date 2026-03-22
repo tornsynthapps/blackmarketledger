@@ -1,0 +1,1395 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "TornW3B API",
+    "version": "1.0.0",
+    "description": "### Welcome\n\nAccess Torn marketplace data, ranked weapons, and dollar bazaar listings.\n\n**Important Info:**\n- Responses are cached for 60s\n- No authentication needed\n- Rate limiting of 100 calls/min enforced by Cloudflare\n\n**Support:**\n\nFor questions or issues, please reach out in order of preference:\n1. [Discord](https://discord.gg/BrXXSG4Zpe) (fastest response)\n2. [Forum Thread](https://www.torn.com/forums.php#/p=threads&f=67&t=16469591)\n3. [Weav3r](https://www.torn.com/profiles.php?XID=1853324) (DM as last resort)",
+    "license": {
+      "name": "API Usage Terms",
+      "url": "https://weav3r.dev/terms-of-service"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://weav3r.dev/api",
+      "description": "API Server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Marketplace",
+      "description": "Access comprehensive marketplace data including all items, their prices, and current bazaar listings. Includes both market prices and real-time bazaar averages."
+    },
+    {
+      "name": "Ranked Weapons",
+      "description": "Search and filter ranked weapons and armor with bonuses. Includes data from both player bazaars and the item market with advanced filtering options."
+    },
+    {
+      "name": "Dollar Bazaars",
+      "description": "Find items listed for $1 in player bazaars. Useful for finding cheap bulk items or identifying generous sellers."
+    },
+    {
+      "name": "Pricelist",
+      "description": "Manage and access pricelist data, including viewing pricelists, updating prices, and managing receipts with custom prices."
+    },
+    {
+      "name": "Trades",
+      "description": "List and fetch your trade receipts. Requires user ID and API key (query ?apiKey= or header X-API-Key)."
+    }
+  ],
+  "paths": {
+    "/marketplace": {
+      "get": {
+        "tags": ["Marketplace"],
+        "summary": "Get all marketplace items",
+        "description": "Returns all items with their market price, bazaar average, lowest price, and number of bazaars selling",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": {
+                      "type": "integer",
+                      "description": "Total number of items"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MarketplaceItem"
+                      }
+                    },
+                    "response_time_ms": {
+                      "type": "integer",
+                      "description": "Response time in milliseconds"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/marketplace/{itemId}": {
+      "get": {
+        "tags": ["Marketplace"],
+        "summary": "Get specific item details",
+        "description": "Returns detailed information about a specific item including all current listings",
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "description": "The item ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "item_id": {
+                      "type": "integer"
+                    },
+                    "item_name": {
+                      "type": "string"
+                    },
+                    "market_price": {
+                      "type": "integer"
+                    },
+                    "bazaar_average": {
+                      "type": "integer"
+                    },
+                    "total_listings": {
+                      "type": "integer"
+                    },
+                    "listings": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ItemListing"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/dollar-bazaars/bazaars": {
+      "get": {
+        "tags": ["Dollar Bazaars"],
+        "summary": "Get dollar bazaars",
+        "description": "Returns paginated list of bazaars with $1 items, sorted by total market value",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Items per page (default: 50, max: 100)",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bazaars": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DollarBazaar"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/dollar-bazaars/items": {
+      "get": {
+        "tags": ["Dollar Bazaars"],
+        "summary": "Get dollar items",
+        "description": "Returns paginated list of individual $1 items, sorted by total value",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (default: 1)",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Items per page (default: 50, max: 100)",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DollarItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/ranked-weapons": {
+      "get": {
+        "tags": ["Ranked Weapons"],
+        "summary": "Search ranked weapons and armor",
+        "description": "Returns ranked weapons/armor with active listings. At least one filter parameter is required.",
+        "parameters": [
+          {
+            "name": "tab",
+            "in": "query",
+            "description": "Filter by weapons or armor",
+            "schema": {
+              "type": "string",
+              "enum": ["weapons", "armor"]
+            }
+          },
+          {
+            "name": "weaponType",
+            "in": "query",
+            "description": "Filter by weapon type",
+            "schema": {
+              "type": "string",
+              "enum": ["melee", "primary", "secondary", "defensive"]
+            }
+          },
+          {
+            "name": "weaponName",
+            "in": "query",
+            "description": "Filter by exact weapon name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "rarity",
+            "in": "query",
+            "description": "Filter by rarity (case-insensitive)",
+            "schema": {
+              "type": "string",
+              "enum": ["yellow", "orange", "red"]
+            }
+          },
+          {
+            "name": "bonus1",
+            "in": "query",
+            "description": "Filter by first bonus name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bonus2",
+            "in": "query",
+            "description": "Filter by second bonus name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bonusCount",
+            "in": "query",
+            "description": "Filter by number of bonuses",
+            "schema": {
+              "type": "string",
+              "enum": ["1", "2"]
+            }
+          },
+          {
+            "name": "armorPiece",
+            "in": "query",
+            "description": "Filter by armor piece name (for armor tab)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "armorSet",
+            "in": "query",
+            "description": "Filter by armor set name (for armor tab)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "description": "Minimum price filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "description": "Maximum price filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "minDamage",
+            "in": "query",
+            "description": "Minimum damage filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxDamage",
+            "in": "query",
+            "description": "Maximum damage filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "minAccuracy",
+            "in": "query",
+            "description": "Minimum accuracy filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxAccuracy",
+            "in": "query",
+            "description": "Maximum accuracy filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "minQuality",
+            "in": "query",
+            "description": "Minimum quality filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxQuality",
+            "in": "query",
+            "description": "Maximum quality filter",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "minBonus1Value",
+            "in": "query",
+            "description": "Minimum value for bonus1",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxBonus1Value",
+            "in": "query",
+            "description": "Maximum value for bonus1",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "minBonus2Value",
+            "in": "query",
+            "description": "Minimum value for bonus2",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxBonus2Value",
+            "in": "query",
+            "description": "Maximum value for bonus2",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "sortField",
+            "in": "query",
+            "description": "Field to sort by",
+            "schema": {
+              "type": "string",
+              "enum": ["price", "damage", "accuracy", "quality", "itemName", "weaponType", "rarity", "bonus1", "bonus2"],
+              "default": "price"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "in": "query",
+            "description": "Sort direction",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "asc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": {
+                      "type": "integer",
+                      "description": "Total number of weapons found"
+                    },
+                    "weapons": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RankedWeapon"
+                      }
+                    },
+                    "response_time_ms": {
+                      "type": "integer",
+                      "description": "Response time in milliseconds"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/pricelist/{userID}": {
+      "post": {
+        "tags": ["Pricelist"],
+        "summary": "Generate receipt from pricelist",
+        "description": "Generate a receipt by calculating total value of items using the seller's pricelist. Items can be specified by name or itemID. Returns a receipt with calculated prices, total value, and a receipt URL.",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "description": "The seller's player ID (whose pricelist will be used)",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptGenerationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptGenerationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Pricelist"],
+        "summary": "Get full pricelist for a user",
+        "description": "Returns the complete pricelist for a user, including all items with pricing information and calculated buy prices.",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "description": "The user's player ID",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricelistResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Pricelist"],
+        "summary": "Update pricelist items",
+        "description": "Updates your pricelist prices programmatically. Requires your Torn API key for auth. It must match the same key you registered with on W3B. Send as query param `?apiKey=` or header `X-API-Key`.\n\n**Add/update:** Send an array of items. Each item:\n\n- **itemID** - Torn item ID\n- **pricingType** - `fixed`, `market_percentage`, or `market_offset`. Required for add/update.\n- **pricingValue** - For fixed: $ amount. For market_percentage: 0-100 (e.g. 95 = 95%). For market_offset: $ offset (e.g. -10000). Omit to remove item.\n- **inflationProtectionEnabled** - Auto-adjust for market changes\n- **roundToPlace** - 0 = no rounding, 1 = nearest 10, 2 = nearest 100\n- **bulkType** - `percent`, `offset`, `fixed`, or `none`\n- **bulkValue** - Bulk price (meaning depends on bulkType)\n- **bulkQuantity** - Min quantity for bulk rate (e.g. 10)",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "description": "The user's player ID",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "apiKey",
+            "in": "query",
+            "required": true,
+            "description": "Your Torn API key. Must match the key you registered with on W3B.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricelistUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricelistUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/updateReceipt/{receiptId}": {
+      "post": {
+        "tags": ["Pricelist"],
+        "summary": "Update receipt item prices",
+        "description": "Update prices for specific items in a receipt by providing itemId and new price. Only updates the specified items, leaving others unchanged. Receipts can only be modified within 6 hours of creation. Updated items will be marked as manually set.",
+        "parameters": [
+          {
+            "name": "receiptId",
+            "in": "path",
+            "required": true,
+            "description": "The receipt ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/trades/{userID}": {
+      "get": {
+        "tags": ["Trades"],
+        "summary": "List trades",
+        "description": "Returns the most recent 100 trades (receipts) for the authenticated user. Paginated by unix epoch time: use optional query params `from` and `to` to get the next or previous page. Auth: API key via query ?apiKey= or header X-API-Key.",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "description": "Your player ID",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "apiKey",
+            "in": "query",
+            "required": true,
+            "description": "Your registered API key",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Unix epoch time: return trades newer than this (for previous page)",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Unix epoch time: return trades older than this (for next page)",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TradesListResponse" },
+                "example": {
+                  "trades": [
+                    { "id": "string", "name": "string", "value": 0 },
+                    { "id": "string", "name": "string", "value": 0 }
+                  ],
+                  "metadata": {
+                    "next": null,
+                    "previous": null
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/trades/{userID}/{receiptId}": {
+      "get": {
+        "tags": ["Trades"],
+        "summary": "Get trade by receipt ID",
+        "description": "Returns full details for a single trade (receipt) by our receipt ID. Auth: API key via query ?apiKey= or header X-API-Key.",
+        "parameters": [
+          {
+            "name": "userID",
+            "in": "path",
+            "required": true,
+            "description": "Your player ID",
+            "schema": { "type": "integer" }
+          },
+          {
+            "name": "receiptId",
+            "in": "path",
+            "required": true,
+            "description": "Our receipt ID (from list response)",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "apiKey",
+            "in": "query",
+            "required": true,
+            "description": "Your registered API key",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TradeDetailResponse" },
+                "example": {
+                  "id": "string",
+                  "trade_id": "string",
+                  "buyer_name": "string",
+                  "total_value": 0,
+                  "item_count": 0,
+                  "created_at": 0,
+                  "updated_at": 0,
+                  "items": [
+                    {
+                      "item_id": 0,
+                      "item_name": "string",
+                      "quantity": 0,
+                      "price_used": 0,
+                      "total_value": 0,
+                      "market_price_at_time": 0
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MarketplaceItem": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "description": "Item ID"
+          },
+          "item_name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "market_price": {
+            "type": "integer",
+            "description": "Torn market price"
+          },
+          "bazaar_average": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Current average bazaar price"
+          },
+          "lowest_price": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Current lowest listing price"
+          },
+          "total_bazaars": {
+            "type": "integer",
+            "description": "Number of unique sellers with this item"
+          }
+        }
+      },
+      "ItemListing": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "integer"
+          },
+          "player_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "player_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "price": {
+            "type": "integer"
+          },
+          "content_updated": {
+            "type": "integer",
+            "description": "Unix timestamp"
+          },
+          "last_checked": {
+            "type": "integer",
+            "description": "Unix timestamp"
+          },
+          "content_updated_relative": {
+            "type": "string"
+          },
+          "last_checked_relative": {
+            "type": "string"
+          }
+        }
+      },
+      "RankedWeapon": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "description": "Unique item identifier"
+          },
+          "itemId": {
+            "type": "integer",
+            "description": "Item ID"
+          },
+          "itemName": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "weaponType": {
+            "type": "string",
+            "description": "Weapon type"
+          },
+          "rarity": {
+            "type": "string",
+            "enum": ["Yellow", "Orange", "Red"],
+            "description": "Item rarity"
+          },
+          "damage": {
+            "type": "string",
+            "nullable": true,
+            "description": "Damage stat"
+          },
+          "accuracy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Accuracy stat"
+          },
+          "quality": {
+            "type": "string",
+            "nullable": true,
+            "description": "Quality stat"
+          },
+          "bonuses": {
+            "type": "object",
+            "nullable": true,
+            "description": "Item bonuses",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "bonus": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "price": {
+            "type": "integer",
+            "description": "Current listing price"
+          },
+          "playerId": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Seller player ID (null for item market)"
+          },
+          "playerName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Seller name (null for item market)"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Quantity available"
+          },
+          "marketPrice": {
+            "type": "integer",
+            "description": "Torn market price"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+          },
+          "itemImage": {
+            "type": "string",
+            "nullable": true,
+            "description": "Item image URL"
+          }
+        }
+      },
+      "DollarBazaar": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "integer",
+            "description": "Player ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Player name"
+          },
+          "itemCount": {
+            "type": "integer",
+            "description": "Number of $1 items in bazaar"
+          },
+          "totalMarketValue": {
+            "type": "integer",
+            "description": "Total market value of all $1 items"
+          }
+        }
+      },
+      "DollarItem": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "description": "Item ID"
+          },
+          "itemName": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "itemType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Item type/category"
+          },
+          "playerId": {
+            "type": "integer",
+            "description": "Seller player ID"
+          },
+          "sellerName": {
+            "type": "string",
+            "description": "Seller name"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Quantity available"
+          },
+          "marketPrice": {
+            "type": "integer",
+            "description": "Market price per item"
+          },
+          "totalValue": {
+            "type": "integer",
+            "description": "Total value (marketPrice * quantity)"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+          }
+        }
+      },
+      "PricelistResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PricelistItem"
+        },
+        "description": "Array of pricelist items. Each item contains only itemId, name, and buyPrice."
+      },
+      "PricelistItem": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "description": "Item ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "buyPrice": {
+            "type": "integer",
+            "description": "Calculated buy price"
+          }
+        }
+      },
+      "PricelistUpdateRequest": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricelistItemUpdate"
+            },
+            "description": "Items to add, update, or remove from your pricelist"
+          }
+        },
+        "example": {
+          "items": [
+            {
+              "itemID": 123,
+              "pricingType": "market_percentage",
+              "pricingValue": 95,
+              "inflationProtectionEnabled": true,
+              "roundToPlace": 0,
+              "bulkType": "percent",
+              "bulkValue": 90,
+              "bulkQuantity": 10
+            }
+          ]
+        }
+      },
+      "PricelistItemUpdate": {
+        "type": "object",
+        "required": ["itemID"],
+        "properties": {
+          "itemID": {
+            "type": "integer",
+            "description": "Torn item ID"
+          },
+          "pricingType": {
+            "type": "string",
+            "enum": ["fixed", "market_percentage", "market_offset"],
+            "description": "fixed, market_percentage, or market_offset"
+          },
+          "pricingValue": {
+            "type": "number",
+            "description": "Price value. Omit to remove item."
+          },
+          "inflationProtectionEnabled": {
+            "type": "boolean",
+            "description": "Auto-adjust for market changes"
+          },
+          "roundToPlace": {
+            "type": "integer",
+            "description": "0 = none, 1 = tens, 2 = hundreds"
+          },
+          "bulkType": {
+            "type": "string",
+            "enum": ["none", "percent", "offset", "fixed"],
+            "description": "Bulk discount type"
+          },
+          "bulkValue": {
+            "type": "number",
+            "description": "Bulk price value"
+          },
+          "bulkQuantity": {
+            "type": "integer",
+            "description": "Min quantity for bulk rate"
+          }
+        }
+      },
+      "PricelistUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the update was successful"
+          },
+          "updated": {
+            "type": "integer",
+            "description": "Number of items updated"
+          },
+          "inserted": {
+            "type": "integer",
+            "description": "Number of items inserted"
+          },
+          "deleted": {
+            "type": "integer",
+            "description": "Number of items deleted"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of items processed"
+          }
+        }
+      },
+      "ReceiptUpdateRequest": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptPriceUpdateItem"
+            },
+            "description": "Array of items to update. Each item requires itemId and price."
+          }
+        }
+      },
+      "ReceiptPriceUpdateItem": {
+        "type": "object",
+        "required": ["itemId", "price"],
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "description": "Item ID (must exist in the receipt)"
+          },
+          "price": {
+            "type": "number",
+            "description": "New price per item (must be non-negative)"
+          }
+        }
+      },
+      "ReceiptUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the update was successful"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "receipt": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ReceiptResponseItem"
+                    },
+                    "description": "Updated receipt items (only includes items that were updated)"
+                  },
+                  "total_value": {
+                    "type": "integer",
+                    "description": "Total receipt value (includes all items, updated and unchanged)"
+                  }
+                }
+              },
+              "receiptURL": {
+                "type": "string",
+                "description": "URL to view the receipt"
+              }
+            }
+          }
+        }
+      },
+      "ReceiptResponseItem": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "integer",
+            "description": "Item ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Item quantity"
+          },
+          "priceUsed": {
+            "type": "number",
+            "description": "Price used per item"
+          },
+          "totalValue": {
+            "type": "number",
+            "description": "Total value (priceUsed * quantity)"
+          }
+        }
+      },
+      "ReceiptGenerationRequest": {
+        "type": "object",
+        "required": ["items", "username", "tradeID"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiptRequestItem"
+            },
+            "description": "Array of items to calculate. Each item must have either a name or itemID, and a quantity."
+          },
+          "username": {
+            "type": "string",
+            "description": "Buyer's username"
+          },
+          "tradeID": {
+            "type": "integer",
+            "description": "Unique trade identifier"
+          },
+          "includeMessage": {
+            "type": "boolean",
+            "description": "Whether to include the seller's custom message on the receipt page. The message will always be included in the API response if the seller has one configured, regardless of this flag.",
+            "default": false
+          }
+        }
+      },
+      "ReceiptRequestItem": {
+        "type": "object",
+        "required": ["quantity"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Item name (either name or itemID must be provided)"
+          },
+          "itemID": {
+            "type": "integer",
+            "description": "Item ID (either name or itemID must be provided)"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "Item quantity"
+          }
+        }
+      },
+      "ReceiptGenerationResponse": {
+        "type": "object",
+        "properties": {
+          "receipt": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ReceiptResponseItem"
+                },
+                "description": "Receipt items with calculated prices"
+              },
+              "total_value": {
+                "type": "integer",
+                "description": "Total value of all items"
+              }
+            }
+          },
+          "receiptURL": {
+            "type": "string",
+            "description": "URL to view the receipt"
+          },
+          "warnings": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "notFound": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Items not found in database"
+              },
+              "notPriced": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Items not priced in seller's pricelist"
+              }
+            }
+          }
+        }
+      }
+    },
+    "TradeListItem": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Our receipt ID" },
+        "name": { "type": "string", "description": "Counterparty (buyer) name" },
+        "value": { "type": "integer", "description": "Total value of the trade" }
+      }
+    },
+    "TradesListMetadata": {
+      "type": "object",
+      "properties": {
+        "next": { "type": "string", "nullable": true, "description": "URL for next 100 trades (older), null if none" },
+        "previous": { "type": "string", "nullable": true, "description": "URL for previous 100 trades (newer), null if none" }
+      }
+    },
+    "TradesListResponse": {
+      "type": "object",
+      "properties": {
+        "trades": {
+          "type": "array",
+          "items": { "$ref": "#/components/schemas/TradeListItem" }
+        },
+        "metadata": { "$ref": "#/components/schemas/TradesListMetadata" }
+      }
+    },
+    "TradeDetailItem": {
+      "type": "object",
+      "properties": {
+        "item_id": { "type": "integer" },
+        "item_name": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "price_used": { "type": "integer" },
+        "total_value": { "type": "integer" },
+        "market_price_at_time": { "type": "integer" }
+      }
+    },
+    "TradeDetailResponse": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Our receipt ID" },
+        "trade_id": { "type": "string", "description": "External/game trade ID" },
+        "buyer_name": { "type": "string" },
+        "total_value": { "type": "integer" },
+        "item_count": { "type": "integer" },
+        "created_at": { "type": "integer", "description": "Unix epoch time" },
+        "updated_at": { "type": "integer", "description": "Unix epoch time" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/components/schemas/TradeDetailItem" }
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Error response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "description": "Error type"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Error message"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -18,7 +18,9 @@ export function ServiceRail() {
     weav3rApiKey,
     weav3rUserId,
     driveApiKey,
+    tornApiKeyFull,
     saveWeaverConfig,
+    saveTornApiKeyFull,
     saveDriveApiKey,
   } = useJournal();
   const { vibrate } = useHapticFeedback();
@@ -27,12 +29,16 @@ export function ServiceRail() {
   const [isWhaleSubscriber, setIsWhaleSubscriber] = useState(false);
   const [tempWeav3rApiKey, setTempWeav3rApiKey] = useState(weav3rApiKey);
   const [tempDriveApiKey, setTempDriveApiKey] = useState(driveApiKey);
+  const [tempTornApiKeyFull, setTempTornApiKeyFull] = useState(tornApiKeyFull);
   const [showWeav3rKey, setShowWeav3rKey] = useState(false);
   const [showDriveKey, setShowDriveKey] = useState(false);
+  const [showTornFullKey, setShowTornFullKey] = useState(false);
   const [isSavingWeav3rKey, setIsSavingWeav3rKey] = useState(false);
   const [isSavingDriveKey, setIsSavingDriveKey] = useState(false);
+  const [isSavingTornFullKey, setIsSavingTornFullKey] = useState(false);
   const [weav3rError, setWeav3rError] = useState("");
   const [driveError, setDriveError] = useState("");
+  const [tornFullError, setTornFullError] = useState("");
 
   useEffect(() => {
     setTempWeav3rApiKey(weav3rApiKey);
@@ -41,6 +47,10 @@ export function ServiceRail() {
   useEffect(() => {
     setTempDriveApiKey(driveApiKey);
   }, [driveApiKey]);
+
+  useEffect(() => {
+    setTempTornApiKeyFull(tornApiKeyFull);
+  }, [tornApiKeyFull]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +94,11 @@ export function ServiceRail() {
       detail: weav3rApiKey && weav3rUserId ? "Ready" : "Needs Torn API key.",
     },
     {
+      name: "Auto-Pilot sync",
+      active: Boolean(tornApiKeyFull),
+      detail: tornApiKeyFull ? "Full-access key saved" : "Needs Torn full-access key.",
+    },
+    {
       name: "Google Drive Sync",
       active: driveConnected,
       detail: driveConnected ? "Connected" : "Connect in BML Connect.",
@@ -120,6 +135,20 @@ export function ServiceRail() {
       setDriveError(error instanceof Error ? error.message : "Failed to save Drive API key.");
     } finally {
       setIsSavingDriveKey(false);
+    }
+  };
+
+  const handleSaveTornFullKey = async () => {
+    vibrate("utility");
+    setIsSavingTornFullKey(true);
+    setTornFullError("");
+
+    try {
+      await saveTornApiKeyFull(tempTornApiKeyFull);
+    } catch (error) {
+      setTornFullError(error instanceof Error ? error.message : "Failed to save Torn full-access API key.");
+    } finally {
+      setIsSavingTornFullKey(false);
     }
   };
 
@@ -186,6 +215,42 @@ export function ServiceRail() {
                 >
                   <Save className="h-3.5 w-3.5" />
                   {isSavingWeav3rKey ? "Saving..." : "Save Weav3r Key"}
+                </button>
+              </label>
+
+              <label className="block">
+                <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
+                  <KeyRound className="h-3.5 w-3.5 text-primary" />
+                  Torn Full Access Key
+                </span>
+                <div className="relative">
+                  <input
+                    type={showTornFullKey ? "text" : "password"}
+                    value={tempTornApiKeyFull}
+                    onChange={(event) => setTempTornApiKeyFull(event.target.value)}
+                    placeholder="Required for Auto-Pilot /user/log and /user/trades"
+                    className="w-full rounded-xl border border-border bg-background py-2.5 pl-3 pr-10 text-sm outline-none transition-colors focus:border-primary/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTornFullKey(!showTornFullKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
+                  >
+                    {showTornFullKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+                  Stored locally for Auto-Pilot sync only. This must be a full-access Torn key.
+                </p>
+                {tornFullError && <p className="mt-1.5 text-[11px] text-danger">{tornFullError}</p>}
+                <button
+                  type="button"
+                  onClick={() => void handleSaveTornFullKey()}
+                  disabled={isSavingTornFullKey}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {isSavingTornFullKey ? "Saving..." : "Save Torn Full Key"}
                 </button>
               </label>
 

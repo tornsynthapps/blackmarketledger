@@ -1,26 +1,40 @@
 "use client";
 
-import { useState, useRef, Suspense } from "react";
+import { useMemo, useState, useRef, Suspense } from "react";
 import { useJournal } from "@/store/useJournal";
 import { Download, Upload, Trash2, Edit2, Search, ArrowLeft, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Transaction, formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { Transaction, TransactionSourceType, formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
+function getSourceLabel(sourceType?: TransactionSourceType) {
+    if (sourceType === 'item-market') return 'Item Market';
+    if (sourceType === 'bazaar') return 'Bazaar';
+    if (sourceType === 'trade') return 'Trade';
+    if (sourceType === 'points-market') return 'Points Market';
+    if (sourceType === 'museum') return 'Museum';
+    return '';
+}
+
+function inferSourceType(transaction: Transaction): TransactionSourceType | undefined {
+    if (transaction.sourceType) return transaction.sourceType;
+    if (transaction.tradeGroupId || transaction.weav3rReceiptId || transaction.tornLogId?.startsWith('trade:')) return 'trade';
+    return undefined;
+}
+
 function LogsPageContent() {
-    const { isLoaded, transactions, deleteLog, restoreData, editLog, refreshDriveCache } = useJournal();
+    const { isLoaded, transactions, deleteLog, restoreData, editLog, refreshDriveCache, autoPilotRecentImports } = useJournal();
     const { vibrate } = useHapticFeedback();
     const searchParams = useSearchParams();
     const filterItem = searchParams.get('item');
 
     const [search, setSearch] = useState(filterItem || "");
+    const [showLinkedIds, setShowLinkedIds] = useState(false);
     const [isRefreshingDrive, setIsRefreshingDrive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const storagePref = typeof window !== "undefined" ? localStorage.getItem("bml_storage_pref") : null;
-
-    if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
     const filteredLogs = transactions
         .filter(t => {
@@ -33,9 +47,17 @@ function LogsPageContent() {
                 const itemsToSearch = t.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
                 return itemsToSearch.some(item => item.toLowerCase().includes(term));
             }
-            return t.item.toLowerCase().includes(term);
+            if (t.item.toLowerCase().includes(term)) return true;
+            if (!showLinkedIds) return false;
+            return Boolean(
+                t.tornLogId?.toLowerCase().includes(term) ||
+                t.tradeGroupId?.toLowerCase().includes(term) ||
+                t.weav3rReceiptId?.toLowerCase().includes(term)
+            );
         })
         .sort((a, b) => b.date - a.date);
+
+    if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
     const handleBackup = () => {
         const dataStr = JSON.stringify(transactions, null, 2);
@@ -74,6 +96,8 @@ function LogsPageContent() {
     };
 
     const renderTransactionRow = (t: Transaction) => {
+        const sourceType = inferSourceType(t);
+        const sourceLabel = getSourceLabel(sourceType);
         return (
             <tr key={t.id} className="hover:bg-foreground/[0.02] transition-colors border-b border-border/50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/70">
@@ -96,6 +120,18 @@ function LogsPageContent() {
                         {t.type === 'SET_CONVERT' ? `${t.times}x ${formatItemName(t.setType)} Set → ${t.pointsEarned} Points` : ''}
                         {t.type === 'MUG' ? 'Money' : ''}
                     </div>
+                    {(sourceLabel || (showLinkedIds && (t.tornLogId || t.tradeGroupId || t.weav3rReceiptId))) && (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-foreground/50">
+                            {sourceLabel && (
+                                <span className="rounded-full border border-border px-2 py-0.5 font-semibold uppercase tracking-wider">
+                                    {sourceLabel}
+                                </span>
+                            )}
+                            {showLinkedIds && t.tornLogId && <span>Torn: {t.tornLogId}</span>}
+                            {showLinkedIds && t.tradeGroupId && <span>Trade: {t.tradeGroupId}</span>}
+                            {showLinkedIds && t.weav3rReceiptId && <span>Receipt: {t.weav3rReceiptId}</span>}
+                        </div>
+                    )}
                 </td>
                 <td className="px-6 py-4 text-right">
                     {t.type === 'BUY' || t.type === 'SELL' ? t.amount.toLocaleString() : ''}
@@ -222,23 +258,35 @@ function LogsPageContent() {
                 </div>
             </div>
 
+
             <div className="bg-panel rounded-xl border border-border shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                 <div className="p-4 border-b border-border bg-foreground/[0.02] flex items-center justify-between">
                     <h2 className="font-semibold">{filteredLogs.length} Transactions</h2>
-                    <div className="relative w-64">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
-                        <input
-                            type="text"
-                            placeholder="Search items..."
-                            value={search}
-                            onChange={(e) => {
-                                if (!search && e.target.value) {
-                                    vibrate("utility");
-                                }
-                                setSearch(e.target.value);
-                            }}
-                            className="w-full pl-9 pr-4 py-2 text-sm bg-panel border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        />
+                    <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-xs text-foreground/60">
+                            <input
+                                type="checkbox"
+                                checked={showLinkedIds}
+                                onChange={(event) => setShowLinkedIds(event.target.checked)}
+                                className="rounded border-border"
+                            />
+                            Show Linked IDs
+                        </label>
+                        <div className="relative w-64">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                            <input
+                                type="text"
+                                placeholder={showLinkedIds ? "Search items or IDs..." : "Search items..."}
+                                value={search}
+                                onChange={(e) => {
+                                    if (!search && e.target.value) {
+                                        vibrate("utility");
+                                    }
+                                    setSearch(e.target.value);
+                                }}
+                                className="w-full pl-9 pr-4 py-2 text-sm bg-panel border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -268,6 +316,7 @@ function LogsPageContent() {
                     </table>
                 </div>
             </div>
+
         </div>
     );
 }

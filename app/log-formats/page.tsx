@@ -22,7 +22,7 @@ export default function LogFormats() {
                             <span className="text-xl">💡</span>
                             <div>
                                 <p className="font-semibold text-foreground/90">Weav3r Receipts</p>
-                                <p className="text-sm text-foreground/70">Paste a Weav3r receipt URL (e.g. <code className="bg-primary/5 text-primary px-1 p-0.5 rounded">https://weav3r.dev/receipt/RJiDVUO9Is</code>) to automatically fetch trades!</p>
+                                <p className="text-sm text-foreground/70">Paste a Weav3r receipt URL (e.g. <code className="bg-primary/5 text-primary px-1 p-0.5 rounded">https://weav3r.dev/api/receipt/RJiDVUO9Is</code>) to automatically fetch trades!</p>
                             </div>
                         </li>
                         <li className="flex items-start gap-3">

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useJournal } from "@/store/useJournal";
-import { parseLogLine, ParsedLog, formatItemName, formatToStandardLog, PARSER_VERSION } from "@/lib/parser";
-import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useJournal, InventoryItemStats } from "@/store/useJournal";
+import { parseLogLine, ParsedLog, formatItemName, formatToStandardLog, PARSER_VERSION, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { calculateInventory, getLogBreakdown } from "@/lib/transactionBuilder";
+import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert, AlertTriangle, SkipForward } from "lucide-react";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
@@ -14,7 +15,7 @@ export default function AddLogs() {
     const [configError, setConfigError] = useState("");
     const [justPasted, setJustPasted] = useState(false);
     const highlightRef = useRef<HTMLDivElement>(null);
-    const { addLogs, isLoaded, clearLogs, weav3rApiKey, weav3rUserId, saveWeaverConfig } = useJournal();
+    const { addLogs, isLoaded, clearLogs, weav3rApiKey, weav3rUserId, saveWeaverConfig, skipNegativeStock, updateSkipNegativeStock, inventory, transactions, calculateInventory } = useJournal();
     const { vibrate } = useHapticFeedback();
 
     const [tempApiKey, setTempApiKey] = useState("");
@@ -52,7 +53,7 @@ export default function AddLogs() {
 
                     let newLogs = "";
                     if (data.items && Array.isArray(data.items)) {
-                        data.items.forEach((item: any) => {
+                        data.items.forEach((item: { item_name: string; quantity: number; total_value: number }) => {
                             newLogs += `b;${item.item_name};${item.quantity};;${item.total_value}\n`;
                         });
                     }
@@ -108,14 +109,19 @@ export default function AddLogs() {
         parsed: parseLogLine(line)
     }));
 
-    const validCount = parsedLines.filter(p => p.parsed !== null).length;
+    const validParsed = parsedLines.filter(p => p.parsed !== null).map(p => p.parsed!);
+    const validCount = validParsed.length;
     const inValidCount = lines.length - validCount;
 
+    // Categorize logs based on skipNegativeStock setting and build filtered logs using shared logic
+    const { completeCount, partialCount, skippedCount, filteredLogs } = useMemo(() => {
+        return getLogBreakdown(transactions, validParsed, skipNegativeStock);
+    }, [skipNegativeStock, validParsed, transactions]);
+
     const handleSave = async () => {
-        const validLogs = parsedLines.map(p => p.parsed).filter((p): p is ParsedLog => p !== null);
-        if (validLogs.length > 0) {
+        if (filteredLogs.length > 0) {
             try {
-                await addLogs(validLogs);
+                await addLogs(filteredLogs);
                 vibrate("success");
                 setInput("");
                 setShowToast(true);
@@ -124,6 +130,10 @@ export default function AddLogs() {
                 vibrate("danger");
                 alert(error instanceof Error ? error.message : "Failed to add logs.");
             }
+        } else {
+            // No logs to save (all skipped or invalid)
+            vibrate("utility");
+            alert("No logs to save. All valid logs were skipped due to insufficient stock.");
         }
     };
 
@@ -135,7 +145,7 @@ export default function AddLogs() {
             {showToast && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-success text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-in slide-in-from-top-4 fade-in z-50">
                     <Check className="w-5 h-5" />
-                    <span className="font-medium">Successfully saved {validCount} logs!</span>
+                    <span className="font-medium">Successfully saved {filteredLogs.length} logs!</span>
                 </div>
             )}
 
@@ -155,6 +165,67 @@ export default function AddLogs() {
                 </Link>
             </div>
 
+            {/* Configuration */}
+            <div className="flex items-center justify-between p-4 bg-panel border border-border rounded-xl shadow-sm">
+                <div>
+                    <h3 className="font-medium text-sm">Skip Negative Stock</h3>
+                    <p className="text-xs text-foreground/60 mt-1">
+                        When enabled, logs that would cause negative stock are skipped or partially applied.
+                    </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={skipNegativeStock}
+                        onChange={(e) => updateSkipNegativeStock(e.target.checked)}
+                    />
+                    <div className="w-11 h-6 bg-foreground/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+            </div>
+
+            {/* Log Breakdown Summary */}
+            <div className="space-y-3 p-4 bg-panel border border-border rounded-xl shadow-sm">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="flex flex-col items-center justify-center p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                        <div className="text-2xl font-bold text-primary">{validCount}</div>
+                        <div className="text-xs font-medium text-foreground/70 mt-1">Valid Logs</div>
+                        <div className="text-[10px] text-foreground/40 mt-0.5">Parsed successfully</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 bg-danger/5 border border-danger/20 rounded-lg">
+                        <div className="text-2xl font-bold text-danger">{inValidCount}</div>
+                        <div className="text-xs font-medium text-foreground/70 mt-1">Invalid Logs</div>
+                        <div className="text-[10px] text-foreground/40 mt-0.5">Failed to parse</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 bg-success/5 border border-success/20 rounded-lg">
+                        <div className="text-2xl font-bold text-success">{completeCount}</div>
+                        <div className="text-xs font-medium text-foreground/70 mt-1">Complete</div>
+                        <div className="text-[10px] text-foreground/40 mt-0.5">Will apply fully</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 bg-warning/5 border border-warning/20 rounded-lg">
+                        <div className="text-2xl font-bold text-warning">{partialCount}</div>
+                        <div className="text-xs font-medium text-foreground/70 mt-1">Partial</div>
+                        <div className="text-[10px] text-foreground/40 mt-0.5">Insufficient stock</div>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-3 bg-foreground/5 border border-foreground/20 rounded-lg">
+                        <div className="text-2xl font-bold text-foreground/60">{skippedCount}</div>
+                        <div className="text-xs font-medium text-foreground/70 mt-1">Skipped</div>
+                        <div className="text-[10px] text-foreground/40 mt-0.5">Zero/negative stock</div>
+                    </div>
+                </div>
+                <div className="text-xs text-foreground/50 pt-2 border-t border-border/40">
+                    {skipNegativeStock ? (
+                        <>
+                            <span className="font-medium text-primary">Skip Negative Stock is ON.</span> Logs that would cause negative stock are skipped (zero/negative stock) or partially applied (insufficient stock). Complete logs will be applied fully.
+                        </>
+                    ) : (
+                        <>
+                            <span className="font-medium text-primary">Skip Negative Stock is OFF.</span> All valid logs will be applied as complete, regardless of stock levels.
+                        </>
+                    )}
+                </div>
+            </div>
+
             {/* Unified Terminal UI */}
             <div className="flex flex-col gap-4">
                 <div className="relative font-mono text-sm w-full h-[32rem] bg-panel rounded-xl shadow-inner border border-border overflow-hidden flex flex-col">
@@ -167,6 +238,13 @@ export default function AddLogs() {
                         <div className="flex gap-4 text-[10px] font-bold">
                             <span className="text-primary flex items-center gap-1"><Check className="w-3 h-3" /> {validCount} Valid</span>
                             {inValidCount > 0 && <span className="text-danger flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {inValidCount} Invalid</span>}
+                            {skipNegativeStock && (
+                                <>
+                                    <span className="text-success flex items-center gap-1"><Check className="w-3 h-3" /> {completeCount} Complete</span>
+                                    {partialCount > 0 && <span className="text-warning flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {partialCount} Partial</span>}
+                                    {skippedCount > 0 && <span className="text-foreground/50 flex items-center gap-1"><SkipForward className="w-3 h-3" /> {skippedCount} Skipped</span>}
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -190,7 +268,7 @@ export default function AddLogs() {
                                                 {lineText.trim() === '' ? (
                                                     <span>&nbsp;</span>
                                                 ) : (
-                                                    <span className={parsed ? "text-primary bg-primary/10 px-1 py-0.5 rounded shadow-[0_0_0_1px_rgba(var(--primary),0.1)]" : "text-danger bg-danger/10 px-1 py-0.5 rounded font-medium"} style={{ boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>
+                                                    <span className={parsed ? "text-primary bg-primary/10 rounded shadow-[0_0_0_1px_rgba(var(--primary),0.1)]" : "text-danger bg-danger/10 rounded font-medium"} style={{ boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>
                                                         {lineText}
                                                     </span>
                                                 )}
@@ -235,9 +313,13 @@ export default function AddLogs() {
                                 if (highlightRef.current) highlightRef.current.scrollTop = e.currentTarget.scrollTop;
                             }}
                             onPaste={() => setJustPasted(true)}
-                            className="absolute inset-0 w-full h-full p-4 resize-none bg-transparent text-transparent caret-foreground focus:outline-none z-20 leading-7 pb-20 overflow-y-scroll font-mono text-sm whitespace-pre-wrap break-words border-none ring-0 focus:ring-0"
+                            className="absolute inset-0 w-full h-full p-4 resize-none bg-transparent text-transparent caret-foreground focus:outline-none z-20 overflow-y-scroll font-mono text-sm whitespace-pre-wrap break-words border-none ring-0 focus:ring-0"
                             style={{ 
-                                paddingRight: 'calc(35% + 60px)' 
+                                paddingLeft: '1rem',
+                                paddingTop: '1rem',
+                                paddingRight: 'calc(35% + 60px)',
+                                paddingBottom: '5rem',
+                                lineHeight: '1.75rem',
                             }}
                             placeholder="Paste your logs here..."
                             spellCheck="false"

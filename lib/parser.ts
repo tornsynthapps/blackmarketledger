@@ -1,12 +1,18 @@
-export const PARSER_VERSION = '1.1.0';
+export const PARSER_VERSION = '1.2.0';
 export type TransactionType = 'BUY' | 'SELL' | 'MUG' | 'CONVERT';
 
 export type TransactionTag = 'Abroad' | 'Normal';
+export type TransactionSourceType = 'item-market' | 'bazaar' | 'trade' | 'points-market' | 'museum';
 
 export interface BaseTransaction {
     id: string;
     date: number; // timestamp
     tag?: TransactionTag; // Used to differentiate source of items
+    sourceType?: TransactionSourceType;
+    loggedAt?: number;
+    tornLogId?: string;
+    weav3rReceiptId?: string;
+    tradeGroupId?: string;
 }
 
 export interface TradeTransaction extends BaseTransaction {
@@ -56,7 +62,7 @@ export const PLUSHIE_SET = [
     'stingray plushie'
 ];
 
-function normalizeItemName(name: string): string {
+export function normalizeItemName(name: string): string {
     const lower = name.trim().toLowerCase();
 
     // Handle aliases
@@ -134,7 +140,7 @@ export function parseLogLine(line: string): ParsedLog | null {
     // e.g. "07:28:09 - 07/03/26 You bought 22x Crocus on Frengesp's bazaar at $7,099 each for a total of $156,178"
     // e.g. "07:28:33 - 07/03/26 You bought 58x Crocus on the item market from lesbiampires at $8,189 each for a total of $474,962"
     // e.g. "You bought a Bottle of Tequila on Botato's bazaar at $666 each for a total of $666"
-    const tornBuyRegex = /You bought ([\d,]+x|a|some) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: (?:from|in) (.+))?)?/i;
+    const tornBuyRegex = /You bought ([\d,]+x|a|some|an) (.+?)(?: on .+? bazaar| on the item market from .+?)? at \$([\d,]+) each(?: for a total of \$([\d,]+)(?: (?:from|in) (.+))?)?/i;
     const tornBuyMatch = line.match(tornBuyRegex);
     if (tornBuyMatch) {
         let amount = 1;
@@ -242,10 +248,11 @@ export function parseLogLine(line: string): ParsedLog | null {
     }
 
     // Someone anonymously mugged you for $4,446,201 sending you to the hospital for 0h 42m [view]
-    const tornAnonMugRegex = /Someone anonymously mugged you for \$([\d,]+)/i;
-    const tornAnonMugMatch = line.match(tornAnonMugRegex);
-    if (tornAnonMugMatch) {
-        const amount = parseInt(tornAnonMugMatch[1].replace(/,/g, ''), 10);
+    // 03:36:09 19/03/26 tayzarstar mugged you for $13,584 sending you to the hospital for Oh 39m
+    const tornMugRegex = /.*?mugged you for \$([\d,]+)/i;
+    const tornMugMatch = line.match(tornMugRegex);
+    if (tornMugMatch) {
+        const amount = parseInt(tornMugMatch[1].replace(/,/g, ''), 10);
         if (!isNaN(amount)) {
             return {
                 type: 'MUG',
