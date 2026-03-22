@@ -24,7 +24,7 @@ import {
   writeGoogleDriveData,
   disconnectGoogleDrive,
 } from "@/lib/drive-api";
-import { verifySubscription, SubscriptionStatus } from "@/lib/subscription-api";
+import { verifySubscription, claimTrial, SubscriptionStatus } from "@/lib/subscription-api";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import * as idb from "@/lib/idb";
 
@@ -72,6 +72,8 @@ export default function BMLConnectPage() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationComplete, setMigrationComplete] = useState(false);
   const [showMigrationDialog, setShowMigrationDialog] = useState(false);
+  const [showTrialOfferDialog, setShowTrialOfferDialog] = useState(false);
+  const [claimingTrial, setClaimingTrial] = useState(false);
   const [pendingStorageSwitch, setPendingStorageSwitch] = useState<{
     target: "browser" | "drive";
     label: string;
@@ -99,6 +101,13 @@ export default function BMLConnectPage() {
         try {
           const sub = await verifySubscription(driveApiKey);
           setUserInfo(sub);
+
+      if (sub.eligibleForTrial) {
+        await saveDriveApiKey(manualApiKey);
+        setShowDriveSetupDialog(false);
+        setShowTrialOfferDialog(true);
+        return;
+      }
           await refreshDriveStatus(driveApiKey);
         } catch (error) {
           console.error("Initialization check failed", error);
@@ -193,6 +202,10 @@ export default function BMLConnectPage() {
     try {
       const res = await verifySubscription(driveApiKey);
       setUserInfo(res);
+
+      if (res.eligibleForTrial) {
+        setShowTrialOfferDialog(true);
+      }
       await refreshDriveStatus(driveApiKey);
       vibrate("success");
     } catch (error) {
@@ -256,6 +269,13 @@ export default function BMLConnectPage() {
       const sub = await verifySubscription(manualApiKey);
       setUserInfo(sub);
 
+      if (sub.eligibleForTrial) {
+        await saveDriveApiKey(manualApiKey);
+        setShowDriveSetupDialog(false);
+        setShowTrialOfferDialog(true);
+        return;
+      }
+
       // Save it as Drive API key
       await saveDriveApiKey(manualApiKey);
 
@@ -279,6 +299,25 @@ export default function BMLConnectPage() {
       vibrate("danger");
     } finally {
       setDriveSetupBusy(false);
+    }
+  };
+
+  const handleClaimTrial = async () => {
+    if (!driveApiKey) return;
+    setClaimingTrial(true);
+    vibrate("utility");
+
+    try {
+      const sub = await claimTrial(driveApiKey);
+      setUserInfo(sub);
+      setShowTrialOfferDialog(false);
+      setStatusMessage("21-day trial activated! You now have full access.");
+      vibrate("success");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Failed to claim trial");
+      vibrate("danger");
+    } finally {
+      setClaimingTrial(false);
     }
   };
 
@@ -581,6 +620,43 @@ export default function BMLConnectPage() {
                 setShowDriveSetupDialog(true);
                 setPendingDriveAuthUrl(null);
               }} className="py-4 text-sm font-bold text-foreground/40">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTrialOfferDialog && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8 text-center">
+            <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-8 h-8 text-amber-500" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">Start Your Free Trial</h2>
+            <p className="text-sm text-foreground/60 mb-6">
+              You are not currently a subscriber. Claim your <span className="text-amber-500 font-bold">21-day FREE trial</span> to unlock Google Drive sync!
+            </p>
+            <div className="bg-foreground/5 rounded-xl p-4 mb-6">
+              <p className="text-xs text-foreground/50 mb-2">Trial includes:</p>
+              <ul className="text-sm text-left space-y-1">
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /> Full Drive sync access</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /> Cloud backup & restore</li>
+                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /> Multi-device access</li>
+              </ul>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleClaimTrial}
+                disabled={claimingTrial}
+                className="bg-amber-500 py-4 rounded-2xl text-sm font-black text-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {claimingTrial ? "Activating..." : "Claim 21-Day Free Trial"}
+              </button>
+              <button
+                onClick={() => setShowTrialOfferDialog(false)}
+                className="py-3 text-sm font-bold text-foreground/40 hover:text-foreground"
+              >
+                Maybe Later
+              </button>
             </div>
           </div>
         </div>
