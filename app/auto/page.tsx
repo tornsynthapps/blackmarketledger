@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, PauseCircle, Radar, RefreshCcw, Tags, Store, Coins, Box, Link2Off, ChevronRight, Activity } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import {
@@ -99,8 +99,19 @@ export default function AutoPilotPage() {
     autoPilotRecentImports,
     saveAutoPilotState,
     syncState,
-    driveApiKey
+    driveApiKey,
+    refreshDriveCache
   } = useJournal();
+
+  const [isDriveLoaded, setIsDriveLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storagePref = localStorage.getItem("bml_storage_pref");
+    if (storagePref === 'drive' && driveApiKey && !isDriveLoaded) {
+      refreshDriveCache().then(() => setIsDriveLoaded(true)).catch(console.error);
+    }
+  }, [driveApiKey, refreshDriveCache, isDriveLoaded]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -201,15 +212,26 @@ export default function AutoPilotPage() {
   const isSyncDisabled = useMemo(() => {
     // Currently fetching from Google Drive
     if (isFetchingFromDrive) return true;
+    // Still loading initial drive data (client-side only)
+    if (typeof window !== 'undefined') {
+      const storagePref = localStorage.getItem("bml_storage_pref");
+      if (storagePref === 'drive' && !isDriveLoaded) return true;
+    }
     // Has pending trades requiring manual review
     if (autoPilotPendingTrades.length > 0) return true;
     // Has unlinked trades in cache
     if (hasUnlinkedTrades) return true;
     return false;
-  }, [isFetchingFromDrive, autoPilotPendingTrades.length, hasUnlinkedTrades]);
+  }, [isFetchingFromDrive, autoPilotPendingTrades.length, hasUnlinkedTrades, isDriveLoaded]);
 
   // Get sync status message
   const getSyncStatusMessage = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const storagePref = localStorage.getItem("bml_storage_pref");
+      if (storagePref === 'drive' && !isDriveLoaded) {
+        return "Loading latest cursor position from Google Drive...";
+      }
+    }
     if (isFetchingFromDrive) {
       return syncState.message || "Fetching latest cursor position from Google Drive...";
     }
@@ -529,7 +551,7 @@ export default function AutoPilotPage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCcw className={`h-4 w-4 ${isRunning || isFetchingFromDrive ? "animate-spin" : ""}`} />
-                {isFetchingFromDrive ? "Fetching..." : isRunning ? "Syncing..." : !autoPilotTradeCursor ? "Initialize Auto-Pilot" : needsContinueSync ? "Continue Sync" : "Sync Now"}
+                {isFetchingFromDrive ? "Positioning ..." : isRunning ? "Syncing..." : !autoPilotTradeCursor ? "Initialize Auto-Pilot" : needsContinueSync ? "Continue Sync" : "Sync Now"}
               </button>
             </div>
 
