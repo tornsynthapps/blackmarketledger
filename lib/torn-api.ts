@@ -1,6 +1,10 @@
 import { ParsedLog, TransactionSourceType, normalizeItemName } from "./parser";
 import { createRateLimiter } from "./rate-limiter";
-import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "./api-keys";
+import {
+  getTornApiRateLimit,
+  getWeav3rApiRateLimit,
+  refreshApiKeysFromStorage,
+} from "./api-keys";
 export type { ParsedLog };
 
 export const TORN_V2_API_BASE = "https://api.torn.com/v2";
@@ -22,8 +26,17 @@ export function refreshApiRateLimiters() {
   tornRateLimiter = createRateLimiter(limits.torn);
   weav3rRateLimiter = createRateLimiter(limits.weav3r);
 }
-const AUTO_PILOT_LOG_CATEGORIES = ["Market", "Bazaar", "Points", "Museum", "Attacks"];
-const MARKET_LOG_TYPE_MAP: Record<number, { type: "BUY" | "SELL"; sourceType: TransactionSourceType }> = {
+const AUTO_PILOT_LOG_CATEGORIES = [
+  "Market",
+  "Bazaar",
+  "Points",
+  "Museum",
+  "Attacks",
+];
+const MARKET_LOG_TYPE_MAP: Record<
+  number,
+  { type: "BUY" | "SELL"; sourceType: TransactionSourceType }
+> = {
   1112: { type: "BUY", sourceType: "item-market" },
   1113: { type: "SELL", sourceType: "item-market" },
   1225: { type: "BUY", sourceType: "bazaar" },
@@ -214,12 +227,18 @@ async function parseJson(response: Response) {
   return data;
 }
 
-async function fetchWithTornRateLimit(url: string, options?: RequestInit): Promise<Response> {
+async function fetchWithTornRateLimit(
+  url: string,
+  options?: RequestInit,
+): Promise<Response> {
   await tornRateLimiter.acquire();
   return fetch(url, options);
 }
 
-async function fetchWithWeav3rRateLimit(url: string, options?: RequestInit): Promise<Response> {
+async function fetchWithWeav3rRateLimit(
+  url: string,
+  options?: RequestInit,
+): Promise<Response> {
   await weav3rRateLimiter.acquire();
   return fetch(url, options);
 }
@@ -293,7 +312,15 @@ function extractItemName(
 }
 
 function extractAmount(source: Record<string, unknown>) {
-  return pickNumber(source, ["quantity", "qty", "amount", "points", "count", "qty_bought", "qty_sold"]);
+  return pickNumber(source, [
+    "quantity",
+    "qty",
+    "amount",
+    "points",
+    "count",
+    "qty_bought",
+    "qty_sold",
+  ]);
 }
 
 function extractPrice(source: Record<string, unknown>) {
@@ -326,12 +353,20 @@ function extractItems(source: Record<string, unknown>) {
   for (const key of candidates) {
     const value = source[key];
     if (Array.isArray(value)) {
-      return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object");
+      return value.filter(
+        (item): item is Record<string, unknown> =>
+          Boolean(item) && typeof item === "object",
+      );
     }
     if (value && typeof value === "object") {
       const nestedValues = Object.values(value);
-      if (nestedValues.every((item) => Boolean(item) && typeof item === "object")) {
-        return nestedValues.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object");
+      if (
+        nestedValues.every((item) => Boolean(item) && typeof item === "object")
+      ) {
+        return nestedValues.filter(
+          (item): item is Record<string, unknown> =>
+            Boolean(item) && typeof item === "object",
+        );
       }
     }
   }
@@ -339,7 +374,9 @@ function extractItems(source: Record<string, unknown>) {
 }
 
 function hasKeyFragment(source: Record<string, unknown>, fragments: string[]) {
-  return Object.keys(source).some((key) => fragments.some((fragment) => key.toLowerCase().includes(fragment)));
+  return Object.keys(source).some((key) =>
+    fragments.some((fragment) => key.toLowerCase().includes(fragment)),
+  );
 }
 
 function detectMarketAction(
@@ -360,8 +397,22 @@ function detectMarketAction(
     return "BUY";
   }
   if (
-    hasKeyFragment(data, ["qty_sold", "sold", "revenue", "fee", "customer", "buyer"]) ||
-    hasKeyFragment(params, ["qty_sold", "sold", "revenue", "fee", "customer", "buyer"])
+    hasKeyFragment(data, [
+      "qty_sold",
+      "sold",
+      "revenue",
+      "fee",
+      "customer",
+      "buyer",
+    ]) ||
+    hasKeyFragment(params, [
+      "qty_sold",
+      "sold",
+      "revenue",
+      "fee",
+      "customer",
+      "buyer",
+    ])
   ) {
     return "SELL";
   }
@@ -375,7 +426,10 @@ function isTradeLog(log: NormalizedLog) {
 
 function isRelevantLog(log: NormalizedLog) {
   const haystack = `${log.category} ${log.title}`.toLowerCase();
-  return RELEVANT_LOG_TITLES.some((needle) => haystack.includes(needle)) || log.typeId === 8156;
+  return (
+    RELEVANT_LOG_TITLES.some((needle) => haystack.includes(needle)) ||
+    log.typeId === 8156
+  );
 }
 
 function parseMarketLog(
@@ -476,7 +530,8 @@ function parseBazaarOrMarketLog(
   const data = log.data || {};
   const haystack = `${log.category} ${log.title}`.toLowerCase();
   const explicitMapping = MARKET_LOG_TYPE_MAP[log.typeId];
-  const type = explicitMapping?.type || detectMarketAction(haystack, data, log.params);
+  const type =
+    explicitMapping?.type || detectMarketAction(haystack, data, log.params);
   if (!type) return [];
   const sourceType: TransactionSourceType =
     explicitMapping?.sourceType ||
@@ -505,7 +560,8 @@ function parseBazaarOrMarketLog(
     extractItemName(log.params, itemNameMap);
   const amount = extractAmount(data);
   const total = extractTotal(data);
-  const price = extractPrice(data) ?? (amount && total ? total / amount : undefined);
+  const price =
+    extractPrice(data) ?? (amount && total ? total / amount : undefined);
 
   return parseMarketLog(log, type, sourceType, itemName, amount, price);
 }
@@ -537,7 +593,7 @@ export function parseNormalizedLog(
   if (haystack.includes("mugged") || [8156].includes(log.typeId)) {
     console.log(log);
     let amount: number | null = log?.data?.money_mugged as number;
-    if (!amount){
+    if (!amount) {
       const moneyMatch = String(log.title).match(/\$([\d,]+)/);
       amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : 0;
     }
@@ -545,13 +601,15 @@ export function parseNormalizedLog(
     if (amount) {
       return {
         kind: "parsed",
-        logs: [{
-          type: "MUG",
-          amount,
-          loggedAt: log.timestamp * 1000,
-          tornLogId: String(log.id),
-          sourceType: "attack",
-        }]
+        logs: [
+          {
+            type: "MUG",
+            amount,
+            loggedAt: log.timestamp * 1000,
+            tornLogId: String(log.id),
+            sourceType: "attack",
+          },
+        ],
       };
     }
   }
@@ -583,13 +641,16 @@ async function getLogsForCategory(
   const seenLogIds = new Set<string>();
 
   while (nextUrl) {
-    const response = await fetchWithTornRateLimit(nextUrl, { cache: "no-store" });
+    const response = await fetchWithTornRateLimit(nextUrl, {
+      cache: "no-store",
+    });
     const data = await parseJson(response);
     const page: NormalizedLog[] = Array.isArray(data?.log)
       ? (data.log as TornLogEntry[]).map(normalizeTornLog)
       : [];
     const prevLink =
-      typeof data?._metadata?.links?.prev === "string" && data._metadata.links.prev
+      typeof data?._metadata?.links?.prev === "string" &&
+      data._metadata.links.prev
         ? withApiKey(String(data._metadata.links.prev), apiKey)
         : "";
     const filtered = page
@@ -650,14 +711,19 @@ export async function getTornItems(apiKey: string) {
   const itemsSource = data?.items || data?.data?.items || {};
   const itemMap: TornItemNameMap = new Map();
 
-  const entries = Array.isArray(itemsSource) 
-    ? itemsSource 
-    : Object.entries(itemsSource).map(([id, val]) => ({ id, ...(val as object) }));
+  const entries = Array.isArray(itemsSource)
+    ? itemsSource
+    : Object.entries(itemsSource).map(([id, val]) => ({
+        id,
+        ...(val as object),
+      }));
 
   for (const item of entries) {
     const id = Number(item?.id);
     const name =
-      typeof (item as any)?.name === "string" ? normalizeItemName((item as any).name) : "";
+      typeof (item as any)?.name === "string"
+        ? normalizeItemName((item as any).name)
+        : "";
     if (Number.isFinite(id) && name) {
       itemMap.set(id, name);
     }
@@ -738,10 +804,14 @@ export async function getWeav3rTrades(
     from: startTimestamp,
   });
   const collected: Weav3rReceipt[] = [];
-  const cachedReceiptMap = new Map(cachedReceipts.map((receipt) => [receipt.id, receipt]));
+  const cachedReceiptMap = new Map(
+    cachedReceipts.map((receipt) => [receipt.id, receipt]),
+  );
 
   while (true) {
-    const response = await fetchWithWeav3rRateLimit(nextUrl, { cache: "no-store" });
+    const response = await fetchWithWeav3rRateLimit(nextUrl, {
+      cache: "no-store",
+    });
     const data = await parseJson(response);
     const page: Weav3rTradeListItem[] = Array.isArray(data?.trades)
       ? (data.trades as Weav3rTradeListItem[])
@@ -753,7 +823,9 @@ export async function getWeav3rTrades(
     }
 
     for (const trade of page) {
-      const receipt = cachedReceiptMap.get(trade.id) || await getWeav3rReceipt(apiKey, userId, trade.id);
+      const receipt =
+        cachedReceiptMap.get(trade.id) ||
+        (await getWeav3rReceipt(apiKey, userId, trade.id));
       collected.push(receipt);
     }
 
@@ -814,7 +886,12 @@ export function summarizeTrade(detail: TornTradeDetail, currentUserId: string) {
   currentUserItems.sort((a, b) => a.itemId - b.itemId || a.amount - b.amount);
   otherUserItems.sort((a, b) => a.itemId - b.itemId || a.amount - b.amount);
 
-  if (currentUserMoney > 0 && otherUserItems.length > 0 && currentUserItems.length === 0 && otherUserMoney === 0) {
+  if (
+    currentUserMoney > 0 &&
+    otherUserItems.length > 0 &&
+    currentUserItems.length === 0 &&
+    otherUserMoney === 0
+  ) {
     return {
       tradeType: "BUY" as const,
       moneyAmount: currentUserMoney,
@@ -826,7 +903,12 @@ export function summarizeTrade(detail: TornTradeDetail, currentUserId: string) {
     };
   }
 
-  if (otherUserMoney > 0 && currentUserItems.length > 0 && otherUserItems.length === 0 && currentUserMoney === 0) {
+  if (
+    otherUserMoney > 0 &&
+    currentUserItems.length > 0 &&
+    otherUserItems.length === 0 &&
+    currentUserMoney === 0
+  ) {
     return {
       tradeType: "SELL" as const,
       moneyAmount: otherUserMoney,
@@ -909,13 +991,18 @@ export function compareTradeAgainstReceipt(
 
   const maxAgeSeconds = 6 * 60 * 60;
   const tradeIdStr = String(detail.id);
-  const isExactTradeIdMatch = receipt && String(receipt.trade_id) === tradeIdStr;
+  const isExactTradeIdMatch =
+    receipt && String(receipt.trade_id) === tradeIdStr;
 
   if (receipt && !isExactTradeIdMatch) {
-    if (receipt.created_at > Number(detail.timestamp) || receipt.created_at < Number(detail.timestamp) - maxAgeSeconds) {
+    if (
+      receipt.created_at > Number(detail.timestamp) ||
+      receipt.created_at < Number(detail.timestamp) - maxAgeSeconds
+    ) {
       pending.differences.push({
         kind: "direction",
-        message: "Receipt timestamp is not within 6 hours before the Torn trade timestamp.",
+        message:
+          "Receipt timestamp is not within 6 hours before the Torn trade timestamp.",
       });
     }
   }
@@ -932,10 +1019,14 @@ export function findMatchingReceipt(
   // 1. Try exact trade_id match first
   const tradeIdStr = String(detail.id);
   const exactMatch = receipts.find(
-    (r) => String(r.trade_id) === tradeIdStr && !excludedReceiptIds.has(r.id)
+    (r) => String(r.trade_id) === tradeIdStr && !excludedReceiptIds.has(r.id),
   );
   if (exactMatch) {
-    const comparison = compareTradeAgainstReceipt(detail, exactMatch, currentUserId);
+    const comparison = compareTradeAgainstReceipt(
+      detail,
+      exactMatch,
+      currentUserId,
+    );
     if (comparison.differences.length === 0) {
       return exactMatch;
     }

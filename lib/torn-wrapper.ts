@@ -1,5 +1,20 @@
-import { xAxisDefaultProps } from 'recharts/types/cartesian/XAxis';
-import { getTornLogs as fetchTornLogs, TornLogsParams, TornLogEntry, SyncCursor, NormalizedLog, normalizeTornLog, compareLogIds, ParsedLog, parseNormalizedLog, getTornItems, TornItemNameMap, TornTradeListItem, buildUrl, TORN_V2_API_BASE } from './torn-api';
+import { xAxisDefaultProps } from "recharts/types/cartesian/XAxis";
+import {
+  getTornLogs as fetchTornLogs,
+  TornLogsParams,
+  TornLogEntry,
+  SyncCursor,
+  NormalizedLog,
+  normalizeTornLog,
+  compareLogIds,
+  ParsedLog,
+  parseNormalizedLog,
+  getTornItems,
+  TornItemNameMap,
+  TornTradeListItem,
+  buildUrl,
+  TORN_V2_API_BASE,
+} from "./torn-api";
 
 export class TronWrapper {
   private apiKey: string;
@@ -20,7 +35,7 @@ export class TronWrapper {
 
     while (true) {
       const response = await fetchTornLogs(this.apiKey, currentParams);
-      
+
       if (Array.isArray(response.log) && response.log.length > 0) {
         allLogs = allLogs.concat(response.log);
       }
@@ -33,7 +48,7 @@ export class TronWrapper {
       // Get args from the prev link.
       const prevUrl = new URL(prevLink);
       const prevParams = Object.fromEntries(prevUrl.searchParams.entries());
-      
+
       // Only update limit param to 100.
       prevParams.limit = "100";
 
@@ -48,11 +63,18 @@ export class TronWrapper {
    * @param cursor The sync cursor (timestamp and last log ID).
    * @returns An object containing the new logs and the updated cursor.
    */
-  async getNewLogs(cursor: SyncCursor, toTimeStamp?: number): Promise<{ logs: NormalizedLog[]; parsedLogs: ParsedLog[]; nextCursor: SyncCursor }> {
+  async getNewLogs(
+    cursor: SyncCursor,
+    toTimeStamp?: number,
+  ): Promise<{
+    logs: NormalizedLog[];
+    parsedLogs: ParsedLog[];
+    nextCursor: SyncCursor;
+  }> {
     const categories: TornLogsParams[] = [
       { cat: 11 }, // item-market
       { cat: 18 }, // bazaar
-      { cat: 6 },  // points market
+      { cat: 6 }, // points market
       { cat: 162 }, // museum
       { cat: 182 }, // attack incoming
     ];
@@ -80,16 +102,19 @@ export class TronWrapper {
             from: cursor.lastTimestamp,
             sort: "desc",
             limit: 100,
-            to: toTimeStamp
+            to: toTimeStamp,
           });
-          console.log(params)
+          console.log(params);
           console.log(logs);
           return logs;
         } catch (err) {
-          console.error(`Failed to fetch logs for category ${params.cat}:`, err);
+          console.error(
+            `Failed to fetch logs for category ${params.cat}:`,
+            err,
+          );
           return [] as TornLogEntry[];
         }
-      })
+      }),
     );
 
     const seenLogIds = new Set<string>();
@@ -112,27 +137,29 @@ export class TronWrapper {
     console.log(logs);
 
     const last = logs[logs.length - 1];
-    const nextCursor = toTimeStamp ?
-     { lastTimestamp: toTimeStamp, lastLogId: cursor.lastLogId }
-     : last
-      ? { lastTimestamp: last.timestamp, lastLogId: last.id }
-      : { ...cursor }
+    const nextCursor = toTimeStamp
+      ? { lastTimestamp: toTimeStamp, lastLogId: cursor.lastLogId }
+      : last
+        ? { lastTimestamp: last.timestamp, lastLogId: last.id }
+        : { ...cursor };
 
     // Clean up logs that are not relevant to the current sync.
     const relevantLogs = logs.filter((log) => logTypesNeeded.has(log.typeId));
-    
+
     console.log("Relevant logs", relevantLogs);
     // Convert logs into our format (ParsedLog)
     const parsedLogs: ParsedLog[] = [];
-    relevantLogs.forEach(log => {
+    relevantLogs.forEach((log) => {
       const result = parseNormalizedLog(log, this.itemNameMap);
-      if (result.kind === 'parsed') {
+      if (result.kind === "parsed") {
         parsedLogs.push(...result.logs);
       }
     });
 
-    console.log(`Found ${relevantLogs.length} relevant logs, ${parsedLogs.length} parsed.`);
-    
+    console.log(
+      `Found ${relevantLogs.length} relevant logs, ${parsedLogs.length} parsed.`,
+    );
+
     return { logs: relevantLogs, parsedLogs, nextCursor };
   }
 
@@ -142,7 +169,10 @@ export class TronWrapper {
    * @param toTimestamp Optional timestamp to fetch trades up to.
    * @returns A combined array of all trades found.
    */
-  async getTornTrades(startTimestamp: number, toTimestamp?: number): Promise<TornTradeListItem[]> {
+  async getTornTrades(
+    startTimestamp: number,
+    toTimestamp?: number,
+  ): Promise<TornTradeListItem[]> {
     let allTrades: TornTradeListItem[] = [];
     const queryParams: Record<string, string> = {
       cat: "finished",
@@ -163,15 +193,17 @@ export class TronWrapper {
       if (data?.error?.code === 17) {
         return [];
       }
-      
+
       if (data?.error) {
-        throw new Error(data.error.error || "Torn API error during trades fetch");
+        throw new Error(
+          data.error.error || "Torn API error during trades fetch",
+        );
       }
 
       const page: TornTradeListItem[] = Array.isArray(data?.trades)
         ? (data.trades as TornTradeListItem[])
         : [];
-      
+
       if (page.length > 0) {
         allTrades = allTrades.concat(page);
       }
@@ -191,6 +223,6 @@ export class TronWrapper {
       currentUrl = urlWithKey.toString();
     }
 
-    return allTrades.filter(t => Number(t.timestamp) >= startTimestamp);
+    return allTrades.filter((t) => Number(t.timestamp) >= startTimestamp);
   }
 }

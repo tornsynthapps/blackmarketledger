@@ -21,7 +21,7 @@ export function useHapticFeedback() {
     (tone: HapticTone) => {
       void trigger(TONE_TO_PRESET[tone]);
     },
-    [trigger]
+    [trigger],
   );
 
   return { vibrate, isSupported };

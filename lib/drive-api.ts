@@ -92,7 +92,11 @@ export async function loadGoogleDriveData(apiKey: string, file?: string) {
   }>(response);
 }
 
-export async function writeGoogleDriveData(apiKey: string, data: unknown, file?: string) {
+export async function writeGoogleDriveData(
+  apiKey: string,
+  data: unknown,
+  file?: string,
+) {
   const response = await fetch(getFunctionUrl("sync-google-drive"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },

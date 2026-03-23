@@ -1,5 +1,5 @@
-export const CONFIG_KEY = 'torn_invest_tracker_config';
-export const CONNECTION_TOKEN_KEY = 'connectionToken';
+export const CONFIG_KEY = "torn_invest_tracker_config";
+export const CONNECTION_TOKEN_KEY = "connectionToken";
 
 interface ApiKeysCache {
   apiKey: string | null;
@@ -47,7 +47,7 @@ function parseConfigFromStorage(): ApiKeysCache | null {
       weav3rApiRateLimit: config.weav3rApiRateLimit ?? DEFAULT_RATE_LIMIT,
     };
   } catch (e) {
-    console.warn('Failed to parse config from localStorage:', e);
+    console.warn("Failed to parse config from localStorage:", e);
     return null;
   }
 }
@@ -57,30 +57,32 @@ function ensureCache(): ApiKeysCache {
     apiKeysCache = parseConfigFromStorage();
     cacheInitialized = true;
   }
-  return apiKeysCache || {
-    apiKey: null,
-    userId: null,
-    driveApiKey: null,
-    tornApiKeyFull: null,
-    tornApiRateLimit: DEFAULT_RATE_LIMIT,
-    weav3rApiRateLimit: DEFAULT_RATE_LIMIT,
-  };
+  return (
+    apiKeysCache || {
+      apiKey: null,
+      userId: null,
+      driveApiKey: null,
+      tornApiKeyFull: null,
+      tornApiRateLimit: DEFAULT_RATE_LIMIT,
+      weav3rApiRateLimit: DEFAULT_RATE_LIMIT,
+    }
+  );
 }
 
 export function getApiKey(): string {
-  return ensureCache().apiKey || '';
+  return ensureCache().apiKey || "";
 }
 
 export function getUserId(): string {
-  return ensureCache().userId || '';
+  return ensureCache().userId || "";
 }
 
 export function getDriveApiKey(): string {
-  return ensureCache().driveApiKey || '';
+  return ensureCache().driveApiKey || "";
 }
 
 export function getTornApiKeyFull(): string {
-  return ensureCache().tornApiKeyFull || '';
+  return ensureCache().tornApiKeyFull || "";
 }
 
 export function getTornApiRateLimit(): number {
@@ -93,7 +95,7 @@ export function getWeav3rApiRateLimit(): number {
 
 export function getConnectionToken(): string {
   const token = safeGetItem(CONNECTION_TOKEN_KEY);
-  return token || '';
+  return token || "";
 }
 
 export function setApiKey(value: string): void {
@@ -175,18 +177,23 @@ export function refreshApiKeysFromStorage(): void {
 
 function dispatchApiKeysUpdate(): void {
   try {
-    window.dispatchEvent(new CustomEvent('api-keys-updated'));
+    window.dispatchEvent(new CustomEvent("api-keys-updated"));
   } catch {
     // Ignore dispatch errors
   }
 }
 
-export function getAllApiKeys(): { apiKey: string; userId: string; driveApiKey: string; tornApiKeyFull: string } {
+export function getAllApiKeys(): {
+  apiKey: string;
+  userId: string;
+  driveApiKey: string;
+  tornApiKeyFull: string;
+} {
   const cache = ensureCache();
   return {
-    apiKey: cache.apiKey || '',
-    userId: cache.userId || '',
-    driveApiKey: cache.driveApiKey || '',
-    tornApiKeyFull: cache.tornApiKeyFull || '',
+    apiKey: cache.apiKey || "",
+    userId: cache.userId || "",
+    driveApiKey: cache.driveApiKey || "",
+    tornApiKeyFull: cache.tornApiKeyFull || "",
   };
 }

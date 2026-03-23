@@ -1,4 +1,4 @@
-import { SyncCursor } from './torn-api';
+import { SyncCursor } from "./torn-api";
 
 /**
  * Dual cursor system for Auto-Pilot sync:
@@ -14,7 +14,7 @@ export interface DualCursor {
  * Creates a new DualCursor with both cursors initialized to the same timestamp
  */
 export function createDualCursor(timestamp: number): DualCursor {
-  const cursor: SyncCursor = { lastTimestamp: timestamp, lastLogId: '' };
+  const cursor: SyncCursor = { lastTimestamp: timestamp, lastLogId: "" };
   return {
     tradeCursor: { ...cursor },
     itemCursor: { ...cursor },
@@ -24,9 +24,13 @@ export function createDualCursor(timestamp: number): DualCursor {
 /**
  * Checks if the dual cursor is initialized (both cursors have valid timestamps)
  */
-export function isDualCursorInitialized(cursor: DualCursor | null | undefined): boolean {
+export function isDualCursorInitialized(
+  cursor: DualCursor | null | undefined,
+): boolean {
   if (!cursor) return false;
-  return cursor.tradeCursor.lastTimestamp > 0 && cursor.itemCursor.lastTimestamp > 0;
+  return (
+    cursor.tradeCursor.lastTimestamp > 0 && cursor.itemCursor.lastTimestamp > 0
+  );
 }
 
 /**
@@ -40,7 +44,9 @@ export function needsItemSync(cursor: DualCursor | null | undefined): boolean {
 /**
  * Checks if we have a cursor state mismatch (item cursor ahead of trade cursor - should not happen)
  */
-export function hasCursorMismatch(cursor: DualCursor | null | undefined): boolean {
+export function hasCursorMismatch(
+  cursor: DualCursor | null | undefined,
+): boolean {
   if (!cursor) return false;
   return cursor.itemCursor.lastTimestamp > cursor.tradeCursor.lastTimestamp;
 }

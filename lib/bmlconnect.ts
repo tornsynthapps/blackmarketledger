@@ -1,6 +1,9 @@
 "use client";
 
-import { getConnectionToken as getStoredConnectionToken, setConnectionToken as saveStoredConnectionToken } from "./api-keys";
+import {
+  getConnectionToken as getStoredConnectionToken,
+  setConnectionToken as saveStoredConnectionToken,
+} from "./api-keys";
 
 export type BMLExtensionMessageType =
   | "HELLO"
