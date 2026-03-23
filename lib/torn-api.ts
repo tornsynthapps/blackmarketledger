@@ -375,7 +375,7 @@ function isTradeLog(log: NormalizedLog) {
 
 function isRelevantLog(log: NormalizedLog) {
   const haystack = `${log.category} ${log.title}`.toLowerCase();
-  return RELEVANT_LOG_TITLES.some((needle) => haystack.includes(needle));
+  return RELEVANT_LOG_TITLES.some((needle) => haystack.includes(needle)) || log.typeId === 8156;
 }
 
 function parseMarketLog(
@@ -534,9 +534,14 @@ export function parseNormalizedLog(
     return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
   }
 
-  if (haystack.includes("mugged") || [8101, 8102].includes(log.typeId)) {
-    const moneyMatch = String(log.title).match(/\$([\d,]+)/);
-    const amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : undefined;
+  if (haystack.includes("mugged") || [8156].includes(log.typeId)) {
+    console.log(log);
+    let amount: number | null = log?.data?.money_mugged as number;
+    if (!amount){
+      const moneyMatch = String(log.title).match(/\$([\d,]+)/);
+      amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : 0;
+    }
+    console.log(amount);
     if (amount) {
       return {
         kind: "parsed",
@@ -545,6 +550,7 @@ export function parseNormalizedLog(
           amount,
           loggedAt: log.timestamp * 1000,
           tornLogId: String(log.id),
+          sourceType: "attack",
         }]
       };
     }

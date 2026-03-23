@@ -2,7 +2,7 @@ export const PARSER_VERSION = '1.2.0';
 export type TransactionType = 'BUY' | 'SELL' | 'MUG' | 'CONVERT';
 
 export type TransactionTag = 'Abroad' | 'Normal';
-export type TransactionSourceType = 'item-market' | 'bazaar' | 'trade' | 'points-market' | 'museum';
+export type TransactionSourceType = 'item-market' | 'bazaar' | 'trade' | 'points-market' | 'museum' | 'attack';
 
 export interface BaseTransaction {
     id: string;

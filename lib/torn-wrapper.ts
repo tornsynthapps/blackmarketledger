@@ -53,7 +53,8 @@ export class TronWrapper {
       { cat: 11 }, // item-market
       { cat: 18 }, // bazaar
       { cat: 6 },  // points market
-      { cat: 162 } // museum
+      { cat: 162 }, // museum
+      { cat: 182 }, // attack incoming
     ];
 
     const logTypesNeeded = new Set([
@@ -64,6 +65,7 @@ export class TronWrapper {
       5010, // points market buy
       5011, // points market sell
       7000, // museum exchange
+      8156, // attack mug received
     ]);
 
     if (!this.itemNameMap) {
@@ -73,13 +75,16 @@ export class TronWrapper {
     const allPages = await Promise.all(
       categories.map(async (params) => {
         try {
-          return await this.getTornLogs({
+          const logs = await this.getTornLogs({
             ...params,
             from: cursor.lastTimestamp,
             sort: "desc",
             limit: 100,
             to: toTimeStamp
           });
+          console.log(params)
+          console.log(logs);
+          return logs;
         } catch (err) {
           console.error(`Failed to fetch logs for category ${params.cat}:`, err);
           return [] as TornLogEntry[];
@@ -104,6 +109,8 @@ export class TronWrapper {
       )
       .sort((a, b) => a.timestamp - b.timestamp || compareLogIds(a.id, b.id));
 
+    console.log(logs);
+
     const last = logs[logs.length - 1];
     const nextCursor = toTimeStamp ?
      { lastTimestamp: toTimeStamp, lastLogId: cursor.lastLogId }
@@ -114,6 +121,7 @@ export class TronWrapper {
     // Clean up logs that are not relevant to the current sync.
     const relevantLogs = logs.filter((log) => logTypesNeeded.has(log.typeId));
     
+    console.log("Relevant logs", relevantLogs);
     // Convert logs into our format (ParsedLog)
     const parsedLogs: ParsedLog[] = [];
     relevantLogs.forEach(log => {
