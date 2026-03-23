@@ -1,5 +1,7 @@
 "use client";
 
+import { getConnectionToken as getStoredConnectionToken, setConnectionToken as saveStoredConnectionToken } from "./api-keys";
+
 export type BMLExtensionMessageType =
   | "HELLO"
   | "CONNECTION"
@@ -147,7 +149,7 @@ export function sendToExtension<TData = unknown>(
 }
 
 export const getConnectionString = (): string => {
-  const connectionString = window.localStorage.getItem("connectionToken");
+  const connectionString = getStoredConnectionToken();
   if (connectionString) return connectionString;
 
   const newToken = generateConnectionString();
@@ -162,7 +164,7 @@ export const regenerateToken = (): string => {
 };
 
 export const saveConnectionToken = (token: string) => {
-  window.localStorage.setItem("connectionToken", token);
+  saveStoredConnectionToken(token);
 };
 
 export const generateConnectionString = () =>

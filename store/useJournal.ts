@@ -8,6 +8,7 @@ import * as idb from '@/lib/idb';
 import { setGlobalSyncStatus } from '@/lib/syncStatus';
 import { loadGoogleDriveData, writeGoogleDriveData } from '@/lib/drive-api';
 import { AutoPilotImportRecord, AutoPilotTradeLink, PendingAutoPilotTrade, SyncCursor, TornTradeDetail, Weav3rReceipt, refreshApiRateLimiters } from '@/lib/torn-api';
+import { refreshApiKeysFromStorage } from '@/lib/api-keys';
 import { DualCursor, createDualCursor } from '@/lib/cursor';
 
 const STORAGE_KEY = 'torn_invest_tracker_logs';
@@ -241,6 +242,7 @@ export function useJournal() {
             console.error("Failed to save config to LogsDB", error);
         }
         localStorage.setItem(CONFIG_KEY, value);
+        refreshApiKeysFromStorage();
         window.dispatchEvent(new CustomEvent(JOURNAL_CONFIG_UPDATED_EVENT, { detail: value }));
     }, []);
 

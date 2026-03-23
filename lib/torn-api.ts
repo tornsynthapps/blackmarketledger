@@ -1,30 +1,23 @@
 import { ParsedLog, TransactionSourceType, normalizeItemName } from "./parser";
 import { createRateLimiter } from "./rate-limiter";
+import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "./api-keys";
 export type { ParsedLog };
 
 export const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
 
-const CONFIG_KEY = 'torn_invest_tracker_config';
-
 function getStoredRateLimits(): { torn: number; weav3r: number } {
-  try {
-    const stored = localStorage.getItem(CONFIG_KEY);
-    if (stored) {
-      const config = JSON.parse(stored);
-      return {
-        torn: config.tornApiRateLimit ?? 60,
-        weav3r: config.weav3rApiRateLimit ?? 60,
-      };
-    }
-  } catch {}
-  return { torn: 60, weav3r: 60 };
+  return {
+    torn: getTornApiRateLimit(),
+    weav3r: getWeav3rApiRateLimit(),
+  };
 }
 
 let tornRateLimiter = createRateLimiter(getStoredRateLimits().torn);
 let weav3rRateLimiter = createRateLimiter(getStoredRateLimits().weav3r);
 
 export function refreshApiRateLimiters() {
+  refreshApiKeysFromStorage();
   const limits = getStoredRateLimits();
   tornRateLimiter = createRateLimiter(limits.torn);
   weav3rRateLimiter = createRateLimiter(limits.weav3r);
