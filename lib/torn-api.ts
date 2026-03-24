@@ -5,7 +5,13 @@ import {
   getWeav3rApiRateLimit,
   refreshApiKeysFromStorage,
 } from "./api-keys";
+import { TornTrade } from "./game/trade";
 export type { ParsedLog };
+
+import {
+  Weav3rReceiptItem as NewWeav3rReceiptItem,
+  Weav3rReceipt as NewWeav3rReceipt,
+} from "./game/trade";
 
 export const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
@@ -1059,6 +1065,25 @@ export function createParsedLogsFromReceipt(
     weav3rReceiptId: receipt.id,
     tradeGroupId: String(trade.id),
   }));
+}
+
+export function createParsedLogsFromNewReceipt(
+  trade: TornTrade,
+  receipt: NewWeav3rReceipt,
+): ParsedLog[] {
+  return receipt.items.map((item: NewWeav3rReceiptItem) => {
+    return {
+      type: "BUY",
+      item: normalizeItemName(item.itemName),
+      amount: Number(item.quantity),
+      price: Number(item.priceUsed),
+      sourceType: "trade",
+      loggedAt: Number(trade.timestamp) * 1000,
+      tornLogId: `trade:${trade.id}`,
+      weav3rReceiptId: receipt.id,
+      tradeGroupId: String(trade.id),
+    };
+  });
 }
 
 export function buildImportRecord(

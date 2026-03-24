@@ -158,37 +158,14 @@ export function useJournal() {
   const [autoPilotCursor, setAutoPilotCursor] = useState<SyncCursor | null>(
     null,
   );
-  // New dual cursor system
+  // New dual cursor system - only these are needed for Auto-Pilot
   const [autoPilotTradeCursor, setAutoPilotTradeCursor] =
     useState<SyncCursor | null>(null);
   const [autoPilotItemCursor, setAutoPilotItemCursor] =
     useState<SyncCursor | null>(null);
-  const [autoPilotStartTime, setAutoPilotStartTime] = useState<number | null>(
-    null,
-  );
   const [autoPilotLastSyncAt, setAutoPilotLastSyncAt] = useState<number | null>(
     null,
   );
-  const [autoPilotTradeCache, setAutoPilotTradeCache] = useState<
-    TornTradeDetail[]
-  >([]);
-  const [autoPilotReceiptCache, setAutoPilotReceiptCache] = useState<
-    Weav3rReceipt[]
-  >([]);
-  const [autoPilotTradeLinks, setAutoPilotTradeLinks] = useState<
-    AutoPilotTradeLink[]
-  >([]);
-  const [autoPilotTrashedReceiptIds, setAutoPilotTrashedReceiptIds] = useState<
-    string[]
-  >([]);
-  const [autoPilotManuallyAddedTradeIds, setAutoPilotManuallyAddedTradeIds] =
-    useState<string[]>([]);
-  const [autoPilotPendingTrades, setAutoPilotPendingTrades] = useState<
-    PendingAutoPilotTrade[]
-  >([]);
-  const [autoPilotRecentImports, setAutoPilotRecentImports] = useState<
-    AutoPilotImportRecord[]
-  >([]);
   const [syncState, setSyncState] = useState<SyncState>({
     isSyncing: false,
     message: "",
@@ -351,45 +328,7 @@ export function useJournal() {
       }
       // Keep legacy cursor for backwards compatibility
       setAutoPilotCursor(parsedConfig.autoPilotCursor || null);
-      setAutoPilotStartTime(parsedConfig.autoPilotStartTime ?? null);
       setAutoPilotLastSyncAt(parsedConfig.autoPilotLastSyncAt ?? null);
-      setAutoPilotTradeCache(
-        Array.isArray(parsedConfig.autoPilotTradeCache)
-          ? parsedConfig.autoPilotTradeCache
-          : [],
-      );
-      setAutoPilotReceiptCache(
-        Array.isArray(parsedConfig.autoPilotReceiptCache)
-          ? parsedConfig.autoPilotReceiptCache
-          : [],
-      );
-      setAutoPilotTradeLinks(
-        Array.isArray(parsedConfig.autoPilotTradeLinks)
-          ? parsedConfig.autoPilotTradeLinks
-          : [],
-      );
-      setAutoPilotTrashedReceiptIds(
-        Array.isArray(parsedConfig.autoPilotTrashedReceiptIds)
-          ? parsedConfig.autoPilotTrashedReceiptIds
-          : [],
-      );
-      setAutoPilotManuallyAddedTradeIds(
-        Array.isArray(parsedConfig.autoPilotManuallyAddedTradeIds)
-          ? parsedConfig.autoPilotManuallyAddedTradeIds
-          : [],
-      );
-      setAutoPilotPendingTrades(
-        Array.isArray(parsedConfig.autoPilotPendingTrades)
-          ? parsedConfig.autoPilotPendingTrades
-          : parsedConfig.autoPilotPendingTrade
-            ? [parsedConfig.autoPilotPendingTrade]
-            : [],
-      );
-      setAutoPilotRecentImports(
-        Array.isArray(parsedConfig.autoPilotRecentImports)
-          ? parsedConfig.autoPilotRecentImports
-          : [],
-      );
     },
     [migrateLegacyCursor],
   );
@@ -406,15 +345,7 @@ export function useJournal() {
       autoPilotCursor,
       autoPilotTradeCursor,
       autoPilotItemCursor,
-      autoPilotStartTime,
       autoPilotLastSyncAt,
-      autoPilotTradeCache,
-      autoPilotReceiptCache,
-      autoPilotTradeLinks,
-      autoPilotTrashedReceiptIds,
-      autoPilotManuallyAddedTradeIds,
-      autoPilotPendingTrades,
-      autoPilotRecentImports,
       ...overrides,
     }),
     [
@@ -428,15 +359,7 @@ export function useJournal() {
       autoPilotCursor,
       autoPilotTradeCursor,
       autoPilotItemCursor,
-      autoPilotStartTime,
       autoPilotLastSyncAt,
-      autoPilotTradeCache,
-      autoPilotReceiptCache,
-      autoPilotTradeLinks,
-      autoPilotTrashedReceiptIds,
-      autoPilotManuallyAddedTradeIds,
-      autoPilotPendingTrades,
-      autoPilotRecentImports,
     ],
   );
 
@@ -445,16 +368,7 @@ export function useJournal() {
       autoPilotCursor: config.autoPilotCursor ?? null,
       autoPilotTradeCursor: config.autoPilotTradeCursor ?? null,
       autoPilotItemCursor: config.autoPilotItemCursor ?? null,
-      autoPilotStartTime: config.autoPilotStartTime ?? null,
       autoPilotLastSyncAt: config.autoPilotLastSyncAt ?? null,
-      autoPilotTradeCache: config.autoPilotTradeCache ?? [],
-      autoPilotReceiptCache: config.autoPilotReceiptCache ?? [],
-      autoPilotTradeLinks: config.autoPilotTradeLinks ?? [],
-      autoPilotTrashedReceiptIds: config.autoPilotTrashedReceiptIds ?? [],
-      autoPilotManuallyAddedTradeIds:
-        config.autoPilotManuallyAddedTradeIds ?? [],
-      autoPilotPendingTrades: config.autoPilotPendingTrades ?? [],
-      autoPilotRecentImports: config.autoPilotRecentImports ?? [],
     }),
     [],
   );
@@ -579,6 +493,10 @@ export function useJournal() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      setIsLoaded(true);
+      return;
+    }
     if (bootstrapStartedRef.current) {
       return;
     }
@@ -863,50 +781,8 @@ export function useJournal() {
       if (Object.prototype.hasOwnProperty.call(patch, "autoPilotItemCursor")) {
         setAutoPilotItemCursor(patch.autoPilotItemCursor ?? null);
       }
-      if (Object.prototype.hasOwnProperty.call(patch, "autoPilotStartTime")) {
-        setAutoPilotStartTime(patch.autoPilotStartTime ?? null);
-      }
       if (Object.prototype.hasOwnProperty.call(patch, "autoPilotLastSyncAt")) {
         setAutoPilotLastSyncAt(patch.autoPilotLastSyncAt ?? null);
-      }
-      if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeCache")) {
-        setAutoPilotTradeCache(patch.autoPilotTradeCache || []);
-      }
-      if (
-        Object.prototype.hasOwnProperty.call(patch, "autoPilotReceiptCache")
-      ) {
-        setAutoPilotReceiptCache(patch.autoPilotReceiptCache || []);
-      }
-      if (Object.prototype.hasOwnProperty.call(patch, "autoPilotTradeLinks")) {
-        setAutoPilotTradeLinks(patch.autoPilotTradeLinks || []);
-      }
-      if (
-        Object.prototype.hasOwnProperty.call(
-          patch,
-          "autoPilotTrashedReceiptIds",
-        )
-      ) {
-        setAutoPilotTrashedReceiptIds(patch.autoPilotTrashedReceiptIds || []);
-      }
-      if (
-        Object.prototype.hasOwnProperty.call(
-          patch,
-          "autoPilotManuallyAddedTradeIds",
-        )
-      ) {
-        setAutoPilotManuallyAddedTradeIds(
-          patch.autoPilotManuallyAddedTradeIds || [],
-        );
-      }
-      if (
-        Object.prototype.hasOwnProperty.call(patch, "autoPilotPendingTrades")
-      ) {
-        setAutoPilotPendingTrades(patch.autoPilotPendingTrades || []);
-      }
-      if (
-        Object.prototype.hasOwnProperty.call(patch, "autoPilotRecentImports")
-      ) {
-        setAutoPilotRecentImports(patch.autoPilotRecentImports || []);
       }
       await persistMergedConfig(patch);
       const storagePref = localStorage.getItem("bml_storage_pref");
@@ -1097,15 +973,7 @@ export function useJournal() {
     autoPilotCursor,
     autoPilotTradeCursor,
     autoPilotItemCursor,
-    autoPilotStartTime,
     autoPilotLastSyncAt,
-    autoPilotTradeCache,
-    autoPilotReceiptCache,
-    autoPilotTradeLinks,
-    autoPilotTrashedReceiptIds,
-    autoPilotManuallyAddedTradeIds,
-    autoPilotPendingTrades,
-    autoPilotRecentImports,
     saveAutoPilotState,
     needsMigration,
     hasBMLDB,
