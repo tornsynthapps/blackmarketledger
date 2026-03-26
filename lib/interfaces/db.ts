@@ -1,6 +1,7 @@
 import { LocalStorageInterface, StorageType } from "./localstorage";
 import * as idb from "@/lib/idb";
 import { TornTrade, Weav3rReceipt } from "../game/trade";
+import { TornItemLog } from "../game/itemLog";
 
 interface LogStats {
     totalCost: number;
@@ -28,6 +29,77 @@ export interface StandardLog {
     title?: string;
     tornLogId?: string;
     stats?: LogStats;
+}
+
+const CURR_TRANSACTION_VERSION = 2;
+
+export type TransactionType = "log" | "trade" | "receipt" | "general-wrapper";
+export type TransactionData = TornTrade | Weav3rReceipt | TornItemLog | any;
+
+export class BaseTransaction {
+    id: string;
+    version: number;
+    timestamp: number;
+    data: TransactionData;
+    groupID?: string;
+
+    constructor(
+        id: string,
+        version: number = CURR_TRANSACTION_VERSION,
+        timestamp: number,
+        data: TransactionData,
+        groupID?: string,
+    ) {
+        this.id = id;
+        this.version = version;
+        this.timestamp = timestamp;
+        this.data = data;
+        this.groupID = groupID;
+    }
+
+    isTrade(): boolean {
+        return this.data instanceof TornTrade;
+    }
+    isReceipt(): boolean {
+        return this.data instanceof Weav3rReceipt;
+    }
+    isItemLog(): boolean {
+        return this.data instanceof TornItemLog;
+    }
+}
+
+export class BaseTransactionList {
+    transactions: BaseTransaction[];
+    lastTransactionPerItem: Record<number, TornItemLog>;
+
+    constructor(
+        transactions: BaseTransaction[],
+        lastLogsPerItem?: Record<number, TornItemLog>,
+    ) {
+        this.transactions = transactions;
+        this.lastTransactionPerItem = lastLogsPerItem || {};
+    }
+
+    push(transaction: BaseTransaction) {
+        // Simply push the transaction if it's a trade or receipt.
+        if (transaction.isTrade() || transaction.isReceipt()) {
+            this.transactions.push(transaction);
+            return;
+        }
+
+        // Item Push.
+        const previousItemLog =
+            this.lastTransactionPerItem[transaction.data.itemID] ?? null;
+
+        transaction.data.updateStats(
+            previousItemLog,
+            transaction.data.normalAmt, // TODO: Normal stock is different, we need to save initial normal stock too.
+            transaction.data.abroadAmt, // TODO: Same as above.
+        );
+
+        this.transactions.push(transaction);
+        this.lastTransactionPerItem[transaction.data.itemID] = transaction.data;
+    }
 }
 
 export class DBInterface {
@@ -81,6 +153,21 @@ export class DBInterface {
                         log.data.items,
                     ),
             );
+    }
+
+    static async modifyLogs(logs: any[]): Promise<BaseTransactionList> {
+        const transactions: BaseTransactionList = new BaseTransactionList(
+            [],
+        );
+        for (const log of logs) {
+            if (log.version && log.version === CURR_TRANSACTION_VERSION) {
+                transactions.push(BaseTransaction.fromInterface(log));
+                continue;
+            }
+
+            // TODO: Migrate old logs.
+        }
+        return transactions;
     }
 
     /**
