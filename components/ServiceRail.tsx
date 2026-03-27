@@ -47,12 +47,14 @@ export function ServiceRail() {
   const [tempWeav3rRateLimit, setTempWeav3rRateLimit] = useState(weav3rApiRateLimit);
   const [isSolarized, setIsSolarized] = useState(false);
   const [isNavLeft, setIsNavLeft] = useState(false);
+  const [hasOpenedServiceRail, setHasOpenedServiceRail] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     setIsSolarized(localStorage.getItem("theme_solarized") === "true");
     setIsNavLeft(localStorage.getItem("theme_nav_left") === "true");
+    setHasOpenedServiceRail(localStorage.getItem("bml_service_rail_opened") === "true");
   }, []);
 
   const handleToggleSolarized = (enabled: boolean) => {
@@ -216,10 +218,26 @@ export function ServiceRail() {
           onClick={() => {
             vibrate("utility");
             setIsOpen((current) => !current);
+            if (!hasOpenedServiceRail) {
+              setHasOpenedServiceRail(true);
+              localStorage.setItem("bml_service_rail_opened", "true");
+            }
           }}
-          className="absolute left-0 top-1/2 flex h-14 w-11 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-2xl border border-r-0 border-border bg-panel text-foreground/70 shadow-lg transition-colors hover:bg-foreground/5 hover:text-primary"
+          className={`absolute left-0 top-1/2 flex -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-2xl border border-r-0 shadow-lg transition-all duration-300 overflow-hidden ${
+            !hasOpenedServiceRail
+              ? "h-48 w-14 border-danger bg-danger text-white animate-pulse hover:bg-danger/90 shadow-[0_0_25px_rgba(220,50,47,0.6)]"
+              : "h-36 w-8 border-border bg-panel text-foreground/70 hover:bg-foreground/5 hover:text-primary"
+          }`}
         >
-          <ChevronLeft className={`h-5 w-5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          <div className="flex flex-col items-center justify-center h-full gap-2">
+            <ChevronLeft className={`shrink-0 transition-transform duration-300 ${isOpen ? "rotate-180" : ""} ${!hasOpenedServiceRail ? "h-6 w-6 text-white" : "h-5 w-5"}`} />
+            <div 
+              className={`font-black uppercase tracking-[0.2em] transform rotate-180 whitespace-nowrap ${!hasOpenedServiceRail ? "text-[11px] text-white" : "text-[10px]"}`}
+              style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+            >
+              Service Rail
+            </div>
+          </div>
         </button>
 
         <div className="flex h-full min-h-0 flex-col">
