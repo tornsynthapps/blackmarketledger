@@ -33,7 +33,11 @@ export interface StandardLog {
 
 const CURR_TRANSACTION_VERSION = 2;
 
-export type TransactionType = "log" | "trade" | "receipt" | "general-wrapper";
+export type TransactionType =
+    | "item-log"
+    | "trade"
+    | "receipt"
+    | "general-wrapper";
 export type TransactionData = TornTrade | Weav3rReceipt | TornItemLog | any;
 
 export class BaseTransaction {
@@ -41,6 +45,7 @@ export class BaseTransaction {
     version: number;
     timestamp: number;
     data: TransactionData;
+    type: TransactionType;
     groupID?: string;
 
     constructor(
@@ -48,23 +53,62 @@ export class BaseTransaction {
         version: number = CURR_TRANSACTION_VERSION,
         timestamp: number,
         data: TransactionData,
+        type: TransactionType,
         groupID?: string,
     ) {
         this.id = id;
         this.version = version;
         this.timestamp = timestamp;
         this.data = data;
+        this.type = type;
         this.groupID = groupID;
     }
 
     isTrade(): boolean {
-        return this.data instanceof TornTrade;
+        return this.type === "trade";
     }
     isReceipt(): boolean {
-        return this.data instanceof Weav3rReceipt;
+        return this.type === "receipt";
     }
     isItemLog(): boolean {
-        return this.data instanceof TornItemLog;
+        return this.type === "item-log";
+    }
+
+    /**
+     * Converts the transaction list to an interface.
+     * @returns Record<string, any>: The interface.
+     */
+    toInterface(): any {
+        return {
+            id: this.id,
+            version: this.version,
+            timestamp: this.timestamp,
+            data: this.data.toInterface(),
+            groupID: this.groupID,
+        };
+    }
+
+    /**
+     * Converts a raw log object into a standard log object.
+     * @param input The input object.
+     * @returns BaseTransaction: The converted object.
+     */
+    static fromInterface(input: any): BaseTransaction {
+        let inputData;
+        if (input.type === "trade") {
+            inputData = TornTrade.fromInterface(input.data);
+        } else if (input.type === "receipt") {
+            inputData = Weav3rReceipt.fromInterface(input.data);
+        } else if (input.type === "item-log") {
+            inputData = TornItemLog.fromInterface(input.data);
+        }
+        return new BaseTransaction(
+            input.id,
+            input.version,
+            input.timestamp,
+            inputData,
+            input.groupID,
+        );
     }
 }
 
@@ -91,14 +135,34 @@ export class BaseTransactionList {
         const previousItemLog =
             this.lastTransactionPerItem[transaction.data.itemID] ?? null;
 
-        transaction.data.updateStats(
-            previousItemLog,
-            transaction.data.normalAmt, // TODO: Normal stock is different, we need to save initial normal stock too.
-            transaction.data.abroadAmt, // TODO: Same as above.
-        );
+        transaction.data.updateStats(previousItemLog);
 
         this.transactions.push(transaction);
         this.lastTransactionPerItem[transaction.data.itemID] = transaction.data;
+    }
+
+    /**
+     * Converts the transaction list to an interface.
+     * @returns Record<string, any>: The interface.
+     */
+    toInterface(): Record<string, any> {
+        return {
+            transactions: this.transactions.map((t) => t.toInterface()),
+            lastTransactionPerItem: this.lastTransactionPerItem,
+        };
+    }
+
+    /**
+     * Converts a raw log object into a standard log object.
+     * @param input The input object.
+     * @returns BaseTransactionList: The converted object.
+     */
+    static fromInterface(input: any): BaseTransactionList {
+        const transactions = input.transactions.map((t: any) =>
+            BaseTransaction.fromInterface(t),
+        );
+        const lastTransactionPerItem = input.lastTransactionPerItem;
+        return new BaseTransactionList(transactions, lastTransactionPerItem);
     }
 }
 
@@ -156,9 +220,7 @@ export class DBInterface {
     }
 
     static async modifyLogs(logs: any[]): Promise<BaseTransactionList> {
-        const transactions: BaseTransactionList = new BaseTransactionList(
-            [],
-        );
+        const transactions: BaseTransactionList = new BaseTransactionList([]);
         for (const log of logs) {
             if (log.version && log.version === CURR_TRANSACTION_VERSION) {
                 transactions.push(BaseTransaction.fromInterface(log));

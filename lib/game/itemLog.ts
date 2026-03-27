@@ -11,10 +11,12 @@ export class TornItemLog {
     source: TornItemSource;
 
     // Noraml Stock
+    normalAmtInput: number;
     normalAmt: number = 0;
     normalTotalAmt: number = 0;
     normalCostBasis: number = 0;
     // Abroad Stock
+    abroadAmtInput: number;
     abroadAmt: number = 0;
     abroadTotalAmt: number = 0;
     abroadCostBasis: number = 0;
@@ -32,19 +34,24 @@ export class TornItemLog {
         this.itemID = itemID;
         this.price = price;
         this.source = source;
-        this.updateStats(previousLog, normalAmt, abroadAmt);
+        this.normalAmtInput = normalAmt;
+        this.abroadAmtInput = abroadAmt;
+        this.updateStats(previousLog);
     }
 
-    updateStats(
-        previousLog: TornItemLog | null,
-        normalAmt: number,
-        abroadAmt: number,
-        forwardStock: boolean = true,
-    ) {
+    /**
+     * Updates the log stats based on the given previous log.
+     * @param previousLog The previous log.
+     * @param forwardStock Whether to forward the stock or not.
+     */
+    updateStats(previousLog: TornItemLog | null, forwardStock: boolean = true) {
         // Initial Verification.
         if (previousLog && previousLog.itemID !== this.itemID) {
             throw new Error("Log item ID mismatch.");
         }
+
+        let normalAmt = this.normalAmtInput;
+        let abroadAmt = this.abroadAmtInput;
 
         const previousTotalNormalStock = previousLog
             ? previousLog.normalTotalAmt
@@ -106,5 +113,52 @@ export class TornItemLog {
             // Skip remaining stock.
             this.skipAmt = absAbroadAmt - possible;
         }
+    }
+
+    /**
+     * Converts the transaction list to an interface.
+     * @returns Record<string, any>: The interface.
+     */
+    toInterface(): Record<string, any> {
+        return {
+            itemID: this.itemID,
+            price: this.price,
+            source: this.source,
+            normalAmtInput: this.normalAmtInput,
+            normalAmt: this.normalAmt,
+            normalTotalAmt: this.normalTotalAmt,
+            normalCostBasis: this.normalCostBasis,
+            abroadAmtInput: this.abroadAmtInput,
+            abroadAmt: this.abroadAmt,
+            abroadTotalAmt: this.abroadTotalAmt,
+            abroadCostBasis: this.abroadCostBasis,
+            skipAmt: this.skipAmt,
+        };
+    }
+
+    /**
+     * Converts a raw log object into a standard log object.
+     * @param input The input object.
+     * @returns TornItemLog: The converted object.
+     */
+    static fromInterface(input: Record<string, any>): TornItemLog {
+        const item = new TornItemLog(
+            input.itemID,
+            input.price,
+            input.source,
+            input.normalAmtInput,
+            input.abroadAmtInput,
+            null,
+        );
+
+        item.normalAmt = input.normalAmt;
+        item.normalTotalAmt = input.normalTotalAmt;
+        item.normalCostBasis = input.normalCostBasis;
+        item.abroadAmt = input.abroadAmt;
+        item.abroadTotalAmt = input.abroadTotalAmt;
+        item.abroadCostBasis = input.abroadCostBasis;
+        item.skipAmt = input.skipAmt;
+
+        return item;
     }
 }
