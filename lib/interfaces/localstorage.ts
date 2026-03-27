@@ -15,8 +15,11 @@ export class LocalStorageInterface {
     private static STORAGE_TYPE_KEY = "storage_type";
     private static USER_KEY = "user_id";
     private static WEAV3R_API_KEY = "weav3r_api_key";
+    private static WEAV3R_USER_ID = "weav3r_user_id";
     private static DRIVE_SYNC_API_KEY = "torn_api_key";
     private static FULL_ACCESS_API_KEY = "torn_api_key_full";
+    private static TORN_API_RATE_LIMIT = "torn_api_rate_limit";
+    private static WEAV3R_API_RATE_LIMIT = "weav3r_api_rate_limit";
 
     // Generic localStorage access
     static getItem(key: string): string | null {
@@ -24,9 +27,15 @@ export class LocalStorageInterface {
         return localStorage.getItem(key);
     }
 
-    static setItem(key: string, value: string): void {
+    static setItem(key: string, value: string | null, removeIfNull: boolean = false): void {
         if (typeof window === "undefined") return;
-        localStorage.setItem(key, value);
+        if (value === null || value === "null" || value === "") {
+            if (removeIfNull) {
+                localStorage.removeItem(key);
+            }
+        } else {
+            localStorage.setItem(key, value);
+        }
     }
 
     // Debug mode
@@ -80,24 +89,52 @@ export class LocalStorageInterface {
     }
 
     static getWeav3rAPIKey(): string {
-        if (this.getItem(this.WEAV3R_API_KEY)) {
-            return this.getItem(this.WEAV3R_API_KEY) as string;
-        }
-        throw new KeyNotFoundError("No Weav3r API key found");
+        return this.getItem(this.WEAV3R_API_KEY) || "";
     }
 
-    static setWeav3rAPIKey(value: string): void {
-        if (!value) throw new Error("Weav3r API key cannot be empty");
+    static setWeav3rAPIKey(value: string | null): void {
         this.setItem(this.WEAV3R_API_KEY, value);
     }
 
-    static setDriveAPIKey(value: string): void {
-        if (!value) throw new Error("Drive API key cannot be empty");
+    static getWeav3rUserId(): string {
+        return this.getItem(this.WEAV3R_USER_ID) || "";
+    }
+
+    static setWeav3rUserId(value: string | null): void {
+        this.setItem(this.WEAV3R_USER_ID, value);
+    }
+
+    static getDriveAPIKey(): string {
+        return this.getItem(this.DRIVE_SYNC_API_KEY) || "";
+    }
+
+    static setDriveAPIKey(value: string | null): void {
         this.setItem(this.DRIVE_SYNC_API_KEY, value);
     }
 
-    static setTornFullAPIKey(value: string): void {
-        if (!value) throw new Error("Torn Full API key cannot be empty");
+    static getTornFullAPIKey(): string {
+        return this.getItem(this.FULL_ACCESS_API_KEY) || "";
+    }
+
+    static setTornFullAPIKey(value: string | null): void {
         this.setItem(this.FULL_ACCESS_API_KEY, value);
+    }
+
+    static getTornApiRateLimit(): number {
+        const limit = this.getItem(this.TORN_API_RATE_LIMIT);
+        return limit ? parseInt(limit, 10) : 60;
+    }
+
+    static setTornApiRateLimit(value: number | null): void {
+        this.setItem(this.TORN_API_RATE_LIMIT, value !== null ? value.toString() : null);
+    }
+
+    static getWeav3rApiRateLimit(): number {
+        const limit = this.getItem(this.WEAV3R_API_RATE_LIMIT);
+        return limit ? parseInt(limit, 10) : 60;
+    }
+
+    static setWeav3rApiRateLimit(value: number | null): void {
+        this.setItem(this.WEAV3R_API_RATE_LIMIT, value !== null ? value.toString() : null);
     }
 }

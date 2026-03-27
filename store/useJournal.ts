@@ -19,7 +19,21 @@ import {
   Weav3rReceipt,
   refreshApiRateLimiters,
 } from "@/lib/torn-api";
-import { refreshApiKeysFromStorage } from "@/lib/api-keys";
+import {
+  refreshApiKeysFromStorage,
+  getApiKey as extGetApiKey,
+  getUserId as extGetUserId,
+  getDriveApiKey as extGetDriveApiKey,
+  getTornApiKeyFull as extGetTornApiKeyFull,
+  getTornApiRateLimit as extGetTornApiRateLimit,
+  getWeav3rApiRateLimit as extGetWeav3rApiRateLimit,
+  setApiKey as extSetApiKey,
+  setUserId as extSetUserId,
+  setDriveApiKey as extSetDriveApiKey,
+  setTornApiKeyFull as extSetTornApiKeyFull,
+  setTornApiRateLimit as extSetTornApiRateLimit,
+  setWeav3rApiRateLimit as extSetWeav3rApiRateLimit,
+} from "@/lib/api-keys";
 import { DualCursor, createDualCursor } from "@/lib/cursor";
 
 const STORAGE_KEY = "torn_invest_tracker_logs";
@@ -54,13 +68,7 @@ export interface SyncState {
 }
 
 interface JournalConfig {
-  apiKey?: string;
-  userId?: string;
-  driveApiKey?: string;
   skipNegativeStock?: boolean;
-  tornApiKeyFull?: string;
-  tornApiRateLimit?: number;
-  weav3rApiRateLimit?: number;
   // Legacy single cursor - kept for migration
   autoPilotCursor?: SyncCursor | null;
   // New dual cursor system
@@ -147,12 +155,12 @@ export function useJournal() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [needsMigration, setNeedsMigration] = useState(false);
   const [hasBMLDB, setHasBMLDB] = useState(false);
-  const [weav3rApiKey, setWeav3rApiKey] = useState("");
-  const [weav3rUserId, setWeav3rUserId] = useState("");
-  const [driveApiKey, setDriveApiKey] = useState("");
-  const [tornApiKeyFull, setTornApiKeyFull] = useState("");
-  const [tornApiRateLimit, setTornApiRateLimit] = useState(60);
-  const [weav3rApiRateLimit, setWeav3rApiRateLimit] = useState(60);
+  const [weav3rApiKey, setWeav3rApiKey] = useState(() => extGetApiKey());
+  const [weav3rUserId, setWeav3rUserId] = useState(() => extGetUserId());
+  const [driveApiKey, setDriveApiKey] = useState(() => extGetDriveApiKey());
+  const [tornApiKeyFull, setTornApiKeyFull] = useState(() => extGetTornApiKeyFull());
+  const [tornApiRateLimit, setTornApiRateLimit] = useState(() => extGetTornApiRateLimit());
+  const [weav3rApiRateLimit, setWeav3rApiRateLimit] = useState(() => extGetWeav3rApiRateLimit());
   const [skipNegativeStock, setSkipNegativeStock] = useState(false);
   // Legacy cursor - kept for migration
   const [autoPilotCursor, setAutoPilotCursor] = useState<SyncCursor | null>(
@@ -307,13 +315,13 @@ export function useJournal() {
   const applyConfig = useCallback(
     (parsedConfig: JournalConfig | null) => {
       if (!parsedConfig) return;
-      setWeav3rApiKey(parsedConfig.apiKey || "");
-      setWeav3rUserId(parsedConfig.userId || "");
-      setDriveApiKey(parsedConfig.driveApiKey || "");
+      setWeav3rApiKey(extGetApiKey());
+      setWeav3rUserId(extGetUserId());
+      setDriveApiKey(extGetDriveApiKey());
       setSkipNegativeStock(parsedConfig.skipNegativeStock || false);
-      setTornApiKeyFull(parsedConfig.tornApiKeyFull || "");
-      setTornApiRateLimit(parsedConfig.tornApiRateLimit ?? 60);
-      setWeav3rApiRateLimit(parsedConfig.weav3rApiRateLimit ?? 60);
+      setTornApiKeyFull(extGetTornApiKeyFull());
+      setTornApiRateLimit(extGetTornApiRateLimit());
+      setWeav3rApiRateLimit(extGetWeav3rApiRateLimit());
 
       // Handle legacy cursor migration
       if (parsedConfig.autoPilotCursor && !parsedConfig.autoPilotTradeCursor) {
@@ -335,13 +343,7 @@ export function useJournal() {
 
   const buildConfigSnapshot = useCallback(
     (overrides: Partial<JournalConfig> = {}): JournalConfig => ({
-      apiKey: weav3rApiKey,
-      userId: weav3rUserId,
-      driveApiKey,
       skipNegativeStock,
-      tornApiKeyFull,
-      tornApiRateLimit,
-      weav3rApiRateLimit,
       autoPilotCursor,
       autoPilotTradeCursor,
       autoPilotItemCursor,
@@ -349,13 +351,7 @@ export function useJournal() {
       ...overrides,
     }),
     [
-      weav3rApiKey,
-      weav3rUserId,
-      driveApiKey,
       skipNegativeStock,
-      tornApiKeyFull,
-      tornApiRateLimit,
-      weav3rApiRateLimit,
       autoPilotCursor,
       autoPilotTradeCursor,
       autoPilotItemCursor,
@@ -517,6 +513,7 @@ export function useJournal() {
         }
 
         const storagePref = localStorage.getItem("bml_storage_pref");
+        refreshApiKeysFromStorage();
 
         if (storagePref === "extension") {
           try {
@@ -532,7 +529,7 @@ export function useJournal() {
         } else if (storagePref === "drive") {
           const cachedTransactions =
             await readCachedTransactions("GoogleCacheLogsDB");
-          const configuredDriveApiKey = parsedConfig?.driveApiKey || "";
+          const configuredDriveApiKey = extGetDriveApiKey();
           if (isDriveCacheFresh(cachedTransactions)) {
             loadedTransactions = cachedTransactions;
           } else {
@@ -684,42 +681,40 @@ export function useJournal() {
   const saveWeaverConfig = useCallback(
     async (apiKey: string) => {
       const trimmedApiKey = apiKey.trim();
-      const cfg: JournalConfig = buildConfigSnapshot({
-        apiKey: trimmedApiKey,
-        userId: "",
-      });
 
       if (trimmedApiKey) {
         const userId = await resolveTornUserId(trimmedApiKey);
-        cfg.userId = userId;
+        extSetApiKey(trimmedApiKey);
+        extSetUserId(userId);
         setWeav3rApiKey(trimmedApiKey);
         setWeav3rUserId(userId);
+        return userId;
       } else {
+        extSetApiKey("");
+        extSetUserId("");
         setWeav3rApiKey("");
         setWeav3rUserId("");
+        return "";
       }
-
-      await persistConfigCache(JSON.stringify(cfg));
-      return cfg.userId;
     },
-    [buildConfigSnapshot, persistConfigCache],
+    [],
   );
 
   const saveTornApiKeyFull = useCallback(
     async (apiKey: string) => {
       const trimmedApiKey = apiKey.trim();
+      extSetTornApiKeyFull(trimmedApiKey);
       setTornApiKeyFull(trimmedApiKey);
-      await persistMergedConfig({ tornApiKeyFull: trimmedApiKey });
     },
-    [persistMergedConfig],
+    [],
   );
 
   const saveDriveApiKey = useCallback(
     async (apiKey: string) => {
+      extSetDriveApiKey(apiKey);
       setDriveApiKey(apiKey);
-      await persistMergedConfig({ driveApiKey: apiKey });
     },
-    [persistMergedConfig],
+    [],
   );
 
   const updateSkipNegativeStock = useCallback(
@@ -733,21 +728,21 @@ export function useJournal() {
   const updateTornApiRateLimit = useCallback(
     async (value: number) => {
       const clamped = Math.max(10, Math.min(80, value));
+      extSetTornApiRateLimit(clamped);
       setTornApiRateLimit(clamped);
-      await persistMergedConfig({ tornApiRateLimit: clamped });
       refreshApiRateLimiters();
     },
-    [persistMergedConfig],
+    [],
   );
 
   const updateWeav3rApiRateLimit = useCallback(
     async (value: number) => {
       const clamped = Math.max(10, Math.min(80, value));
+      extSetWeav3rApiRateLimit(clamped);
       setWeav3rApiRateLimit(clamped);
-      await persistMergedConfig({ weav3rApiRateLimit: clamped });
       refreshApiRateLimiters();
     },
-    [persistMergedConfig],
+    [],
   );
 
   const addLogs = useCallback(

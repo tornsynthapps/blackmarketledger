@@ -1,186 +1,120 @@
+import { LocalStorageInterface } from "./interfaces/localstorage";
+
 export const CONFIG_KEY = "torn_invest_tracker_config";
 export const CONNECTION_TOKEN_KEY = "connectionToken";
 
-interface ApiKeysCache {
-  apiKey: string | null;
-  userId: string | null;
-  driveApiKey: string | null;
-  tornApiKeyFull: string | null;
-  tornApiRateLimit: number;
-  weav3rApiRateLimit: number;
-}
-
-let apiKeysCache: ApiKeysCache | null = null;
-let cacheInitialized = false;
-
-const DEFAULT_RATE_LIMIT = 60;
-
-function safeGetItem(key: string): string | null {
+// Migration function to move legacy config into LocalStorageInterface
+export function refreshApiKeysFromStorage(): void {
+  if (typeof window === "undefined") return;
+  // Try to migrate from legacy config if it exists
   try {
-    return localStorage.getItem(key);
-  } catch (e) {
-    console.warn(`localStorage.getItem failed for "${key}":`, e);
-    return null;
-  }
-}
-
-function safeSetItem(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch (e) {
-    console.error(`localStorage.setItem failed for "${key}":`, e);
-  }
-}
-
-function parseConfigFromStorage(): ApiKeysCache | null {
-  const stored = safeGetItem(CONFIG_KEY);
-  if (!stored) return null;
-
-  try {
-    const config = JSON.parse(stored);
-    return {
-      apiKey: config.apiKey || null,
-      userId: config.userId || null,
-      driveApiKey: config.driveApiKey || null,
-      tornApiKeyFull: config.tornApiKeyFull || null,
-      tornApiRateLimit: config.tornApiRateLimit ?? DEFAULT_RATE_LIMIT,
-      weav3rApiRateLimit: config.weav3rApiRateLimit ?? DEFAULT_RATE_LIMIT,
-    };
+    const stored = localStorage.getItem(CONFIG_KEY);
+    if (stored) {
+      const config = JSON.parse(stored);
+      
+      if (config.apiKey && !LocalStorageInterface.getWeav3rAPIKey()) {
+        LocalStorageInterface.setWeav3rAPIKey(config.apiKey);
+      }
+      if (config.userId && !LocalStorageInterface.getWeav3rUserId()) {
+        LocalStorageInterface.setWeav3rUserId(config.userId);
+      }
+      if (config.driveApiKey && !LocalStorageInterface.getDriveAPIKey()) {
+        LocalStorageInterface.setDriveAPIKey(config.driveApiKey);
+      }
+      if (config.tornApiKeyFull && !LocalStorageInterface.getTornFullAPIKey()) {
+        LocalStorageInterface.setTornFullAPIKey(config.tornApiKeyFull);
+      }
+      if (config.tornApiRateLimit !== undefined) {
+        LocalStorageInterface.setTornApiRateLimit(config.tornApiRateLimit);
+      }
+      if (config.weav3rApiRateLimit !== undefined) {
+        LocalStorageInterface.setWeav3rApiRateLimit(config.weav3rApiRateLimit);
+      }
+    }
   } catch (e) {
     console.warn("Failed to parse config from localStorage:", e);
-    return null;
-  }
-}
-
-function ensureCache(): ApiKeysCache {
-  if (!cacheInitialized) {
-    apiKeysCache = parseConfigFromStorage();
-    cacheInitialized = true;
-  }
-  return (
-    apiKeysCache || {
-      apiKey: null,
-      userId: null,
-      driveApiKey: null,
-      tornApiKeyFull: null,
-      tornApiRateLimit: DEFAULT_RATE_LIMIT,
-      weav3rApiRateLimit: DEFAULT_RATE_LIMIT,
-    }
-  );
-}
-
-export function getApiKey(): string {
-  return ensureCache().apiKey || "";
-}
-
-export function getUserId(): string {
-  return ensureCache().userId || "";
-}
-
-export function getDriveApiKey(): string {
-  return ensureCache().driveApiKey || "";
-}
-
-export function getTornApiKeyFull(): string {
-  return ensureCache().tornApiKeyFull || "";
-}
-
-export function getTornApiRateLimit(): number {
-  return ensureCache().tornApiRateLimit;
-}
-
-export function getWeav3rApiRateLimit(): number {
-  return ensureCache().weav3rApiRateLimit;
-}
-
-export function getConnectionToken(): string {
-  const token = safeGetItem(CONNECTION_TOKEN_KEY);
-  return token || "";
-}
-
-export function setApiKey(value: string): void {
-  const cache = ensureCache();
-  cache.apiKey = value;
-  saveToStorage(cache);
-}
-
-export function setUserId(value: string): void {
-  const cache = ensureCache();
-  cache.userId = value;
-  saveToStorage(cache);
-}
-
-export function setDriveApiKey(value: string): void {
-  const cache = ensureCache();
-  cache.driveApiKey = value;
-  saveToStorage(cache);
-}
-
-export function setTornApiKeyFull(value: string): void {
-  const cache = ensureCache();
-  cache.tornApiKeyFull = value;
-  saveToStorage(cache);
-}
-
-export function setTornApiRateLimit(value: number): void {
-  const cache = ensureCache();
-  cache.tornApiRateLimit = value;
-  saveToStorage(cache);
-}
-
-export function setWeav3rApiRateLimit(value: number): void {
-  const cache = ensureCache();
-  cache.weav3rApiRateLimit = value;
-  saveToStorage(cache);
-}
-
-export function setConnectionToken(value: string): void {
-  safeSetItem(CONNECTION_TOKEN_KEY, value);
-}
-
-function saveToStorage(cache: ApiKeysCache): void {
-  const stored = safeGetItem(CONFIG_KEY);
-  let existingConfig: Record<string, unknown> = {};
-
-  if (stored) {
-    try {
-      existingConfig = JSON.parse(stored);
-    } catch {
-      // Ignore parse errors
-    }
   }
 
-  const mergedConfig = {
-    ...existingConfig,
-    apiKey: cache.apiKey,
-    userId: cache.userId,
-    driveApiKey: cache.driveApiKey,
-    tornApiKeyFull: cache.tornApiKeyFull,
-    tornApiRateLimit: cache.tornApiRateLimit,
-    weav3rApiRateLimit: cache.weav3rApiRateLimit,
-  };
-
-  safeSetItem(CONFIG_KEY, JSON.stringify(mergedConfig));
-  dispatchApiKeysUpdate();
-}
-
-export function invalidateApiKeysCache(): void {
-  cacheInitialized = false;
-  apiKeysCache = null;
-}
-
-export function refreshApiKeysFromStorage(): void {
-  apiKeysCache = parseConfigFromStorage();
-  cacheInitialized = true;
   dispatchApiKeysUpdate();
 }
 
 function dispatchApiKeysUpdate(): void {
   try {
-    window.dispatchEvent(new CustomEvent("api-keys-updated"));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("api-keys-updated"));
+    }
   } catch {
     // Ignore dispatch errors
   }
+}
+
+export function getApiKey(): string {
+  return LocalStorageInterface.getWeav3rAPIKey();
+}
+
+export function getUserId(): string {
+  return LocalStorageInterface.getWeav3rUserId();
+}
+
+export function getDriveApiKey(): string {
+  return LocalStorageInterface.getDriveAPIKey();
+}
+
+export function getTornApiKeyFull(): string {
+  return LocalStorageInterface.getTornFullAPIKey();
+}
+
+export function getTornApiRateLimit(): number {
+  return LocalStorageInterface.getTornApiRateLimit();
+}
+
+export function getWeav3rApiRateLimit(): number {
+  return LocalStorageInterface.getWeav3rApiRateLimit();
+}
+
+export function getConnectionToken(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(CONNECTION_TOKEN_KEY) || "";
+}
+
+export function setApiKey(value: string): void {
+  LocalStorageInterface.setWeav3rAPIKey(value);
+  dispatchApiKeysUpdate();
+}
+
+export function setUserId(value: string): void {
+  LocalStorageInterface.setWeav3rUserId(value);
+  dispatchApiKeysUpdate();
+}
+
+export function setDriveApiKey(value: string): void {
+  LocalStorageInterface.setDriveAPIKey(value);
+  dispatchApiKeysUpdate();
+}
+
+export function setTornApiKeyFull(value: string): void {
+  LocalStorageInterface.setTornFullAPIKey(value);
+  dispatchApiKeysUpdate();
+}
+
+export function setTornApiRateLimit(value: number): void {
+  LocalStorageInterface.setTornApiRateLimit(value);
+  dispatchApiKeysUpdate();
+}
+
+export function setWeav3rApiRateLimit(value: number): void {
+  LocalStorageInterface.setWeav3rApiRateLimit(value);
+  dispatchApiKeysUpdate();
+}
+
+export function setConnectionToken(value: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CONNECTION_TOKEN_KEY, value);
+  }
+}
+
+export function invalidateApiKeysCache(): void {
+  // No-op since we use direct LocalStorage reads now
 }
 
 export function getAllApiKeys(): {
@@ -189,11 +123,10 @@ export function getAllApiKeys(): {
   driveApiKey: string;
   tornApiKeyFull: string;
 } {
-  const cache = ensureCache();
   return {
-    apiKey: cache.apiKey || "",
-    userId: cache.userId || "",
-    driveApiKey: cache.driveApiKey || "",
-    tornApiKeyFull: cache.tornApiKeyFull || "",
+    apiKey: LocalStorageInterface.getWeav3rAPIKey(),
+    userId: LocalStorageInterface.getWeav3rUserId(),
+    driveApiKey: LocalStorageInterface.getDriveAPIKey(),
+    tornApiKeyFull: LocalStorageInterface.getTornFullAPIKey(),
   };
 }

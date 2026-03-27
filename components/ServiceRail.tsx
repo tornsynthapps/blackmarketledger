@@ -6,7 +6,6 @@ import { useJournal } from "@/store/useJournal";
 import { sendToExtension } from "@/lib/bmlconnect";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import { getGoogleDriveStatus } from "@/lib/drive-api";
-import { LocalStorageInterface } from "@/lib/interfaces/localstorage";
 
 type ServiceItem = {
   name: string;
@@ -137,8 +136,6 @@ export function ServiceRail() {
     } finally {
       setIsSavingWeav3rKey(false);
     }
-
-    LocalStorageInterface.setWeav3rAPIKey(tempWeav3rApiKey);
   };
 
   const handleSaveDriveKey = async () => {
@@ -153,8 +150,6 @@ export function ServiceRail() {
     } finally {
       setIsSavingDriveKey(false);
     }
-
-    LocalStorageInterface.setDriveAPIKey(tempDriveApiKey);
   };
 
   const handleSaveTornFullKey = async () => {
@@ -169,8 +164,6 @@ export function ServiceRail() {
     } finally {
       setIsSavingTornFullKey(false);
     }
-
-    LocalStorageInterface.setTornFullAPIKey(tempTornApiKeyFull);
   };
 
   return (
