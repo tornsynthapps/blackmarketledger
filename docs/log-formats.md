@@ -1,11 +1,38 @@
 # Supported Log Formats
 
-Learn how to format your data for the tracker.
+Blackmarket Ledger (BML) is designed to be highly compatible with standard Torn and Weav3r log formats. This guide details the supported formats for manual terminal entry.
 
-## Weav3r Receipts & Torn Bazaar Logs
+## 🛍️ Bazaar Logs
+Used for tracking items sold through your bazaar.
+- **Format**: `[Timestamp] [Item Name] sold for $[Price] to [User]`
+- **BML Parsing**: Automatically extracts item name, quantity (usually 1), and price.
 
-- **Weav3r Receipts**: Paste a Weav3r receipt URL such as `https://weav3r.dev/receipt/RJiDVUO9Is` to fetch trades automatically.
-- **Raw Torn Bazaar Logs**: Paste Torn bazaar lines such as `TequilaKing bought 4 x Six-Pack of Alcohol from your bazaar for $3,587,596.` and the Terminal will convert them for import.
+## 🏪 Item Market Logs
+Used for tracking purchases and sales on the open market.
+- **Format**: `[Timestamp] You bought [Quantity]x [Item Name] for $[Price] each`
+- **BML Parsing**: Correctly handles bulk purchases and sales.
+
+## 🤝 Trade Logs
+Trade logs are complex and often involve multiple items.
+- **Format**: `[Timestamp] Trade with [User] completed. You gave [Items], you received [Items].`
+- **BML Best Practice**: Instead of pasting raw trade logs, paste a **Weav3r Receipt URL** for 100% accuracy.
+- [Learn more about Auto-Pilot & Trades](./features/auto-pilot)
+
+## ✈️ Abroad Logs
+Purchases made while traveling.
+- **Format**: `[Timestamp] You bought [Quantity]x [Item Name] from [Country] for $[Price] each.`
+- **BML Usage**: Mark these as **Abroad** to isolate travel profit.
+- [Learn more about Abroad & Self-Sell](./features/abroad-self-sell)
+
+## 🥊 Mug Logs
+Track losses to mugging.
+- **Format**: `[Timestamp] You were mugged for $[Amount] by [User]` or `[Timestamp] [User] mugged you for $[Amount]`
+- **BML Sync**: Auto-Pilot handles these automatically from your Torn logs.
+
+---
+
+> [!TIP]
+> Use the **Terminal** to test any custom log strings. BML will show a real-time preview of how the log will be parsed into your ledger.
 
 ## Manual Entry Shorthand
 

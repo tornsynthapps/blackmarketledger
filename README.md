@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Blackmarket Ledger
 
-## Getting Started
+**The ultimate trading logistics and profit-tracking tool for Torn.**
 
-First, run the development server:
+Blackmarket Ledger (BML) is a premium, comprehensive dashboard designed specifically for players of [Torn](https://www.torn.com/). It empowers traders to track inventory, calculate cost bases, monitor profits, and analyze historical trends with precision and ease.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+> [!NOTE]
+> This project is designed for serious Torn traders who want to maximize their efficiency and gain deep insights into their trading performance.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[TODO] Add hero screenshot of the dashboard here.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Key Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### ✈️ Abroad & Self-Sell
+Master your margins by differentiating between sourcing and trading profits. 
+- Use **Self-Sell** to "buy from yourself" at market rates (e.g., Weav3r pricelist) and isolate the profit earned from traveling versus the profit earned from active trading.
+- [Learn more about Abroad & Self-Sell](./docs/features/abroad-self-sell)
 
-## Learn More
+### 🤖 Auto-Pilot
+Stop manual logging. Auto-Pilot syncs your Torn logs automatically.
+- Integrates with **Weav3r** for seamless trade receipt reconciliation.
+- Automatically processes item-market (buy/sell), bazaar (buy/sell), and mug logs.
+- [Explore Auto-Pilot](./docs/features/auto-pilot)
 
-To learn more about Next.js, take a look at the following resources:
+### 📊 Interactive Stats & Charts
+Visualize your journey from a small-time peddler to a market mogul.
+- Interactive line and bar charts for Daily, Weekly, and Monthly trends.
+- Track Net Profit, Inventory Value, and Mug Losses over time.
+- [Discover Stats & Charts](./docs/features/stats-charts)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠️ Getting Started
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Prerequisites
+- Node.js (v20+)
+- A Torn API Key (Full Access required for Auto-Pilot)
 
-## Deploy on Vercel
+### Installation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/tornsynthapps/blackmarketledger.git
+   cd blackmarketledger
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) to see your ledger in action.
+
+## 📖 Documentation
+
+Explore our full documentation suite in the [`docs/`](./docs/) directory:
+
+1. **[Introduction](./docs/introduction)**: Project philosophy and overview.
+2. **[App User Guide](./docs/app-guide)**: How to navigate and use the BML dashboard.
+3. **[FAQ & Troubleshooting](./docs/faq-troubleshooting)**: Common questions and issues.
+4. **[Developer Guide](./CONTRIBUTING)**: How to contribute to the project.
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING) for details on our code of conduct and the process for submitting pull requests.
+
+## ⚖️ License
+
+This project is licensed under the [MIT License](./LICENSE) (if applicable) or as specified in the repository.
+
+---
+
+*Built with ❤️ for the Torn community by [TornSynthApps](https://github.com/tornsynthapps).*

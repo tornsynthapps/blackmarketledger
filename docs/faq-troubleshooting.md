@@ -15,19 +15,35 @@ Net Total Profit subtracts your Total Mug Loss from your Realized Profit. If you
 
 ---
 
-## Extension Troubleshooting
+## Extension# FAQ & Troubleshooting
 
-### The BML Box isn't showing up on Torn
-First, verify your subscription status:
-1. Click the BML Connect extension icon in your browser toolbar.
-2. Check if it says your subscription is active. If your subscription is missing or expired, the box will not render.
+## ❓ Frequently Asked Questions
 
-If your subscription is active, ensure:
-1. You have navigated to the Blackmarket Ledger web app at least once recently, as the extension pulls synced data from your local browser storage tied to the app.
-2. You are on a supported page on Torn.
+### How do I differentiate between travel profit and trading profit?
+Use the [Self-Sell](./features/abroad-self-sell) workflow. When you return from abroad, "sell" the items to yourself at market value, then "buy" them back at that same price. This separates the sourcing margin from the trading margin.
 
-### The Extension says my API key is invalid
-Ensure you have generated an API key with standard permissions on Torn. Double-check for any accidental whitespace (spaces) at the beginning or end of the API key when pasting it into the extension popup.
+### Why is Auto-Pilot paused?
+Auto-Pilot pauses if it detects a discrepancy between your Torn logs and your Weav3r receipts. This ensures your cost basis remains 100% accurate. Review the modal that appears to resolve the issue.
+
+### Is my Torn API Key safe?
+Yes. Your API key is stored locally in your browser's IndexedDB/LocalStorage. It is only used to fetch data from the official Torn and Weav3r APIs.
+
+### What is "Net Total Profit"?
+Net Total Profit is your Realized Profit (money made from sales) minus your Total Mug Loss. It gives you a realistic view of how much you are actually taking home.
+
+## 🛠️ Troubleshooting
+
+### Auto-Pilot isn't syncing logs
+1. Check your **Torn API Key** in the ServiceRail. Ensure it has **Full Access**.
+2. Verify your internet connection.
+3. Check if Torn API is currently down or experiencing lag.
+
+### Inventory values seem incorrect
+- BML uses the **FIFO** (First-In, First-Out) method. If you sold items but didn't log the purchase first, your cost basis might be skewed. Use the **Logs** page to audit your transaction history.
+
+### Charts are empty
+- Charts require historical data. If you've just started using BML, wait a few days for the Daily/Weekly trends to populate.
+cidental whitespace (spaces) at the beginning or end of the API key when pasting it into the extension popup.
 
 ### My cost basis in the BML box is outdated
 The extension relies on your latest logs. If you just made a trade, ensure you have entered the log into the Blackmarket Ledger web application, and the extension will update the data it displays on Torn shortly after.

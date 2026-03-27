@@ -18,33 +18,43 @@ export default function DocsLayout({
                   Introduction
                 </Link>
               </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-foreground mb-2 px-3">Guides</h3>
-            <ul className="space-y-1">
               <li>
                 <Link href="/docs/app-guide" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
                   App User Guide
                 </Link>
               </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-foreground mb-2 px-3">Core Features</h3>
+            <ul className="space-y-1">
               <li>
-                <Link href="/docs/log-formats" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
-                  Supported Log Formats
+                <Link href="/docs/features/auto-pilot" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
+                  🤖 Auto-Pilot
                 </Link>
               </li>
               <li>
-                <Link href="/docs/extension-guide" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
-                  BML Connect Extension
+                <Link href="/docs/features/abroad-self-sell" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
+                  ✈️ Abroad & Self-Sell
+                </Link>
+              </li>
+              <li>
+                <Link href="/docs/features/stats-charts" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
+                  📊 Stats & Charts
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-semibold text-foreground mb-2 px-3">Support</h3>
+            <h3 className="font-semibold text-foreground mb-2 px-3">Reference</h3>
             <ul className="space-y-1">
+              <li>
+                <Link href="/docs/log-formats" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
+                  Supported Log Formats
+                </Link>
+              </li>
               <li>
                 <Link href="/docs/faq-troubleshooting" className="block px-3 py-2 rounded-md hover:bg-foreground/5 text-foreground/70 hover:text-foreground transition-colors">
                   FAQ & Troubleshooting

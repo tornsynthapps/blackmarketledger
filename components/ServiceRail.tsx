@@ -241,9 +241,6 @@ export function ServiceRail() {
         </button>
 
         <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-border px-4 pb-3 pt-20">
-            <h2 className="text-lg font-bold tracking-tight">Services & Keys</h2>
-          </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
             <div className="rounded-2xl border border-border bg-background/65 p-3">

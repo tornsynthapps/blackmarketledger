@@ -1,41 +1,68 @@
 # App User Guide
 
-The Blackmarket Ledger web application is your central hub for tracking all your Torn trading activities. 
+This guide provides a detailed overview of every page in the Blackmarket Ledger (BML) suite. Use the navigation links below to jump to a specific section.
 
-## Main Dashboard
+## 📊 Dashboard
+The Dashboard is your command center. It provides real-time insights into your overall trading health.
+- **Key Stats**: Realized Profit, Inventory Value, Mug Loss, and Net Profit.
+- **Interactive Charts**: Click any stat card to view Daily/Weekly/Monthly trends.
+- **Inventory Overview**: Searchable and sortable list of your current stock.
 
-When you open the app, you will land on the **Main Dashboard**. This view gives you a high-level overview of your trading performance.
-
-### Key Metrics
-- **Total Realized Profit**: The total profit you've made from completed trades (items you've bought and subsequently sold).
-- **Current Inventory Value**: The total cost basis of all the items currently sitting in your inventory.
-- **Total Mug Loss**: The total amount of money you have lost to muggers. Keeping track of this helps you understand your true net profit.
-- **Net Total Profit**: The overall profit of your trading operation (Total Realized Profit minus Total Mug Loss).
-
-### Inventory & Profits Table
-Below the key metrics, you will find a searchable, sortable table of your current inventory. 
-- You can sort items by **Name**, **Stock**, **Avg Cost Basis**, **Total Cost**, and **Realized Profit**.
-- Clicking on any item in the table will take you to its detailed transaction history log.
-- **Merge/Rename**: If you need to fix a typo or merge two items together, hover over the item row and click the edit icon on the far right. This updates all past logs for that item.
+[TODO] Add screenshot of the main Dashboard.
+[Learn more about Stats & Charts](./features/stats-charts)
 
 ---
 
-## Navigation & Features
+## 🏛️ Museum
+The Museum page is for specialized collectors. It helps you track sets of items (e.g., Plushies or Flowers) that can be exchanged for Points.
+- **Set Completion**: Monitor how close you are to completing a full set.
+- **Cost Basis**: Tracks the average cost of every item in your collection.
+- **Profit Potential**: Estimates the value of your sets if converted to points today.
 
-### Terminal
-The Terminal section is the fastest way to import ledger activity in bulk.
+[TODO] Add screenshot of the Museum page.
 
-- Paste shorthand logs directly into the editor.
-- Paste a Weav3r receipt URL to convert it into importable buy lines automatically.
-- Paste Torn Bazaar-style logs to convert them into supported shorthand entries.
+---
 
-The info card at the top of the Terminal page now links to the main **Documentation** section, where you can review shorthand examples and broader app guidance in one place.
+## ✈️ Abroad
+The Abroad page is dedicated to travelers. It isolates your activity while flying to other countries.
+- **Abroad Inventory**: See exactly what you've purchased overseas.
+- **Cost per Trip**: Analyze the cost basis of items relative to the flight cost.
+- **Profit Tracking**: Measures gains specifically from your "Abroad" transactions.
+- **Self-Sell Button**: Quickly differentiate margins by clicking the button next to items in your abroad inventory.
 
-### Logs Tab
-The Logs section is where you can view every transaction you have entered. You can filter logs by specific item names or view them all chronologically. This is useful for auditing past trades or verifying your cost basis calculations.
+[TODO] Add screenshot of the Abroad dashboard.
+[Learn more about Abroad & Self-Sell](./features/abroad-self-sell)
 
-### Abroad
-The Abroad section allows you to track items purchased from different countries in Torn. It helps you monitor travel profitability and manage stocks of plushies, flowers, or other foreign imports. transactions marked as "ABROAD" will be highlighted in your logs.
+---
+
+## 📜 Logs
+The Logs page is your exhaustive audit trail. Every transaction you've ever committed is stored here.
+- **Search & Filter**: Find specific trades or items by name.
+- **Edit & Delete**: Correct mistakes in past entries.
+- **Chronological Order**: View your trading history as it happened.
+
+[TODO] Add screenshot of the Logs page.
+
+---
+
+## 💻 Terminal
+The Terminal is for high-speed manual logging and legacy data entry.
+- **Shorthand Input**: Paste custom logs for rapid processing.
+- **Weav3r Integration**: Paste a Weav3r receipt URL to automatically pull trade data.
+- **Bazaar/Market Parser**: Automatically identifies item names and prices from standard Torn logs.
+
+[TODO] Add screenshot of the Terminal page.
+
+---
+
+## 🤖 Auto-Pilot
+Auto-Pilot is the modern way to use BML. It automates your logging via the Torn API.
+- **Automatic Sync**: Fetches logs, market transactions, and muggings without manual input.
+- **Discrepancy Checks**: Pauses for your approval if a log doesn't match your receipts.
+- **Seamless Trades**: Reconciles trade logs with Weav3r receipts automatically.
+
+[TODO] Add screenshot of the Auto-Pilot page.
+[Learn more about Auto-Pilot](./features/auto-pilot)
 
 ### Museum
 The Museum tool (if applicable to your trading style) helps you track sets of items (like plushie or flower sets) intended for exchanging at the Torn Museum for points. 
