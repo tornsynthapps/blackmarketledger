@@ -1,5 +1,20 @@
 # BlackMarket Ledger Version History
 
+## v4.4.0 (2026-03-27)
+
+- **Expanded Chart Data**: Updated main chart to include Museum and Abroad datasets, resolving inconsistencies between visualizations and static data.
+- **LocalStorage Refactor**: Unified API key handling through a shared `LocalStorageInterface` for improved consistency and maintainability.
+- **Transaction Architecture Improvements**: Added serialization/deserialization for transaction entities and refactored `TornItemLog` stock input along with `BaseTransaction` type handling.
+- **Auto-Pilot Enhancements**: Rebuilt trade linking logic, added Mug log support, improved Drive cache handling, and refined sync controls with reposition options and clearer status messaging.
+- **API Stability & Rate Limiting**: Introduced rate limiting for Torn and Weav3r APIs to enhance reliability and prevent request throttling.
+- **Subscription System Updates**: Added trial claim functionality and improved subscription verification logic.
+- **UI & Modal Updates**: Added new backend-driven modals and improved overall interaction flows.
+- **Profit Chart Improvements**: Enhanced tooltip styling and simplified chart area fills for better readability.
+- **Museum Dashboard Fix**: Corrected point cost calculations to use average point values.
+- **Cursor & Sync Fixes**: Resolved cursor reset issues and improved dual-cursor state visibility.
+- **Code Quality & Tooling**: Integrated Prettier for consistent formatting and added AI coding “skills & instructions” scaffolding.
+- **Internal Cleanup**: Removed redundant status logging and improved state persistence during Auto-Pilot sync operations.
+
 ## v4.3.2 (2026-03-22)
 - **Rate Limit & API Stability**: Integrated rate limiting for Torn and Weav3r API requests to prevent bans and improve overall reliability.
 - **Drive Cache & Loading State Enhancements**: Improved Google Drive cache management, added reposition menus for sync controls, and added clear loading states for better feedback.
