@@ -41,6 +41,14 @@ export default function RootLayout({
                   : 'light';
                 document.documentElement.classList.toggle('dark', theme === 'dark');
                 document.documentElement.classList.toggle('light', theme === 'light');
+                
+                if (localStorage.getItem('theme_solarized') === 'true') {
+                  document.documentElement.classList.add('theme-solarized');
+                }
+                
+                if (localStorage.getItem('theme_nav_left') === 'true') {
+                  document.documentElement.classList.add('layout-nav-left');
+                }
               } catch (_) {}
             `,
           }}
@@ -49,13 +57,15 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${spaceMono.variable} font-sans antialiased selection:bg-primary/30`}
       >
-        <Navigation />
-        <Banners />
-        <PromoBannersDesktop />
-        <main className="pt-8 pb-12 min-h-screen px-4 max-w-6xl mx-auto flex-1 h-full flex flex-col">
-          <div className="flex-1">
-            {children}
-          </div>
+        <div className="layout-wrapper flex flex-col min-h-screen">
+          <Navigation />
+          <div className="layout-main-content flex-1 flex flex-col min-w-0">
+            <Banners />
+            <PromoBannersDesktop />
+            <main className="pt-8 pb-12 px-4 w-full max-w-6xl mx-auto flex-1 h-full flex flex-col">
+              <div className="flex-1">
+                {children}
+              </div>
 
           <footer className="mt-16 pt-8 pb-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-foreground/50">
             <div className="flex items-center justify-center md:justify-start">
@@ -90,7 +100,9 @@ export default function RootLayout({
               </Link>
             </div>
           </footer>
-        </main>
+            </main>
+          </div>
+        </div>
         <ServiceRail />
       </body>
     </html>

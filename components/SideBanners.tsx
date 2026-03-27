@@ -14,7 +14,7 @@ interface PromoBannersProps {
 
 export function PromoBannersDesktop({ className }: PromoBannersProps) {
   return (
-    <div className="max-w-6xl mt-2 mb-2 mx-auto px-4 h-full flex items-center justify-end gap-3">
+    <div className={cn("max-w-6xl mt-2 mb-2 mx-auto px-4 h-full flex items-center justify-end gap-3 promo-banners-top", className)}>
       {/* Discord */}
       <a
         href="https://discord.gg/Xz4GZfh4ep"

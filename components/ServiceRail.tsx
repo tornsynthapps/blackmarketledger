@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ChevronLeft, Crown, Eye, EyeOff, HardDrive, KeyRound, Save, X, Zap } from "lucide-react";
+import { Check, ChevronLeft, Crown, Eye, EyeOff, HardDrive, KeyRound, Save, X, Zap, Palette, PanelLeft } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import { sendToExtension } from "@/lib/bmlconnect";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
@@ -45,6 +45,39 @@ export function ServiceRail() {
   const [tornFullError, setTornFullError] = useState("");
   const [tempTornRateLimit, setTempTornRateLimit] = useState(tornApiRateLimit);
   const [tempWeav3rRateLimit, setTempWeav3rRateLimit] = useState(weav3rApiRateLimit);
+  const [isSolarized, setIsSolarized] = useState(false);
+  const [isNavLeft, setIsNavLeft] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setIsSolarized(localStorage.getItem("theme_solarized") === "true");
+    setIsNavLeft(localStorage.getItem("theme_nav_left") === "true");
+  }, []);
+
+  const handleToggleSolarized = (enabled: boolean) => {
+    vibrate("utility");
+    setIsSolarized(enabled);
+    if (enabled) {
+      localStorage.setItem("theme_solarized", "true");
+      document.documentElement.classList.add("theme-solarized");
+    } else {
+      localStorage.removeItem("theme_solarized");
+      document.documentElement.classList.remove("theme-solarized");
+    }
+  };
+
+  const handleToggleNavLeft = (enabled: boolean) => {
+    vibrate("utility");
+    setIsNavLeft(enabled);
+    if (enabled) {
+      localStorage.setItem("theme_nav_left", "true");
+      document.documentElement.classList.add("layout-nav-left");
+    } else {
+      localStorage.removeItem("theme_nav_left");
+      document.documentElement.classList.remove("layout-nav-left");
+    }
+  };
 
   useEffect(() => {
     setTempWeav3rApiKey(weav3rApiKey);
@@ -166,6 +199,10 @@ export function ServiceRail() {
     }
   };
 
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <aside
       className={`fixed right-0 top-0 z-[80] h-screen w-[min(88vw,360px)] transition-transform duration-300 ease-out lg:w-[min(34vw,360px)] ${
@@ -186,16 +223,17 @@ export function ServiceRail() {
         </button>
 
         <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-border px-4 pb-4 pt-20">
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-primary/70">Active Services</p>
-            <h2 className="mt-1 text-xl font-bold tracking-tight">Service Access</h2>
-            <p className="mt-1 text-xs text-foreground/60">
-              Shared across the app for faster status checks.
-            </p>
+          <div className="border-b border-border px-4 pb-3 pt-20">
+            <h2 className="text-lg font-bold tracking-tight">Services & Keys</h2>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
-            <div className="grid gap-3">
+            <div className="rounded-2xl border border-border bg-background/65 p-3">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
+                <KeyRound className="h-4 w-4 text-primary" />
+                API Keys
+              </div>
+              <div className="grid gap-3">
               <label className="block">
                 <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
                   <KeyRound className="h-3.5 w-3.5 text-primary" />
@@ -221,15 +259,17 @@ export function ServiceRail() {
                   Save the Torn API key and the app will resolve your user ID automatically.
                 </p>
                 {weav3rError && <p className="mt-1.5 text-[11px] text-danger">{weav3rError}</p>}
-                <button
-                  type="button"
-                  onClick={() => void handleSaveWeav3rKey()}
-                  disabled={isSavingWeav3rKey}
-                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {isSavingWeav3rKey ? "Saving..." : "Save Weav3r Key"}
-                </button>
+                {tempWeav3rApiKey !== (weav3rApiKey || "") && (
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveWeav3rKey()}
+                    disabled={isSavingWeav3rKey}
+                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {isSavingWeav3rKey ? "Saving..." : "Save Weav3r Key"}
+                  </button>
+                )}
               </label>
 
               <label className="block">
@@ -257,15 +297,17 @@ export function ServiceRail() {
                   Stored locally for Auto-Pilot sync only. This must be a full-access Torn key.
                 </p>
                 {tornFullError && <p className="mt-1.5 text-[11px] text-danger">{tornFullError}</p>}
-                <button
-                  type="button"
-                  onClick={() => void handleSaveTornFullKey()}
-                  disabled={isSavingTornFullKey}
-                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {isSavingTornFullKey ? "Saving..." : "Save Torn Full Key"}
-                </button>
+                {tempTornApiKeyFull !== (tornApiKeyFull || "") && (
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveTornFullKey()}
+                    disabled={isSavingTornFullKey}
+                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {isSavingTornFullKey ? "Saving..." : "Save Torn Full Key"}
+                  </button>
+                )}
               </label>
 
               <label className="block">
@@ -293,16 +335,19 @@ export function ServiceRail() {
                   Keep this key private. Anyone with it can access your synced data.
                 </p>
                 {driveError && <p className="mt-1.5 text-[11px] text-danger">{driveError}</p>}
-                <button
-                  type="button"
-                  onClick={() => void handleSaveDriveKey()}
-                  disabled={isSavingDriveKey}
-                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {isSavingDriveKey ? "Saving..." : "Save Drive Key"}
-                </button>
+                {tempDriveApiKey !== (driveApiKey || "") && (
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveDriveKey()}
+                    disabled={isSavingDriveKey}
+                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    {isSavingDriveKey ? "Saving..." : "Save Drive Key"}
+                  </button>
+                )}
               </label>
+            </div>
             </div>
 
             <div className="rounded-2xl border border-border bg-background/65 p-3">
@@ -311,11 +356,11 @@ export function ServiceRail() {
                 Rate Limits
               </div>
               <div className="space-y-4">
-                <label className="block">
+                <label className="block" suppressHydrationWarning>
                   <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
                     Torn API Rate Limit
                   </span>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3" suppressHydrationWarning>
                     <input
                       type="range"
                       min="10"
@@ -323,8 +368,9 @@ export function ServiceRail() {
                       value={tempTornRateLimit}
                       onChange={(event) => setTempTornRateLimit(Number(event.target.value))}
                       className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                      suppressHydrationWarning
                     />
-                    <span className="w-12 text-right text-sm font-semibold text-primary">
+                    <span className="w-12 text-right text-sm font-semibold text-primary" suppressHydrationWarning>
                       {tempTornRateLimit}/min
                     </span>
                   </div>
@@ -346,11 +392,11 @@ export function ServiceRail() {
                   )}
                 </label>
 
-                <label className="block">
+                <label className="block" suppressHydrationWarning>
                   <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
                     Weav3r API Rate Limit
                   </span>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3" suppressHydrationWarning>
                     <input
                       type="range"
                       min="10"
@@ -358,8 +404,9 @@ export function ServiceRail() {
                       value={tempWeav3rRateLimit}
                       onChange={(event) => setTempWeav3rRateLimit(Number(event.target.value))}
                       className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                      suppressHydrationWarning
                     />
-                    <span className="w-12 text-right text-sm font-semibold text-primary">
+                    <span className="w-12 text-right text-sm font-semibold text-primary" suppressHydrationWarning>
                       {tempWeav3rRateLimit}/min
                     </span>
                   </div>
@@ -381,6 +428,48 @@ export function ServiceRail() {
                   )}
                 </label>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/65 p-3">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
+                <Palette className="h-4 w-4 text-primary" />
+                Appearance & Layout
+              </div>
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-semibold">Solarized Theme</span>
+                  <p className="text-xs text-foreground/55">Use the Solarized color palette</p>
+                </div>
+                <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background" style={{ backgroundColor: isSolarized ? "var(--primary)" : "var(--border)" }}>
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={isSolarized}
+                    onChange={(e) => handleToggleSolarized(e.target.checked)}
+                  />
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isSolarized ? "translate-x-6" : "translate-x-1"}`}
+                  />
+                </div>
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer mt-4">
+                <div>
+                  <span className="text-sm font-semibold">Left Navigation</span>
+                  <p className="text-xs text-foreground/55">Shift navigation to side (Desktop)</p>
+                </div>
+                <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background" style={{ backgroundColor: isNavLeft ? "var(--primary)" : "var(--border)" }}>
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={isNavLeft}
+                    onChange={(e) => handleToggleNavLeft(e.target.checked)}
+                  />
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isNavLeft ? "translate-x-6" : "translate-x-1"}`}
+                  />
+                </div>
+              </label>
             </div>
 
             <div className="rounded-2xl border border-border bg-background/65 p-3">

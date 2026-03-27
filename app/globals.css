@@ -10,6 +10,7 @@
   --primary-foreground: #ffffff;
   --success: #10b981;
   --danger: #ef4444;
+  --dots: rgba(0, 0, 0, 0.05);
 }
 
 @theme inline {
@@ -35,6 +36,7 @@
     --primary-foreground: #ffffff;
     --success: #10b981;
     --danger: #ef4444;
+    --dots: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -47,10 +49,14 @@
   --primary-foreground: #ffffff;
   --success: #10b981;
   --danger: #ef4444;
+  --dots: rgba(255, 255, 255, 0.05);
 }
 
 body {
   background-color: var(--background);
+  background-image: radial-gradient(var(--dots) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+  background-position: 0 0;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -58,4 +64,80 @@ body {
 
 * {
   border-color: var(--border);
+}
+
+/* Solarized Theme Overrides */
+.theme-solarized:root {
+  --background: #fdf6e3;
+  --foreground: #657b83;
+  --panel: #eee8d5;
+  --border: #93a1a1;
+  --primary: #268bd2;
+  --primary-foreground: #fdf6e3;
+  --success: #859900;
+  --danger: #dc322f;
+  --dots: rgba(101, 123, 131, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-solarized:root:not(.light) {
+    --background: #002b36;
+    --foreground: #839496;
+    --panel: #073642;
+    --border: #586e75;
+    --primary: #268bd2;
+    --primary-foreground: #fdf6e3;
+    --success: #859900;
+    --danger: #dc322f;
+    --dots: rgba(131, 148, 150, 0.05);
+  }
+}
+
+.theme-solarized:root[class~="dark"] {
+  --background: #002b36;
+  --foreground: #839496;
+  --panel: #073642;
+  --border: #586e75;
+  --primary: #268bd2;
+  --primary-foreground: #fdf6e3;
+  --success: #859900;
+  --danger: #dc322f;
+  --dots: rgba(131, 148, 150, 0.05);
+}
+
+/* Layout Navigation Left (Desktop) */
+@media (min-width: 1024px) {
+  html:not(.layout-nav-left) .layout-wrapper {
+    flex-direction: column;
+  }
+  
+  html.layout-nav-left .layout-wrapper {
+    flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  html.layout-nav-left .layout-main-content {
+    overflow-y: auto;
+    height: 100vh;
+  }
+  
+  html.layout-nav-left .nav-top {
+    display: none !important;
+  }
+  
+  html:not(.layout-nav-left) .nav-left {
+    display: none !important;
+  }
+  
+  html.layout-nav-left .promo-banners-top {
+    display: none !important;
+  }
+}
+
+/* Hide left nav entirely on smaller screens */
+@media (max-width: 1023px) {
+  .nav-left {
+    display: none !important;
+  }
 }
