@@ -7,6 +7,7 @@ import { Plane, AlertCircle, ArrowRightLeft, Loader2, Check, TrendingUp, Box } f
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from '@/components/ProfitChart';
 import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, startOfYear, endOfYear } from 'date-fns';
+import { InventorySnapshot, applyTransaction, getTotals } from '@/lib/chartUtils';
 
 const formatMoney = (val: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -141,17 +142,30 @@ export default function AbroadDashboard() {
             periods = Array.from({ length: 5 }, (_, i) => subMonths(now, (4 - i) * 12));
             dateFormat = 'yyyy';
         }
-        
-        const sortedTransactions = [...transactions]
-            .filter(t => t.tag === 'Abroad')
-            .sort((a, b) => {
-                if (a.date !== b.date) return a.date - b.date;
-                return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
-            });
+        const sortedTransactions = [...transactions].sort((a, b) => {
+            if (a.date !== b.date) return a.date - b.date;
+            const getPriority = (transaction: any) => {
+              if (transaction.type === 'BUY') return 0;
+              return 1;
+            };
+            return getPriority(a) - getPriority(b);
+        });
 
-        const tempInventory = new Map<string, any>();
+        if (sortedTransactions.length > 0) {
+            const firstTxDate = new Date(sortedTransactions[0].date);
+            let minDate: Date;
+            if (timeRange === 'daily') minDate = startOfDay(subDays(firstTxDate, 1));
+            else if (timeRange === 'weekly') minDate = startOfWeek(subWeeks(firstTxDate, 1));
+            else if (timeRange === 'monthly') minDate = startOfMonth(subMonths(firstTxDate, 1));
+            else minDate = startOfYear(subYears(firstTxDate, 1));
+
+            periods = periods.filter(p => p.getTime() >= minDate.getTime());
+        }
+
+        const tempInventory = new Map<string, InventorySnapshot>();
         let transactionIndex = 0;
         let lastPeriodProfit = 0;
+        const mugState = { total: 0 };
         
         return periods.map(period => {
             let periodEnd: Date;
@@ -160,30 +174,12 @@ export default function AbroadDashboard() {
             else periodEnd = endOfMonth(period);
 
             while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
-                const t = sortedTransactions[transactionIndex];
-                
-                if (t.type === 'BUY') {
-                    const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-                    current.stock += t.amount;
-                    current.totalCost += (t.price * t.amount);
-                    tempInventory.set(t.item, current);
-                } else if (t.type === 'SELL') {
-                    const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-                    const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
-                    const costOfGoodsSold = avgCostBasis * t.amount;
-                    current.stock -= t.amount;
-                    current.totalCost -= costOfGoodsSold;
-                    current.realizedProfit += (t.price * t.amount - costOfGoodsSold);
-                    tempInventory.set(t.item, current);
-                }
-                
+                applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState);
                 transactionIndex += 1;
             }
 
-            let currentTotalProfit = 0;
-            tempInventory.forEach(stats => {
-                currentTotalProfit += stats.realizedProfit;
-            });
+            const currentTotals = getTotals(tempInventory, mugState.total);
+            const currentTotalProfit = currentTotals.abroadProfit;
 
             const value = viewType === 'total' ? currentTotalProfit : currentTotalProfit - lastPeriodProfit;
             lastPeriodProfit = currentTotalProfit;

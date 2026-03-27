@@ -2,13 +2,14 @@
 
 import { useJournal, InventoryItemStats } from "@/store/useJournal";
 import { formatItemName } from "@/lib/parser";
-import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown, ArrowUp, ArrowDown, Search, Coins } from "lucide-react";
-import { useMemo, useState, useCallback } from "react";
+import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown, ArrowUp, ArrowDown, Search, Coins, Check } from "lucide-react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
-import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, endOfYear } from "date-fns";
+import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, startOfYear, endOfYear } from "date-fns";
+import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/chartUtils";
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -49,17 +50,70 @@ export default function Home() {
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [viewType, setViewType] = useState<'daily' | 'total'>('daily');
 
+  // Chart toggles
+  const [includeMuseum, setIncludeMuseum] = useState(false);
+  const [includeAbroad, setIncludeAbroad] = useState(false);
+  const [includeMug, setIncludeMug] = useState(true);
+  const [includeNetProfit, setIncludeNetProfit] = useState(true);
+
+  // Load prefs
+  useEffect(() => {
+    const prefs = localStorage.getItem('bml-main-chart-prefs');
+    if (prefs) {
+      try {
+        const p = JSON.parse(prefs);
+        if (p.includeMuseum !== undefined) setIncludeMuseum(p.includeMuseum);
+        if (p.includeAbroad !== undefined) setIncludeAbroad(p.includeAbroad);
+        if (p.includeMug !== undefined) setIncludeMug(p.includeMug);
+        if (p.includeNetProfit !== undefined) setIncludeNetProfit(p.includeNetProfit);
+        if (p.viewType !== undefined) setViewType(p.viewType);
+        if (p.timeRange !== undefined) setTimeRange(p.timeRange);
+      } catch (e) {}
+    }
+  }, []);
+
+  // Save prefs
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('bml-main-chart-prefs', JSON.stringify({
+        includeMuseum, includeAbroad, includeMug, includeNetProfit, viewType, timeRange
+      }));
+    }
+  }, [includeMuseum, includeAbroad, includeMug, includeNetProfit, viewType, timeRange, isLoaded]);
+
   const { stats, sortedItems } = useMemo(() => {
     let profit = 0;
     let invValue = 0;
-    const items: { name: string; stats: InventoryItemStats }[] = [];
+    let museumProfit = 0;
+    let abroadProfit = 0;
+    const items: { name: string; stats: any }[] = [];
 
     inventory.forEach((stat, name) => {
-      // Exclude Flushies and Points from main dashboard
-      if (name.toLowerCase() !== 'flushie' && name.toLowerCase() !== 'points') {
-        profit += stat.realizedProfit;
-        invValue += Math.max(0, stat.totalCost);
-        items.push({ name, stats: stat });
+      const isMuseum = name.toLowerCase() === 'flushie' || name.toLowerCase() === 'points';
+      
+      if (isMuseum) {
+        museumProfit += stat.realizedProfit;
+        if (includeMuseum) {
+          profit += stat.realizedProfit;
+          invValue += Math.max(0, stat.totalCost);
+          items.push({ name, stats: stat });
+        }
+      } else {
+        let itemProfit = stat.realizedProfit;
+        let itemValue = Math.max(0, stat.totalCost);
+        let itemStock = stat.stock;
+
+        abroadProfit += stat.abroadRealizedProfit;
+
+        if (includeAbroad) {
+          itemProfit += stat.abroadRealizedProfit;
+          itemValue += Math.max(0, stat.abroadTotalCost);
+          itemStock += stat.abroadStock;
+        }
+
+        profit += itemProfit;
+        invValue += itemValue;
+        items.push({ name, stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock } });
       }
     });
 
@@ -89,7 +143,7 @@ export default function Home() {
     });
 
     return {
-      stats: { profit, invValue },
+      stats: { profit, invValue, museumProfit, abroadProfit },
       sortedItems: sorted
     };
   }, [inventory, sortConfig, search]);
@@ -138,17 +192,30 @@ export default function Home() {
     
     const sortedTransactions = [...transactions].sort((a, b) => {
       if (a.date !== b.date) return a.date - b.date;
-      return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
+      const getPriority = (transaction: any) => {
+        if (transaction.type === 'BUY') return 0;
+        return 1;
+      };
+      return getPriority(a) - getPriority(b);
     });
 
-    // Process transactions similar to StatsModal but for all items (excluding flushie and points)
-    const tempInventory = new Map<string, { stock: number; totalCost: number; realizedProfit: number }>();
-    let totalMug = 0;
+    if (sortedTransactions.length > 0) {
+      const firstTxDate = new Date(sortedTransactions[0].date);
+      let minDate: Date;
+      if (timeRange === 'daily') minDate = startOfDay(subDays(firstTxDate, 1));
+      else if (timeRange === 'weekly') minDate = startOfWeek(subWeeks(firstTxDate, 1));
+      else if (timeRange === 'monthly') minDate = startOfMonth(subMonths(firstTxDate, 1));
+      else minDate = startOfYear(subYears(firstTxDate, 1));
+
+      periods = periods.filter(p => p.getTime() >= minDate.getTime());
+    }
+
+    const tempInventory = new Map<string, InventorySnapshot>();
+    const mugState = { total: 0 };
     let transactionIndex = 0;
     
     // Track previous totals for incremental view
-    let lastPeriodRealized = 0;
-    let lastPeriodMug = 0;
+    let previousTotals: any = { profit: 0, inventory: 0, mugLoss: 0, netProfit: 0, museumProfit: 0, abroadProfit: 0 };
     
     return periods.map(period => {
       let periodEnd: Date;
@@ -158,62 +225,47 @@ export default function Home() {
       else periodEnd = endOfYear(startOfMonth(period));
 
       while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
-        const t = sortedTransactions[transactionIndex];
-        
-        if (t.type === 'MUG') {
-          totalMug += t.amount;
-        } else if ('item' in t && t.item) {
-          // Skip flushie and points
-          if (t.item.toLowerCase() === 'flushie' || t.item.toLowerCase() === 'points') {
-            transactionIndex++;
-            continue;
-          }
-          
-          if (t.type === 'BUY') {
-            const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-            current.stock += t.amount;
-            current.totalCost += (t.price * t.amount);
-            tempInventory.set(t.item, current);
-          } else if (t.type === 'SELL') {
-            const current = tempInventory.get(t.item) || { stock: 0, totalCost: 0, realizedProfit: 0 };
-            const avgCostBasis = current.stock > 0 ? (current.totalCost / current.stock) : 0;
-            const costOfGoodsSold = avgCostBasis * t.amount;
-            current.stock -= t.amount;
-            current.totalCost -= costOfGoodsSold;
-            current.realizedProfit += (t.price * t.amount - costOfGoodsSold);
-            tempInventory.set(t.item, current);
-          }
-        }
-        
+        const isTrackedItem = (item: string) => true; // Always evaluate all so tempInventory stays structurally accurate
+        applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState, isTrackedItem);
         transactionIndex++;
       }
 
-      // Calculate totals
-      let totalRealized = 0;
-      tempInventory.forEach(item => {
-        totalRealized += item.realizedProfit;
-      });
+      const currentTotals = getTotals(tempInventory, mugState.total);
       
-      const totalMugLoss = totalMug;
-      const netProfit = totalRealized - totalMugLoss;
+      const totalRealized = currentTotals.profit;
+      const totalMugLoss = currentTotals.mugLoss;
+      const museumProfit = currentTotals.museumProfit;
+      const abroadProfit = currentTotals.abroadProfit;
+      
+      let baseNetProfit = currentTotals.netProfit;
+      if (includeMuseum) baseNetProfit += museumProfit;
+      if (includeAbroad) baseNetProfit += abroadProfit;
+      
+      const netProfit = baseNetProfit;
       
       // For incremental view, get period-over-period values
-      const incrementalRealized = totalRealized - lastPeriodRealized;
-      const incrementalMug = totalMugLoss - lastPeriodMug;
-      const incrementalNet = netProfit - (lastPeriodRealized - lastPeriodMug);
+      const incrementalRealized = totalRealized - previousTotals.profit;
+      const incrementalMug = totalMugLoss - previousTotals.mugLoss;
+      const incrementalNet = netProfit - previousTotals.netProfit;
+      const incrementalMuseum = museumProfit - previousTotals.museumProfit;
+      const incrementalAbroad = abroadProfit - previousTotals.abroadProfit;
       
-      lastPeriodRealized = totalRealized;
-      lastPeriodMug = totalMugLoss;
+      previousTotals = {
+        ...currentTotals,
+        netProfit
+      };
 
       return {
         date: format(period, dateFormat),
         ts: periodEnd.getTime(),
         realizedProfit: Math.round(viewType === 'total' ? totalRealized : incrementalRealized),
-        mugLoss: -Math.round(viewType === 'total' ? totalMugLoss : incrementalMug), // Negative so it shows below axis
-        netProfit: Math.round(viewType === 'total' ? netProfit : incrementalNet)
+        mugLoss: -Math.round(viewType === 'total' ? totalMugLoss : incrementalMug),
+        netProfit: Math.round(viewType === 'total' ? netProfit : incrementalNet),
+        museumProfit: includeMuseum ? Math.round(viewType === 'total' ? museumProfit : incrementalMuseum) : 0,
+        abroadProfit: includeAbroad ? Math.round(viewType === 'total' ? abroadProfit : incrementalAbroad) : 0
       };
     });
-  }, [isLoaded, transactions, timeRange, viewType]);
+  }, [isLoaded, transactions, timeRange, viewType, includeMuseum, includeAbroad]);
   
   if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
 
@@ -223,6 +275,8 @@ export default function Home() {
   const averageNetProfit = chartData.length > 0 
     ? Math.round(chartData.reduce((acc, curr) => acc + curr.netProfit, 0) / chartData.length) 
     : 0;
+  
+  // Calculate final reference value prioritizing netProfit
   const referenceValue = viewType === 'daily' ? averageNetProfit : finalNetProfit;
   return (
     <div
@@ -236,63 +290,70 @@ export default function Home() {
           <h1 className="text-3xl font-bold tracking-tight">Main Dashboard</h1>
           <p className="text-foreground/60 mt-2">Track your general trading items, profits, and losses. Click an item to view history.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-4">
           <button
             onClick={() => router.push('/docs')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-panel border border-border hover:bg-foreground/5 transition-colors font-medium text-sm text-foreground/80 hover:text-foreground"
+            className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-panel border border-border hover:bg-foreground/5 transition-colors font-medium text-sm text-foreground/80 hover:text-foreground"
           >
             Documentation
           </button>
         </div>
       </div>
 
-      {/* Hero Section: 1/3 Stats List - 2/3 Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-panel rounded-3xl border border-border shadow-2xl p-8 relative overflow-hidden group">
+      {/* Hero Section */}
+      <div className="bg-panel rounded-3xl border border-border shadow-2xl p-6 sm:p-8 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-bl-[10rem] -z-10 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-tr-[8rem] -z-10 pointer-events-none" />
 
-        {/* Overview List (1/3) */}
-        <div className="space-y-8 pr-0 lg:pr-8 border-r-0 lg:border-r border-border/50">
-          <div>
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-6 flex items-center gap-2">
-              <Activity className="w-3 h-3" />
-              Profit Overview
-            </h2>
-            
-            <div className="space-y-6">
-              <OverviewItem 
-                icon={<TrendingUp className="w-4 h-4" />}
-                label="Total Realized Profit"
-                value={formatMoney(stats.profit)}
-                subValue="From sold items"
-                valueClass="text-success"
-              />
-              <OverviewItem 
-                icon={<AlertTriangle className="w-4 h-4" />}
-                label="Total Mug Loss"
-                value={formatMoney(totalMugLoss)}
-                subValue="Lost to muggers"
-                valueClass="text-danger"
-              />
-              <OverviewItem 
-                icon={<Activity className="w-4 h-4" />}
-                label="Net Total Profit"
-                value={formatMoney(netTotal)}
-                subValue="Realized - Mug"
-                valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
-              />
-              <OverviewItem 
-                icon={<PackageSearch className="w-4 h-4" />}
-                label="Inventory Value"
-                value={formatMoney(stats.invValue)}
-                subValue="Cost basis"
-              />
-            </div>
-          </div>
+        {/* Top: Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 pb-8 border-b border-border/10">
+          <OverviewItem 
+            icon={<TrendingUp className="w-4 h-4" />}
+            label="Realized Profit"
+            value={formatMoney(stats.profit)}
+            subValue="Base standard"
+            valueClass="text-success"
+          />
+          <OverviewItem 
+            icon={<AlertTriangle className="w-4 h-4" />}
+            label="Total Mug Loss"
+            value={formatMoney(totalMugLoss)}
+            subValue="Lost to muggers"
+            valueClass="text-danger"
+            disabled={!includeMug}
+            onToggle={() => { vibrate("utility"); setIncludeMug(!includeMug); }}
+          />
+          <OverviewItem 
+            icon={<Activity className="w-4 h-4" />}
+            label="Net Total Profit"
+            value={formatMoney(netTotal)}
+            subValue="Realized - Mug"
+            valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
+            disabled={!includeNetProfit}
+            onToggle={() => { vibrate("utility"); setIncludeNetProfit(!includeNetProfit); }}
+          />
+          <OverviewItem 
+            icon={<Coins className="w-4 h-4" />}
+            label="Museum Profit"
+            value={formatMoney(stats.museumProfit)}
+            subValue="Points & Sets"
+            valueClass="text-yellow-500"
+            disabled={!includeMuseum}
+            onToggle={() => { vibrate("utility"); setIncludeMuseum(!includeMuseum); }}
+          />
+          <OverviewItem 
+            icon={<PackageSearch className="w-4 h-4" />}
+            label="Abroad Profit"
+            value={formatMoney(stats.abroadProfit)}
+            subValue="International items"
+            valueClass="text-teal-500"
+            disabled={!includeAbroad}
+            onToggle={() => { vibrate("utility"); setIncludeAbroad(!includeAbroad); }}
+          />
         </div>
 
-        {/* Chart Area (2/3) */}
-        <div className="lg:col-span-2 pl-0 lg:pl-4 mt-6 lg:mt-0">
+        {/* Chart (Full Width) */}
+        <div className="pt-8 h-[400px]">
           <ProfitChart 
             chartId="dashboard-main"
             data={chartData}
@@ -304,6 +365,7 @@ export default function Home() {
             primaryColor="#3b82f6"
             formatValue={formatMoney}
             stackedMode={true}
+            visibleLines={{ mugLoss: includeMug, netProfit: includeNetProfit, museumProfit: includeMuseum, abroadProfit: includeAbroad }}
           />
         </div>
       </div>
@@ -449,19 +511,19 @@ function StatCard({
 }
 
 function OverviewItem({
-  icon, label, value, subValue, valueClass = ""
+  icon, label, value, subValue, valueClass = "", disabled = false, onToggle
 }: {
-  icon: React.ReactNode, label: string, value: string, subValue: string, valueClass?: string
+  icon: React.ReactNode, label: string, value: string, subValue: string, valueClass?: string, disabled?: boolean, onToggle?: () => void
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="p-2 bg-foreground/5 rounded-lg mt-0.5">
+    <div onClick={onToggle} className={`flex items-start gap-3 group ${onToggle ? 'cursor-pointer hover:bg-foreground/[0.02] p-2 -m-2 rounded-xl' : ''} ${disabled ? 'opacity-50 grayscale' : ''} transition-all duration-300`}>
+      <div className={`p-2 rounded-lg mt-0.5 transition-colors ${disabled ? 'bg-foreground/5 text-foreground/40' : 'bg-primary/10 text-primary'}`}>
         {icon}
       </div>
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-foreground/40">{label}</p>
-        <p className={`text-lg font-black tracking-tight ${valueClass}`}>{value}</p>
-        <p className="text-[9px] font-medium text-foreground/30 mt-0.5">{subValue}</p>
+      <div className="flex-1 min-w-0">
+        <p className={`text-[10px] font-black uppercase tracking-widest ${disabled ? 'text-foreground/40' : 'text-foreground/50 group-hover:text-foreground/70'} transition-colors truncate`}>{label}</p>
+        <p className={`text-lg font-black tracking-tight truncate mt-0.5 ${disabled ? 'text-foreground' : valueClass}`}>{value}</p>
+        <p className={`text-[9px] font-medium mt-0.5 truncate ${disabled ? 'text-foreground/30' : 'text-foreground/40'}`}>{subValue}</p>
       </div>
     </div>
   );

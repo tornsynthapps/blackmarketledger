@@ -15,6 +15,8 @@ interface ChartDataPoint {
     mugLoss?: number;
     realizedProfit?: number;
     netProfit?: number;
+    museumProfit?: number;
+    abroadProfit?: number;
 }
 
 interface ProfitChartProps {
@@ -29,6 +31,12 @@ interface ProfitChartProps {
     accentColor?: string;
     formatValue?: (val: number) => string;
     stackedMode?: boolean;
+    visibleLines?: {
+        mugLoss?: boolean;
+        museumProfit?: boolean;
+        abroadProfit?: boolean;
+        netProfit?: boolean;
+    };
 }
 
 export function ProfitChart({ 
@@ -42,7 +50,8 @@ export function ProfitChart({
     primaryColor = "#0d9488", // Default teal
     accentColor = "#0d9488",
     formatValue = (val) => `${val.toLocaleString()}`,
-    stackedMode = false
+    stackedMode = false,
+    visibleLines = { mugLoss: true, museumProfit: true, abroadProfit: true, netProfit: true }
 }: ProfitChartProps) {
     const [chartType, setChartType] = useState<'line' | 'area' | 'bar'>(stackedMode ? 'area' : 'area');
 
@@ -141,21 +150,24 @@ export function ProfitChart({
             <div className="h-[320px] w-full flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
                     {stackedMode ? (
-                        <AreaChart data={data}>
+                        <AreaChart data={data} stackOffset="sign">
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.06} />
                             <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} dy={10} />
                             <YAxis axisLine={false} tickLine={false} tick={{ fill: 'currentColor', opacity: 0.4, fontSize: 10 }} tickFormatter={(val) => `${formatLargeNumber(val)}`} />
-                            <Tooltip contentStyle={tooltipStyle} labelStyle={{ opacity: 0.7, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any, name) => [formatValue(value), name === 'netProfit' ? 'Net Profit' : name === 'realizedProfit' ? 'Realized Profit' : 'Mug Loss']} />
-                            {/* Mug Loss Area - shown as negative (red) - no stacking, just overlay */}
-                            <Area
-                                type="monotone"
-                                dataKey="mugLoss"
-                                stroke="#ef4444"
-                                strokeWidth={2}
-                                fill="#ef4444"
-                                fillOpacity={0.3}
-                            />
-                            {/* Realized Profit Area - shown as positive (green) - no stacking, just overlay */}
+                            <Tooltip contentStyle={tooltipStyle} labelStyle={{ opacity: 0.7, marginBottom: '8px', fontSize: '9px', fontWeight: 'bold' }} formatter={(value: any, name) => [formatValue(value), name === 'netProfit' ? 'Net Profit' : name === 'realizedProfit' ? 'Base Profit' : name === 'museumProfit' ? 'Museum Profit' : name === 'abroadProfit' ? 'Abroad Profit' : 'Mug Loss']} />
+                            {/* Mug Loss Area - shown as negative (red) */}
+                            {visibleLines.mugLoss && (
+                                <Area
+                                    type="monotone"
+                                    dataKey="mugLoss"
+                                    stroke="#ef4444"
+                                    strokeWidth={2}
+                                    fill="#ef4444"
+                                    fillOpacity={0.3}
+                                    stackId="1"
+                                />
+                            )}
+                            {/* Realized Profit Area - shown as positive (green) - Base Stack */}
                             <Area
                                 type="monotone"
                                 dataKey="realizedProfit"
@@ -163,16 +175,43 @@ export function ProfitChart({
                                 strokeWidth={2}
                                 fill="#22c55e"
                                 fillOpacity={0.3}
+                                stackId="1"
                             />
-                            {/* Net Profit Line - white */}
-                            <Line
+                            {/* Stacked Museum Area */}
+                            {visibleLines.museumProfit && (
+                                <Area
+                                    type="monotone"
+                                    dataKey="museumProfit"
+                                    stroke="#eab308" // Yellowish
+                                    strokeWidth={2}
+                                    fill="#eab308"
+                                    fillOpacity={0.6}
+                                    stackId="1"
+                                />
+                            )}
+                            {/* Stacked Abroad Area */}
+                            {visibleLines.abroadProfit && (
+                                <Area
+                                    type="monotone"
+                                    dataKey="abroadProfit"
+                                    stroke="#14b8a6"
+                                    strokeWidth={2}
+                                    fill="#14b8a6"
+                                    fillOpacity={0.6}
+                                    stackId="1"
+                                />
+                            )}
+                            {/* Net Profit Line - theme adaptive */}
+                            {visibleLines.netProfit && (
+                                <Line
                                 type="monotone"
                                 dataKey="netProfit"
-                                stroke="white"
+                                stroke="currentColor"
                                 strokeWidth={2.5}
-                                dot={{ fill: 'white', strokeWidth: 1, r: 2 }}
+                                dot={{ fill: 'currentColor', strokeWidth: 1, r: 2 }}
                                 activeDot={{ r: 5, strokeWidth: 0 }}
                             />
+                            )}
                         </AreaChart>
                     ) : chartType === 'bar' ? (
                         <RechartsBarChart data={data}>

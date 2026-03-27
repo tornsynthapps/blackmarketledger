@@ -5,6 +5,7 @@ import { X, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { FLOWER_SET, PLUSHIE_SET, Transaction } from '@/lib/parser';
 import { format, startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth, subDays, subWeeks, subMonths } from 'date-fns';
+import { InventorySnapshot, LedgerTotals, applyTransaction, getTotals } from '@/lib/chartUtils';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -17,15 +18,6 @@ interface StatsModalProps {
 }
 
 type TimeRange = 'daily' | 'weekly' | 'monthly';
-type InventorySnapshot = {
-  stock: number;
-  totalCost: number;
-  realizedProfit: number;
-  abroadStock: number;
-  abroadTotalCost: number;
-  abroadRealizedProfit: number;
-};
-type LedgerTotals = { profit: number; inventory: number; mugLoss: number; netProfit: number };
 
 export default function StatsModal({
   isOpen,
@@ -62,123 +54,6 @@ export default function StatsModal({
   const excludedItemSet = new Set(excludedItems.map(item => item.toLowerCase()));
 
   const isTrackedItem = (item: string) => !excludedItemSet.has(item.toLowerCase());
-
-  const getInventoryEntry = (inventory: Map<string, InventorySnapshot>, item: string) => {
-    return inventory.get(item) || {
-      stock: 0,
-      totalCost: 0,
-      realizedProfit: 0,
-      abroadStock: 0,
-      abroadTotalCost: 0,
-      abroadRealizedProfit: 0
-    };
-  };
-
-  const applyTransaction = (
-    inventory: Map<string, InventorySnapshot>,
-    transaction: Transaction,
-    mugState: { total: number }
-  ) => {
-    switch (transaction.type) {
-      case 'BUY': {
-        if (!isTrackedItem(transaction.item)) return;
-        const current = getInventoryEntry(inventory, transaction.item);
-        if (transaction.tag === 'Abroad') {
-          current.abroadStock += transaction.amount;
-          current.abroadTotalCost += transaction.price * transaction.amount;
-        } else {
-          current.stock += transaction.amount;
-          current.totalCost += transaction.price * transaction.amount;
-        }
-        inventory.set(transaction.item, current);
-        return;
-      }
-      case 'SELL': {
-        if (!isTrackedItem(transaction.item)) return;
-        const current = getInventoryEntry(inventory, transaction.item);
-        if (transaction.tag === 'Abroad') {
-          const avgCost = current.abroadStock > 0 ? current.abroadTotalCost / current.abroadStock : 0;
-          const costOfGoodsSold = avgCost * transaction.amount;
-          current.abroadStock -= transaction.amount;
-          current.abroadTotalCost -= costOfGoodsSold;
-          current.abroadRealizedProfit += transaction.price * transaction.amount - costOfGoodsSold;
-        } else {
-          const avgCost = current.stock > 0 ? current.totalCost / current.stock : 0;
-          const costOfGoodsSold = avgCost * transaction.amount;
-          current.stock -= transaction.amount;
-          current.totalCost -= costOfGoodsSold;
-          current.realizedProfit += transaction.price * transaction.amount - costOfGoodsSold;
-        }
-        inventory.set(transaction.item, current);
-        return;
-      }
-      case 'MUG':
-        mugState.total += transaction.amount;
-        return;
-      case 'CONVERT': {
-        const fromCurrent = getInventoryEntry(inventory, transaction.fromItem);
-        const fromAvgCost = fromCurrent.stock > 0 ? fromCurrent.totalCost / fromCurrent.stock : 0;
-        const fromCostOfGoods = fromAvgCost * transaction.fromAmount;
-
-        if (isTrackedItem(transaction.fromItem)) {
-          fromCurrent.stock -= transaction.fromAmount;
-          fromCurrent.totalCost -= fromCostOfGoods;
-          inventory.set(transaction.fromItem, fromCurrent);
-        }
-
-        if (isTrackedItem(transaction.toItem)) {
-          const toCurrent = getInventoryEntry(inventory, transaction.toItem);
-          toCurrent.stock += transaction.toAmount;
-          toCurrent.totalCost += fromCostOfGoods;
-          inventory.set(transaction.toItem, toCurrent);
-        }
-        return;
-      }
-      case 'SET_CONVERT': {
-        const setItems = transaction.setType === 'flower' ? FLOWER_SET : PLUSHIE_SET;
-
-        let totalCostOfGoods = 0;
-
-        setItems.forEach(item => {
-          const current = getInventoryEntry(inventory, item);
-          const avgCost = current.stock > 0 ? current.totalCost / current.stock : 0;
-          const costOfGoods = avgCost * transaction.times;
-
-          if (isTrackedItem(item)) {
-            current.stock -= transaction.times;
-            current.totalCost -= costOfGoods;
-            inventory.set(item, current);
-          }
-
-          totalCostOfGoods += costOfGoods;
-        });
-
-        if (isTrackedItem('points')) {
-          const pointsCurrent = getInventoryEntry(inventory, 'points');
-          pointsCurrent.stock += transaction.pointsEarned;
-          pointsCurrent.totalCost += totalCostOfGoods;
-          inventory.set('points', pointsCurrent);
-        }
-      }
-    }
-  };
-
-  const getTotals = (inventory: Map<string, InventorySnapshot>, totalMugLoss: number): LedgerTotals => {
-    const totalProfit = Array.from(inventory.values()).reduce((sum, item) => {
-      return sum + (inventoryScope === 'abroad' ? item.abroadRealizedProfit : item.realizedProfit);
-    }, 0);
-    const totalInventoryValue = Array.from(inventory.values()).reduce((sum, item) => {
-      const totalCost = inventoryScope === 'abroad' ? item.abroadTotalCost : item.totalCost;
-      return sum + Math.max(0, totalCost);
-    }, 0);
-
-    return {
-      profit: totalProfit,
-      inventory: totalInventoryValue,
-      mugLoss: totalMugLoss,
-      netProfit: totalProfit - totalMugLoss
-    };
-  };
 
   const getChartValue = (currentTotals: LedgerTotals, previousTotals: LedgerTotals, cumulative: boolean) => {
     if (cumulative) {
@@ -228,18 +103,23 @@ export default function StatsModal({
 
     const sortedTransactions = [...transactions].sort((a, b) => {
       if (a.date !== b.date) return a.date - b.date;
-
-      const getPriority = (transaction: Transaction) => {
-        if (transaction.type === 'BUY') return 0;
-        return 1;
-      };
-
-      return getPriority(a) - getPriority(b);
+      return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
     });
+
+    if (sortedTransactions.length > 0) {
+      const firstTxDate = new Date(sortedTransactions[0].date);
+      let minDate: Date;
+      if (timeRange === 'daily') minDate = startOfDay(subDays(firstTxDate, 1));
+      else if (timeRange === 'weekly') minDate = startOfWeek(subWeeks(firstTxDate, 1));
+      else minDate = startOfMonth(subMonths(firstTxDate, 1));
+
+      periods = periods.filter(p => p.getTime() >= minDate.getTime());
+    }
+
     const inventory = new Map<string, InventorySnapshot>();
     const mugState = { total: 0 };
     let transactionIndex = 0;
-    let previousTotals: LedgerTotals = { profit: 0, inventory: 0, mugLoss: 0, netProfit: 0 };
+    let previousTotals: LedgerTotals = { profit: 0, inventory: 0, mugLoss: 0, netProfit: 0, abroadProfit: 0, abroadInventory: 0, museumProfit: 0, museumInventory: 0 };
 
     return periods.map(period => {
       let periodEnd: Date;
@@ -257,11 +137,18 @@ export default function StatsModal({
       }
 
       while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
-        applyTransaction(inventory, sortedTransactions[transactionIndex], mugState);
+        applyTransaction(inventory, sortedTransactions[transactionIndex], mugState, isTrackedItem);
         transactionIndex += 1;
       }
 
-      const currentTotals = getTotals(inventory, mugState.total);
+      const currentTotalsRaw = getTotals(inventory, mugState.total);
+      
+      const currentTotals: LedgerTotals = {
+        ...currentTotalsRaw,
+        profit: inventoryScope === 'abroad' ? currentTotalsRaw.abroadProfit : currentTotalsRaw.profit,
+        inventory: inventoryScope === 'abroad' ? currentTotalsRaw.abroadInventory : currentTotalsRaw.inventory,
+        netProfit: (inventoryScope === 'abroad' ? currentTotalsRaw.abroadProfit : currentTotalsRaw.profit) - currentTotalsRaw.mugLoss
+      };
       
       const realizedProfit = currentTotals.profit;
       const mugLoss = currentTotals.mugLoss;
