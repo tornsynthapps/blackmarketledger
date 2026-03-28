@@ -94,7 +94,7 @@ export class TornAPI {
       from: String(from),
       limit: "100",
       sort: "DESC",
-      key: LocalStorageInterface.getAnyAPIKey(),
+      key: LocalStorageInterface.getTornFullAPIKey(),
     };
     if (to !== undefined) {
       queryParams.to = String(to);
@@ -135,7 +135,7 @@ export class TornAPI {
       currentUrl = prevLink;
       // Force limit to 100 for subsequent pages even if metadata gives lower.
       const urlWithKey = new URL(currentUrl);
-      urlWithKey.searchParams.set("key", LocalStorageInterface.getAnyAPIKey());
+      urlWithKey.searchParams.set("key", LocalStorageInterface.getTornFullAPIKey());
       urlWithKey.searchParams.set("limit", "100");
       currentUrl = urlWithKey.toString();
     }

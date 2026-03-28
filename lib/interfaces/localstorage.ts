@@ -76,11 +76,11 @@ export class LocalStorageInterface {
 
     // API Keys
     static getAnyAPIKey(): string {
-        if (this.getItem(this.DRIVE_SYNC_API_KEY)) {
-            return this.getItem(this.DRIVE_SYNC_API_KEY) as string;
-        }
         if (this.getItem(this.FULL_ACCESS_API_KEY)) {
             return this.getItem(this.FULL_ACCESS_API_KEY) as string;
+        }
+        if (this.getItem(this.DRIVE_SYNC_API_KEY)) {
+            return this.getItem(this.DRIVE_SYNC_API_KEY) as string;
         }
         if (this.getItem(this.WEAV3R_API_KEY)) {
             return this.getItem(this.WEAV3R_API_KEY) as string;
