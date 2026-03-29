@@ -1,7 +1,9 @@
 # BlackMarket Ledger Version History
 
-## v4.4.0 (2026-03-27)
+## v4.4.1 (2026-03-29)
+- **Select and Delete**: Added support for selecting and deleting multiple transactions.
 
+## v4.4.0 (2026-03-27)
 - **Expanded Chart Data**: Updated main chart to include Museum and Abroad datasets, resolving inconsistencies between visualizations and static data.
 - **LocalStorage Refactor**: Unified API key handling through a shared `LocalStorageInterface` for improved consistency and maintainability.
 - **Transaction Architecture Improvements**: Added serialization/deserialization for transaction entities and refactored `TornItemLog` stock input along with `BaseTransaction` type handling.

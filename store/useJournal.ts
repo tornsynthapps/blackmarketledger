@@ -158,9 +158,15 @@ export function useJournal() {
   const [weav3rApiKey, setWeav3rApiKey] = useState(() => extGetApiKey());
   const [weav3rUserId, setWeav3rUserId] = useState(() => extGetUserId());
   const [driveApiKey, setDriveApiKey] = useState(() => extGetDriveApiKey());
-  const [tornApiKeyFull, setTornApiKeyFull] = useState(() => extGetTornApiKeyFull());
-  const [tornApiRateLimit, setTornApiRateLimit] = useState(() => extGetTornApiRateLimit());
-  const [weav3rApiRateLimit, setWeav3rApiRateLimit] = useState(() => extGetWeav3rApiRateLimit());
+  const [tornApiKeyFull, setTornApiKeyFull] = useState(() =>
+    extGetTornApiKeyFull(),
+  );
+  const [tornApiRateLimit, setTornApiRateLimit] = useState(() =>
+    extGetTornApiRateLimit(),
+  );
+  const [weav3rApiRateLimit, setWeav3rApiRateLimit] = useState(() =>
+    extGetWeav3rApiRateLimit(),
+  );
   const [skipNegativeStock, setSkipNegativeStock] = useState(false);
   // Legacy cursor - kept for migration
   const [autoPilotCursor, setAutoPilotCursor] = useState<SyncCursor | null>(
@@ -678,44 +684,35 @@ export function useJournal() {
     [saveTransactions],
   );
 
-  const saveWeaverConfig = useCallback(
-    async (apiKey: string) => {
-      const trimmedApiKey = apiKey.trim();
+  const saveWeaverConfig = useCallback(async (apiKey: string) => {
+    const trimmedApiKey = apiKey.trim();
 
-      if (trimmedApiKey) {
-        const userId = await resolveTornUserId(trimmedApiKey);
-        extSetApiKey(trimmedApiKey);
-        extSetUserId(userId);
-        setWeav3rApiKey(trimmedApiKey);
-        setWeav3rUserId(userId);
-        return userId;
-      } else {
-        extSetApiKey("");
-        extSetUserId("");
-        setWeav3rApiKey("");
-        setWeav3rUserId("");
-        return "";
-      }
-    },
-    [],
-  );
+    if (trimmedApiKey) {
+      const userId = await resolveTornUserId(trimmedApiKey);
+      extSetApiKey(trimmedApiKey);
+      extSetUserId(userId);
+      setWeav3rApiKey(trimmedApiKey);
+      setWeav3rUserId(userId);
+      return userId;
+    } else {
+      extSetApiKey("");
+      extSetUserId("");
+      setWeav3rApiKey("");
+      setWeav3rUserId("");
+      return "";
+    }
+  }, []);
 
-  const saveTornApiKeyFull = useCallback(
-    async (apiKey: string) => {
-      const trimmedApiKey = apiKey.trim();
-      extSetTornApiKeyFull(trimmedApiKey);
-      setTornApiKeyFull(trimmedApiKey);
-    },
-    [],
-  );
+  const saveTornApiKeyFull = useCallback(async (apiKey: string) => {
+    const trimmedApiKey = apiKey.trim();
+    extSetTornApiKeyFull(trimmedApiKey);
+    setTornApiKeyFull(trimmedApiKey);
+  }, []);
 
-  const saveDriveApiKey = useCallback(
-    async (apiKey: string) => {
-      extSetDriveApiKey(apiKey);
-      setDriveApiKey(apiKey);
-    },
-    [],
-  );
+  const saveDriveApiKey = useCallback(async (apiKey: string) => {
+    extSetDriveApiKey(apiKey);
+    setDriveApiKey(apiKey);
+  }, []);
 
   const updateSkipNegativeStock = useCallback(
     async (value: boolean) => {
@@ -725,25 +722,19 @@ export function useJournal() {
     [persistMergedConfig],
   );
 
-  const updateTornApiRateLimit = useCallback(
-    async (value: number) => {
-      const clamped = Math.max(10, Math.min(80, value));
-      extSetTornApiRateLimit(clamped);
-      setTornApiRateLimit(clamped);
-      refreshApiRateLimiters();
-    },
-    [],
-  );
+  const updateTornApiRateLimit = useCallback(async (value: number) => {
+    const clamped = Math.max(10, Math.min(80, value));
+    extSetTornApiRateLimit(clamped);
+    setTornApiRateLimit(clamped);
+    refreshApiRateLimiters();
+  }, []);
 
-  const updateWeav3rApiRateLimit = useCallback(
-    async (value: number) => {
-      const clamped = Math.max(10, Math.min(80, value));
-      extSetWeav3rApiRateLimit(clamped);
-      setWeav3rApiRateLimit(clamped);
-      refreshApiRateLimiters();
-    },
-    [],
-  );
+  const updateWeav3rApiRateLimit = useCallback(async (value: number) => {
+    const clamped = Math.max(10, Math.min(80, value));
+    extSetWeav3rApiRateLimit(clamped);
+    setWeav3rApiRateLimit(clamped);
+    refreshApiRateLimiters();
+  }, []);
 
   const addLogs = useCallback(
     async (
@@ -819,6 +810,18 @@ export function useJournal() {
   const deleteLog = useCallback(
     (id: string) => {
       saveTransactions(transactions.filter((t) => t.id !== id));
+    },
+    [saveTransactions, transactions],
+  );
+
+  /**
+   * Delete multiple transactions by their IDs in a single operation.
+   * @param ids (string[]): Array of transaction IDs to delete
+   */
+  const deleteLogs = useCallback(
+    (ids: string[]) => {
+      const idSet = new Set(ids);
+      saveTransactions(transactions.filter((t) => !idSet.has(t.id)));
     },
     [saveTransactions, transactions],
   );
@@ -943,6 +946,7 @@ export function useJournal() {
     addLogs,
     clearLogs,
     deleteLog,
+    deleteLogs,
     restoreData,
     editLog,
     renameItem,

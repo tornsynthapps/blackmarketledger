@@ -10,6 +10,9 @@ import {
   Search,
   ArrowLeft,
   RefreshCw,
+  CheckSquare,
+  Square,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
@@ -51,6 +54,7 @@ function LogsPageContent() {
     isLoaded,
     transactions,
     deleteLog,
+    deleteLogs,
     restoreData,
     editLog,
     refreshDriveCache,
@@ -62,6 +66,8 @@ function LogsPageContent() {
   const [search, setSearch] = useState(filterItem || "");
   const [showLinkedIds, setShowLinkedIds] = useState(false);
   const [isRefreshingDrive, setIsRefreshingDrive] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const storagePref =
     typeof window !== "undefined"
@@ -144,14 +150,75 @@ function LogsPageContent() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredLogs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredLogs.map((t) => t.id)));
+    }
+  };
+
+  const enterSelectionMode = () => {
+    vibrate("utility");
+    setSelectionMode(true);
+    setSelectedIds(new Set());
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    vibrate("danger");
+    if (
+      confirm(`Delete ${count} selected transaction${count > 1 ? "s" : ""}?`)
+    ) {
+      deleteLogs(Array.from(selectedIds));
+      exitSelectionMode();
+    }
+  };
+
   const renderTransactionRow = (t: Transaction) => {
     const sourceType = inferSourceType(t);
     const sourceLabel = getSourceLabel(sourceType);
+    const isSelected = selectedIds.has(t.id);
     return (
       <tr
         key={t.id}
-        className="hover:bg-foreground/[0.02] transition-colors border-b border-border/50"
+        className={`hover:bg-foreground/[0.02] transition-colors border-b border-border/50 ${isSelected ? "bg-primary/5" : ""}`}
       >
+        {selectionMode && (
+          <td className="px-4 py-4">
+            <button
+              onClick={() => {
+                vibrate("utility");
+                toggleSelection(t.id);
+              }}
+              className="p-1 rounded hover:bg-foreground/10 transition-colors"
+            >
+              {isSelected ? (
+                <CheckSquare className="w-4 h-4 text-primary" />
+              ) : (
+                <Square className="w-4 h-4 text-foreground/40" />
+              )}
+            </button>
+          </td>
+        )}
         <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/70">
           {format(new Date(t.date), "MMM d, yyyy HH:mm")}
         </td>
@@ -308,6 +375,21 @@ function LogsPageContent() {
         </div>
 
         <div className="flex gap-2">
+          {selectionMode ? (
+            <button
+              onClick={exitSelectionMode}
+              className="flex items-center gap-2 px-4 py-2 bg-panel border border-border shadow-sm rounded-lg hover:bg-foreground/5 transition-colors text-sm font-medium"
+            >
+              <X className="w-4 h-4" /> Cancel
+            </button>
+          ) : (
+            <button
+              onClick={enterSelectionMode}
+              className="flex items-center gap-2 px-4 py-2 bg-panel border border-border shadow-sm rounded-lg hover:bg-foreground/5 transition-colors text-sm font-medium"
+            >
+              <CheckSquare className="w-4 h-4" /> Select
+            </button>
+          )}
           {storagePref === "drive" && (
             <button
               onClick={async () => {
@@ -402,6 +484,24 @@ function LogsPageContent() {
           <table className="w-full text-sm text-left">
             <thead className="text-xs uppercase text-foreground/60 bg-foreground/5 sticky top-0 z-10">
               <tr>
+                {selectionMode && (
+                  <th className="px-4 py-4">
+                    <button
+                      onClick={() => {
+                        vibrate("utility");
+                        toggleSelectAll();
+                      }}
+                      className="p-1 rounded hover:bg-foreground/10 transition-colors"
+                    >
+                      {selectedIds.size === filteredLogs.length &&
+                      filteredLogs.length > 0 ? (
+                        <CheckSquare className="w-4 h-4 text-primary" />
+                      ) : (
+                        <Square className="w-4 h-4 text-foreground/40" />
+                      )}
+                    </button>
+                  </th>
+                )}
                 <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4">Action</th>
                 <th className="px-6 py-4">Item</th>
@@ -414,7 +514,7 @@ function LogsPageContent() {
               {filteredLogs.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={selectionMode ? 7 : 6}
                     className="px-6 py-12 text-center text-foreground/50 italic"
                   >
                     No logs found matching your criteria.
@@ -427,6 +527,26 @@ function LogsPageContent() {
           </table>
         </div>
       </div>
+
+      {selectionMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 bg-panel border border-border shadow-lg rounded-xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <span className="text-sm font-medium text-foreground/80">
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            className="flex items-center gap-2 px-4 py-2 bg-danger text-danger-foreground rounded-lg hover:bg-danger/90 transition-colors text-sm font-medium"
+          >
+            <Trash2 className="w-4 h-4" /> Delete Selected
+          </button>
+          <button
+            onClick={exitSelectionMode}
+            className="flex items-center gap-2 px-3 py-2 bg-foreground/5 rounded-lg hover:bg-foreground/10 transition-colors text-sm"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
