@@ -10,6 +10,17 @@ import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
 import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, startOfYear, endOfYear } from "date-fns";
 import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/chartUtils";
+import type { AnyTrackedTransaction } from "@/lib/interfaces/transactions";
+
+const getTransactionTimestamp = (transaction: any) =>
+  "date" in transaction ? transaction.date : transaction.timestamp;
+
+const getTransactionPriority = (transaction: any) => {
+  if ("isWrapper" in transaction && transaction.isWrapper) return 2;
+  if ("type" in transaction && transaction.type === "BUY") return 0;
+  if ("amount" in transaction && transaction.amount >= 0) return 0;
+  return 1;
+};
 
 const formatMoney = (val: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -168,6 +179,25 @@ export default function Home() {
 
   const netTotal = stats.profit - totalMugLoss;
 
+  const itemIdByName = useMemo(() => {
+    const map = new Map<string, number>();
+    transactions.forEach((transaction) => {
+      if (
+        transaction &&
+        typeof transaction === "object" &&
+        "isWrapper" in transaction &&
+        transaction.isWrapper === false &&
+        "itemName" in transaction &&
+        "itemID" in transaction &&
+        typeof transaction.itemName === "string" &&
+        typeof transaction.itemID === "number"
+      ) {
+        map.set(transaction.itemName, transaction.itemID);
+      }
+    });
+    return map;
+  }, [transactions]);
+
 
   // Chart data generation
   const chartData = useMemo(() => {
@@ -191,16 +221,14 @@ export default function Home() {
     }
     
     const sortedTransactions = [...transactions].sort((a, b) => {
-      if (a.date !== b.date) return a.date - b.date;
-      const getPriority = (transaction: any) => {
-        if (transaction.type === 'BUY') return 0;
-        return 1;
-      };
-      return getPriority(a) - getPriority(b);
+      const left = getTransactionTimestamp(a);
+      const right = getTransactionTimestamp(b);
+      if (left !== right) return left - right;
+      return getTransactionPriority(a) - getTransactionPriority(b);
     });
 
     if (sortedTransactions.length > 0) {
-      const firstTxDate = new Date(sortedTransactions[0].date);
+      const firstTxDate = new Date(getTransactionTimestamp(sortedTransactions[0]));
       let minDate: Date;
       if (timeRange === 'daily') minDate = startOfDay(subDays(firstTxDate, 1));
       else if (timeRange === 'weekly') minDate = startOfWeek(subWeeks(firstTxDate, 1));
@@ -224,7 +252,7 @@ export default function Home() {
       else if (timeRange === 'monthly') periodEnd = endOfMonth(startOfMonth(period));
       else periodEnd = endOfYear(startOfMonth(period));
 
-      while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
+      while (transactionIndex < sortedTransactions.length && getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()) {
         const isTrackedItem = (item: string) => true; // Always evaluate all so tempInventory stays structurally accurate
         applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState, isTrackedItem);
         transactionIndex++;
@@ -427,7 +455,12 @@ export default function Home() {
                       key={name}
                       onClick={() => {
                         vibrate("nav");
-                        router.push(`/logs?item=${encodeURIComponent(name)}`);
+                        const itemID = itemIdByName.get(name);
+                        router.push(
+                          itemID !== undefined
+                            ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
+                            : `/logs?item=${encodeURIComponent(name)}`,
+                        );
                       }}
                       className="hover:bg-primary/5 transition-colors cursor-pointer group"
                     >

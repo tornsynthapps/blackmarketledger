@@ -1,7 +1,16 @@
 import { LocalStorageInterface, StorageType } from "./localstorage";
 import * as idb from "@/lib/idb";
 import { TornTrade, Weav3rReceipt } from "../game/trade";
-import { TornItemLog } from "../game/itemLog";
+import { TornItemLog, TornItemSource } from "../game/itemLog";
+import {
+    AnyTrackedTransaction,
+    BaseTransaction as NewBaseTransaction,
+    Transaction as NewItemLogTransaction,
+    TransactionBuilder as NewTransactionBuilder,
+    TransactionSource,
+    TransactionStockType as NewStockType,
+    TRANSACTION_PAGE_SIZE,
+} from "./transactions";
 
 interface LogStats {
     totalCost: number;
@@ -31,153 +40,48 @@ export interface StandardLog {
     stats?: LogStats;
 }
 
-const CURR_TRANSACTION_VERSION = 2;
-
-export type TransactionType =
-    | "item-log"
-    | "trade"
-    | "receipt"
-    | "general-wrapper";
-export type TransactionData = TornTrade | Weav3rReceipt | TornItemLog | any;
-
-export class BaseTransaction {
-    id: string;
-    version: number;
-    timestamp: number;
-    data: TransactionData;
-    type: TransactionType;
-    groupID?: string;
-
-    constructor(
-        id: string,
-        version: number = CURR_TRANSACTION_VERSION,
-        timestamp: number,
-        data: TransactionData,
-        type: TransactionType,
-        groupID?: string,
-    ) {
-        this.id = id;
-        this.version = version;
-        this.timestamp = timestamp;
-        this.data = data;
-        this.type = type;
-        this.groupID = groupID;
-    }
-
-    isTrade(): boolean {
-        return this.type === "trade";
-    }
-    isReceipt(): boolean {
-        return this.type === "receipt";
-    }
-    isItemLog(): boolean {
-        return this.type === "item-log";
-    }
-
-    /**
-     * Converts the transaction list to an interface.
-     * @returns Record<string, any>: The interface.
-     */
-    toInterface(): any {
-        return {
-            id: this.id,
-            version: this.version,
-            timestamp: this.timestamp,
-            data: this.data.toInterface(),
-            groupID: this.groupID,
-        };
-    }
-
-    /**
-     * Converts a raw log object into a standard log object.
-     * @param input The input object.
-     * @returns BaseTransaction: The converted object.
-     */
-    static fromInterface(input: any): BaseTransaction {
-        let inputData;
-        if (input.type === "trade") {
-            inputData = TornTrade.fromInterface(input.data);
-        } else if (input.type === "receipt") {
-            inputData = Weav3rReceipt.fromInterface(input.data);
-        } else if (input.type === "item-log") {
-            inputData = TornItemLog.fromInterface(input.data);
-        }
-        return new BaseTransaction(
-            input.id,
-            input.version,
-            input.timestamp,
-            inputData,
-            input.groupID,
-        );
-    }
-}
-
-export class BaseTransactionList {
-    transactions: BaseTransaction[];
-    lastTransactionPerItem: Record<number, TornItemLog>;
-
-    constructor(
-        transactions: BaseTransaction[],
-        lastLogsPerItem?: Record<number, TornItemLog>,
-    ) {
-        this.transactions = transactions;
-        this.lastTransactionPerItem = lastLogsPerItem || {};
-    }
-
-    push(transaction: BaseTransaction) {
-        // Simply push the transaction if it's a trade or receipt.
-        if (transaction.isTrade() || transaction.isReceipt()) {
-            this.transactions.push(transaction);
-            return;
-        }
-
-        // Item Push.
-        const previousItemLog =
-            this.lastTransactionPerItem[transaction.data.itemID] ?? null;
-
-        transaction.data.updateStats(previousItemLog);
-
-        this.transactions.push(transaction);
-        this.lastTransactionPerItem[transaction.data.itemID] = transaction.data;
-    }
-
-    /**
-     * Converts the transaction list to an interface.
-     * @returns Record<string, any>: The interface.
-     */
-    toInterface(): Record<string, any> {
-        return {
-            transactions: this.transactions.map((t) => t.toInterface()),
-            lastTransactionPerItem: this.lastTransactionPerItem,
-        };
-    }
-
-    /**
-     * Converts a raw log object into a standard log object.
-     * @param input The input object.
-     * @returns BaseTransactionList: The converted object.
-     */
-    static fromInterface(input: any): BaseTransactionList {
-        const transactions = input.transactions.map((t: any) =>
-            BaseTransaction.fromInterface(t),
-        );
-        const lastTransactionPerItem = input.lastTransactionPerItem;
-        return new BaseTransactionList(transactions, lastTransactionPerItem);
-    }
-}
+export type TransactionType = "transaction" | "wrapper" | "trade" | "receipt";
+export type TransactionData =
+    | TornTrade
+    | Weav3rReceipt
+    | TornItemLog
+    | AnyTrackedTransaction
+    | any;
 
 export class DBInterface {
     /**
      * Returns the raw logs from the database.
      */
     private async getRawLogs(): Promise<any[]> {
+        let cursor = 0;
+        let allLogs: any[] = [];
+
+        while (true) {
+            const page = await this.getRawLogsPage(cursor);
+            allLogs = [...allLogs, ...page.logs];
+
+            if (page.nextCursor === null) {
+                return allLogs;
+            }
+
+            cursor = page.nextCursor;
+        }
+    }
+
+    /**
+     * Returns a cursor-paginated page of raw logs from the database.
+     */
+    async getRawLogsPage(
+        cursor: number = 0,
+        limit: number = TRANSACTION_PAGE_SIZE,
+    ): Promise<{ logs: any[]; nextCursor: number | null }> {
         // Get database type, ie "GoogleCacheLogsDB" or "LogsDB"
         const storageType: StorageType = LocalStorageInterface.getStorageType();
 
         // Get database name, ie "GoogleCacheLogsDB" or "LogsDB"
         const dbName =
             storageType === "browser" ? "LogsDB" : "GoogleCacheLogsDB";
-        return idb.getAllTransactions<any>(dbName);
+        return idb.getTransactionPage<any>(dbName, cursor, limit);
     }
 
     /**
@@ -219,19 +123,6 @@ export class DBInterface {
             );
     }
 
-    static async modifyLogs(logs: any[]): Promise<BaseTransactionList> {
-        const transactions: BaseTransactionList = new BaseTransactionList([]);
-        for (const log of logs) {
-            if (log.version && log.version === CURR_TRANSACTION_VERSION) {
-                transactions.push(BaseTransaction.fromInterface(log));
-                continue;
-            }
-
-            // TODO: Migrate old logs.
-        }
-        return transactions;
-    }
-
     /**
      * Migrates the old logs to the new format.
      * @returns Promise<TornTrade[]>: A promise that resolves when the migration is complete.
@@ -258,7 +149,11 @@ export class DBInterface {
 
     static migrationAddTrades(newTrades: TornTrade[]) {
         const currentTrades = this.migrationGetTrades();
-        const allTrades = [...currentTrades, ...newTrades];
+        const tradeMap = new Map<string, TornTrade>();
+        [...currentTrades, ...newTrades].forEach((trade) => {
+            tradeMap.set(trade.id, trade);
+        });
+        const allTrades = Array.from(tradeMap.values());
         this.migrationSetTrades(allTrades);
     }
 
@@ -295,7 +190,11 @@ export class DBInterface {
 
     static migrationAddReceipts(newReceipts: Weav3rReceipt[]) {
         const currentReceipts = this.migrationGetReceipts();
-        const allReceipts = [...currentReceipts, ...newReceipts];
+        const receiptMap = new Map<string, Weav3rReceipt>();
+        [...currentReceipts, ...newReceipts].forEach((receipt) => {
+            receiptMap.set(receipt.id, receipt);
+        });
+        const allReceipts = Array.from(receiptMap.values());
         this.migrationSetReceipts(allReceipts);
     }
 

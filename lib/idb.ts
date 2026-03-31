@@ -127,6 +127,60 @@ export async function getAllTransactions<T = any>(
   }
 }
 
+export async function getTransactionPage<T = any>(
+  dbName: DBName,
+  cursor = 0,
+  limit = 1000,
+): Promise<{ logs: T[]; nextCursor: number | null }> {
+  try {
+    const db = await getDB(dbName);
+    return await withTimeout(
+      new Promise((resolve, reject) => {
+        const transaction = db.transaction(TXN_STORE_NAME, "readonly");
+        const store = transaction.objectStore(TXN_STORE_NAME);
+        const request = store.openCursor();
+        const logs: T[] = [];
+        let skipped = false;
+        let offset = Math.max(0, cursor);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const result = request.result;
+
+          if (!result) {
+            resolve({
+              logs,
+              nextCursor: null,
+            });
+            return;
+          }
+
+          if (!skipped && offset > 0) {
+            skipped = true;
+            result.advance(offset);
+            return;
+          }
+
+          logs.push(result.value as T);
+          if (logs.length >= limit) {
+            resolve({
+              logs,
+              nextCursor: cursor + logs.length,
+            });
+            return;
+          }
+
+          result.continue();
+        };
+      }),
+      `IndexedDB paged transaction read timed out for ${dbName}`,
+    );
+  } catch (e) {
+    console.warn(`Failed to get paged transactions from ${dbName}`, e);
+    return { logs: [], nextCursor: null };
+  }
+}
+
 export async function saveTransactions(
   dbName: DBName,
   txns: any[],

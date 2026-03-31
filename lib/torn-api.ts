@@ -1054,6 +1054,7 @@ export function createParsedLogsFromReceipt(
   trade: TornTradeDetail,
   receipt: Weav3rReceipt,
 ): ParsedLog[] {
+  const tradeItemCount = receipt.items.length;
   return receipt.items.map((item) => ({
     type: "BUY",
     item: normalizeItemName(item.item_name),
@@ -1064,13 +1065,37 @@ export function createParsedLogsFromReceipt(
     tornLogId: `trade:${trade.id}`,
     weav3rReceiptId: receipt.id,
     tradeGroupId: String(trade.id),
+    tradePartnerName: String(trade.trader?.name || ""),
+    tradePartnerID: String(trade.trader?.id || ""),
+    tradeItemCount,
   }));
+}
+
+function extractTradePartnerName(description: string) {
+  const normalized = String(description || "").trim();
+  const patterns = [
+    /\bwith\s+(.+?)(?:\s+\[\d+\])?$/i,
+    /\bto\s+(.+?)(?:\s+\[\d+\])?$/i,
+    /\bfrom\s+(.+?)(?:\s+\[\d+\])?$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    const candidate = match?.[1]?.trim();
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return "";
 }
 
 export function createParsedLogsFromNewReceipt(
   trade: TornTrade,
   receipt: NewWeav3rReceipt,
 ): ParsedLog[] {
+  const tradeItemCount = receipt.items.length;
+  const partnerName = extractTradePartnerName(trade.description);
   return receipt.items.map((item: NewWeav3rReceiptItem) => {
     return {
       type: "BUY",
@@ -1082,6 +1107,9 @@ export function createParsedLogsFromNewReceipt(
       tornLogId: `trade:${trade.id}`,
       weav3rReceiptId: receipt.id,
       tradeGroupId: String(trade.id),
+      tradePartnerName: partnerName,
+      tradePartnerID: String(trade.traderID || ""),
+      tradeItemCount,
     };
   });
 }

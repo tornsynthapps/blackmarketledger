@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { FLOWER_SET, PLUSHIE_SET, Transaction } from '@/lib/parser';
+import type { AnyTrackedTransaction } from '@/lib/interfaces/transactions';
 import { format, startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth, subDays, subWeeks, subMonths } from 'date-fns';
 import { InventorySnapshot, LedgerTotals, applyTransaction, getTotals } from '@/lib/chartUtils';
 
@@ -11,11 +12,14 @@ interface StatsModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  transactions: Transaction[];
+  transactions: Array<Transaction | AnyTrackedTransaction>;
   statType: 'profit' | 'inventory' | 'mugLoss' | 'netProfit';
   excludedItems?: string[];
   inventoryScope?: 'normal' | 'abroad';
 }
+
+const getTransactionTimestamp = (transaction: any) =>
+  "date" in transaction ? transaction.date : transaction.timestamp;
 
 type TimeRange = 'daily' | 'weekly' | 'monthly';
 
@@ -102,12 +106,14 @@ export default function StatsModal({
     }
 
     const sortedTransactions = [...transactions].sort((a, b) => {
-      if (a.date !== b.date) return a.date - b.date;
-      return (a.type === 'BUY' ? 0 : 1) - (b.type === 'BUY' ? 0 : 1);
+      const left = getTransactionTimestamp(a);
+      const right = getTransactionTimestamp(b);
+      if (left !== right) return left - right;
+      return 0;
     });
 
     if (sortedTransactions.length > 0) {
-      const firstTxDate = new Date(sortedTransactions[0].date);
+      const firstTxDate = new Date(getTransactionTimestamp(sortedTransactions[0]));
       let minDate: Date;
       if (timeRange === 'daily') minDate = startOfDay(subDays(firstTxDate, 1));
       else if (timeRange === 'weekly') minDate = startOfWeek(subWeeks(firstTxDate, 1));
@@ -136,7 +142,7 @@ export default function StatsModal({
           break;
       }
 
-      while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
+      while (transactionIndex < sortedTransactions.length && getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()) {
         applyTransaction(inventory, sortedTransactions[transactionIndex], mugState, isTrackedItem);
         transactionIndex += 1;
       }

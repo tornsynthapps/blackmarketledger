@@ -19,6 +19,9 @@ export interface BaseTransaction {
   tornLogId?: string;
   weav3rReceiptId?: string;
   tradeGroupId?: string;
+  tradePartnerName?: string;
+  tradePartnerID?: string;
+  tradeItemCount?: number;
 }
 
 export interface TradeTransaction extends BaseTransaction {

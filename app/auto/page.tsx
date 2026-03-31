@@ -943,9 +943,9 @@ export default function AutoPilotPage() {
             </div>
           )}
 
-          {activityRecords.slice(0, 5).map((record) => (
+          {activityRecords.slice(0, 5).map((record, index) => (
             <div
-              key={`${record.id}-${record.status}-${record.note || ""}`}
+              key={`${record.id}-${record.status}-${record.note || ""}-${record.timestamp}-${index}`}
               className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-background/50 px-5 py-4 transition-colors hover:border-orange-500/20 shadow-sm"
             >
               <div className="min-w-0">

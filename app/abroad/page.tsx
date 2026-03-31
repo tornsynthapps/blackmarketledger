@@ -9,6 +9,13 @@ import { ProfitChart } from '@/components/ProfitChart';
 import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, startOfYear, endOfYear } from 'date-fns';
 import { InventorySnapshot, applyTransaction, getTotals } from '@/lib/chartUtils';
 
+const getTransactionTimestamp = (transaction: any) =>
+    "date" in transaction ? transaction.date : transaction.timestamp;
+
+const isAbroadTransaction = (transaction: any) =>
+    ("tag" in transaction && transaction.tag === "Abroad") ||
+    ("stockType" in transaction && transaction.stockType === "abroad");
+
 const formatMoney = (val: number) => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -143,16 +150,19 @@ export default function AbroadDashboard() {
             dateFormat = 'yyyy';
         }
         const sortedTransactions = [...transactions].sort((a, b) => {
-            if (a.date !== b.date) return a.date - b.date;
+            const left = getTransactionTimestamp(a);
+            const right = getTransactionTimestamp(b);
+            if (left !== right) return left - right;
             const getPriority = (transaction: any) => {
-              if (transaction.type === 'BUY') return 0;
+              if ("type" in transaction && transaction.type === 'BUY') return 0;
+              if ("amount" in transaction && transaction.amount >= 0) return 0;
               return 1;
             };
             return getPriority(a) - getPriority(b);
         });
 
         if (sortedTransactions.length > 0) {
-            const firstTxDate = new Date(sortedTransactions[0].date);
+            const firstTxDate = new Date(getTransactionTimestamp(sortedTransactions[0]));
             let minDate: Date;
             if (timeRange === 'daily') minDate = startOfDay(subDays(firstTxDate, 1));
             else if (timeRange === 'weekly') minDate = startOfWeek(subWeeks(firstTxDate, 1));
@@ -173,7 +183,7 @@ export default function AbroadDashboard() {
             else if (timeRange === 'weekly') periodEnd = endOfWeek(period);
             else periodEnd = endOfMonth(period);
 
-            while (transactionIndex < sortedTransactions.length && sortedTransactions[transactionIndex].date <= periodEnd.getTime()) {
+            while (transactionIndex < sortedTransactions.length && getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()) {
                 applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState);
                 transactionIndex += 1;
             }
@@ -193,8 +203,8 @@ export default function AbroadDashboard() {
     }, [isLoaded, transactions, timeRange, viewType]);
 
     const firstRelevantTxDate = useMemo(() => {
-        const abroadTxs = transactions.filter(t => t.tag === 'Abroad');
-        return abroadTxs.length > 0 ? Math.min(...abroadTxs.map(t => t.date)) : Infinity;
+        const abroadTxs = transactions.filter(isAbroadTransaction);
+        return abroadTxs.length > 0 ? Math.min(...abroadTxs.map(getTransactionTimestamp)) : Infinity;
     }, [transactions]);
 
     const averageProfit = useMemo(() => {
@@ -422,7 +432,7 @@ export default function AbroadDashboard() {
                 isOpen={modalState.isOpen}
                 onClose={closeStatsModal}
                 title={modalState.title}
-                transactions={transactions.filter(t => t.tag === 'Abroad')}
+                transactions={transactions.filter(isAbroadTransaction) as any}
                 statType={modalState.statType}
                 inventoryScope="abroad"
             />
@@ -448,4 +458,3 @@ function OverviewItem({ icon, label, value, subValue }: { icon: React.ReactNode,
         </div>
     );
 }
-

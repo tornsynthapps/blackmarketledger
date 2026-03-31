@@ -1,11 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Transaction, ParsedLog, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { ParsedLog, normalizeItemName } from "@/lib/parser";
 import {
-  calculateInventory,
-  buildTransactionsWithLogs,
-} from "@/lib/transactionBuilder";
+  AnyTrackedTransaction,
+  buildTransactionsFromParsedLogs,
+  calculateInventoryFromTransactions,
+  InventoryItemStats,
+  isMugTransaction,
+  migrateLegacyTransactions,
+} from "@/lib/interfaces/transactions";
 import { sendToExtension } from "@/lib/bmlconnect";
 import * as idb from "@/lib/idb";
 import { setGlobalSyncStatus } from "@/lib/syncStatus";
@@ -17,6 +21,7 @@ import {
   SyncCursor,
   TornTradeDetail,
   Weav3rReceipt,
+  getTornItems,
   refreshApiRateLimiters,
 } from "@/lib/torn-api";
 import {
@@ -51,15 +56,6 @@ declare global {
   interface Window {
     chrome: any;
   }
-}
-
-export interface InventoryItemStats {
-  stock: number;
-  totalCost: number;
-  realizedProfit: number;
-  abroadStock: number;
-  abroadTotalCost: number;
-  abroadRealizedProfit: number;
 }
 
 export interface SyncState {
@@ -103,13 +99,15 @@ type AutoPilotDriveState = Pick<
 >;
 
 function isLegacyDriveStoredPayload(value: unknown): value is {
-  transactions: Transaction[];
+  transactions: AnyTrackedTransaction[];
   autoPilotState?: AutoPilotDriveState;
 } {
   return (
     Boolean(value) &&
     typeof value === "object" &&
-    Array.isArray((value as { transactions: Transaction[] }).transactions)
+    Array.isArray(
+      (value as { transactions: AnyTrackedTransaction[] }).transactions,
+    )
   );
 }
 
@@ -150,8 +148,23 @@ async function resolveTornUserId(apiKey: string) {
   return userId;
 }
 
+function isLegacyTransactionRecord(transaction: unknown) {
+  return (
+    Boolean(transaction) &&
+    typeof transaction === "object" &&
+    "date" in (transaction as Record<string, unknown>) &&
+    "type" in (transaction as Record<string, unknown>)
+  );
+}
+
+function isLegacyTransactionArray(
+  value: unknown,
+): value is import("@/lib/parser").Transaction[] {
+  return Array.isArray(value) && value.some((entry) => isLegacyTransactionRecord(entry));
+}
+
 export function useJournal() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<AnyTrackedTransaction[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [needsMigration, setNeedsMigration] = useState(false);
   const [hasBMLDB, setHasBMLDB] = useState(false);
@@ -185,7 +198,8 @@ export function useJournal() {
     message: "",
   });
   const syncCounterRef = useRef(0);
-  const transactionsRef = useRef<Transaction[]>([]);
+  const transactionsRef = useRef<AnyTrackedTransaction[]>([]);
+  const itemIdByNameRef = useRef<Map<string, number>>(new Map());
   const bootstrapStartedRef = useRef(false);
 
   /**
@@ -211,23 +225,6 @@ export function useJournal() {
     const txns = await idb.getLegacyTransactions("BMLDB");
     return txns.length;
   }, []);
-
-  const performBMLMigration = useCallback(
-    async (type: "overwrite" | "none") => {
-      if (type === "overwrite") {
-        const bmlTxns = await idb.getLegacyTransactions("BMLDB");
-        if (bmlTxns.length > 0) {
-          const activeDB = getActiveDB();
-          await idb.saveTransactions(activeDB, bmlTxns);
-          setTransactions(bmlTxns);
-        }
-      }
-
-      await idb.deleteDatabase("BMLDB");
-      setHasBMLDB(false);
-    },
-    [getActiveDB],
-  );
 
   const beginSync = useCallback((message: string) => {
     syncCounterRef.current += 1;
@@ -259,7 +256,7 @@ export function useJournal() {
 
   const readCachedTransactions = useCallback(async (dbName: idb.DBName) => {
     try {
-      return await idb.getAllTransactions<Transaction>(dbName);
+      return await idb.getAllTransactions<AnyTrackedTransaction>(dbName);
     } catch (error) {
       console.error(`IndexedDB read failed for ${dbName}`, error);
       return [];
@@ -267,7 +264,7 @@ export function useJournal() {
   }, []);
 
   const persistTransactionsCache = useCallback(
-    async (dbName: idb.DBName, newLogs: Transaction[]) => {
+    async (dbName: idb.DBName, newLogs: AnyTrackedTransaction[]) => {
       try {
         await idb.saveTransactions(dbName, newLogs);
       } catch (error) {
@@ -300,6 +297,67 @@ export function useJournal() {
       new CustomEvent(JOURNAL_CONFIG_UPDATED_EVENT, { detail: value }),
     );
   }, []);
+
+  const ensureItemDictionary = useCallback(
+    async (apiKey?: string | null) => {
+      const key = (apiKey ?? extGetTornApiKeyFull()).trim();
+      if (!key) {
+        return itemIdByNameRef.current;
+      }
+
+      if (itemIdByNameRef.current.size > 0) {
+        return itemIdByNameRef.current;
+      }
+
+      try {
+        const itemsMap = await getTornItems(key);
+        const byName = new Map<string, number>();
+        itemsMap.forEach((name, id) => {
+          byName.set(normalizeItemName(name), id);
+        });
+        itemIdByNameRef.current = byName;
+      } catch (error) {
+        console.error("Failed to load Torn item dictionary", error);
+      }
+
+      return itemIdByNameRef.current;
+    },
+    [],
+  );
+
+  const migrateTransactionsIfNeeded = useCallback(
+    async (loaded: AnyTrackedTransaction[]) => {
+      if (!isLegacyTransactionArray(loaded)) {
+        return { transactions: loaded, migrated: false };
+      }
+
+      const itemResolver = await ensureItemDictionary();
+      const result = migrateLegacyTransactions(loaded, itemResolver);
+      if (result.issues.length > 0) {
+        console.warn("Legacy transaction migration issues", result.issues);
+      }
+      return { transactions: result.transactions, migrated: true };
+    },
+    [ensureItemDictionary],
+  );
+
+  const performBMLMigration = useCallback(
+    async (type: "overwrite" | "none") => {
+      if (type === "overwrite") {
+        const bmlTxns = await idb.getLegacyTransactions("BMLDB");
+        if (bmlTxns.length > 0) {
+          const activeDB = getActiveDB();
+          const migrated = await migrateTransactionsIfNeeded(bmlTxns);
+          await idb.saveTransactions(activeDB, migrated.transactions);
+          setTransactions(migrated.transactions);
+        }
+      }
+
+      await idb.deleteDatabase("BMLDB");
+      setHasBMLDB(false);
+    },
+    [getActiveDB, migrateTransactionsIfNeeded],
+  );
 
   // Migration helper: convert legacy single cursor to dual cursors
   const migrateLegacyCursor = useCallback(
@@ -387,7 +445,7 @@ export function useJournal() {
     sessionStorage.setItem(DRIVE_BOOTSTRAP_DONE_KEY, "true");
   }, []);
 
-  const isDriveCacheFresh = useCallback((cachedTransactions: Transaction[]) => {
+  const isDriveCacheFresh = useCallback((cachedTransactions: AnyTrackedTransaction[]) => {
     const bootstrapDone =
       sessionStorage.getItem(DRIVE_BOOTSTRAP_DONE_KEY) === "true";
     const lastSyncedAt = localStorage.getItem(DRIVE_CACHE_SYNCED_AT_KEY);
@@ -437,6 +495,8 @@ export function useJournal() {
         : Array.isArray(ledgerResponse.data)
           ? ledgerResponse.data
           : [];
+      const migratedDriveTransactions =
+        await migrateTransactionsIfNeeded(driveTransactions);
 
       const remoteAutoPilotState =
         autoPilotResponse && isAutoPilotDriveState(autoPilotResponse.data)
@@ -457,14 +517,27 @@ export function useJournal() {
         await persistConfigCache(JSON.stringify(updatedConfig));
       }
 
-      await persistTransactionsCache("GoogleCacheLogsDB", driveTransactions);
+      await persistTransactionsCache(
+        "GoogleCacheLogsDB",
+        migratedDriveTransactions.transactions,
+      );
+      if (migratedDriveTransactions.migrated) {
+        const response = await writeGoogleDriveData(
+          apiKey,
+          migratedDriveTransactions.transactions,
+        );
+        if (!response.success) {
+          console.error("Failed to write migrated Drive transactions back");
+        }
+      }
       markDriveSyncComplete();
-      return driveTransactions;
+      return migratedDriveTransactions.transactions;
     },
     [
       applyConfig,
       buildConfigSnapshot,
       markDriveSyncComplete,
+      migrateTransactionsIfNeeded,
       persistTransactionsCache,
     ],
   );
@@ -505,7 +578,7 @@ export function useJournal() {
     bootstrapStartedRef.current = true;
 
     const init = async () => {
-      let loadedTransactions: Transaction[] = [];
+      let loadedTransactions: AnyTrackedTransaction[] = [];
       let parsedConfig: JournalConfig | null = null;
       let backgroundDriveRefresh: Promise<void> | null = null;
       try {
@@ -523,7 +596,7 @@ export function useJournal() {
 
         if (storagePref === "extension") {
           try {
-            const res = await sendToExtension<Transaction[]>({
+            const res = await sendToExtension<AnyTrackedTransaction[]>({
               type: "EXTENSION_DB_LOAD",
             });
             if (res && res.success && Array.isArray(res.data)) {
@@ -548,7 +621,7 @@ export function useJournal() {
                   parsedConfig,
                 ),
             )
-              .then((fresh: Transaction[]) => setTransactions(fresh))
+              .then((fresh: AnyTrackedTransaction[]) => setTransactions(fresh))
               .catch((e: Error) =>
                 console.error("Background Drive refresh failed", e),
               );
@@ -573,6 +646,30 @@ export function useJournal() {
           }
         }
 
+        const migrationResult = await migrateTransactionsIfNeeded(loadedTransactions);
+        loadedTransactions = migrationResult.transactions;
+        if (migrationResult.migrated) {
+          const storagePref = localStorage.getItem("bml_storage_pref");
+          const dbName =
+            storagePref === "drive" ? "GoogleCacheLogsDB" : "LogsDB";
+          await persistTransactionsCache(dbName, loadedTransactions);
+          if (storagePref === "extension") {
+            await sendToExtension({
+              type: "EXTENSION_DB_SAVE",
+              payload: { logs: loadedTransactions },
+            }).catch((error: Error) => {
+              console.error("Failed to persist migrated extension data", error);
+            });
+          } else if (storagePref === "drive" && configuredDriveApiKey) {
+            await writeGoogleDriveData(
+              configuredDriveApiKey,
+              loadedTransactions,
+            ).catch((error: Error) => {
+              console.error("Failed to persist migrated Drive data", error);
+            });
+          }
+        }
+
         transactionsRef.current = loadedTransactions;
         setTransactions(loadedTransactions);
         await checkBMLDB();
@@ -591,6 +688,7 @@ export function useJournal() {
     applyConfig,
     fetchDriveTransactionsByKey,
     isDriveCacheFresh,
+    migrateTransactionsIfNeeded,
     persistTransactionsCache,
     readCachedTransactions,
     readConfigCache,
@@ -623,7 +721,7 @@ export function useJournal() {
   }, [applyConfig]);
 
   const saveTransactions = useCallback(
-    (newLogs: Transaction[]) => {
+    (newLogs: AnyTrackedTransaction[]) => {
       transactionsRef.current = newLogs;
       setTransactions(newLogs);
       const storagePref = localStorage.getItem("bml_storage_pref");
@@ -663,7 +761,7 @@ export function useJournal() {
   );
 
   const mergeTransactions = useCallback(
-    (incoming: Transaction[]) => {
+    (incoming: AnyTrackedTransaction[]) => {
       setTransactions((prev) => {
         const merged = [...prev];
         const existingIds = new Set(prev.map((t) => t.id));
@@ -746,14 +844,21 @@ export function useJournal() {
         storagePref === "drive"
           ? await runSyncTask("Syncing...", fetchDriveTransactions)
           : transactionsRef.current;
-      const nextTransactions = buildTransactionsWithLogs(
+      const itemResolver = await ensureItemDictionary();
+      const nextTransactions = buildTransactionsFromParsedLogs(
         baseTransactions,
         parsedLogs,
-        options?.skipNegativeStock ?? skipNegativeStock,
+        itemResolver,
       );
       saveTransactions(nextTransactions);
     },
-    [fetchDriveTransactions, runSyncTask, saveTransactions, skipNegativeStock],
+    [
+      ensureItemDictionary,
+      fetchDriveTransactions,
+      runSyncTask,
+      saveTransactions,
+      skipNegativeStock,
+    ],
   );
 
   const saveAutoPilotState = useCallback(
@@ -827,21 +932,22 @@ export function useJournal() {
   );
 
   const restoreData = useCallback(
-    (data: Transaction[], merge: boolean = false) => {
+    async (data: AnyTrackedTransaction[], merge: boolean = false) => {
+      const migrated = await migrateTransactionsIfNeeded(data);
       if (merge) {
-        saveTransactions([...transactions, ...data]);
+        saveTransactions([...transactions, ...migrated.transactions]);
       } else {
-        saveTransactions(data);
+        saveTransactions(migrated.transactions);
       }
     },
-    [saveTransactions, transactions],
+    [migrateTransactionsIfNeeded, saveTransactions, transactions],
   );
 
   const editLog = useCallback(
-    (id: string, updates: Partial<Transaction>) => {
+    (id: string, updates: Partial<AnyTrackedTransaction>) => {
       saveTransactions(
         transactions.map((t) =>
-          t.id === id ? ({ ...t, ...updates } as Transaction) : t,
+          t.id === id ? ({ ...t, ...updates } as AnyTrackedTransaction) : t,
         ),
       );
     },
@@ -854,18 +960,8 @@ export function useJournal() {
       const normalizedNewName = newName.trim();
       saveTransactions(
         transactions.map((t) => {
-          if (t.type === "BUY" || t.type === "SELL") {
-            if (t.item === oldName)
-              return { ...t, item: normalizedNewName } as Transaction;
-          } else if (t.type === "CONVERT") {
-            if (t.fromItem === oldName || t.toItem === oldName) {
-              return {
-                ...t,
-                fromItem:
-                  t.fromItem === oldName ? normalizedNewName : t.fromItem,
-                toItem: t.toItem === oldName ? normalizedNewName : t.toItem,
-              } as Transaction;
-            }
+          if ("itemName" in t && t.itemName === oldName) {
+            return { ...t, itemName: normalizedNewName } as AnyTrackedTransaction;
           }
           return t;
         }),
@@ -882,7 +978,7 @@ export function useJournal() {
       const sourceDB = newLocation === "drive" ? "LogsDB" : "GoogleCacheLogsDB";
       const targetDB = newLocation === "drive" ? "GoogleCacheLogsDB" : "LogsDB";
 
-      let targetData: Transaction[] = [];
+      let targetData: AnyTrackedTransaction[] = [];
 
       if (migrationType !== "none") {
         const sourceData = await readCachedTransactions(sourceDB);
@@ -898,7 +994,11 @@ export function useJournal() {
               ids.add(t.id);
             }
           });
-          targetData.sort((a, b) => a.date - b.date);
+          targetData.sort((a, b) => {
+            const left = "date" in a ? a.date : a.timestamp;
+            const right = "date" in b ? b.date : b.timestamp;
+            return left - right;
+          });
         }
 
         await persistTransactionsCache(targetDB, targetData);
@@ -924,10 +1024,17 @@ export function useJournal() {
     ],
   );
 
-  const inventory = calculateInventory(transactions);
+  const inventory = calculateInventoryFromTransactions(transactions);
   let totalMugLoss = 0;
-  transactions.forEach((t) => {
-    if (t.type === "MUG") totalMugLoss += t.amount;
+  transactions.forEach((transaction) => {
+    if (isMugTransaction(transaction)) {
+      totalMugLoss += transaction.amount;
+      return;
+    }
+
+    if ("type" in transaction && transaction.type === "MUG") {
+      totalMugLoss += transaction.amount;
+    }
   });
   let totalItemRealizedProfit = 0;
   let totalInventoryValue = 0;
@@ -951,7 +1058,7 @@ export function useJournal() {
     editLog,
     renameItem,
     inventory,
-    calculateInventory,
+    calculateInventory: calculateInventoryFromTransactions,
     totalMugLoss,
     totalItemRealizedProfit,
     totalInventoryValue,

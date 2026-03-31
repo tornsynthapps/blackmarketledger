@@ -15,16 +15,99 @@ import {
   X,
 } from "lucide-react";
 import { format } from "date-fns";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  Transaction,
   TransactionSourceType,
   formatItemName,
   FLOWER_SET,
   PLUSHIE_SET,
 } from "@/lib/parser";
+import {
+  AnyTrackedTransaction,
+  MugTransaction,
+  Transaction as NewTransaction,
+  WrapperTransaction,
+} from "@/lib/interfaces/transactions";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
+
+type LegacyTransaction = import("@/lib/parser").Transaction;
+type DisplayTransaction = LegacyTransaction | AnyTrackedTransaction;
+
+function isWrapperTransaction(
+  transaction: DisplayTransaction,
+): transaction is WrapperTransaction {
+  return (
+    Boolean(transaction) &&
+    typeof transaction === "object" &&
+    "isWrapper" in transaction &&
+    transaction.isWrapper === true &&
+    "wrappedTransactionIDs" in transaction
+  );
+}
+
+function isNewConcreteTransaction(
+  transaction: DisplayTransaction,
+): transaction is NewTransaction {
+  return (
+    Boolean(transaction) &&
+    typeof transaction === "object" &&
+    "isWrapper" in transaction &&
+    transaction.isWrapper === false &&
+    "timestamp" in transaction &&
+    "stockType" in transaction
+  );
+}
+
+function isNewMugTransaction(
+  transaction: DisplayTransaction,
+): transaction is MugTransaction {
+  return (
+    Boolean(transaction) &&
+    typeof transaction === "object" &&
+    "kind" in transaction &&
+    transaction.kind === "mug"
+  );
+}
+
+function isLegacyTransaction(
+  transaction: DisplayTransaction,
+): transaction is LegacyTransaction {
+  return Boolean(transaction) && typeof transaction === "object" && "date" in transaction && "type" in transaction;
+}
+
+function getTransactionTimestamp(transaction: DisplayTransaction) {
+  return isLegacyTransaction(transaction) ? transaction.date : transaction.timestamp;
+}
+
+function getDisplayItemName(transaction: DisplayTransaction) {
+  if (isWrapperTransaction(transaction)) {
+    return transaction.itemName
+      ? formatItemName(transaction.itemName)
+      : transaction.description || "Grouped Transaction";
+  }
+
+  if (isNewConcreteTransaction(transaction)) {
+    return transaction.itemName
+      ? formatItemName(transaction.itemName)
+      : `Item ${transaction.itemID}`;
+  }
+
+  if (isNewMugTransaction(transaction)) {
+    return "Money";
+  }
+
+  if (transaction.type === "BUY" || transaction.type === "SELL") {
+    return formatItemName(transaction.item);
+  }
+  if (transaction.type === "CONVERT") {
+    return `${formatItemName(transaction.fromItem)} → ${formatItemName(transaction.toItem)}`;
+  }
+  if (transaction.type === "SET_CONVERT") {
+    return `${transaction.times}x ${formatItemName(transaction.setType)} Set → ${transaction.pointsEarned} Points`;
+  }
+  return "Money";
+}
 
 function getSourceLabel(sourceType?: TransactionSourceType) {
   if (sourceType === "item-market") return "Item Market";
@@ -36,14 +119,53 @@ function getSourceLabel(sourceType?: TransactionSourceType) {
   return "";
 }
 
+function getTradeWrapperMeta(transaction: WrapperTransaction) {
+  const parts: string[] = [];
+
+  if (transaction.partnerName || transaction.partnerID) {
+    parts.push(
+      [transaction.partnerName, transaction.partnerID ? `#${transaction.partnerID}` : null]
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+
+  if (typeof transaction.itemCount === "number" && transaction.itemCount > 0) {
+    parts.push(
+      `${transaction.itemCount} different item${transaction.itemCount === 1 ? "" : "s"}`,
+    );
+  }
+
+  if (transaction.tradeID) {
+    parts.push(`Trade ${transaction.tradeID}`);
+  }
+
+  if (transaction.receiptID) {
+    parts.push(`Receipt ${transaction.receiptID}`);
+  }
+
+  return parts;
+}
+
 function inferSourceType(
-  transaction: Transaction,
+  transaction: DisplayTransaction,
 ): TransactionSourceType | undefined {
-  if (transaction.sourceType) return transaction.sourceType;
+  if (isLegacyTransaction(transaction)) {
+    if (transaction.sourceType) return transaction.sourceType;
+    if (
+      transaction.tradeGroupId ||
+      transaction.weav3rReceiptId ||
+      transaction.tornLogId?.startsWith("trade:")
+    )
+      return "trade";
+    return undefined;
+  }
+
+  if (transaction.source === "trade") return "trade";
+  if (transaction.source) return transaction.source;
   if (
-    transaction.tradeGroupId ||
-    transaction.weav3rReceiptId ||
-    transaction.tornLogId?.startsWith("trade:")
+    transaction.tradeID ||
+    transaction.tornID?.startsWith("trade:")
   )
     return "trade";
   return undefined;
@@ -60,8 +182,11 @@ function LogsPageContent() {
     refreshDriveCache,
   } = useJournal();
   const { vibrate } = useHapticFeedback();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const filterItem = searchParams.get("item");
+  const filterItemID = searchParams.get("itemID");
+  const groupID = searchParams.get("groupID");
 
   const [search, setSearch] = useState(filterItem || "");
   const [showLinkedIds, setShowLinkedIds] = useState(false);
@@ -74,10 +199,113 @@ function LogsPageContent() {
       ? localStorage.getItem("bml_storage_pref")
       : null;
 
-  const filteredLogs = transactions
+  const transactionMap = useMemo(
+    () => new Map(transactions.map((transaction) => [transaction.id, transaction])),
+    [transactions],
+  );
+
+  const itemNameByID = useMemo(() => {
+    const map = new Map<number, string>();
+    transactions.forEach((transaction) => {
+      if (isNewConcreteTransaction(transaction) && transaction.itemName) {
+        map.set(transaction.itemID, transaction.itemName);
+      }
+      if (isWrapperTransaction(transaction) && transaction.itemID !== null && transaction.itemName) {
+        map.set(transaction.itemID, transaction.itemName);
+      }
+    });
+    return map;
+  }, [transactions]);
+
+  const visibleLogs = useMemo(() => {
+    if (groupID) {
+      return transactions.filter(
+        (transaction) => "groupID" in transaction && transaction.groupID === groupID,
+      );
+    }
+
+    const wrapperIds = new Set(
+      transactions
+        .filter(isWrapperTransaction)
+        .map((transaction) => transaction.id),
+    );
+
+    return transactions.filter((transaction) => {
+      if (isWrapperTransaction(transaction)) {
+        return true;
+      }
+
+      if (
+        "groupID" in transaction &&
+        transaction.groupID &&
+        transaction.groupID !== transaction.id &&
+        wrapperIds.has(transaction.groupID)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [groupID, transactions]);
+
+  const filteredLogs = visibleLogs
     .filter((t) => {
+      if (filterItemID) {
+        const numericItemID = Number(filterItemID);
+        const wrapperMatchesItem = isWrapperTransaction(t)
+          ? t.itemID === numericItemID ||
+            t.wrappedTransactionIDs.some((childId) => {
+              const child = transactionMap.get(childId);
+              return isNewConcreteTransaction(child as DisplayTransaction)
+                ? child.itemID === numericItemID
+                : false;
+            })
+          : isNewConcreteTransaction(t)
+            ? t.itemID === numericItemID
+            : false;
+
+        if (!wrapperMatchesItem) {
+          return false;
+        }
+      }
+
       if (!search) return true;
       const term = search.toLowerCase();
+      if (isWrapperTransaction(t)) {
+        return Boolean(
+          t.wrapperType.toLowerCase().includes(term) ||
+            t.description?.toLowerCase().includes(term) ||
+            t.partnerName?.toLowerCase().includes(term) ||
+            t.partnerID?.toLowerCase().includes(term) ||
+            t.receiptID?.toLowerCase().includes(term) ||
+            (showLinkedIds &&
+              (t.tornID?.toLowerCase().includes(term) ||
+                t.tradeID?.toLowerCase().includes(term) ||
+                t.id.toLowerCase().includes(term))),
+        );
+      }
+
+      if (isNewConcreteTransaction(t)) {
+        if (t.description?.toLowerCase().includes(term)) return true;
+        if ((t.itemName || "").toLowerCase().includes(term)) return true;
+        if (t.stockType.toLowerCase().includes(term)) return true;
+        if (!showLinkedIds) return false;
+        return Boolean(
+          t.tornID?.toLowerCase().includes(term) ||
+            t.tradeID?.toLowerCase().includes(term),
+        );
+      }
+
+      if (isNewMugTransaction(t)) {
+        if ("mug".includes(term)) return true;
+        if (t.description?.toLowerCase().includes(term)) return true;
+        if (!showLinkedIds) return false;
+        return Boolean(
+          t.tornID?.toLowerCase().includes(term) ||
+            t.tradeID?.toLowerCase().includes(term),
+        );
+      }
+
       if (t.type === "MUG") return "mug".includes(term);
       if (t.type === "CONVERT")
         return (
@@ -101,7 +329,13 @@ function LogsPageContent() {
         t.weav3rReceiptId?.toLowerCase().includes(term),
       );
     })
-    .sort((a, b) => b.date - a.date);
+    .sort((a, b) => {
+      if (groupID) {
+        if (isWrapperTransaction(a) && !isWrapperTransaction(b)) return -1;
+        if (!isWrapperTransaction(a) && isWrapperTransaction(b)) return 1;
+      }
+      return getTransactionTimestamp(b) - getTransactionTimestamp(a);
+    });
 
   if (!isLoaded)
     return (
@@ -181,6 +415,18 @@ function LogsPageContent() {
     setSelectedIds(new Set());
   };
 
+  const expandDeletionIds = (ids: string[]) => {
+    const expanded = new Set<string>();
+    ids.forEach((id) => {
+      expanded.add(id);
+      const transaction = transactionMap.get(id);
+      if (transaction && isWrapperTransaction(transaction)) {
+        transaction.wrappedTransactionIDs.forEach((childId) => expanded.add(childId));
+      }
+    });
+    return Array.from(expanded);
+  };
+
   const handleBulkDelete = () => {
     const count = selectedIds.size;
     if (count === 0) return;
@@ -188,19 +434,49 @@ function LogsPageContent() {
     if (
       confirm(`Delete ${count} selected transaction${count > 1 ? "s" : ""}?`)
     ) {
-      deleteLogs(Array.from(selectedIds));
+      deleteLogs(expandDeletionIds(Array.from(selectedIds)));
       exitSelectionMode();
     }
   };
 
-  const renderTransactionRow = (t: Transaction) => {
+  const renderWrappedTransactionLine = (t: DisplayTransaction) => {
+    if (isWrapperTransaction(t)) {
+      return `${t.wrapperType} wrapper`;
+    }
+
+    if (isNewConcreteTransaction(t)) {
+      const direction = t.amount >= 0 ? "IN" : "OUT";
+      return `${getDisplayItemName(t)} • ${direction} ${Math.abs(t.amount).toLocaleString()} • ${t.stockType}`;
+    }
+
+    if (t.type === "BUY" || t.type === "SELL") {
+      return `${t.type} ${t.amount.toLocaleString()}x ${formatItemName(t.item)}`;
+    }
+    if (t.type === "CONVERT") {
+      return `${formatItemName(t.fromItem)} → ${formatItemName(t.toItem)}`;
+    }
+    if (t.type === "SET_CONVERT") {
+      return `${t.times}x ${formatItemName(t.setType)} set`;
+    }
+    return "Mug loss";
+  };
+
+  const renderTransactionRow = (t: DisplayTransaction) => {
     const sourceType = inferSourceType(t);
     const sourceLabel = getSourceLabel(sourceType);
     const isSelected = selectedIds.has(t.id);
+    const isWrapper = isWrapperTransaction(t);
+    const date = getTransactionTimestamp(t);
     return (
       <tr
         key={t.id}
-        className={`hover:bg-foreground/[0.02] transition-colors border-b border-border/50 ${isSelected ? "bg-primary/5" : ""}`}
+        className={`hover:bg-foreground/[0.02] transition-colors border-b border-border/50 ${isSelected ? "bg-primary/5" : ""} ${isWrapper ? "cursor-pointer" : ""}`}
+        onClick={() => {
+          if (!isWrapper || selectionMode) return;
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("groupID", t.id);
+          router.push(`/logs?${params.toString()}`);
+        }}
       >
         {selectionMode && (
           <td className="px-4 py-4">
@@ -220,91 +496,137 @@ function LogsPageContent() {
           </td>
         )}
         <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/70">
-          {format(new Date(t.date), "MMM d, yyyy HH:mm")}
+          {format(new Date(date), "MMM d, yyyy HH:mm")}
         </td>
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
-            {t.type === "BUY" && (
+            {isWrapper && (
+              <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
+                {t.wrapperType.toUpperCase()}
+              </span>
+            )}
+            {isLegacyTransaction(t) && t.type === "BUY" && (
               <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
                 BUY
               </span>
             )}
-            {t.type === "SELL" && (
+            {isLegacyTransaction(t) && t.type === "SELL" && (
               <span className="text-success font-medium bg-success/10 px-2 py-1 rounded text-xs tracking-wider">
                 SELL
               </span>
             )}
-            {t.type === "MUG" && (
+            {isLegacyTransaction(t) && t.type === "MUG" && (
               <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded text-xs tracking-wider">
                 MUG
               </span>
             )}
-            {t.type === "CONVERT" && (
+            {isLegacyTransaction(t) && t.type === "CONVERT" && (
               <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
                 CONVERT
               </span>
             )}
-            {t.type === "SET_CONVERT" && (
+            {isLegacyTransaction(t) && t.type === "SET_CONVERT" && (
               <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
                 SET CONVERT
               </span>
             )}
-            {t.tag === "Abroad" && (
+            {isLegacyTransaction(t) && t.tag === "Abroad" && (
               <span className="text-warning font-medium bg-warning/10 px-2 py-1 rounded text-xs tracking-wider">
                 ABROAD
+              </span>
+            )}
+            {isNewConcreteTransaction(t) && t.stockType === "abroad" && (
+              <span className="text-warning font-medium bg-warning/10 px-2 py-1 rounded text-xs tracking-wider">
+                ABROAD
+              </span>
+            )}
+            {isNewConcreteTransaction(t) && t.amount >= 0 && (
+              <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
+                BUY
+              </span>
+            )}
+            {isNewConcreteTransaction(t) && t.amount < 0 && (
+              <span className="text-success font-medium bg-success/10 px-2 py-1 rounded text-xs tracking-wider">
+                SELL
+              </span>
+            )}
+            {isNewConcreteTransaction(t) && t.stockType === "skip" && (
+              <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded text-xs tracking-wider">
+                SKIP
+              </span>
+            )}
+            {isNewMugTransaction(t) && (
+              <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded text-xs tracking-wider">
+                MUG
               </span>
             )}
           </div>
         </td>
         <td className="px-6 py-4">
           <div className="font-medium">
-            {t.type === "BUY" || t.type === "SELL"
-              ? formatItemName(t.item)
-              : ""}
-            {t.type === "CONVERT"
-              ? `${formatItemName(t.fromItem)} → ${formatItemName(t.toItem)}`
-              : ""}
-            {t.type === "SET_CONVERT"
-              ? `${t.times}x ${formatItemName(t.setType)} Set → ${t.pointsEarned} Points`
-              : ""}
-            {t.type === "MUG" ? "Money" : ""}
+            {isWrapper ? t.description || `${t.wrapperType} wrapper` : getDisplayItemName(t)}
           </div>
           {(sourceLabel ||
             (showLinkedIds &&
-              (t.tornLogId || t.tradeGroupId || t.weav3rReceiptId))) && (
+              (isLegacyTransaction(t)
+                ? t.tornLogId || t.tradeGroupId || t.weav3rReceiptId
+                : t.tornID || t.tradeID))) && (
             <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-foreground/50">
               {sourceLabel && (
                 <span className="rounded-full border border-border px-2 py-0.5 font-semibold uppercase tracking-wider">
                   {sourceLabel}
                 </span>
               )}
-              {showLinkedIds && t.tornLogId && <span>Torn: {t.tornLogId}</span>}
-              {showLinkedIds && t.tradeGroupId && (
-                <span>Trade: {t.tradeGroupId}</span>
-              )}
-              {showLinkedIds && t.weav3rReceiptId && (
-                <span>Receipt: {t.weav3rReceiptId}</span>
-              )}
+              {showLinkedIds && isLegacyTransaction(t) && t.tornLogId && <span>Torn: {t.tornLogId}</span>}
+              {showLinkedIds && isLegacyTransaction(t) && t.tradeGroupId && <span>Trade: {t.tradeGroupId}</span>}
+              {showLinkedIds && isLegacyTransaction(t) && t.weav3rReceiptId && <span>Receipt: {t.weav3rReceiptId}</span>}
+              {showLinkedIds && !isLegacyTransaction(t) && t.tornID && <span>Torn: {t.tornID}</span>}
+              {showLinkedIds && !isLegacyTransaction(t) && t.tradeID && <span>Trade: {t.tradeID}</span>}
+            </div>
+          )}
+          {isWrapper && t.wrapperType === "trade" && (
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-foreground/50">
+              {getTradeWrapperMeta(t).map((part) => (
+                <span key={`${t.id}:${part}`}>{part}</span>
+              ))}
+            </div>
+          )}
+          {isWrapper && (
+            <div className="mt-1 text-[11px] text-foreground/50">
+              {groupID
+                ? `${t.wrappedTransactionIDs.length} wrapped transaction${t.wrappedTransactionIDs.length === 1 ? "" : "s"} in this group`
+                : `Click to view ${t.wrappedTransactionIDs.length} wrapped transaction${t.wrappedTransactionIDs.length === 1 ? "" : "s"}`}
             </div>
           )}
         </td>
         <td className="px-6 py-4 text-right">
-          {t.type === "BUY" || t.type === "SELL"
+          {isWrapper
+            ? `${t.wrappedTransactionIDs.length} txns`
+            : ""}
+          {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL")
             ? t.amount.toLocaleString()
             : ""}
-          {t.type === "CONVERT" ? `${t.fromAmount} → ${t.toAmount}` : ""}
-          {t.type === "SET_CONVERT" ? `${t.times} sets` : ""}
+          {isLegacyTransaction(t) && t.type === "CONVERT" ? `${t.fromAmount} → ${t.toAmount}` : ""}
+          {isLegacyTransaction(t) && t.type === "SET_CONVERT" ? `${t.times} sets` : ""}
+          {isNewConcreteTransaction(t)
+            ? Math.abs(t.amount).toLocaleString()
+            : ""}
+          {isNewMugTransaction(t) ? "-" : ""}
         </td>
         <td className="px-6 py-4 text-right">
-          {t.type === "BUY" || t.type === "SELL"
+          {isWrapper && t.price !== null ? `$${t.price.toLocaleString()}` : ""}
+          {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL")
             ? `$${t.price.toLocaleString()}`
             : ""}
-          {t.type === "MUG" ? `-$${t.amount.toLocaleString()}` : ""}
+          {isLegacyTransaction(t) && t.type === "MUG" ? `-$${t.amount.toLocaleString()}` : ""}
+          {isNewConcreteTransaction(t) ? `$${t.price.toLocaleString()}` : ""}
+          {isNewMugTransaction(t) ? `-$${t.amount.toLocaleString()}` : ""}
         </td>
         <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-          {(t.type === "BUY" || t.type === "SELL") && (
+          {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL") && (
             <button
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 vibrate("utility");
                 const newPriceStr = prompt(
                   "Enter new price:",
@@ -331,10 +653,25 @@ function LogsPageContent() {
               <Edit2 className="w-4 h-4" />
             </button>
           )}
+          {isWrapper && (
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("groupID", t.id);
+                router.push(`/logs?${params.toString()}`);
+              }}
+              className="text-primary/70 hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          )}
           <button
-            onClick={() => {
+            onClick={(event) => {
+              event.stopPropagation();
               vibrate("danger");
-              if (confirm("Delete this log?")) deleteLog(t.id);
+              const idsToDelete = isWrapper ? [t.id, ...t.wrappedTransactionIDs] : [t.id];
+              if (confirm("Delete this log?")) deleteLogs(idsToDelete);
             }}
             className="text-danger/70 hover:text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors"
           >
@@ -354,9 +691,9 @@ function LogsPageContent() {
         } as React.CSSProperties
       }
     >
-      {filterItem && (
+      {(filterItem || filterItemID || groupID) && (
         <Link
-          href="/"
+          href={groupID ? "/logs" : "/"}
           onClick={() => vibrate("nav")}
           className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors"
         >
@@ -367,7 +704,13 @@ function LogsPageContent() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {filterItem ? `${formatItemName(filterItem)} Logs` : "Manage Logs"}
+            {groupID
+              ? `Transaction Group ${groupID}`
+              : filterItemID
+                ? `${formatItemName(itemNameByID.get(Number(filterItemID)) || `item ${filterItemID}`)} Logs`
+              : filterItem
+                ? `${formatItemName(filterItem)} Logs`
+                : "Manage Logs"}
           </h1>
           <p className="text-foreground/60 mt-2">
             View, edit, or delete specific transactions.
