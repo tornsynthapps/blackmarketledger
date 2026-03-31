@@ -2,8 +2,7 @@ import {
   Transaction,
   ParsedLog,
   TransactionTag,
-  FLOWER_SET,
-  PLUSHIE_SET,
+  getMuseumExchangeDefinition,
 } from "./parser";
 
 type ParsedBuyLog = ParsedLog & {
@@ -27,7 +26,7 @@ type ParsedConvertOnlyLog = ParsedLog & {
 };
 type ParsedSetConvertOnlyLog = ParsedLog & {
   type: "SET_CONVERT";
-  setType: "flower" | "plushie";
+  setType: import("./parser").MuseumExchangeType;
   times: number;
   pointsEarned: number;
 };
@@ -129,10 +128,10 @@ export function calculateInventory(txns: Transaction[]): Map<string, any> {
       toCurr.totalCost += fromCostOfGoods;
       inv.set(t.toItem, toCurr);
     } else if (t.type === "SET_CONVERT") {
-      const setItems = t.setType === "flower" ? FLOWER_SET : PLUSHIE_SET;
+      const setItems = getMuseumExchangeDefinition(t.setType).items;
       let totalCostOfGoods = 0;
-      setItems.forEach((item) => {
-        const curr = inv.get(item) || {
+      setItems.forEach((itemRequirement) => {
+        const curr = inv.get(itemRequirement.itemName) || {
           stock: 0,
           totalCost: 0,
           realizedProfit: 0,
@@ -141,10 +140,11 @@ export function calculateInventory(txns: Transaction[]): Map<string, any> {
           abroadRealizedProfit: 0,
         };
         const avgCost = curr.stock > 0 ? curr.totalCost / curr.stock : 0;
-        const costOfGoods = avgCost * t.times;
-        curr.stock -= t.times;
+        const amountUsed = t.times * itemRequirement.quantity;
+        const costOfGoods = avgCost * amountUsed;
+        curr.stock -= amountUsed;
         curr.totalCost -= costOfGoods;
-        inv.set(item, curr);
+        inv.set(itemRequirement.itemName, curr);
         totalCostOfGoods += costOfGoods;
       });
       const pointsCurr = inv.get("points") || {
@@ -332,11 +332,11 @@ export function buildTransactionsWithLogs(
       log,
       initialDate + buys.length + converts.length + idx,
     );
-    const setItems = log.setType === "flower" ? FLOWER_SET : PLUSHIE_SET;
+    const setItems = getMuseumExchangeDefinition(log.setType).items;
     let minStock = Infinity;
     const itemStatsMap = new Map<string, any>();
-    setItems.forEach((item) => {
-      const stats = inventory.get(item) || {
+    setItems.forEach((itemRequirement) => {
+      const stats = inventory.get(itemRequirement.itemName) || {
         stock: 0,
         totalCost: 0,
         realizedProfit: 0,
@@ -344,22 +344,27 @@ export function buildTransactionsWithLogs(
         abroadTotalCost: 0,
         abroadRealizedProfit: 0,
       };
-      itemStatsMap.set(item, stats);
-      minStock = Math.min(minStock, stats.stock);
+      itemStatsMap.set(itemRequirement.itemName, stats);
+      minStock = Math.min(
+        minStock,
+        Math.floor(stats.stock / itemRequirement.quantity),
+      );
     });
 
     if (skipNegativeStock) {
       if (minStock > 0) {
         const timesToApply = Math.min(minStock, log.times);
-        const pointsEarned = timesToApply * 10;
+        const pointsEarned =
+          timesToApply * getMuseumExchangeDefinition(log.setType).pointsPerExchange;
         let totalCostOfGoods = 0;
-        setItems.forEach((item) => {
-          const stats = itemStatsMap.get(item)!;
+        setItems.forEach((itemRequirement) => {
+          const stats = itemStatsMap.get(itemRequirement.itemName)!;
           const avgCost = stats.stock > 0 ? stats.totalCost / stats.stock : 0;
-          const costOfGoods = avgCost * timesToApply;
-          stats.stock -= timesToApply;
+          const amountUsed = timesToApply * itemRequirement.quantity;
+          const costOfGoods = avgCost * amountUsed;
+          stats.stock -= amountUsed;
           stats.totalCost -= costOfGoods;
-          inventory.set(item, stats);
+          inventory.set(itemRequirement.itemName, stats);
           totalCostOfGoods += costOfGoods;
         });
         const pointsStats = inventory.get("points") || {
@@ -384,13 +389,14 @@ export function buildTransactionsWithLogs(
     } else {
       // skipNegativeStock is OFF, apply as is
       let totalCostOfGoods = 0;
-      setItems.forEach((item) => {
-        const stats = itemStatsMap.get(item)!;
+      setItems.forEach((itemRequirement) => {
+        const stats = itemStatsMap.get(itemRequirement.itemName)!;
         const avgCost = stats.stock > 0 ? stats.totalCost / stats.stock : 0;
-        const costOfGoods = avgCost * log.times;
-        stats.stock -= log.times;
+        const amountUsed = log.times * itemRequirement.quantity;
+        const costOfGoods = avgCost * amountUsed;
+        stats.stock -= amountUsed;
         stats.totalCost -= costOfGoods;
-        inventory.set(item, stats);
+        inventory.set(itemRequirement.itemName, stats);
         totalCostOfGoods += costOfGoods;
       });
       const pointsStats = inventory.get("points") || {
@@ -684,11 +690,10 @@ export function getLogBreakdown(
 
   // Step 4: Process Set Converts
   setConverts.forEach((log) => {
-    const setItems =
-      (log as any).setType === "flower" ? FLOWER_SET : PLUSHIE_SET;
+    const setItems = getMuseumExchangeDefinition((log as any).setType).items;
     let minStock = Infinity;
-    setItems.forEach((item) => {
-      const stats = inventory.get(item) || {
+    setItems.forEach((itemRequirement) => {
+      const stats = inventory.get(itemRequirement.itemName) || {
         stock: 0,
         totalCost: 0,
         realizedProfit: 0,
@@ -696,26 +701,31 @@ export function getLogBreakdown(
         abroadTotalCost: 0,
         abroadRealizedProfit: 0,
       };
-      minStock = Math.min(minStock, stats.stock);
+      minStock = Math.min(
+        minStock,
+        Math.floor(stats.stock / itemRequirement.quantity),
+      );
     });
 
     if (minStock >= (log as any).times) {
       completeCount++;
       filteredLogs.push(log);
-      setItems.forEach((item) => {
-        const stats = inventory.get(item)!;
-        stats.stock -= (log as any).times;
-        inventory.set(item, stats);
+      setItems.forEach((itemRequirement) => {
+        const stats = inventory.get(itemRequirement.itemName)!;
+        stats.stock -= (log as any).times * itemRequirement.quantity;
+        inventory.set(itemRequirement.itemName, stats);
       });
     } else if (minStock > 0) {
       partialCount++;
       const timesToApply = minStock;
-      const pointsEarned = timesToApply * 10;
+      const pointsEarned =
+        timesToApply *
+        getMuseumExchangeDefinition((log as any).setType).pointsPerExchange;
       filteredLogs.push({ ...log, times: timesToApply, pointsEarned } as any);
-      setItems.forEach((item) => {
-        const stats = inventory.get(item)!;
-        stats.stock -= timesToApply;
-        inventory.set(item, stats);
+      setItems.forEach((itemRequirement) => {
+        const stats = inventory.get(itemRequirement.itemName)!;
+        stats.stock -= timesToApply * itemRequirement.quantity;
+        inventory.set(itemRequirement.itemName, stats);
       });
     } else {
       skippedCount++;

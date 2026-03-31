@@ -20,8 +20,7 @@ import Link from "next/link";
 import {
   TransactionSourceType,
   formatItemName,
-  FLOWER_SET,
-  PLUSHIE_SET,
+  getMuseumExchangeDefinition,
 } from "@/lib/parser";
 import {
   AnyTrackedTransaction,
@@ -104,7 +103,8 @@ function getDisplayItemName(transaction: DisplayTransaction) {
     return `${formatItemName(transaction.fromItem)} → ${formatItemName(transaction.toItem)}`;
   }
   if (transaction.type === "SET_CONVERT") {
-    return `${transaction.times}x ${formatItemName(transaction.setType)} Set → ${transaction.pointsEarned} Points`;
+    const definition = getMuseumExchangeDefinition(transaction.setType);
+    return `${transaction.times}x ${definition.label}${definition.isSet ? " Set" : ""} → ${transaction.pointsEarned} Points`;
   }
   return "Money";
 }
@@ -313,13 +313,14 @@ function LogsPageContent() {
           t.toItem.toLowerCase().includes(term)
         );
       if (t.type === "SET_CONVERT") {
+        const definition = getMuseumExchangeDefinition(t.setType);
         if (
-          t.setType.toLowerCase().includes(term) ||
+          definition.label.toLowerCase().includes(term) ||
+          `${definition.label.toLowerCase()} set`.includes(term) ||
           "set point".includes(term)
         )
           return true;
-        const itemsToSearch = t.setType === "flower" ? FLOWER_SET : PLUSHIE_SET;
-        return itemsToSearch.some((item) => item.toLowerCase().includes(term));
+        return definition.items.some((item) => item.itemName.toLowerCase().includes(term));
       }
       if (t.item.toLowerCase().includes(term)) return true;
       if (!showLinkedIds) return false;
@@ -456,7 +457,8 @@ function LogsPageContent() {
       return `${formatItemName(t.fromItem)} → ${formatItemName(t.toItem)}`;
     }
     if (t.type === "SET_CONVERT") {
-      return `${t.times}x ${formatItemName(t.setType)} set`;
+      const definition = getMuseumExchangeDefinition(t.setType);
+      return `${t.times}x ${definition.label}${definition.isSet ? " set" : ""}`;
     }
     return "Mug loss";
   };

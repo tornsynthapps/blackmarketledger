@@ -1,5 +1,18 @@
 export const PARSER_VERSION = "1.2.0";
 export type TransactionType = "BUY" | "SELL" | "MUG" | "CONVERT";
+export type MuseumExchangeType =
+  | "flower"
+  | "plushie"
+  | "meteorite-fragment"
+  | "patagonian-fossil"
+  | "arrowhead"
+  | "medieval-coin"
+  | "vairocana-buddha"
+  | "ganesha-sculpture"
+  | "shabti-sculpture"
+  | "companion-scripts"
+  | "senet-game"
+  | "egyptian-amulet";
 
 export type TransactionTag = "Abroad" | "Normal";
 export type TransactionSourceType =
@@ -46,7 +59,7 @@ export interface ConvertTransaction extends BaseTransaction {
 
 export interface SetConvertTransaction extends BaseTransaction {
   type: "SET_CONVERT";
-  setType: "flower" | "plushie";
+  setType: MuseumExchangeType;
   times: number;
   pointsEarned: number;
 }
@@ -97,6 +110,166 @@ export const PLUSHIE_SET = [
   "camel plushie",
   "stingray plushie",
 ];
+
+export interface MuseumExchangeRequirement {
+  itemID: number;
+  itemName: string;
+  quantity: number;
+}
+
+export interface MuseumExchangeDefinition {
+  label: string;
+  aliases: string[];
+  pointsPerExchange: number;
+  isSet: boolean;
+  items: MuseumExchangeRequirement[];
+}
+
+export const MUSEUM_EXCHANGE_DEFINITIONS: Record<
+  MuseumExchangeType,
+  MuseumExchangeDefinition
+> = {
+  flower: {
+    label: "Exotic Flower",
+    aliases: ["flower", "exotic flower", "exotic flower set"],
+    pointsPerExchange: 10,
+    isSet: true,
+    items: FLOWER_SET.map((itemName) => ({ itemID: 0, itemName, quantity: 1 })),
+  },
+  plushie: {
+    label: "Plushie",
+    aliases: ["plushie", "plushie set"],
+    pointsPerExchange: 10,
+    isSet: true,
+    items: PLUSHIE_SET.map((itemName) => ({ itemID: 0, itemName, quantity: 1 })),
+  },
+  "meteorite-fragment": {
+    label: "Meteorite Fragment",
+    aliases: ["meteorite fragment"],
+    pointsPerExchange: 15,
+    isSet: false,
+    items: [{ itemID: 1488, itemName: "meteorite fragment", quantity: 1 }],
+  },
+  "patagonian-fossil": {
+    label: "Patagonian Fossil",
+    aliases: ["patagonian fossil"],
+    pointsPerExchange: 20,
+    isSet: false,
+    items: [{ itemID: 1487, itemName: "patagonian fossil", quantity: 1 }],
+  },
+  arrowhead: {
+    label: "Arrowhead",
+    aliases: ["arrowhead", "arrowhead set"],
+    pointsPerExchange: 25,
+    isSet: true,
+    items: [
+      { itemID: 1499, itemName: "obsidian point", quantity: 1 },
+      { itemID: 1500, itemName: "quartzite point", quantity: 1 },
+      { itemID: 1501, itemName: "chert point", quantity: 1 },
+      { itemID: 1502, itemName: "basalt point", quantity: 1 },
+      { itemID: 1503, itemName: "chalcedony point", quantity: 1 },
+      { itemID: 1504, itemName: "quartz point", quantity: 1 },
+    ],
+  },
+  "medieval-coin": {
+    label: "Medieval Coin",
+    aliases: ["medieval coin", "medieval coin set"],
+    pointsPerExchange: 100,
+    isSet: true,
+    items: [
+      { itemID: 450, itemName: "leopard coin", quantity: 1 },
+      { itemID: 451, itemName: "florin coin", quantity: 1 },
+      { itemID: 452, itemName: "gold noble coin", quantity: 1 },
+    ],
+  },
+  "vairocana-buddha": {
+    label: "Vairocana Buddha Sculpture",
+    aliases: [
+      "vairocana buddha",
+      "vairocana buddha sculpture",
+      "vairocana buddha set",
+    ],
+    pointsPerExchange: 100,
+    isSet: false,
+    items: [
+      { itemID: 454, itemName: "vairocana buddha sculpture", quantity: 1 },
+    ],
+  },
+  "ganesha-sculpture": {
+    label: "Ganesha Sculpture",
+    aliases: ["ganesha sculpture"],
+    pointsPerExchange: 250,
+    isSet: false,
+    items: [{ itemID: 453, itemName: "ganesha sculpture", quantity: 1 }],
+  },
+  "shabti-sculpture": {
+    label: "Shabti Sculpture",
+    aliases: ["shabti sculpture"],
+    pointsPerExchange: 500,
+    isSet: false,
+    items: [{ itemID: 458, itemName: "shabti sculpture", quantity: 1 }],
+  },
+  "companion-scripts": {
+    label: "Companion Scripts",
+    aliases: ["companion scripts", "companion scripts set", "companion script"],
+    pointsPerExchange: 1000,
+    isSet: true,
+    items: [
+      { itemID: 455, itemName: "companion script : abdullah", quantity: 1 },
+      { itemID: 457, itemName: "companion script : ali", quantity: 1 },
+      { itemID: 456, itemName: "companion script : ubay", quantity: 1 },
+    ],
+  },
+  "senet-game": {
+    label: "Senet Game",
+    aliases: ["senet game", "senet game set", "senet"],
+    pointsPerExchange: 2000,
+    isSet: true,
+    items: [
+      { itemID: 462, itemName: "senet board", quantity: 1 },
+      { itemID: 460, itemName: "white senet pawn", quantity: 5 },
+      { itemID: 461, itemName: "black senet pawn", quantity: 5 },
+    ],
+  },
+  "egyptian-amulet": {
+    label: "Egyptian Amulet",
+    aliases: ["egyptian amulet"],
+    pointsPerExchange: 5000,
+    isSet: false,
+    items: [{ itemID: 459, itemName: "egyptian amulet", quantity: 1 }],
+  },
+};
+
+export const MUSEUM_TRACKED_ITEMS = Array.from(
+  new Set(
+    Object.values(MUSEUM_EXCHANGE_DEFINITIONS).flatMap((exchange) =>
+      exchange.items.map((item) => item.itemName),
+    ),
+  ),
+);
+
+export function getMuseumExchangeDefinition(setType: MuseumExchangeType) {
+  return MUSEUM_EXCHANGE_DEFINITIONS[setType];
+}
+
+export function resolveMuseumExchangeType(raw: string): MuseumExchangeType | null {
+  const normalized = normalizeItemName(raw).replace(/\s+set$/, "");
+
+  const match = Object.entries(MUSEUM_EXCHANGE_DEFINITIONS).find(([, definition]) =>
+    definition.aliases.some(
+      (alias) => {
+        const normalizedAlias = normalizeItemName(alias).replace(/\s+set$/, "");
+        return (
+          normalizedAlias === normalized ||
+          normalized.includes(normalizedAlias) ||
+          normalizedAlias.includes(normalized)
+        );
+      },
+    ),
+  );
+
+  return (match?.[0] as MuseumExchangeType | undefined) ?? null;
+}
 
 export function normalizeItemName(name: string): string {
   const lower = name.trim().toLowerCase();
@@ -308,19 +481,14 @@ export function parseLogLine(line: string): ParsedLog | null {
   // You exchanged 25x Plushie Set to the museum for 250 points
   // You exchanged 3x Exotic Flower Set to the museum for 30 points
   const museumExchangeRegex =
-    /You exchanged ([\d,]+)x (.+?) Set to the museum for ([\d,]+) points/i;
+    /You exchanged ([\d,]+)x (.+?) to the museum for ([\d,]+) points/i;
   const museumExchangeMatch = line.match(museumExchangeRegex);
   if (museumExchangeMatch) {
     const times = parseInt(museumExchangeMatch[1].replace(/,/g, ""), 10);
-    const setTypeRaw = museumExchangeMatch[2].toLowerCase();
+    const setType = resolveMuseumExchangeType(museumExchangeMatch[2]);
     const pointsEarned = parseInt(museumExchangeMatch[3].replace(/,/g, ""), 10);
 
-    if (!isNaN(times) && !isNaN(pointsEarned)) {
-      let setType: "flower" | "plushie" = "plushie";
-      if (setTypeRaw.includes("flower")) {
-        setType = "flower";
-      }
-
+    if (!isNaN(times) && !isNaN(pointsEarned) && setType) {
       return {
         type: "SET_CONVERT",
         setType,
@@ -452,8 +620,11 @@ export function formatToStandardLog(parsed: ParsedLog): string {
   }
 
   if (parsed.type === "SET_CONVERT") {
-    const setName = parsed.setType === "flower" ? "Exotic Flower" : "Plushie";
-    return `You exchanged ${parsed.times}x ${setName} Set to the museum for ${parsed.pointsEarned} points`;
+    const definition = getMuseumExchangeDefinition(parsed.setType);
+    const exchangeName = definition.isSet
+      ? `${definition.label} Set`
+      : definition.label;
+    return `You exchanged ${parsed.times}x ${exchangeName} to the museum for ${parsed.pointsEarned} points`;
   }
 
   return "";

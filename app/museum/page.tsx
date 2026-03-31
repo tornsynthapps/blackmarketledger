@@ -19,8 +19,9 @@ import { useMemo, useState, useEffect } from "react";
 import {
   formatItemName,
   FLOWER_SET,
+  MUSEUM_EXCHANGE_DEFINITIONS,
+  MUSEUM_TRACKED_ITEMS,
   PLUSHIE_SET,
-  Transaction,
 } from "@/lib/parser";
 import { ProfitChart } from "@/components/ProfitChart";
 import {
@@ -53,8 +54,7 @@ const isMuseumTrackedTransaction = (transaction: any) => {
     return (
       itemName === "points" ||
       itemName === "flushie" ||
-      FLOWER_SET.includes(itemName) ||
-      PLUSHIE_SET.includes(itemName)
+      MUSEUM_TRACKED_ITEMS.includes(itemName)
     );
   }
 
@@ -62,8 +62,7 @@ const isMuseumTrackedTransaction = (transaction: any) => {
     return (
       transaction.item === "points" ||
       transaction.item === "flushie" ||
-      FLOWER_SET.includes(transaction.item) ||
-      PLUSHIE_SET.includes(transaction.item)
+      MUSEUM_TRACKED_ITEMS.includes(transaction.item)
     );
   }
 
@@ -147,6 +146,7 @@ export default function MuseumDashboard() {
     pointsStats,
     flowersData,
     plushiesData,
+    artifactExchangeData,
     flowerSetsPossible,
     plushieSetsPossible,
     totalValue,
@@ -172,6 +172,30 @@ export default function MuseumDashboard() {
       stats: inventory.get(name) || defaultStats,
     }));
 
+    const artifactExchangeData = Object.entries(MUSEUM_EXCHANGE_DEFINITIONS)
+      .filter(([key]) => key !== "flower" && key !== "plushie")
+      .map(([key, definition]) => {
+        const items = definition.items.map((item) => ({
+          ...item,
+          stats: inventory.get(item.itemName) || defaultStats,
+        }));
+        const exchangesReady =
+          items.length > 0
+            ? Math.min(
+                ...items.map((item) =>
+                  Math.floor(item.stats.stock / item.quantity),
+                ),
+              )
+            : 0;
+
+        return {
+          key,
+          definition,
+          items,
+          exchangesReady,
+        };
+      });
+
     const flowerSetsPossible =
       FLOWER_SET.length > 0
         ? Math.min(...flowersData.map((f) => f.stats.stock))
@@ -189,6 +213,13 @@ export default function MuseumDashboard() {
       itemsRealizedProfit += item.stats.realizedProfit;
     });
 
+    artifactExchangeData.forEach((exchange) => {
+      exchange.items.forEach((item) => {
+        itemsTotalCost += Math.max(0, item.stats.totalCost);
+        itemsRealizedProfit += item.stats.realizedProfit;
+      });
+    });
+
     const totalValue =
       Math.max(0, flushieStats.totalCost) +
       Math.max(0, pointsStats.totalCost) +
@@ -203,6 +234,7 @@ export default function MuseumDashboard() {
       pointsStats,
       flowersData,
       plushiesData,
+      artifactExchangeData,
       flowerSetsPossible,
       plushieSetsPossible,
       totalValue,
@@ -440,6 +472,14 @@ export default function MuseumDashboard() {
                   .toLocaleString()}
                 subValue={`${plushieSetsPossible} Sets Ready`}
               />
+              <OverviewItem
+                icon={<Museum className="w-4 h-4" />}
+                label="Artifact Exchanges"
+                value={artifactExchangeData
+                  .reduce((acc, curr) => acc + curr.exchangesReady, 0)
+                  .toLocaleString()}
+                subValue={`${artifactExchangeData.length} exchange tracks`}
+              />
             </div>
           </div>
 
@@ -567,6 +607,54 @@ export default function MuseumDashboard() {
                   name={item.name}
                   stats={item.stats}
                 />
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-xl">
+                  <Museum className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Artifact Exchanges</h2>
+                  <p className="text-sm text-foreground/60">
+                    Museum conversions beyond flower and plushie sets.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {artifactExchangeData.map((exchange) => (
+                <div
+                  key={exchange.key}
+                  className="rounded-xl border border-border/70 bg-background/50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold">{exchange.definition.label}</h3>
+                      <p className="text-sm text-foreground/60">
+                        {exchange.exchangesReady} ready · {exchange.definition.pointsPerExchange.toLocaleString()} points each
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {exchange.items.map((item) => (
+                      <div
+                        key={`${exchange.key}:${item.itemID}`}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <span className="text-foreground/75">
+                          {item.quantity}x {formatItemName(item.itemName)}
+                        </span>
+                        <span className="font-medium text-primary">
+                          {item.stats.stock.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

@@ -358,4 +358,30 @@ describe("migrateLegacyTransactions", () => {
     expect(concreteTransactions).toHaveLength(2);
     expect(concreteTransactions.every((transaction) => transaction.groupID === "trade-123")).toBe(true);
   });
+
+  it("imports artifact museum exchanges with required quantities", () => {
+    const result = buildTransactionsFromParsedLogs([], [
+      {
+        type: "SET_CONVERT",
+        setType: "senet-game",
+        times: 2,
+        pointsEarned: 4000,
+        sourceType: "museum",
+      },
+    ]);
+
+    const concreteTransactions = result.filter(
+      (transaction): transaction is Transaction => !transaction.isWrapper && "itemID" in transaction,
+    );
+
+    const board = concreteTransactions.find((transaction) => transaction.itemName === "senet board");
+    const whitePawn = concreteTransactions.find((transaction) => transaction.itemName === "white senet pawn");
+    const blackPawn = concreteTransactions.find((transaction) => transaction.itemName === "black senet pawn");
+    const points = concreteTransactions.find((transaction) => transaction.itemName === "points");
+
+    expect(board?.amount).toBe(-2);
+    expect(whitePawn?.amount).toBe(-10);
+    expect(blackPawn?.amount).toBe(-10);
+    expect(points?.amount).toBe(4000);
+  });
 });

@@ -1,4 +1,9 @@
-import { ParsedLog, TransactionSourceType, normalizeItemName } from "./parser";
+import {
+  ParsedLog,
+  TransactionSourceType,
+  normalizeItemName,
+  resolveMuseumExchangeType,
+} from "./parser";
 import { createRateLimiter } from "./rate-limiter";
 import {
   getTornApiRateLimit,
@@ -507,14 +512,14 @@ function parseMuseumLog(log: NormalizedLog): ParsedLog[] {
     pickNumber(log.params, ["sets", "times", "amount", "quantity", "qty"]);
   const typeStr = (
     pickString(log.data, ["set_type", "type", "set"]) ||
-    pickString(log.params, ["set_type", "type", "set"])
+    pickString(log.params, ["set_type", "type", "set"]) ||
+    log.title
   ).toLowerCase();
 
   if (!pointsEarned || !times) return [];
 
-  const setType: "flower" | "plushie" = typeStr.includes("flower")
-    ? "flower"
-    : "plushie";
+  const setType = resolveMuseumExchangeType(typeStr);
+  if (!setType) return [];
 
   return [
     {

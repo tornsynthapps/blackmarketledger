@@ -1,3 +1,4 @@
+import { MUSEUM_TRACKED_ITEMS } from "@/lib/parser";
 import type { Transaction as LegacyTransaction } from "@/lib/parser";
 import type {
   AnyTrackedTransaction,
@@ -171,7 +172,9 @@ export const getTotals = (
 
   inventory.forEach((item, name) => {
     const isMuseum =
-      name.toLowerCase() === "points" || name.toLowerCase() === "flushie";
+      name.toLowerCase() === "points" ||
+      name.toLowerCase() === "flushie" ||
+      MUSEUM_TRACKED_ITEMS.includes(name.toLowerCase());
     if (isMuseum) {
       museumProfit += item.realizedProfit;
       museumInventory += Math.max(0, item.totalCost);

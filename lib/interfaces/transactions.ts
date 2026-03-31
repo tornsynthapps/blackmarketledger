@@ -1,6 +1,5 @@
 import {
-  FLOWER_SET,
-  PLUSHIE_SET,
+  getMuseumExchangeDefinition,
   ParsedLog,
   Transaction as LegacyJournalTransaction,
   TransactionSourceType,
@@ -1088,22 +1087,24 @@ export function migrateLegacyTransactions(
     }
 
     if (legacyTransaction.type === "SET_CONVERT") {
-      const setItems =
-        legacyTransaction.setType === "flower" ? FLOWER_SET : PLUSHIE_SET;
+      const exchangeDefinition = getMuseumExchangeDefinition(
+        legacyTransaction.setType,
+      );
+      const setItems = exchangeDefinition.items;
       const pointsItemID = resolveItemIDWithFallback("points", itemIDResolver);
 
       const migratedItems: TransactionInput[] = [];
-      let missingSetItem = false;
 
-      setItems.forEach((itemName) => {
+      setItems.forEach((itemRequirement) => {
+        const itemName = normalizeItemName(itemRequirement.itemName);
         const itemID = resolveItemIDWithFallback(itemName, itemIDResolver);
 
         migratedItems.push({
           id: `${legacyTransaction.id}:${itemName}`,
           timestamp: legacyTransaction.date,
           itemID,
-          itemName: normalizeItemName(itemName),
-          amount: -legacyTransaction.times,
+          itemName,
+          amount: -(legacyTransaction.times * itemRequirement.quantity),
           price: 0,
           source: mapLegacySourceType(legacyTransaction.sourceType),
           stockType: "auto",
@@ -1114,10 +1115,6 @@ export function migrateLegacyTransactions(
             null,
         });
       });
-
-      if (missingSetItem) {
-        return;
-      }
 
       migratedItems.push({
         id: `${legacyTransaction.id}:points`,
@@ -1143,10 +1140,7 @@ export function migrateLegacyTransactions(
           legacyTransaction.tradeGroupId ??
           legacyTransaction.weav3rReceiptId ??
           null,
-        description:
-          legacyTransaction.setType === "flower"
-            ? "Flower Set Exchange"
-            : "Plushie Set Exchange",
+        description: `${exchangeDefinition.label}${exchangeDefinition.isSet ? " Set" : ""} Exchange`,
         items: migratedItems,
       });
       return;
@@ -1403,13 +1397,13 @@ export function buildTransactionsFromParsedLogs(
     }
 
     if (log.type === "SET_CONVERT") {
-      const setItems = log.setType === "flower" ? FLOWER_SET : PLUSHIE_SET;
-      const items: TransactionInput[] = setItems.map((itemName) => ({
+      const exchangeDefinition = getMuseumExchangeDefinition(log.setType);
+      const items: TransactionInput[] = exchangeDefinition.items.map((itemRequirement) => ({
         id: crypto.randomUUID(),
         timestamp,
-        itemID: resolveItemIDWithFallback(itemName, itemIDResolver),
-        itemName,
-        amount: -log.times,
+        itemID: resolveItemIDWithFallback(itemRequirement.itemName, itemIDResolver),
+        itemName: itemRequirement.itemName,
+        amount: -(log.times * itemRequirement.quantity),
         price: 0,
         source: mapLegacySourceType(log.sourceType),
         stockType: "auto",
@@ -1431,10 +1425,7 @@ export function buildTransactionsFromParsedLogs(
         timestamp,
         tornID: log.tornLogId ?? null,
         tradeID: log.tradeGroupId ?? log.weav3rReceiptId ?? null,
-        description:
-          log.setType === "flower"
-            ? "Flower Set Exchange"
-            : "Plushie Set Exchange",
+        description: `${exchangeDefinition.label}${exchangeDefinition.isSet ? " Set" : ""} Exchange`,
         items,
       });
       return;

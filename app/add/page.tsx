@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useJournal, InventoryItemStats } from "@/store/useJournal";
-import { parseLogLine, ParsedLog, formatItemName, formatToStandardLog, PARSER_VERSION, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { parseLogLine, ParsedLog, formatItemName, formatToStandardLog, PARSER_VERSION, getMuseumExchangeDefinition } from "@/lib/parser";
 import { calculateInventory, getLogBreakdown } from "@/lib/transactionBuilder";
 import { Check, Info, AlertCircle, Save, Trash2, ShieldAlert, AlertTriangle, SkipForward } from "lucide-react";
 import Link from "next/link";
@@ -291,7 +291,7 @@ export default function AddLogs() {
                                                         {parsed.type === 'SELL' && <>💰 <span>Sold</span> {parsed.amount}x {formatItemName(parsed.item)} @ {Math.floor(parsed.price).toLocaleString()}</>}
                                                         {parsed.type === 'MUG' && <>🥷 <span>Mug Loss</span> ${parsed.amount.toLocaleString()}</>}
                                                         {parsed.type === 'CONVERT' && <>♻️ <span>Exchanged</span> {parsed.fromAmount.toLocaleString()} {formatItemName(parsed.fromItem)} &rarr; {parsed.toAmount.toLocaleString()} {formatItemName(parsed.toItem)}</>}
-                                                        {parsed.type === 'SET_CONVERT' && <>🏛️ <span>Museum</span> {parsed.times}x {formatItemName(parsed.setType)} &rarr; {parsed.pointsEarned} Pts</>}
+                                                        {parsed.type === 'SET_CONVERT' && <>🏛️ <span>Museum</span> {parsed.times}x {getMuseumExchangeDefinition(parsed.setType).label}{getMuseumExchangeDefinition(parsed.setType).isSet ? " Set" : ""} &rarr; {parsed.pointsEarned} Pts</>}
                                                     </div>
                                                 ) : lineText.trim() ? (
                                                     <div className="text-[10px] text-danger font-bold flex items-center gap-1 h-6">

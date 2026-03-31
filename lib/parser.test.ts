@@ -302,6 +302,16 @@ describe("parseLogLine", () => {
     expect(result.setType).toBe("flower");
   });
 
+  it("should parse log, museum exchange (senet game)", () => {
+    const line = "You exchanged 2x Senet Game Set to the museum for 4000 points";
+    const result = parseLogLine(line) as any;
+    expect(result).not.toBeNull();
+    expect(result.type).toBe("SET_CONVERT");
+    expect(result.setType).toBe("senet-game");
+    expect(result.times).toBe(2);
+    expect(result.pointsEarned).toBe(4000);
+  });
+
   it("should return null for invalid formats", () => {
     expect(parseLogLine("invalid log line")).toBeNull();
     expect(parseLogLine("21:47:05 - 16/03/26")).toBeNull();
@@ -374,6 +384,19 @@ describe("formatToStandardLog", () => {
     const result = formatToStandardLog(log);
     expect(result).toBe(
       "You exchanged 3x Exotic Flower Set to the museum for 30 points",
+    );
+  });
+
+  it("should format artifact SET_CONVERT correctly", () => {
+    const log = {
+      type: "SET_CONVERT",
+      setType: "egyptian-amulet",
+      times: 1,
+      pointsEarned: 5000,
+    } as any;
+    const result = formatToStandardLog(log);
+    expect(result).toBe(
+      "You exchanged 1x Egyptian Amulet to the museum for 5000 points",
     );
   });
 });

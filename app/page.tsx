@@ -1,7 +1,7 @@
 "use client";
 
 import { useJournal, InventoryItemStats } from "@/store/useJournal";
-import { formatItemName } from "@/lib/parser";
+import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/parser";
 import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown, ArrowUp, ArrowDown, Search, Coins, Check } from "lucide-react";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -100,7 +100,10 @@ export default function Home() {
     const items: { name: string; stats: any }[] = [];
 
     inventory.forEach((stat, name) => {
-      const isMuseum = name.toLowerCase() === 'flushie' || name.toLowerCase() === 'points';
+      const isMuseum =
+        name.toLowerCase() === 'flushie' ||
+        name.toLowerCase() === 'points' ||
+        MUSEUM_TRACKED_ITEMS.includes(name.toLowerCase());
       
       if (isMuseum) {
         museumProfit += stat.realizedProfit;
@@ -508,7 +511,7 @@ export default function Home() {
         title={modalState.title}
         transactions={transactions}
         statType={modalState.statType}
-        excludedItems={['flushie', 'points']}
+        excludedItems={['flushie', 'points', ...MUSEUM_TRACKED_ITEMS]}
         inventoryScope="normal"
       />
     </div>
