@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from 'react';
-import { X, TrendingUp, Calendar, BarChart3 } from 'lucide-react';
+import React, { useState } from 'react';
+import { HugeiconsIcon } from "@hugeicons/react";
+import { 
+    Cancel01Icon, 
+    ChartAreaIcon, 
+    Calendar01Icon, 
+    BarChartIcon 
+} from "@hugeicons/core-free-icons";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { FLOWER_SET, PLUSHIE_SET, Transaction } from '@/lib/parser';
 import type { AnyTrackedTransaction } from '@/lib/interfaces/transactions';
@@ -49,7 +55,7 @@ export default function StatsModal({
     }
 
     if (absValue >= 1_000) {
-      return `$${(value / 1_000).toFixed(0)}k`;
+      return `$${(value / 1_000).toFixed(0)}K`;
     }
 
     return `$${Math.round(value).toLocaleString()}`;
@@ -58,32 +64,6 @@ export default function StatsModal({
   const excludedItemSet = new Set(excludedItems.map(item => item.toLowerCase()));
 
   const isTrackedItem = (item: string) => !excludedItemSet.has(item.toLowerCase());
-
-  const getChartValue = (currentTotals: LedgerTotals, previousTotals: LedgerTotals, cumulative: boolean) => {
-    if (cumulative) {
-      switch (statType) {
-        case 'profit':
-          return currentTotals.profit;
-        case 'inventory':
-          return currentTotals.inventory;
-        case 'mugLoss':
-          return currentTotals.mugLoss;
-        case 'netProfit':
-          return currentTotals.netProfit;
-      }
-    } else {
-      switch (statType) {
-        case 'profit':
-          return currentTotals.profit - previousTotals.profit;
-        case 'inventory':
-          return currentTotals.inventory;
-        case 'mugLoss':
-          return currentTotals.mugLoss - previousTotals.mugLoss;
-        case 'netProfit':
-          return currentTotals.netProfit - previousTotals.netProfit;
-      }
-    }
-  };
 
   const generateChartData = () => {
     const now = new Date();
@@ -160,7 +140,6 @@ export default function StatsModal({
       const mugLoss = currentTotals.mugLoss;
       const netProfit = currentTotals.netProfit;
       
-      // For incremental view, calculate period-over-period values
       const incrementalRealized = realizedProfit - previousTotals.profit;
       const incrementalMug = mugLoss - previousTotals.mugLoss;
       const incrementalNet = netProfit - previousTotals.netProfit;
@@ -170,7 +149,7 @@ export default function StatsModal({
       return {
         period: format(period, formatStr),
         realizedProfit: Math.round(viewType === 'cumulative' ? realizedProfit : incrementalRealized),
-        mugLoss: -Math.round(viewType === 'cumulative' ? mugLoss : incrementalMug), // Negative so it shows below axis
+        mugLoss: -Math.round(viewType === 'cumulative' ? mugLoss : incrementalMug),
         netProfit: Math.round(viewType === 'cumulative' ? netProfit : incrementalNet),
         date: period.toISOString()
       };
@@ -179,7 +158,6 @@ export default function StatsModal({
 
   const chartData = generateChartData();
   
-  // Calculate stats based on net profit for the summary
   const totalNetProfit = chartData.reduce((sum, item) => sum + item.netProfit, 0);
   const latestNetProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0;
   const averageNetProfit = chartData.length > 0
@@ -187,162 +165,140 @@ export default function StatsModal({
     : 0;
   const highestNetProfit = chartData.length > 0 ? Math.max(...chartData.map(item => item.netProfit)) : 0;
   const lowestNetProfit = chartData.length > 0 ? Math.min(...chartData.map(item => item.netProfit)) : 0;
-  const primarySummaryLabel = 'Latest Net';
-  const primarySummaryValue = latestNetProfit;
+  
+  const tooltipStyle = { 
+    backgroundColor: 'var(--panel)', 
+    border: '1px solid var(--border)', 
+    borderRadius: '0px', 
+    padding: '12px', 
+    boxShadow: 'none',
+    opacity: 0.95
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-panel rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-border">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+      <div className="bg-panel border border-border shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col font-mono">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border bg-muted/30">
           <div>
-            <h2 className="text-xl font-semibold">{title} Trends</h2>
-            <p className="text-sm text-foreground/60 mt-1">Historical data over time</p>
+            <h2 className="text-xl font-black uppercase tracking-tighter">{title} Diagnostics</h2>
+            <p className="text-[10px] font-bold text-foreground/50 uppercase tracking-widest mt-1">Industrial Data Stream Analysis</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-foreground/10 rounded-lg transition-colors"
+            className="p-2 border border-border bg-background hover:bg-danger hover:text-white transition-all group"
           >
-            <X className="w-5 h-5" />
+            <HugeiconsIcon icon={Cancel01Icon} size={20} />
           </button>
         </div>
 
-        <div className="p-6">
-          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex gap-2">
+        <div className="p-6 overflow-y-auto">
+          {/* Controls */}
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex border border-border p-1 bg-background/50">
               {(['daily', 'weekly', 'monthly'] as TimeRange[]).map((range) => (
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${timeRange === range
-                    ? 'bg-primary text-white'
-                    : 'bg-foreground/5 hover:bg-foreground/10 text-foreground/70'
+                  className={`px-4 py-2 text-[10px] font-black uppercase transition-all flex items-center gap-2 border border-transparent ${timeRange === range
+                    ? 'bg-primary text-white border-primary'
+                    : 'text-foreground/40 hover:text-foreground/60'
                     }`}
                 >
-                  {range === 'daily' && <Calendar className="w-4 h-4" />}
-                  {range === 'weekly' && <BarChart3 className="w-4 h-4" />}
-                  {range === 'monthly' && <TrendingUp className="w-4 h-4" />}
-                  {range.charAt(0).toUpperCase() + range.slice(1)}
+                  <HugeiconsIcon icon={range === 'daily' ? Calendar01Icon : range === 'weekly' ? BarChartIcon : ChartAreaIcon} size={14} />
+                  {range}
                 </button>
               ))}
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewType('cumulative')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewType === 'cumulative'
-                  ? 'bg-primary text-white'
-                  : 'bg-foreground/5 hover:bg-foreground/10 text-foreground/70'
-                  }`}
-              >
-                Cumulative
-              </button>
-              <button
-                onClick={() => setViewType('incremental')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewType === 'incremental'
-                  ? 'bg-primary text-white'
-                  : 'bg-foreground/5 hover:bg-foreground/10 text-foreground/70'
-                  }`}
-              >
-                Incremental
-              </button>
+            <div className="flex border border-border p-1 bg-background/50">
+              {(['cumulative', 'incremental'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setViewType(v)}
+                  className={`px-4 py-2 text-[10px] font-black uppercase transition-all border border-transparent ${viewType === v
+                    ? 'bg-primary text-white border-primary'
+                    : 'text-foreground/40 hover:text-foreground/60'
+                    }`}
+                >
+                  {v}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="h-80">
+          {/* Chart */}
+          <div className="h-80 w-full mb-8">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorRealized" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorMug" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
+                <CartesianGrid strokeDasharray="2 4" vertical={false} stroke="var(--border)" opacity={0.5} />
                 <XAxis
                   dataKey="period"
-                  stroke="currentColor"
-                  opacity={0.6}
-                  fontSize={12}
+                  axisLine={{ stroke: 'var(--border)' }}
+                  tickLine={false}
+                  tick={{ fill: 'var(--foreground)', opacity: 0.5, fontSize: 10, fontFamily: 'monospace' }}
+                  dy={10}
                 />
                 <YAxis
-                  stroke="currentColor"
-                  opacity={0.6}
-                  fontSize={12}
+                  axisLine={{ stroke: 'var(--border)' }}
+                  tickLine={false}
+                  tick={{ fill: 'var(--foreground)', opacity: 0.5, fontSize: 10, fontFamily: 'monospace' }}
                   tickFormatter={(value) => formatCompactCurrency(Number(value))}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--panel))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
-                  }}
-                  formatter={(value, name) => [formatCompactCurrency(Number(value || 0)), name === 'netProfit' ? 'Net Profit' : name === 'realizedProfit' ? 'Realized Profit' : 'Mug Loss']}
+                  contentStyle={tooltipStyle}
+                  labelStyle={{ color: 'var(--foreground)', opacity: 0.7, marginBottom: '8px', fontSize: '10px', fontWeight: 'bold', fontFamily: 'monospace' }}
+                  itemStyle={{ fontFamily: 'monospace', fontSize: '10px', textTransform: 'uppercase' }}
+                  formatter={(value: any, name) => [formatCompactCurrency(Number(value || 0)), name === 'netProfit' ? 'Net Profit' : name === 'realizedProfit' ? 'Realized Profit' : 'Mug Loss']}
                 />
-                {/* Mug Loss Area - shown as negative (red) */}
                 <Area
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="mugLoss"
                   stackId="1"
-                  stroke="#ef4444"
-                  strokeWidth={2}
-                  fill="url(#colorMug)"
-                  fillOpacity={0.6}
+                  stroke="var(--danger)"
+                  strokeWidth={1.5}
+                  fill="var(--danger)"
+                  fillOpacity={0.2}
                 />
-                {/* Realized Profit Area - shown as positive (green) */}
                 <Area
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="realizedProfit"
                   stackId="1"
-                  stroke="#22c55e"
-                  strokeWidth={2}
-                  fill="url(#colorRealized)"
-                  fillOpacity={0.6}
+                  stroke="var(--success)"
+                  strokeWidth={1.5}
+                  fill="var(--success)"
+                  fillOpacity={0.2}
                 />
-                {/* Net Profit Line - black */}
-                <Line
-                  type="monotone"
+                <Area
+                  type="stepAfter"
                   dataKey="netProfit"
-                  stroke="#000000"
-                  strokeWidth={3}
-                  dot={{ fill: '#000000', strokeWidth: 1.5, r: 3 }}
-                  activeDot={{ r: 5, strokeWidth: 0 }}
+                  stroke="var(--foreground)"
+                  strokeWidth={2}
+                  fill="transparent"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="bg-foreground/5 rounded-lg p-3">
-              <div className="text-foreground/60">{primarySummaryLabel}</div>
-              <div className="font-semibold">
-                {formatCompactCurrency(primarySummaryValue)}
-              </div>
-            </div>
-            <div className="bg-foreground/5 rounded-lg p-3">
-              <div className="text-foreground/60">Average Net</div>
-              <div className="font-semibold">
-                {formatCompactCurrency(averageNetProfit)}
-              </div>
-            </div>
-            <div className="bg-foreground/5 rounded-lg p-3">
-              <div className="text-foreground/60">Highest Net</div>
-              <div className="font-semibold">
-                {formatCompactCurrency(highestNetProfit)}
-              </div>
-            </div>
-            <div className="bg-foreground/5 rounded-lg p-3">
-              <div className="text-foreground/60">Lowest Net</div>
-              <div className="font-semibold">
-                {formatCompactCurrency(lowestNetProfit)}
-              </div>
-            </div>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Live Diagnostic" value={latestNetProfit} formatter={formatCompactCurrency} />
+            <StatCard label="Mean Throughput" value={averageNetProfit} formatter={formatCompactCurrency} />
+            <StatCard label="Peak Amplitude" value={highestNetProfit} formatter={formatCompactCurrency} />
+            <StatCard label="Floor Baseline" value={lowestNetProfit} formatter={formatCompactCurrency} />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, formatter }: { label: string, value: number, formatter: (v: number) => string }) {
+  return (
+    <div className="border border-border p-4 bg-muted/10">
+      <div className="text-[9px] font-black uppercase tracking-widest text-foreground/40 mb-1">{label}</div>
+      <div className="text-sm font-black tracking-tight">
+        {formatter(value)}
       </div>
     </div>
   );

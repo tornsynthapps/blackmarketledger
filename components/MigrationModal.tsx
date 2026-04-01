@@ -2,7 +2,16 @@
 
 import { useJournal } from "@/store/useJournal";
 import { useState, useEffect } from "react";
-import { X, Download, AlertTriangle, CheckCircle2, Trash2, Database, RefreshCw } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { 
+    Cancel01Icon, 
+    Download01Icon, 
+    Alert01Icon, 
+    CheckmarkCircle01Icon, 
+    Delete02Icon, 
+    Database01Icon, 
+    RefreshIcon 
+} from "@hugeicons/core-free-icons";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 interface MigrationModalProps {
@@ -70,22 +79,22 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-panel w-full max-w-lg rounded-2xl border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-panel w-full max-w-lg border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 font-mono">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-border">
+                <div className="flex items-center justify-between p-6 border-b border-border bg-muted/30">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                            <Database className="w-5 h-5" />
+                        <div className="p-2 border border-primary/20 bg-primary/5 text-primary">
+                            <HugeiconsIcon icon={Database01Icon} size={20} />
                         </div>
-                        <h2 className="text-xl font-bold">Data Migration</h2>
+                        <h2 className="text-xl font-black uppercase tracking-tighter">Data Migration</h2>
                     </div>
                     {!isMigrating && (
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-foreground/5 rounded-full transition-colors"
+                            className="p-2 border border-border bg-background hover:bg-danger hover:text-white transition-all"
                             aria-label="Close"
                         >
-                            <X className="w-5 h-5" />
+                            <HugeiconsIcon icon={Cancel01Icon} size={20} />
                         </button>
                     )}
                 </div>
@@ -93,28 +102,28 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
                 {/* Content */}
                 <div className="p-6 space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl border border-border bg-foreground/[0.02] space-y-2">
-                            <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">Old Version (BMLDB)</p>
-                            <p className="text-2xl font-bold font-mono">
+                        <div className="p-4 border border-border bg-foreground/[0.02] space-y-2">
+                            <p className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">Old Stream (BMLDB)</p>
+                            <p className="text-2xl font-black tracking-tighter">
                                 {bmlCount === null ? "..." : bmlCount.toLocaleString()}
                             </p>
-                            <p className="text-xs text-foreground/40">Logs detected</p>
+                            <p className="text-[10px] text-foreground/40 font-bold">LOG_UNITS_DETECTED</p>
                         </div>
-                        <div className="p-4 rounded-xl border border-border bg-foreground/[0.02] space-y-2">
-                            <p className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">New Version (LogsDB)</p>
-                            <p className="text-2xl font-bold font-mono">
+                        <div className="p-4 border border-border bg-foreground/[0.02] space-y-2">
+                            <p className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">New Stream (LogsDB)</p>
+                            <p className="text-2xl font-black tracking-tighter">
                                 {logsCount.toLocaleString()}
                             </p>
-                            <p className="text-xs text-foreground/40">Current logs</p>
+                            <p className="text-[10px] text-foreground/40 font-bold">CURRENT_STREAM_COUNT</p>
                         </div>
                     </div>
 
-                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex gap-4">
-                        <AlertTriangle className="w-6 h-6 text-yellow-600 shrink-0" />
+                    <div className="bg-warning/5 border border-warning/20 p-4 flex gap-4">
+                        <HugeiconsIcon icon={Alert01Icon} size={24} className="text-warning shrink-0" />
                         <div className="space-y-1">
-                            <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-500">Backup Required</p>
-                            <p className="text-sm text-yellow-600/80 leading-relaxed">
-                                To protect your data, you must download a backup of your current logs before proceeding with the migration.
+                            <p className="text-xs font-black uppercase text-warning tracking-tight">BACKUP_REQUIRED</p>
+                            <p className="text-[11px] text-foreground/60 leading-relaxed font-bold">
+                                CRITICAL: DOWNLOAD ASYNC BACKUP BEFORE INITIATING STREAM MERGE.
                             </p>
                         </div>
                     </div>
@@ -122,15 +131,15 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
                     {!hasExported ? (
                         <button
                             onClick={handleExport}
-                            className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg hover:bg-primary/90 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                            className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest text-xs border border-primary hover:bg-primary-dark transition-all flex items-center justify-center gap-3"
                         >
-                            <Download className="w-5 h-5" />
+                            <HugeiconsIcon icon={Download01Icon} size={18} />
                             Download Current Backup
                         </button>
                     ) : (
-                        <div className="bg-success/10 border border-success/20 rounded-xl p-4 flex items-center justify-center gap-2 text-success">
-                            <CheckCircle2 className="w-5 h-5" />
-                            <span className="font-semibold">Backup Complete</span>
+                        <div className="bg-success/5 border border-success/20 p-4 flex items-center justify-center gap-3 text-success">
+                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={18} />
+                            <span className="text-xs font-black uppercase tracking-widest">BACKUP_COMPLETE</span>
                         </div>
                     )}
 
@@ -138,31 +147,31 @@ export function MigrationModal({ isOpen, onClose }: MigrationModalProps) {
                         <button
                             disabled={!hasExported || isMigrating}
                             onClick={() => handleMigrate('overwrite')}
-                            className="w-full py-4 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold flex items-center justify-center gap-3 transition-all shadow-lg shadow-primary/20 active:scale-[0.98]"
+                            className="w-full py-4 bg-primary text-white hover:bg-primary-dark disabled:opacity-30 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all border border-primary"
                         >
                             {isMigrating ? (
-                                <RefreshCw className="w-5 h-5 animate-spin" />
+                                <HugeiconsIcon icon={RefreshIcon} size={18} className="animate-spin" />
                             ) : (
-                                <Database className="w-5 h-5" />
+                                <HugeiconsIcon icon={Database01Icon} size={18} />
                             )}
-                            {isMigrating ? "Migrating..." : "Overwrite and Migrate All Data"}
+                            {isMigrating ? "MIGRATING..." : "Overwrite and Migrate All Data"}
                         </button>
 
                         <button
                             disabled={!hasExported || isMigrating}
                             onClick={() => handleMigrate('none')}
-                            className="w-full py-4 bg-foreground/5 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold flex items-center justify-center gap-3 transition-colors text-foreground/60"
+                            className="w-full py-4 bg-muted/10 hover:bg-muted/20 disabled:opacity-30 disabled:cursor-not-allowed font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-colors border border-border text-foreground/60"
                         >
-                            <Trash2 className="w-5 h-5" />
+                            <HugeiconsIcon icon={Delete02Icon} size={18} />
                             Skip Overwrite & Use LogsDB
                         </button>
 
                         <div className="space-y-1">
-                            <p className="text-[10px] text-center text-foreground/30 px-6 uppercase tracking-widest font-bold">
-                                Overwrite: This will permanently replace current data and remove BMLDB
+                            <p className="text-[9px] text-center text-foreground/30 px-6 uppercase tracking-widest font-black">
+                                OVERWRITE: REPLACE CURRENT STREAM WITH LEGACY DATA
                             </p>
-                            <p className="text-[10px] text-center text-foreground/30 px-6 uppercase tracking-widest font-bold">
-                                Skip: This will keep current LogsDB data and remove BMLDB
+                            <p className="text-[9px] text-center text-foreground/30 px-6 uppercase tracking-widest font-black">
+                                SKIP: PURGE LEGACY DATA AND MAINTAIN CURRENT STREAM
                             </p>
                         </div>
                     </div>

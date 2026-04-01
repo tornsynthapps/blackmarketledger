@@ -1,8 +1,25 @@
 "use client";
 
-import { useJournal, InventoryItemStats } from "@/store/useJournal";
+import { useJournal } from "@/store/useJournal";
+import { InventoryItemStats } from "@/lib/interfaces/transactions";
 import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/parser";
-import { TrendingUp, PackageSearch, AlertTriangle, Activity, Edit2, ArrowUpDown, ArrowUp, ArrowDown, Search, Coins, Check } from "lucide-react";
+import { 
+    HugeiconsIcon 
+} from "@hugeicons/react";
+import {
+    ArrowUp02Icon,
+    PackageSearchIcon,
+    AlertCircleIcon,
+    Activity01Icon,
+    PencilEdit02Icon,
+    ArrowUpDownIcon,
+    ArrowUp01Icon,
+    ArrowDown01Icon,
+    Search01Icon,
+    Coins01Icon,
+    CheckmarkCircle01Icon,
+    Book01Icon
+} from "@hugeicons/core-free-icons";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
@@ -298,7 +315,7 @@ export default function Home() {
     });
   }, [isLoaded, transactions, timeRange, viewType, includeMuseum, includeAbroad]);
   
-  if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50">Loading Tracker Data...</div>;
+  if (!isLoaded) return <div className="text-center py-20 animate-pulse text-foreground/50 font-mono">INITIALIZING ENGINE...</div>;
 
 
   // Calculate reference values
@@ -310,43 +327,38 @@ export default function Home() {
   // Calculate final reference value prioritizing netProfit
   const referenceValue = viewType === 'daily' ? averageNetProfit : finalNetProfit;
   return (
-    <div
-      className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
-      style={{
-        '--primary': '#3b82f6', // Blue
-      } as React.CSSProperties}
-    >
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-2 border-primary pb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Main Dashboard</h1>
-          <p className="text-foreground/60 mt-2">Track your general trading items, profits, and losses. Click an item to view history.</p>
+          <h1 className="text-4xl font-black tracking-tighter uppercase font-sans leading-none">Main Dashboard</h1>
+          <p className="text-muted mt-2 font-mono text-[10px] uppercase tracking-[0.2em] font-bold">Trading Interface / Transaction Control</p>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => router.push('/docs')}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-panel border border-border hover:bg-foreground/5 transition-colors font-medium text-sm text-foreground/80 hover:text-foreground"
+            className="flex items-center gap-3 px-4 py-2 border-2 border-border hover:border-primary hover:text-primary transition-all font-bold text-[11px] uppercase tracking-widest bg-panel"
           >
-            Documentation
+            <HugeiconsIcon icon={Book01Icon} size={14} />
+            <span>Documentation</span>
           </button>
         </div>
       </div>
 
       {/* Hero Section */}
-      <div className="bg-panel rounded-3xl border border-border shadow-2xl p-6 sm:p-8 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-bl-[10rem] -z-10 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-tr-[8rem] -z-10 pointer-events-none" />
-
+      <div className="bg-panel border-2 border-primary relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 -mr-32 -mt-32 rotate-45 pointer-events-none" />
+        
         {/* Top: Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 pb-8 border-b border-border/10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-0 border-b-2 border-primary">
           <OverviewItem 
-            icon={<TrendingUp className="w-4 h-4" />}
+            icon={<HugeiconsIcon icon={ArrowUp02Icon} size={18} />}
             label="Realized Profit"
             value={formatMoney(stats.profit)}
             subValue="Base standard"
             valueClass="text-success"
           />
           <OverviewItem 
-            icon={<AlertTriangle className="w-4 h-4" />}
+            icon={<HugeiconsIcon icon={AlertCircleIcon} size={18} />}
             label="Total Mug Loss"
             value={formatMoney(totalMugLoss)}
             subValue="Lost to muggers"
@@ -355,7 +367,7 @@ export default function Home() {
             onToggle={() => { vibrate("utility"); setIncludeMug(!includeMug); }}
           />
           <OverviewItem 
-            icon={<Activity className="w-4 h-4" />}
+            icon={<HugeiconsIcon icon={Activity01Icon} size={18} />}
             label="Net Total Profit"
             value={formatMoney(netTotal)}
             subValue="Realized - Mug"
@@ -364,27 +376,27 @@ export default function Home() {
             onToggle={() => { vibrate("utility"); setIncludeNetProfit(!includeNetProfit); }}
           />
           <OverviewItem 
-            icon={<Coins className="w-4 h-4" />}
+            icon={<HugeiconsIcon icon={Coins01Icon} size={18} />}
             label="Museum Profit"
             value={formatMoney(stats.museumProfit)}
             subValue="Points & Sets"
-            valueClass="text-yellow-500"
+            valueClass="text-warning"
             disabled={!includeMuseum}
             onToggle={() => { vibrate("utility"); setIncludeMuseum(!includeMuseum); }}
           />
           <OverviewItem 
-            icon={<PackageSearch className="w-4 h-4" />}
+            icon={<HugeiconsIcon icon={PackageSearchIcon} size={18} />}
             label="Abroad Profit"
             value={formatMoney(stats.abroadProfit)}
             subValue="International items"
-            valueClass="text-teal-500"
+            valueClass="text-info"
             disabled={!includeAbroad}
             onToggle={() => { vibrate("utility"); setIncludeAbroad(!includeAbroad); }}
           />
         </div>
 
         {/* Chart (Full Width) */}
-        <div className="pt-8 h-[400px]">
+        <div className="p-6 md:p-8 pt-4 h-[440px]">
           <ProfitChart 
             chartId="dashboard-main"
             data={chartData}
@@ -393,7 +405,7 @@ export default function Home() {
             timeRange={timeRange}
             setTimeRange={setTimeRange}
             referenceValue={referenceValue}
-            primaryColor="#3b82f6"
+            primaryColor="var(--primary)"
             formatValue={formatMoney}
             stackedMode={true}
             visibleLines={{ mugLoss: includeMug, netProfit: includeNetProfit, museumProfit: includeMuseum, abroadProfit: includeAbroad }}
@@ -401,14 +413,17 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mt-8 bg-panel rounded-xl border border-border shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-border bg-foreground/[0.02] flex items-center justify-between gap-4">
-          <h2 className="font-semibold text-lg hidden sm:block">Inventory & Profits</h2>
-          <div className="relative w-full sm:max-w-xs text-sm">
-            <Search className="w-4 h-4 text-foreground/40 absolute left-3 top-1/2 -translate-y-1/2" />
+      <div className="bg-panel border-2 border-border overflow-hidden">
+        <div className="p-4 bg-foreground/[0.03] border-b-2 border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-6 bg-primary" />
+            <h2 className="font-black text-xs uppercase tracking-[0.3em]">Inventory & Profits</h2>
+          </div>
+          <div className="relative w-full sm:max-w-xs">
+            <HugeiconsIcon icon={Search01Icon} size={16} className="text-muted absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search inventory items..."
+              placeholder="FILTER_ITEMS..."
               value={search}
               onChange={(e) => {
                 if (!search && e.target.value) {
@@ -416,38 +431,53 @@ export default function Home() {
                 }
                 setSearch(e.target.value);
               }}
-              className="w-full pl-9 pr-4 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+              className="w-full pl-12 pr-4 py-2 border-2 border-border bg-background focus:border-primary focus:outline-none font-mono text-[11px] uppercase placeholder:opacity-30 transition-all"
             />
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase text-foreground/60 bg-foreground/5">
+          <table className="w-full text-left font-mono text-[11px] border-collapse">
+            <thead className="bg-foreground/[0.02]">
               <tr>
-                <th className="px-6 py-4 cursor-pointer hover:bg-foreground/10 transition-colors" onClick={() => handleSort('name')}>
-                  <div className="flex items-center gap-2">Item Name {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-50" />}</div>
+                <th className="px-6 py-4 cursor-pointer hover:bg-foreground/5 border-b-2 border-border" onClick={() => handleSort('name')}>
+                  <div className="flex items-center gap-2 uppercase font-black tracking-widest">
+                    <span>Item Name</span>
+                    {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? <HugeiconsIcon icon={ArrowUp01Icon} size={12} /> : <HugeiconsIcon icon={ArrowDown01Icon} size={12} />) : <HugeiconsIcon icon={ArrowUpDownIcon} size={12} className="opacity-20" />}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/10 transition-colors" onClick={() => handleSort('stock')}>
-                  <div className="flex items-center justify-end gap-2">{sortConfig.key === 'stock' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-50" />} Stock</div>
+                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border" onClick={() => handleSort('stock')}>
+                  <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
+                    <span>Stock</span>
+                    {sortConfig.key === 'stock' ? (sortConfig.direction === 'asc' ? <HugeiconsIcon icon={ArrowUp01Icon} size={12} /> : <HugeiconsIcon icon={ArrowDown01Icon} size={12} />) : <HugeiconsIcon icon={ArrowUpDownIcon} size={12} className="opacity-20" />}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/10 transition-colors" onClick={() => handleSort('avgCost')}>
-                  <div className="flex items-center justify-end gap-2">{sortConfig.key === 'avgCost' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-50" />} Avg Cost Basis</div>
+                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border" onClick={() => handleSort('avgCost')}>
+                  <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
+                    <span>Avg Cost</span>
+                    {sortConfig.key === 'avgCost' ? (sortConfig.direction === 'asc' ? <HugeiconsIcon icon={ArrowUp01Icon} size={12} /> : <HugeiconsIcon icon={ArrowDown01Icon} size={12} />) : <HugeiconsIcon icon={ArrowUpDownIcon} size={12} className="opacity-20" />}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/10 transition-colors" onClick={() => handleSort('totalCost')}>
-                  <div className="flex items-center justify-end gap-2">{sortConfig.key === 'totalCost' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-50" />} Total Cost</div>
+                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border" onClick={() => handleSort('totalCost')}>
+                  <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
+                    <span>Total Cost</span>
+                    {sortConfig.key === 'totalCost' ? (sortConfig.direction === 'asc' ? <HugeiconsIcon icon={ArrowUp01Icon} size={12} /> : <HugeiconsIcon icon={ArrowDown01Icon} size={12} />) : <HugeiconsIcon icon={ArrowUpDownIcon} size={12} className="opacity-20" />}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/10 transition-colors" onClick={() => handleSort('realizedProfit')}>
-                  <div className="flex items-center justify-end gap-2">{sortConfig.key === 'realizedProfit' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-50" />} Realized Profit</div>
+                <th className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border" onClick={() => handleSort('realizedProfit')}>
+                  <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
+                    <span>Realized Profit</span>
+                    {sortConfig.key === 'realizedProfit' ? (sortConfig.direction === 'asc' ? <HugeiconsIcon icon={ArrowUp01Icon} size={12} /> : <HugeiconsIcon icon={ArrowDown01Icon} size={12} />) : <HugeiconsIcon icon={ArrowUpDownIcon} size={12} className="opacity-20" />}
+                  </div>
                 </th>
-                <th className="px-6 py-4 text-right"></th>
+                <th className="px-6 py-4 border-b-2 border-border"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y-2 divide-border/50">
               {sortedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-foreground/50 italic">
-                    No items found. Add some logs to start tracking.
+                  <td colSpan={6} className="px-6 py-12 text-center text-muted uppercase font-black tracking-[0.2em] italic">
+                    NO_DATA_AVAILABLE
                   </td>
                 </tr>
               ) : (
@@ -467,18 +497,18 @@ export default function Home() {
                       }}
                       className="hover:bg-primary/5 transition-colors cursor-pointer group"
                     >
-                      <td className="px-6 py-4 font-medium group-hover:text-primary transition-colors">{formatItemName(name)}</td>
-                      <td className="px-6 py-4 text-right font-mono">
-                        <span className="bg-primary/10 text-primary px-2 py-1 rounded-md">
-                          {stats.stock.toLocaleString()}
+                      <td className="px-6 py-4 font-bold group-hover:text-primary transition-colors uppercase">{formatItemName(name)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="bg-primary/10 text-primary px-2 py-1 font-bold whitespace-nowrap">
+                          {stats.stock.toLocaleString()} UNITS
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right text-foreground/70">{formatMoney(avgCost)}</td>
+                      <td className="px-6 py-4 text-right text-muted">{formatMoney(avgCost)}</td>
                       <td className="px-6 py-4 text-right">{formatMoney(stats.totalCost)}</td>
-                      <td className={`px-6 py-4 text-right font-medium ${stats.realizedProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                      <td className={`px-6 py-4 text-right font-black ${stats.realizedProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                         {formatMoney(stats.realizedProfit)}
                       </td>
-                      <td className="px-6 py-4 text-right flex justify-end">
+                      <td className="px-6 py-4 text-right">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -490,10 +520,9 @@ export default function Home() {
                               }
                             }
                           }}
-                          className="opacity-0 group-hover:opacity-100 text-foreground/50 hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-all"
-                          title="Rename or Merge Item"
+                          className="opacity-0 group-hover:opacity-100 text-muted hover:text-primary p-2 transition-all"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <HugeiconsIcon icon={PencilEdit02Icon} size={14} />
                         </button>
                       </td>
                     </tr>
@@ -518,49 +547,30 @@ export default function Home() {
   );
 }
 
-function StatCard({
-  title, value, icon, description, valueClass = "", colorClass = "bg-primary", onClick
-}: {
-  title: string, value: string, icon: React.ReactNode, description: string, valueClass?: string, colorClass?: string, onClick?: () => void
-}) {
-  return (
-    <div 
-      className={`bg-panel p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-all relative overflow-hidden group ${
-        onClick ? 'cursor-pointer hover:scale-[1.02]' : ''
-      }`}
-      onClick={onClick}
-    >
-      <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full blur-2xl transition-colors opacity-10 group-hover:opacity-20 ${colorClass}`} />
-      <div className="flex items-center justify-between mb-4 relative z-10">
-        <h3 className="text-sm font-medium text-foreground/70">{title}</h3>
-        <div className="p-2 bg-foreground/5 rounded-lg">{icon}</div>
-      </div>
-      <div className="relative z-10">
-        <p className={`text-2xl font-bold tracking-tight ${valueClass}`}>{value}</p>
-        <p className="text-xs text-foreground/50 mt-2">{description}</p>
-        {onClick && (
-          <p className="text-xs text-primary/70 mt-1 font-medium">Click to view trends</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function OverviewItem({
   icon, label, value, subValue, valueClass = "", disabled = false, onToggle
 }: {
   icon: React.ReactNode, label: string, value: string, subValue: string, valueClass?: string, disabled?: boolean, onToggle?: () => void
 }) {
   return (
-    <div onClick={onToggle} className={`flex items-start gap-3 group ${onToggle ? 'cursor-pointer hover:bg-foreground/[0.02] p-2 -m-2 rounded-xl' : ''} ${disabled ? 'opacity-50 grayscale' : ''} transition-all duration-300`}>
-      <div className={`p-2 rounded-lg mt-0.5 transition-colors ${disabled ? 'bg-foreground/5 text-foreground/40' : 'bg-primary/10 text-primary'}`}>
-        {icon}
+    <div 
+      onClick={onToggle} 
+      className={`flex flex-col gap-1 p-6 transition-all duration-300 border-r-2 last:border-r-0 border-primary/20 ${onToggle ? 'cursor-pointer hover:bg-primary/5' : ''} ${disabled ? 'opacity-30 grayscale' : ''}`}
+    >
+      <div className="flex items-center justify-between font-mono">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em]">{label}</p>
+        <div className={disabled ? 'text-muted' : 'text-primary'}>
+          {icon}
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className={`text-[10px] font-black uppercase tracking-widest ${disabled ? 'text-foreground/40' : 'text-foreground/50 group-hover:text-foreground/70'} transition-colors truncate`}>{label}</p>
-        <p className={`text-lg font-black tracking-tight truncate mt-0.5 ${disabled ? 'text-foreground' : valueClass}`}>{value}</p>
-        <p className={`text-[9px] font-medium mt-0.5 truncate ${disabled ? 'text-foreground/30' : 'text-foreground/40'}`}>{subValue}</p>
-      </div>
+      <p className={`text-2xl font-black tracking-tighter mt-2 leading-none truncate ${disabled ? 'text-foreground' : valueClass}`}>{value}</p>
+      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{subValue}</p>
+      {onToggle && !disabled && (
+        <div className="flex items-center gap-1.5 mt-4">
+          <div className="w-2 h-2 bg-success animate-pulse" />
+          <span className="text-[8px] font-bold text-success uppercase tracking-widest">ACTIVE_MONITOR</span>
+        </div>
+      )}
     </div>
   );
 }

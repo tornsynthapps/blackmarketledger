@@ -55,7 +55,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${spaceGrotesk.variable} ${spaceMono.variable} font-sans antialiased selection:bg-primary/30`}
+        className={`${spaceGrotesk.variable} ${spaceMono.variable} font-mono antialiased selection:bg-primary selection:text-primary-foreground`}
       >
         <div className="layout-wrapper flex flex-col min-h-screen">
           <Navigation />
@@ -67,44 +67,46 @@ export default function RootLayout({
                 {children}
               </div>
 
-          <footer className="mt-16 pt-8 pb-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-foreground/50">
-            <div className="flex items-center justify-center md:justify-start">
-              &copy; {new Date().getFullYear()}{" "}
+          <footer className="mt-24 pt-12 pb-12 border-t-2 border-primary flex flex-col md:flex-row items-center justify-between gap-8 text-[11px] uppercase tracking-widest font-bold text-muted">
+            <div className="flex items-center gap-4">
+              <div className="bg-primary text-primary-foreground px-2 py-0.5">BML</div>
+              <span>&copy; {new Date().getFullYear()}</span>
               <a
                 href="https://www.torn.com/profiles.php?XID=3165209"
                 target="_blank"
                 rel="noreferrer noopener"
-                className="hover:text-primary transition-colors font-medium border-b border-transparent hover:border-primary pb-0.5 ml-1"
+                className="text-foreground hover:text-info transition-colors"
               >
                 PixelGhost [3165209]
               </a>
             </div>
 
-            <div className="flex-1 flex justify-center">
+            <div className="flex-1 flex justify-center opacity-70 grayscale">
               <VisitorCounter />
             </div>
 
-            <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-6 gap-y-2">
+            <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-8 gap-y-2">
               <Link href="/changelog" className="hover:text-foreground transition-colors">
-                Version History
+                Changelog
               </Link>
               <Link href="/migration" className="hover:text-foreground transition-colors">
-                Data Migration
+                Migration
               </Link>
-              <span className="hidden sm:inline text-border">|</span>
               <Link href="/terms" className="hover:text-foreground transition-colors">
-                Terms of Use
+                Terms
               </Link>
               <Link href="/privacy" className="hover:text-foreground transition-colors">
-                Privacy Policy
+                Privacy
               </Link>
             </div>
           </footer>
             </main>
           </div>
         </div>
+        <div className="fixed bottom-0 left-0 w-full h-[1px] bg-primary/10 pointer-events-none" />
         <ServiceRail />
       </body>
+
     </html>
   );
 }

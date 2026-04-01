@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, ChevronLeft, Crown, Eye, EyeOff, HardDrive, KeyRound, Save, X, Zap, Palette, PanelLeft } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { 
+  CheckmarkCircle01Icon, 
+  ArrowLeft01Icon, 
+  CrownIcon, 
+  ViewIcon, 
+  ViewOffSlashIcon, 
+  Database01Icon, 
+  Key01Icon, 
+  SaveIcon, 
+  Cancel01Icon, 
+  FlashIcon, 
+  BrushIcon, 
+  SidebarLeft01Icon,
+  Settings02Icon
+} from "@hugeicons/core-free-icons";
+import { useState, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
 import { sendToExtension } from "@/lib/bmlconnect";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
@@ -211,7 +226,8 @@ export function ServiceRail() {
         isOpen ? "translate-x-0" : "translate-x-full"
       }`}
     >
-      <div className="relative h-full rounded-l-2xl border border-border bg-panel/96 shadow-2xl backdrop-blur-xl">
+      <div className="relative h-full border-l border-border bg-panel/95 backdrop-blur-xl shadow-2xl">
+        {/* Toggle Button */}
         <button
           type="button"
           aria-label={isOpen ? "Hide active services" : "Show active services"}
@@ -223,175 +239,176 @@ export function ServiceRail() {
               localStorage.setItem("bml_service_rail_opened", "true");
             }
           }}
-          className={`absolute left-0 top-1/2 flex -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-2xl border border-r-0 shadow-lg transition-all duration-300 overflow-hidden ${
+          className={`absolute left-0 top-1/2 flex -translate-x-full -translate-y-1/2 items-center justify-center border shadow-lg transition-all duration-300 overflow-hidden ${
             !hasOpenedServiceRail
-              ? "h-48 w-14 border-danger bg-danger text-white animate-pulse hover:bg-danger/90 shadow-[0_0_25px_rgba(220,50,47,0.6)]"
-              : "h-36 w-8 border-border bg-panel text-foreground/70 hover:bg-foreground/5 hover:text-primary"
+              ? "h-48 w-14 border-danger bg-danger text-white animate-pulse hover:bg-danger/90"
+              : "h-36 w-8 border-border border-r-0 bg-panel text-foreground/70 hover:bg-foreground/5 hover:text-primary"
           }`}
         >
           <div className="flex flex-col items-center justify-center h-full gap-2">
-            <ChevronLeft className={`shrink-0 transition-transform duration-300 ${isOpen ? "rotate-180" : ""} ${!hasOpenedServiceRail ? "h-6 w-6 text-white" : "h-5 w-5"}`} />
+            <HugeiconsIcon icon={ArrowLeft01Icon} className={`shrink-0 transition-transform duration-300 ${isOpen ? "rotate-180" : ""} ${!hasOpenedServiceRail ? "h-6 w-6 text-white" : "h-5 w-5"}`} />
             <div 
-              className={`font-black uppercase tracking-[0.2em] transform rotate-180 whitespace-nowrap ${!hasOpenedServiceRail ? "text-[11px] text-white" : "text-[10px]"}`}
+              className={`font-mono font-black uppercase tracking-[0.2em] transform rotate-180 whitespace-nowrap ${!hasOpenedServiceRail ? "text-[11px] text-white" : "text-[10px]"}`}
               style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
             >
-              Service Rail
+              System Rails
             </div>
           </div>
         </button>
 
         <div className="flex h-full min-h-0 flex-col">
-
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
-            <div className="rounded-2xl border border-border bg-background/65 p-3">
-              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
-                <KeyRound className="h-4 w-4 text-primary" />
-                API Keys
-              </div>
-              <div className="grid gap-3">
-              <label className="block">
-                <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
-                  <KeyRound className="h-3.5 w-3.5 text-primary" />
-                  Weav3r API Key
-                </span>
-                <div className="relative">
-                  <input
-                    type={showWeav3rKey ? "text" : "password"}
-                    value={tempWeav3rApiKey}
-                    onChange={(event) => setTempWeav3rApiKey(event.target.value)}
-                    placeholder="Torn API key used with weav3r"
-                    className="w-full rounded-xl border border-border bg-background py-2.5 pl-3 pr-10 text-sm outline-none transition-colors focus:border-primary/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowWeav3rKey(!showWeav3rKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
-                  >
-                    {showWeav3rKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">
-                  Save the Torn API key and the app will resolve your user ID automatically.
-                </p>
-                {weav3rError && <p className="mt-1.5 text-[11px] text-danger">{weav3rError}</p>}
-                {tempWeav3rApiKey !== (weav3rApiKey || "") && (
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveWeav3rKey()}
-                    disabled={isSavingWeav3rKey}
-                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {isSavingWeav3rKey ? "Saving..." : "Save Weav3r Key"}
-                  </button>
-                )}
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
-                  <KeyRound className="h-3.5 w-3.5 text-primary" />
-                  Torn Full Access Key
-                </span>
-                <div className="relative">
-                  <input
-                    type={showTornFullKey ? "text" : "password"}
-                    value={tempTornApiKeyFull}
-                    onChange={(event) => setTempTornApiKeyFull(event.target.value)}
-                    placeholder="Required for Auto-Pilot /user/log and /user/trades"
-                    className="w-full rounded-xl border border-border bg-background py-2.5 pl-3 pr-10 text-sm outline-none transition-colors focus:border-primary/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowTornFullKey(!showTornFullKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
-                  >
-                    {showTornFullKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">
-                  Stored locally for Auto-Pilot sync only. This must be a full-access Torn key.
-                </p>
-                {tornFullError && <p className="mt-1.5 text-[11px] text-danger">{tornFullError}</p>}
-                {tempTornApiKeyFull !== (tornApiKeyFull || "") && (
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveTornFullKey()}
-                    disabled={isSavingTornFullKey}
-                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {isSavingTornFullKey ? "Saving..." : "Save Torn Full Key"}
-                  </button>
-                )}
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
-                  <HardDrive className="h-3.5 w-3.5 text-primary" />
-                  Drive API Key
-                </span>
-                <div className="relative">
-                  <input
-                    type={showDriveKey ? "text" : "password"}
-                    value={tempDriveApiKey}
-                    onChange={(event) => setTempDriveApiKey(event.target.value)}
-                    placeholder="Drive API key"
-                    className="w-full rounded-xl border border-border bg-background py-2.5 pl-3 pr-10 text-sm outline-none transition-colors focus:border-primary/50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowDriveKey(!showDriveKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-foreground/40 transition-colors hover:bg-foreground/5 hover:text-foreground/70"
-                  >
-                    {showDriveKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <p className="mt-1.5 text-[11px] text-danger">
-                  Keep this key private. Anyone with it can access your synced data.
-                </p>
-                {driveError && <p className="mt-1.5 text-[11px] text-danger">{driveError}</p>}
-                {tempDriveApiKey !== (driveApiKey || "") && (
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveDriveKey()}
-                    disabled={isSavingDriveKey}
-                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    {isSavingDriveKey ? "Saving..." : "Save Drive Key"}
-                  </button>
-                )}
-              </label>
+          {/* Header */}
+          <div className="border-b border-border p-4 bg-muted/30">
+            <div className="flex items-center gap-2 text-sm font-mono font-bold tracking-tighter uppercase">
+              <HugeiconsIcon icon={Settings02Icon} size={18} className="text-primary" />
+              Machine Configuration
             </div>
-            </div>
+          </div>
 
-            <div className="rounded-2xl border border-border bg-background/65 p-3">
-              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
-                <Zap className="h-4 w-4 text-primary" />
-                Rate Limits
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
+            {/* API Keys Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-foreground/60">
+                <HugeiconsIcon icon={Key01Icon} size={14} className="text-primary" />
+                Authentication
               </div>
-              <div className="space-y-4">
-                <label className="block" suppressHydrationWarning>
-                  <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
-                    Torn API Rate Limit
+              
+              <div className="grid gap-6">
+                {/* Weav3r Key */}
+                <div className="space-y-2">
+                  <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-wider text-foreground/50">
+                    Weav3r Node Key
                   </span>
-                  <div className="flex items-center gap-3" suppressHydrationWarning>
+                  <div className="relative">
                     <input
-                      type="range"
-                      min="10"
-                      max="80"
-                      value={tempTornRateLimit}
-                      onChange={(event) => setTempTornRateLimit(Number(event.target.value))}
-                      className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
-                      suppressHydrationWarning
+                      type={showWeav3rKey ? "text" : "password"}
+                      value={tempWeav3rApiKey}
+                      onChange={(event) => setTempWeav3rApiKey(event.target.value)}
+                      placeholder="Access Key Required"
+                      className="w-full border border-border bg-background/50 px-3 py-2 text-xs font-mono outline-none transition-colors focus:border-primary/50 focus:bg-background"
                     />
-                    <span className="w-12 text-right text-sm font-semibold text-primary" suppressHydrationWarning>
-                      {tempTornRateLimit}/min
+                    <button
+                      type="button"
+                      onClick={() => setShowWeav3rKey(!showWeav3rKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-foreground/40 hover:text-foreground/70"
+                    >
+                      {showWeav3rKey ? <HugeiconsIcon icon={ViewOffSlashIcon} size={16} /> : <HugeiconsIcon icon={ViewIcon} size={16} />}
+                    </button>
+                  </div>
+                  {weav3rError && <p className="text-[10px] text-danger font-mono">{weav3rError}</p>}
+                  {tempWeav3rApiKey !== (weav3rApiKey || "") && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveWeav3rKey()}
+                      disabled={isSavingWeav3rKey}
+                      className="hardline-button w-full justify-center !py-1.5"
+                    >
+                      <HugeiconsIcon icon={SaveIcon} size={14} />
+                      {isSavingWeav3rKey ? "UPDATING..." : "COMMIT KEY"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Torn Full Key */}
+                <div className="space-y-2">
+                  <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-wider text-foreground/50">
+                    Mainframe Full Access
+                  </span>
+                  <div className="relative">
+                    <input
+                      type={showTornFullKey ? "text" : "password"}
+                      value={tempTornApiKeyFull}
+                      onChange={(event) => setTempTornApiKeyFull(event.target.value)}
+                      placeholder="Required for Auto-Pilot"
+                      className="w-full border border-border bg-background/50 px-3 py-2 text-xs font-mono outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowTornFullKey(!showTornFullKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-foreground/40 hover:text-foreground/70"
+                    >
+                      {showTornFullKey ? <HugeiconsIcon icon={ViewOffSlashIcon} size={16} /> : <HugeiconsIcon icon={ViewIcon} size={16} />}
+                    </button>
+                  </div>
+                  {tornFullError && <p className="text-[10px] text-danger font-mono">{tornFullError}</p>}
+                  {tempTornApiKeyFull !== (tornApiKeyFull || "") && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveTornFullKey()}
+                      disabled={isSavingTornFullKey}
+                      className="hardline-button w-full justify-center !py-1.5"
+                    >
+                      <HugeiconsIcon icon={SaveIcon} size={14} />
+                      {isSavingTornFullKey ? "UPDATING..." : "COMMIT KEY"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Drive Key */}
+                <div className="space-y-2">
+                  <span className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-wider text-foreground/50">
+                    Vault Sync Key
+                  </span>
+                  <div className="relative">
+                    <input
+                      type={showDriveKey ? "text" : "password"}
+                      value={tempDriveApiKey}
+                      onChange={(event) => setTempDriveApiKey(event.target.value)}
+                      placeholder="Cloud Access Token"
+                      className="w-full border border-border bg-background/50 px-3 py-2 text-xs font-mono outline-none transition-colors focus:border-primary/50 focus:bg-background"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDriveKey(!showDriveKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-foreground/40 hover:text-foreground/70"
+                    >
+                      {showDriveKey ? <HugeiconsIcon icon={ViewOffSlashIcon} size={16} /> : <HugeiconsIcon icon={ViewIcon} size={16} />}
+                    </button>
+                  </div>
+                  {driveError && <p className="text-[10px] text-danger font-mono">{driveError}</p>}
+                  {tempDriveApiKey !== (driveApiKey || "") && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveDriveKey()}
+                      disabled={isSavingDriveKey}
+                      className="hardline-button w-full justify-center !py-1.5"
+                    >
+                      <HugeiconsIcon icon={SaveIcon} size={14} />
+                      {isSavingDriveKey ? "UPDATING..." : "COMMIT KEY"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border/50" />
+
+            {/* Rate Limits Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-foreground/60">
+                <HugeiconsIcon icon={FlashIcon} size={14} className="text-primary" />
+                Flow Control
+              </div>
+              
+              <div className="space-y-6">
+                {/* Torn Rate Limit */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-foreground/50">
+                      Torn API Throttle
+                    </span>
+                    <span className="text-xs font-mono font-bold text-primary">
+                      {tempTornRateLimit}/MIN
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-foreground/55">
-                    Requests per minute (10-80)
-                  </p>
+                  <input
+                    type="range"
+                    min="10"
+                    max="80"
+                    value={tempTornRateLimit}
+                    onChange={(event) => setTempTornRateLimit(Number(event.target.value))}
+                    className="w-full h-1 bg-border/50 appearance-none cursor-pointer accent-primary"
+                  />
                   {tempTornRateLimit !== tornApiRateLimit && (
                     <button
                       type="button"
@@ -399,35 +416,32 @@ export function ServiceRail() {
                         vibrate("utility");
                         void updateTornApiRateLimit(tempTornRateLimit);
                       }}
-                      className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                      className="hardline-button w-full justify-center !py-1.5"
                     >
-                      <Save className="h-3.5 w-3.5" />
-                      Save Limit
+                      <HugeiconsIcon icon={SaveIcon} size={14} />
+                      SAVE REQ LIMIT
                     </button>
                   )}
-                </label>
+                </div>
 
-                <label className="block" suppressHydrationWarning>
-                  <span className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
-                    Weav3r API Rate Limit
-                  </span>
-                  <div className="flex items-center gap-3" suppressHydrationWarning>
-                    <input
-                      type="range"
-                      min="10"
-                      max="80"
-                      value={tempWeav3rRateLimit}
-                      onChange={(event) => setTempWeav3rRateLimit(Number(event.target.value))}
-                      className="flex-1 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
-                      suppressHydrationWarning
-                    />
-                    <span className="w-12 text-right text-sm font-semibold text-primary" suppressHydrationWarning>
-                      {tempWeav3rRateLimit}/min
+                {/* Weav3r Rate Limit */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-foreground/50">
+                      Weav3r Core Throttle
+                    </span>
+                    <span className="text-xs font-mono font-bold text-primary">
+                      {tempWeav3rRateLimit}/MIN
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-foreground/55">
-                    Requests per minute (10-80)
-                  </p>
+                  <input
+                    type="range"
+                    min="10"
+                    max="80"
+                    value={tempWeav3rRateLimit}
+                    onChange={(event) => setTempWeav3rRateLimit(Number(event.target.value))}
+                    className="w-full h-1 bg-border/50 appearance-none cursor-pointer accent-primary"
+                  />
                   {tempWeav3rRateLimit !== weav3rApiRateLimit && (
                     <button
                       type="button"
@@ -435,79 +449,81 @@ export function ServiceRail() {
                         vibrate("utility");
                         void updateWeav3rApiRateLimit(tempWeav3rRateLimit);
                       }}
-                      className="mt-2 inline-flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                      className="hardline-button w-full justify-center !py-1.5"
                     >
-                      <Save className="h-3.5 w-3.5" />
-                      Save Limit
+                      <HugeiconsIcon icon={SaveIcon} size={14} />
+                      SAVE REQ LIMIT
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border/50" />
+
+            {/* UI Parameters Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-foreground/60">
+                <HugeiconsIcon icon={BrushIcon} size={14} className="text-primary" />
+                Industrial Schema
+              </div>
+
+              <div className="space-y-3">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <span className="text-xs font-mono font-bold uppercase group-hover:text-primary transition-colors">
+                    Solarized Core
+                  </span>
+                  <div 
+                    onClick={() => handleToggleSolarized(!isSolarized)}
+                    className={`w-10 h-5 border border-border flex items-center transition-colors px-1 ${isSolarized ? "bg-primary/20 border-primary" : "bg-muted"}`}
+                  >
+                    <div className={`w-2 h-2 transition-all ${isSolarized ? "translate-x-5 bg-primary" : "translate-x-0 bg-foreground/40"}`} />
+                  </div>
+                </label>
+
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <span className="text-xs font-mono font-bold uppercase group-hover:text-primary transition-colors">
+                    Anchor Left
+                  </span>
+                  <div 
+                    onClick={() => handleToggleNavLeft(!isNavLeft)}
+                    className={`w-10 h-5 border border-border flex items-center transition-colors px-1 ${isNavLeft ? "bg-primary/20 border-primary" : "bg-muted"}`}
+                  >
+                    <div className={`w-2 h-2 transition-all ${isNavLeft ? "translate-x-5 bg-primary" : "translate-x-0 bg-foreground/40"}`} />
+                  </div>
                 </label>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-background/65 p-3">
-              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
-                <Palette className="h-4 w-4 text-primary" />
-                Appearance & Layout
-              </div>
-              <label className="flex items-center justify-between cursor-pointer">
-                <div>
-                  <span className="text-sm font-semibold">Solarized Theme</span>
-                  <p className="text-xs text-foreground/55">Use the Solarized color palette</p>
-                </div>
-                <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background" style={{ backgroundColor: isSolarized ? "var(--primary)" : "var(--border)" }}>
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={isSolarized}
-                    onChange={(e) => handleToggleSolarized(e.target.checked)}
-                  />
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isSolarized ? "translate-x-6" : "translate-x-1"}`}
-                  />
-                </div>
-              </label>
+            <div className="h-px bg-border/50" />
 
-              <label className="flex items-center justify-between cursor-pointer mt-4">
-                <div>
-                  <span className="text-sm font-semibold">Left Navigation</span>
-                  <p className="text-xs text-foreground/55">Shift navigation to side (Desktop)</p>
-                </div>
-                <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background" style={{ backgroundColor: isNavLeft ? "var(--primary)" : "var(--border)" }}>
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={isNavLeft}
-                    onChange={(e) => handleToggleNavLeft(e.target.checked)}
-                  />
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isNavLeft ? "translate-x-6" : "translate-x-1"}`}
-                  />
-                </div>
-              </label>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-background/65 p-3">
-              <div className="mb-3 flex items-center gap-2 text-sm font-bold">
-                <Crown className="h-4 w-4 text-primary" />
-                Service Status
+            {/* Service Diagnostics Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-foreground/60">
+                <HugeiconsIcon icon={CrownIcon} size={14} className="text-primary" />
+                Diagnostics
               </div>
+              
               <ul className="space-y-2">
                 {services.map((service) => (
                   <li
                     key={service.name}
-                    className="flex items-start gap-3 rounded-xl border border-border bg-panel px-3 py-2.5"
+                    className="flex items-start gap-3 border border-border bg-background/30 p-2"
                   >
                     <span
-                      className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                        service.active ? "bg-success/15 text-success" : "bg-danger/15 text-danger"
+                      className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center ${
+                        service.active ? "text-success bg-success/10" : "text-danger bg-danger/10"
                       }`}
                     >
-                      {service.active ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                      {service.active ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} /> : <HugeiconsIcon icon={Cancel01Icon} size={12} />}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold leading-5">{service.name}</p>
-                      <p className="text-xs text-foreground/55">{service.detail}</p>
+                      <p className="text-[10px] font-mono font-black uppercase leading-tight tracking-tight">
+                        {service.name}
+                      </p>
+                      <p className="text-[9px] font-mono text-foreground/50 uppercase tracking-tighter">
+                        {service.detail}
+                      </p>
                     </div>
                   </li>
                 ))}

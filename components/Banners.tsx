@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, type MouseEvent } from "react";
-import { X } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Cancel01Icon, Database01Icon } from "@hugeicons/core-free-icons";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import { useJournal } from "@/store/useJournal";
 import * as idb from '@/lib/idb';
 import { useGlobalSyncStatus } from "@/lib/syncStatus";
 import { MigrationModal } from "./MigrationModal";
-import { Database } from "lucide-react";
 
 export function Banners() {
     const [showForum, setShowForum] = useState(false);
@@ -82,18 +82,18 @@ export function Banners() {
 
     if (needsMigration) {
         return (
-            <div className="bg-red-500/10 text-red-600 dark:text-red-500 border-b border-red-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
+            <div className="bg-danger/10 text-danger border-b border-danger/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30 font-mono">
                 <div className="max-w-4xl mx-auto flex items-center justify-center gap-4">
                     <div className="flex-1">
-                        <p className="font-semibold">
-                            ⚠️ Database Upgrade Required
+                        <p className="font-black uppercase tracking-tight">
+                            SYSTEM UPGRADE REQUIRED
                         </p>
-                        <p className="mt-1 opacity-90">
-                            Your transaction data is currently stored in LocalStorage. Please upgrade to our new IndexedDB backend to lift storage caps and improve performance.
+                        <p className="mt-1 text-[11px] opacity-70 uppercase">
+                            LocalStorage limit reached. Migrate to IndexedDB node for industrial-scale storage.
                         </p>
                     </div>
-                    <button onClick={() => { vibrate("success"); performMigration(); }} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium text-sm transition-colors whitespace-nowrap">
-                        Migrate Now
+                    <button onClick={() => { vibrate("success"); performMigration(); }} className="hardline-button border-danger text-danger hover:bg-danger hover:text-white px-4 py-2 text-xs font-black uppercase whitespace-nowrap">
+                        MIGRATE_DATABASE
                     </button>
                 </div>
             </div>
@@ -103,71 +103,71 @@ export function Banners() {
     return (
         <>
             {hasBMLDB && isLoaded && (
-                <div className="bg-primary/10 text-primary border-b border-primary/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
+                <div className="bg-primary/10 text-primary border-b border-primary/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30 font-mono">
                     <div className="max-w-4xl mx-auto flex items-center justify-center gap-4">
-                        <div className="flex-1">
-                            <p className="font-semibold flex items-center justify-center gap-2">
-                                <Database className="w-4 h-4" />
-                                Legacy Data Detected (BMLDB)
+                        <div className="flex-1 text-center">
+                            <p className="font-black uppercase tracking-tight flex items-center justify-center gap-2">
+                                <HugeiconsIcon icon={Database01Icon} size={16} />
+                                Legacy Core Detected
                             </p>
-                            <p className="mt-1 opacity-90">
-                                We found data from an older version of the Ledger. Would you like to migrate it to your current database?
+                            <p className="mt-1 text-[11px] opacity-70 uppercase">
+                                Archive found in legacy sector. Integrate into current data stream?
                             </p>
                         </div>
                         <button 
                             onClick={() => { vibrate("success"); setIsMigrationModalOpen(true); }} 
-                            className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium text-sm transition-colors whitespace-nowrap"
+                            className="hardline-button px-4 py-2 text-xs font-black uppercase whitespace-nowrap"
                         >
-                            Review Migration
+                            INIT_MIGRATION
                         </button>
                     </div>
                 </div>
             )}
 
             {syncStatus.isSyncing && (
-                <div className="bg-green-500/10 text-green-700 dark:text-green-400 border-b border-green-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
+                <div className="bg-success/10 text-success border-b border-success/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30 font-mono">
                     <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
                         <div className="flex-1">
-                            <p>{syncStatus.message}</p>
+                            <p className="font-black uppercase tracking-widest text-[11px]">{syncStatus.message}</p>
                         </div>
                     </div>
                 </div>
             )}
 
             {showForum && (
-                <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-b border-yellow-500/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30">
+                <div className="bg-warning/10 text-warning border-b border-warning/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30 font-mono">
                     <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-                        <div className="flex-1">
+                        <div className="flex-1 uppercase tracking-tight text-xs font-bold">
                             {forumClicks === 0 ? (
                                 <p>
-                                    Enjoying the app? ⭐{" "}
+                                    Help other traders discover the BML engine.{" "}
                                     <a
                                         href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={handleForumClick}
-                                        className="font-bold hover:underline"
+                                        className="font-black hover:text-foreground transition-colors underline underline-offset-4"
                                     >
-                                        Leave a quick review on the Torn forum to help other traders discover it!
+                                        REVEIW ON FORUM
                                     </a>
                                 </p>
                             ) : (
                                 <p>
-                                    Help keep the tool visible!{" "}
+                                    Industrial visibility required.{" "}
                                     <a
                                         href="https://www.torn.com/forums.php#/p=threads&f=67&t=16544638&b=0&a=0&start=0&to=27072718"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={handleForumClick}
-                                        className="font-bold hover:underline"
+                                        className="font-black hover:text-foreground transition-colors underline underline-offset-4"
                                     >
-                                        Give the forum thread a quick bump if you find this app useful.
+                                        BUMP THREAD
                                     </a>
                                 </p>
                             )}
                         </div>
-                        <button type="button" onClick={handleForumClose} className="p-1 hover:bg-yellow-500/20 rounded-full transition-colors shrink-0" aria-label="Dismiss banner">
-                            <X className="w-4 h-4" />
+                        <button type="button" onClick={handleForumClose} className="p-1 border border-warning/20 bg-background/50 hover:bg-warning hover:text-white transition-all shrink-0" aria-label="Dismiss banner">
+                            <HugeiconsIcon icon={Cancel01Icon} size={16} />
                         </button>
                     </div>
                 </div>

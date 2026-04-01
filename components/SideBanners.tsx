@@ -20,7 +20,7 @@ export function PromoBannersDesktop({ className }: PromoBannersProps) {
         href="https://discord.gg/Xz4GZfh4ep"
         target="_blank"
         rel="noreferrer noopener"
-        className="group flex items-center h-8 rounded-lg bg-[#5865f2] hover:bg-[#4752c4] transition-all duration-200 shadow-sm hover:shadow-md shrink-0 px-3"
+        className="group flex items-center h-8 bg-[#5865f2] hover:bg-[#4752c4] transition-all duration-200 border border-black/10 shrink-0 px-3"
       >
         <div className="h-full w-auto py-2.5">
           <Image
@@ -38,7 +38,7 @@ export function PromoBannersDesktop({ className }: PromoBannersProps) {
         href="https://buymeacoffee.com/pixelghost3165209"
         target="_blank"
         rel="noreferrer noopener"
-        className="group flex items-center h-8 rounded-lg hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md shrink-0"
+        className="group flex items-center h-8 hover:opacity-90 transition-all duration-200 border border-black/10 shrink-0"
       >
         <Image
           src="/bmcbrand/buttons/red-button.png"

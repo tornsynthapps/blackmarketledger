@@ -1,13 +1,28 @@
 "use client";
 
+import { HugeiconsIcon } from "@hugeicons/react";
+import { 
+    ChartRadarIcon, 
+    BankIcon, 
+    Airplane02Icon, 
+    ReceiptTextIcon, 
+    ComputerTerminal01Icon, 
+    Radar03Icon, 
+    Exchange01Icon, 
+    DatabaseIcon, 
+    Sun01Icon, 
+    Moon01Icon, 
+    Menu01Icon, 
+    Cancel01Icon,
+    DiscordIcon 
+} from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import pkg from '@/package.json';
+import pkg from "@/package.json";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import { LayoutDashboard, Database, Terminal, List, Moon, Sun, Landmark, Plane, ArrowRightLeft, Menu, X, Radar } from "lucide-react";
 import Image from "next/image";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -15,13 +30,13 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 const navItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard, color: "#3b82f6" },
-    { name: "Museum", href: "/museum", icon: Landmark, color: "#f59e0b" },
-    { name: "Abroad", href: "/abroad", icon: Plane, color: "#0d9488" },
-    { name: "Logs", href: "/logs", icon: List, color: "#8b5cf6" },
-    { name: "Terminal", href: "/add", icon: Terminal, color: "#8b5cf6" },
-    { name: "Auto-Pilot", href: "/auto", icon: Radar, color: "#f97316" },
-    { name: "BML Connect", href: "/bmlconnect", icon: ArrowRightLeft, color: "#ec4899" },
+    { name: "Dashboard", href: "/", icon: ChartRadarIcon, color: "var(--info)" },
+    { name: "Museum", href: "/museum", icon: BankIcon, color: "var(--warning)" },
+    { name: "Abroad", href: "/abroad", icon: Airplane02Icon, color: "var(--success)" },
+    { name: "Logs", href: "/logs", icon: ReceiptTextIcon, color: "var(--secondary)" },
+    { name: "Terminal", href: "/add", icon: ComputerTerminal01Icon, color: "var(--muted)" },
+    { name: "Auto-Pilot", href: "/auto", icon: Radar03Icon, color: "var(--danger)" },
+    { name: "BML Connect", href: "/bmlconnect", icon: Exchange01Icon, color: "var(--primary)" },
 ];
 
 export function Navigation() {
@@ -31,7 +46,7 @@ export function Navigation() {
     const { vibrate } = useHapticFeedback();
 
     useEffect(() => {
-        setIsDark(document.documentElement.classList.contains("dark"));
+        setIsDark(document.documentElement.classList.contains("dark") || !document.documentElement.classList.contains("light"));
     }, []);
 
     const applyTheme = (theme: "dark" | "light") => {
@@ -47,24 +62,25 @@ export function Navigation() {
         applyTheme(isDark ? "light" : "dark");
     };
 
-
     return (
         <>
             {/* Top Navigation */}
-            <nav className="nav-top sticky top-0 h-16 bg-panel/80 border-b border-border/50 z-[70] backdrop-blur-md">
-            <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-3">
-                <Link href="/" onClick={() => vibrate("nav")} className="flex items-center gap-2">
-                    <Database className="w-8 h-8 text-foreground" />
+            <nav className="nav-top sticky top-0 h-16 bg-background border-b-2 border-primary z-[70] transition-colors">
+            <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-6">
+                <Link href="/" onClick={() => vibrate("nav")} className="flex items-center gap-3">
+                    <div className="bg-primary p-1.5 border border-primary">
+                        <HugeiconsIcon icon={DatabaseIcon} size={20} color="var(--primary-foreground)" />
+                    </div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-lg tracking-tight hidden sm:block leading-none">BlackMarket Ledger</span>
-                        <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[10px] font-mono text-foreground/50 hidden sm:block">v{pkg.version}</span>
-                            <span className="text-[10px] font-medium text-foreground/40 hidden sm:block">by Torn Synth Apps</span>
+                        <span className="font-bold text-lg tracking-tight hidden sm:block leading-none uppercase font-sans">BlackMarket Ledger</span>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] font-mono font-bold text-primary px-1 border border-primary/20">V{pkg.version}</span>
+                            <span className="text-[9px] font-bold text-muted uppercase tracking-wider hidden sm:block">Industrial Engine</span>
                         </div>
                     </div>
                 </Link>
 
-                <div className="hidden sm:flex items-center gap-1 sm:gap-2">
+                <div className="hidden sm:flex items-center gap-1">
                     {navItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
@@ -74,63 +90,62 @@ export function Navigation() {
                                 href={item.href}
                                 onClick={() => vibrate("nav")}
                                 className={cn(
-                                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                                    !isActive && "text-foreground/70 hover:bg-foreground/5"
+                                    "flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent",
+                                    isActive ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground hover:bg-foreground/5 hover:border-border"
                                 )}
-                                style={isActive ? { backgroundColor: `${item.color}1a`, color: item.color } : {}}
                             >
-                                <Icon className="w-4 h-4" style={{ color: item.color }} />
-                                <span className="hidden sm:inline" style={isActive ? { color: item.color } : undefined}>{item.name}</span>
+                                <HugeiconsIcon icon={Icon} size={14} color={isActive ? "var(--primary-foreground)" : "currentColor"} />
+                                <span className="hidden lg:inline">{item.name}</span>
                             </Link>
                         );
                     })}
+                    <div className="w-[2px] h-6 bg-border mx-2" />
                     <button
                         onClick={toggleDark}
-                        className="p-1.5 ml-1 sm:ml-2 rounded-lg text-foreground/70 hover:bg-foreground/5 hover:text-foreground transition-colors"
+                        className="p-1.5 rounded-none text-muted hover:text-foreground hover:bg-foreground/5 transition-colors border border-transparent hover:border-border"
                         aria-label="Toggle dark mode"
                     >
-                        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={18} />
                     </button>
                 </div>
 
                 <div className="flex items-center gap-1 sm:hidden">
                     <button
                         onClick={toggleDark}
-                        className="p-2 rounded-lg text-foreground/70 hover:bg-foreground/5 hover:text-foreground transition-colors"
+                        className="p-2 text-muted hover:text-foreground"
                         aria-label="Toggle dark mode"
                     >
-                        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                        <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={18} />
                     </button>
                     <button
                         onClick={() => {
                             vibrate("nav");
                             setIsDrawerOpen((open) => !open);
                         }}
-                        className="p-2 rounded-lg text-foreground/80 hover:bg-foreground/5 hover:text-foreground transition-colors"
-                        aria-label={isDrawerOpen ? "Close navigation menu" : "Open navigation menu"}
-                        aria-expanded={isDrawerOpen}
+                        className="p-2 text-foreground"
                     >
-                        {isDrawerOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                        <HugeiconsIcon icon={isDrawerOpen ? Cancel01Icon : Menu01Icon} size={22} />
                     </button>
                 </div>
                 </div>
             </nav>
 
             {/* Left Sidebar Navigation (Desktop Only) */}
-            <aside className="nav-left flex w-[260px] h-full bg-panel flex-col justify-between py-6 px-4 shrink-0 transition-opacity border-r border-border/50 z-[70]">
-                <div className="flex flex-col gap-8">
-                    <Link href="/" onClick={() => vibrate("nav")} className="flex items-center gap-2 px-2">
-                        <Database className="w-8 h-8 text-foreground shrink-0" />
+            <aside className="nav-left flex w-[240px] h-full bg-panel flex-col justify-between py-8 px-4 shrink-0 transition-opacity border-r-2 border-primary z-[70]">
+                <div className="flex flex-col gap-10">
+                    <Link href="/" onClick={() => vibrate("nav")} className="flex items-center gap-3 px-2">
+                        <div className="bg-primary p-2">
+                            <HugeiconsIcon icon={DatabaseIcon} size={24} color="var(--primary-foreground)" />
+                        </div>
                         <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-lg tracking-tight leading-none truncate lg:whitespace-normal">BlackMarket Ledger</span>
-                            <div className="flex items-center gap-1 mt-0.5 whitespace-nowrap">
-                                <span className="text-[10px] font-mono text-foreground/50">v{pkg.version}</span>
-                                <span className="text-[10px] font-medium text-foreground/40">by Torn Synth Apps</span>
+                            <span className="font-bold text-lg tracking-tighter leading-none uppercase font-sans">BML EDGE</span>
+                            <div className="flex items-center gap-1 mt-1">
+                                <span className="text-[10px] font-mono font-bold text-muted">V{pkg.version}</span>
                             </div>
                         </div>
                     </Link>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1">
                         {navItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
@@ -140,56 +155,49 @@ export function Navigation() {
                                     href={item.href}
                                     onClick={() => vibrate("nav")}
                                     className={cn(
-                                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                                        !isActive && "text-foreground/70 hover:bg-foreground/5"
+                                        "flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest transition-all border-l-2",
+                                        isActive 
+                                            ? "bg-primary/5 text-primary border-primary" 
+                                            : "text-muted hover:text-foreground hover:bg-foreground/5 border-transparent"
                                     )}
-                                    style={isActive ? { backgroundColor: `${item.color}1a`, color: item.color } : {}}
                                 >
-                                    <Icon className="w-5 h-5 shrink-0" style={{ color: item.color }} />
-                                    <span style={isActive ? { color: item.color } : undefined}>{item.name}</span>
+                                    <HugeiconsIcon icon={Icon} size={16} color={isActive ? "var(--primary)" : "currentColor"} />
+                                    <span>{item.name}</span>
                                 </Link>
                             );
                         })}
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-4 px-2">
+                <div className="flex flex-col gap-6 px-2">
                     <button
                         onClick={toggleDark}
-                        className="flex items-center gap-3 p-2 rounded-lg text-foreground/70 hover:bg-foreground/5 hover:text-foreground transition-colors w-full text-left"
-                        aria-label="Toggle dark mode"
+                        className="flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-muted hover:text-foreground bg-foreground/5 hover:bg-foreground/10 transition-all w-full text-left"
                     >
-                        {isDark ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
-                        <span className="text-sm font-medium">{isDark ? "Light Mode" : "Dark Mode"}</span>
+                        <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={16} />
+                        <span>{isDark ? "Light System" : "Dark System"}</span>
                     </button>
 
-                    <div className="flex flex-row gap-2 pt-4 border-t border-border/50">
-                        {/* Discord */}
-                        <a href="https://discord.gg/Xz4GZfh4ep" target="_blank" rel="noreferrer noopener" className="flex-1 group flex items-center justify-center h-8 rounded-lg bg-[#5865f2] hover:bg-[#4752c4] transition-all duration-200 shadow-sm hover:shadow-md px-2">
-                           <img src="/discord/logo/light.png" alt="Discord" className="h-4 w-auto object-contain" />
+                    <div className="flex flex-row gap-2 pt-6 border-t border-border">
+                        <a href="https://discord.gg/Xz4GZfh4ep" target="_blank" rel="noreferrer noopener" className="flex-1 flex items-center justify-center h-10 border border-border hover:bg-foreground/5 transition-all text-muted hover:text-[#5865f2]">
+                            <HugeiconsIcon icon={DiscordIcon} size={20} />
                         </a>
-                        {/* Buy me a coffee */}
-                        <a href="https://buymeacoffee.com/pixelghost3165209" target="_blank" rel="noreferrer noopener" className="flex-[1.5] group flex items-center justify-center h-8 rounded-lg hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden bg-black shrink-0 relative">
-<Image
-          src="/bmcbrand/buttons/red-button.png"
-          alt="Buy me a coffee"
-          width={200}
-          height={60}
-          className="h-full w-auto"
-        />                        </a>
+                        <a href="https://buymeacoffee.com/pixelghost3165209" target="_blank" rel="noreferrer noopener" className="flex-[2] flex items-center justify-center h-10 bg-[#FFDD00] text-black font-bold text-[10px] uppercase tracking-wider hover:opacity-90 transition-all border border-black/10">
+                            SUPPORT DEV
+                        </a>
                     </div>
                 </div>
             </aside>
+
             {isDrawerOpen && (
                 <div className="sm:hidden fixed inset-0 top-16 z-40">
                     <button
                         type="button"
-                        className="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]"
-                        aria-label="Close navigation menu"
+                        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
                         onClick={() => setIsDrawerOpen(false)}
                     />
-                    <div className="absolute right-0 top-0 h-full w-full max-w-xs border-l border-border bg-panel/95 backdrop-blur-xl shadow-2xl">
-                        <div className="flex flex-col gap-2 p-4">
+                    <div className="absolute right-0 top-0 h-full w-full max-w-[280px] border-l-2 border-primary bg-panel shadow-2xl">
+                        <div className="flex flex-col gap-1 p-4 pt-10">
                             {navItems.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -203,13 +211,12 @@ export function Navigation() {
                                             setIsDrawerOpen(false);
                                         }}
                                         className={cn(
-                                            "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
-                                            !isActive && "text-foreground/75 hover:bg-foreground/5"
+                                            "flex items-center gap-4 px-6 py-4 text-[13px] font-bold uppercase tracking-widest transition-all",
+                                            isActive ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground hover:bg-foreground/5"
                                         )}
-                                        style={isActive ? { backgroundColor: `${item.color}1a`, color: item.color } : {}}
                                     >
-                                        <Icon className="w-5 h-5" style={{ color: item.color }} />
-                                        <span style={isActive ? { color: item.color } : undefined}>{item.name}</span>
+                                        <HugeiconsIcon icon={Icon} size={18} color={isActive ? "var(--primary-foreground)" : "currentColor"} />
+                                        <span>{item.name}</span>
                                     </Link>
                                 );
                             })}
@@ -220,3 +227,4 @@ export function Navigation() {
         </>
     );
 }
+
