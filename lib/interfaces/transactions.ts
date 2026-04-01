@@ -466,11 +466,12 @@ export class TransactionBuilder {
   }
 
   addTransaction(input: TransactionInput): TransactionBuildResult {
-    const stockType = input.stockType ?? "auto";
+    const normalizedInput = this.normalizeInputItem(input);
+    const stockType = normalizedInput.stockType ?? "auto";
 
-    if (input.amount >= 0) {
+    if (normalizedInput.amount >= 0) {
       const transaction = this.insertSingle({
-        ...input,
+        ...normalizedInput,
         stockType: stockType === "auto" ? "normal" : stockType,
       });
       return { wrapper: null, transactions: [transaction] };
@@ -478,22 +479,22 @@ export class TransactionBuilder {
 
     if (stockType !== "auto") {
       const transaction = this.insertSingle({
-        ...input,
+        ...normalizedInput,
         stockType,
       });
       return { wrapper: null, transactions: [transaction] };
     }
 
-    const resolvedInputs = this.resolveSplitInputs(input);
+    const resolvedInputs = this.resolveSplitInputs(normalizedInput);
     return this.insertWithOptionalWrapper("split", resolvedInputs, {
-      timestamp: input.timestamp,
-      itemID: input.itemID,
-      amount: input.amount,
-      price: input.price,
-      source: input.source ?? null,
-      tornID: input.tornID ?? null,
-      tradeID: input.tradeID ?? null,
-      description: input.description ?? null,
+      timestamp: normalizedInput.timestamp,
+      itemID: normalizedInput.itemID,
+      amount: normalizedInput.amount,
+      price: normalizedInput.price,
+      source: normalizedInput.source ?? null,
+      tornID: normalizedInput.tornID ?? null,
+      tradeID: normalizedInput.tradeID ?? null,
+      description: normalizedInput.description ?? null,
       forceWrap: resolvedInputs.length > 1,
     });
   }
@@ -560,9 +561,10 @@ export class TransactionBuilder {
       itemCount?: number | null;
     },
   ): TransactionBuildResult {
+    const normalizedItems = items.map((item) => this.normalizeInputItem(item));
     const resolvedInputs: TransactionInput[] = [];
 
-    items.forEach((item) => {
+    normalizedItems.forEach((item) => {
       if (item.amount < 0 && (item.stockType ?? "auto") === "auto") {
         resolvedInputs.push(...this.resolveSplitInputs(item));
         return;
@@ -645,7 +647,8 @@ export class TransactionBuilder {
       forceWrap: boolean;
     },
   ): TransactionBuildResult {
-    const insertedTransactions = items.map((item) =>
+    const uniqueItems = this.ensureUniqueItemInputIDs(items);
+    const insertedTransactions = uniqueItems.map((item) =>
       this.insertSingle({
         ...item,
         stockType:
@@ -695,6 +698,28 @@ export class TransactionBuilder {
 
     this.insertIntoStore(wrapper);
     return { wrapper, transactions: insertedTransactions };
+  }
+
+  private ensureUniqueItemInputIDs(items: TransactionInput[]) {
+    const usedIDs = new Set<string>();
+
+    return items.map((item, index) => {
+      const baseID = item.id ?? createID();
+      let nextID = baseID;
+
+      if (usedIDs.has(nextID)) {
+        nextID = `${baseID}:${index}`;
+        while (usedIDs.has(nextID)) {
+          nextID = `${baseID}:${index}:${createID()}`;
+        }
+      }
+
+      usedIDs.add(nextID);
+      return {
+        ...item,
+        id: nextID,
+      };
+    });
   }
 
   private resolveSplitInputs(input: TransactionInput) {
@@ -775,6 +800,50 @@ export class TransactionBuilder {
     }
 
     this.transactions.splice(insertAt, 0, transaction);
+  }
+
+  private normalizeInputItem(input: TransactionInput): TransactionInput {
+    const itemName = input.itemName ? normalizeItemName(input.itemName) : null;
+    if (!itemName) {
+      return input;
+    }
+
+    const matchingTransactions = this.transactions.filter((transaction) => {
+      if (isConcreteTransaction(transaction)) {
+        return transaction.itemName === itemName;
+      }
+
+      return transaction.isWrapper && transaction.itemName === itemName;
+    });
+
+    const existingPositiveID = matchingTransactions.find(
+      (transaction) => transaction.itemID !== null && transaction.itemID > 0,
+    )?.itemID;
+
+    const canonicalItemID =
+      input.itemID > 0
+        ? input.itemID
+        : existingPositiveID ??
+          matchingTransactions.find((transaction) => transaction.itemID !== null)?.itemID ??
+          input.itemID;
+
+    let changed = false;
+    matchingTransactions.forEach((transaction) => {
+      if (transaction.itemID !== canonicalItemID) {
+        transaction.itemID = canonicalItemID;
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      this.rebuildIndexes();
+    }
+
+    return {
+      ...input,
+      itemID: canonicalItemID,
+      itemName,
+    };
   }
 
   private getStockBefore(

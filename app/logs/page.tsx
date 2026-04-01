@@ -468,11 +468,12 @@ function LogsPageContent() {
     const sourceLabel = getSourceLabel(sourceType);
     const isSelected = selectedIds.has(t.id);
     const isWrapper = isWrapperTransaction(t);
+    const isSkipRow = isNewConcreteTransaction(t) && t.stockType === "skip";
     const date = getTransactionTimestamp(t);
     return (
       <tr
         key={t.id}
-        className={`hover:bg-foreground/[0.02] transition-colors border-b border-border/50 ${isSelected ? "bg-primary/5" : ""} ${isWrapper ? "cursor-pointer" : ""}`}
+        className={`hover:bg-foreground/[0.02] transition-colors border-b border-border/50 ${isSelected ? "bg-primary/5" : ""} ${isWrapper ? "cursor-pointer" : ""} ${isSkipRow ? "opacity-60" : ""}`}
         onClick={() => {
           if (!isWrapper || selectionMode) return;
           const params = new URLSearchParams(searchParams.toString());
@@ -503,63 +504,63 @@ function LogsPageContent() {
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
             {isWrapper && (
-              <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-violet-700 font-medium bg-violet-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 {t.wrapperType.toUpperCase()}
               </span>
             )}
             {isLegacyTransaction(t) && t.type === "BUY" && (
-              <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-green-700 font-medium bg-green-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 BUY
               </span>
             )}
             {isLegacyTransaction(t) && t.type === "SELL" && (
-              <span className="text-success font-medium bg-success/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-blue-700 font-medium bg-blue-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 SELL
               </span>
             )}
             {isLegacyTransaction(t) && t.type === "MUG" && (
-              <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-red-700 font-medium bg-red-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 MUG
               </span>
             )}
             {isLegacyTransaction(t) && t.type === "CONVERT" && (
-              <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-violet-700 font-medium bg-violet-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 CONVERT
               </span>
             )}
             {isLegacyTransaction(t) && t.type === "SET_CONVERT" && (
-              <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-violet-700 font-medium bg-violet-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 SET CONVERT
               </span>
             )}
-            {isLegacyTransaction(t) && t.tag === "Abroad" && (
-              <span className="text-warning font-medium bg-warning/10 px-2 py-1 rounded text-xs tracking-wider">
-                ABROAD
-              </span>
-            )}
-            {isNewConcreteTransaction(t) && t.stockType === "abroad" && (
-              <span className="text-warning font-medium bg-warning/10 px-2 py-1 rounded text-xs tracking-wider">
-                ABROAD
-              </span>
-            )}
             {isNewConcreteTransaction(t) && t.amount >= 0 && (
-              <span className="text-primary font-medium bg-primary/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-green-700 font-medium bg-green-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 BUY
               </span>
             )}
             {isNewConcreteTransaction(t) && t.amount < 0 && (
-              <span className="text-success font-medium bg-success/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-blue-700 font-medium bg-blue-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 SELL
               </span>
             )}
             {isNewConcreteTransaction(t) && t.stockType === "skip" && (
-              <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-slate-600 font-medium bg-slate-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 SKIP
               </span>
             )}
             {isNewMugTransaction(t) && (
-              <span className="text-danger font-medium bg-danger/10 px-2 py-1 rounded text-xs tracking-wider">
+              <span className="text-red-700 font-medium bg-red-500/10 px-2 py-1 rounded text-xs tracking-wider">
                 MUG
+              </span>
+            )}
+            {isLegacyTransaction(t) && t.tag === "Abroad" && (
+              <span className="text-amber-700 font-medium bg-amber-500/10 px-2 py-1 rounded text-xs tracking-wider">
+                ABROAD
+              </span>
+            )}
+            {isNewConcreteTransaction(t) && t.stockType === "abroad" && (
+              <span className="text-amber-700 font-medium bg-amber-500/10 px-2 py-1 rounded text-xs tracking-wider">
+                ABROAD
               </span>
             )}
           </div>
@@ -655,19 +656,6 @@ function LogsPageContent() {
               <Edit2 className="w-4 h-4" />
             </button>
           )}
-          {isWrapper && (
-            <button
-              onClick={(event) => {
-                event.stopPropagation();
-                const params = new URLSearchParams(searchParams.toString());
-                params.set("groupID", t.id);
-                router.push(`/logs?${params.toString()}`);
-              }}
-              className="text-primary/70 hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          )}
           <button
             onClick={(event) => {
               event.stopPropagation();
@@ -679,6 +667,19 @@ function LogsPageContent() {
           >
             <Trash2 className="w-4 h-4" />
           </button>
+          {isWrapper && (
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("groupID", t.id);
+                router.push(`/logs?${params.toString()}`);
+              }}
+              className="text-foreground/60 hover:text-foreground hover:bg-foreground/5 px-2 py-1 rounded-lg transition-colors text-base font-semibold"
+            >
+              {">"}
+            </button>
+          )}
         </td>
       </tr>
     );

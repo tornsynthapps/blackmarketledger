@@ -34,7 +34,7 @@ describe("TransactionBuilder", () => {
       id: "normal-buy",
       timestamp: 100,
       itemID: 1,
-      amount: 3,
+      amount: 2,
       price: 100,
       source: "item-market",
       stockType: "normal",
@@ -43,7 +43,7 @@ describe("TransactionBuilder", () => {
       id: "abroad-buy",
       timestamp: 101,
       itemID: 1,
-      amount: 2,
+      amount: 3,
       price: 80,
       source: "item-market",
       stockType: "abroad",
@@ -53,7 +53,7 @@ describe("TransactionBuilder", () => {
       id: "sell-auto",
       timestamp: 200,
       itemID: 1,
-      amount: -10,
+      amount: -6,
       price: 150,
       source: "bazaar",
     });
@@ -63,6 +63,11 @@ describe("TransactionBuilder", () => {
     expect(result.transactions.map((transaction) => transaction.stockType)).toEqual(
       ["normal", "abroad", "skip"],
     );
+    expect(result.transactions.map((transaction) => transaction.amount)).toEqual(
+      [-2, -3, -1],
+    );
+    expect(new Set(result.transactions.map((transaction) => transaction.id)).size).toBe(3);
+    expect(new Set(result.wrapper?.wrappedTransactionIDs ?? []).size).toBe(3);
     expect(result.transactions.every((transaction) => transaction.groupID === result.wrapper?.id)).toBe(true);
   });
 
@@ -184,6 +189,70 @@ describe("TransactionBuilder", () => {
 
     expect(result.transactions[0].currentStock).toBe(5);
     expect(result.transactions[0].currentCostBasis).toBe(100);
+  });
+
+  it("canonicalizes same-name items across old and new item ids before splitting sells", () => {
+    const builder = new TransactionBuilder([
+      {
+        id: "buy-old-normal",
+        timestamp: 100,
+        version: 3,
+        groupID: "buy-old-normal",
+        tornID: null,
+        tradeID: null,
+        description: null,
+        isWrapper: false,
+        itemID: -1001,
+        itemName: "xanax",
+        amount: 2,
+        requestedAmount: 2,
+        price: 100,
+        source: "item-market",
+        stockType: "normal",
+        currentStock: 2,
+        currentCostBasis: 100,
+      },
+      {
+        id: "buy-old-abroad",
+        timestamp: 101,
+        version: 3,
+        groupID: "buy-old-abroad",
+        tornID: null,
+        tradeID: null,
+        description: null,
+        isWrapper: false,
+        itemID: -2002,
+        itemName: "xanax",
+        amount: 3,
+        requestedAmount: 3,
+        price: 90,
+        source: "item-market",
+        stockType: "abroad",
+        currentStock: 3,
+        currentCostBasis: 90,
+      },
+    ]);
+
+    const result = builder.addTransaction({
+      id: "sell-new-id",
+      timestamp: 200,
+      itemID: 5,
+      itemName: "xanax",
+      amount: -6,
+      price: 150,
+      source: "bazaar",
+    });
+
+    expect(result.transactions.map((transaction) => transaction.stockType)).toEqual([
+      "normal",
+      "abroad",
+      "skip",
+    ]);
+    expect(result.transactions.map((transaction) => transaction.amount)).toEqual([
+      -2,
+      -3,
+      -1,
+    ]);
   });
 
   it("wraps trade imports", () => {
