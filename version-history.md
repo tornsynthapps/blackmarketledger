@@ -1,5 +1,11 @@
 # BlackMarket Ledger Version History
 
+## v4.5.0 (2026-03-31)
+- **Transactions Scheme**: Updated how transactions are stored giving more flexibility and control over transaction data.
+- **Transaction UI Refactor**: Updated transaction list styling, improved item canonicalization logic, and added test coverage for cross-ID item matching.
+- **Transaction Wrapper**: Added a wrapper around transactions to group logs.
+- **Cost-Basis in Transactions**: Added cost-basis tracking to transactions.
+
 ## v4.4.1 (2026-03-29)
 - **Select and Delete**: Added support for selecting and deleting multiple transactions.
 
