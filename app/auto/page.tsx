@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Activity,
   CloudDownload,
+  Plane,
 } from "lucide-react";
 import { useJournal } from "@/store/useJournal";
 import {
@@ -66,6 +67,8 @@ function getImportSourceType(
   if ([5010, 5011].includes(typeId) || haystack.includes("points"))
     return "points-market";
   if (typeId === 7000 || haystack.includes("museum")) return "museum";
+  if (typeId === 4201 || haystack.includes("travel") || haystack.includes("abroad"))
+    return "travel"; // Abroad buys are treated as item-market for ledger
   if (haystack.includes("trade")) return "trade";
 
   return undefined;
@@ -288,7 +291,7 @@ export default function AutoPilotPage() {
       {
         id: "item-market",
         label: "Item Market Logs",
-        count: transactions.filter((tx) => tx.sourceType === "item-market")
+        count: transactions.filter((tx: any) => tx.sourceType === "item-market")
           .length,
         icon: Tags,
         type: "item-market" as const,
@@ -297,7 +300,7 @@ export default function AutoPilotPage() {
       {
         id: "bazaar",
         label: "Bazaar Logs",
-        count: transactions.filter((tx) => tx.sourceType === "bazaar").length,
+        count: transactions.filter((tx: any) => tx.sourceType === "bazaar").length,
         icon: Store,
         type: "bazaar" as const,
         color: "blue",
@@ -305,7 +308,7 @@ export default function AutoPilotPage() {
       {
         id: "points-market",
         label: "Points Market Logs",
-        count: transactions.filter((tx) => tx.sourceType === "points-market")
+        count: transactions.filter((tx: any) => tx.sourceType === "points-market")
           .length,
         icon: Coins,
         type: "points-market" as const,
@@ -314,10 +317,18 @@ export default function AutoPilotPage() {
       {
         id: "museum",
         label: "Museum Logs",
-        count: transactions.filter((tx) => tx.sourceType === "museum").length,
+        count: transactions.filter((tx: any) => tx.sourceType === "museum").length,
         icon: Box,
         type: "museum" as const,
         color: "rose",
+      },
+      {
+        id: "travel",
+        label: "Travel Logs",
+        count: transactions.filter((tx: any) => tx.sourceType === "travel").length,
+        icon: Plane,
+        type: "travel" as const,
+        color: "green",
       },
     ];
   }, [unlinkedTrades, trades, transactions]);
@@ -582,7 +593,7 @@ export default function AutoPilotPage() {
 
         setStatusMessage(
           `Found ${newUnlinkedTrades.length} unlinked trades ` +
-            `and ${newUnlinkedReceipts.length} unlinked receipts.`,
+          `and ${newUnlinkedReceipts.length} unlinked receipts.`,
         );
         setStatusMessage(`Found ${newAllNewParsedLogs.length} logs.`);
 
@@ -829,11 +840,10 @@ export default function AutoPilotPage() {
 
             {(statusMessage || pageError) && (
               <div
-                className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
-                  pageError
+                className={`mt-4 rounded-xl border px-4 py-3 text-sm ${pageError
                     ? "border-danger/30 bg-danger/5 text-danger"
                     : "border-orange-500/20 bg-orange-500/5 text-foreground/75"
-                }`}
+                  }`}
               >
                 {pageError || statusMessage}
               </div>
@@ -968,8 +978,8 @@ export default function AutoPilotPage() {
                           : record.title.toLowerCase().includes("trade")
                             ? "trade"
                             : record.title
-                                  .toLowerCase()
-                                  .includes("points market")
+                              .toLowerCase()
+                              .includes("points market")
                               ? "points-market"
                               : record.title.toLowerCase().includes("museum")
                                 ? "museum"
@@ -991,11 +1001,10 @@ export default function AutoPilotPage() {
                 )}
               </div>
               <div
-                className={`rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                  record.status === "imported"
+                className={`rounded-lg border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${record.status === "imported"
                     ? "bg-green-500/10 border-green-500/20 text-green-700"
                     : "bg-orange-500/10 border-orange-500/20 text-orange-700"
-                }`}
+                  }`}
               >
                 {record.status.replace("_", " ")}
               </div>

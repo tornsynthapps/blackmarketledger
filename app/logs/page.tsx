@@ -116,6 +116,7 @@ function getSourceLabel(sourceType?: TransactionSourceType) {
   if (sourceType === "points-market") return "Points Market";
   if (sourceType === "museum") return "Museum";
   if (sourceType === "attack") return "Attack";
+  if (sourceType === "travel") return "Travel";
   return "";
 }
 

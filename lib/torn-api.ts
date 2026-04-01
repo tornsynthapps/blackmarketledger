@@ -1,6 +1,7 @@
 import {
   ParsedLog,
   TransactionSourceType,
+  TransactionTag,
   normalizeItemName,
   resolveMuseumExchangeType,
 } from "./parser";
@@ -38,11 +39,12 @@ export function refreshApiRateLimiters() {
   weav3rRateLimiter = createRateLimiter(limits.weav3r);
 }
 const AUTO_PILOT_LOG_CATEGORIES = [
-  "Market",
-  "Bazaar",
-  "Points",
-  "Museum",
-  "Attacks",
+  11, // Market
+  18, // Bazaar
+  6, // Points
+  12, // Museum
+  17, // Attacks
+  15, // Travel
 ];
 const MARKET_LOG_TYPE_MAP: Record<
   number,
@@ -54,6 +56,7 @@ const MARKET_LOG_TYPE_MAP: Record<
   1226: { type: "SELL", sourceType: "bazaar" },
   5010: { type: "BUY", sourceType: "points-market" },
   5011: { type: "SELL", sourceType: "points-market" },
+  4201: { type: "BUY", sourceType: "travel" },
 };
 const RELEVANT_LOG_TITLES = [
   "bazaar",
@@ -62,6 +65,8 @@ const RELEVANT_LOG_TITLES = [
   "points",
   "trade",
   "museum",
+  "travel",
+  "abroad",
 ];
 
 export interface SyncCursor {
@@ -308,7 +313,7 @@ function pickNumber(source: Record<string, unknown>, keys: string[]) {
 }
 
 function extractItemId(source: Record<string, unknown>) {
-  return pickNumber(source, ["item_id", "itemID", "id"]);
+  return pickNumber(source, ["item_id", "itemID", "item", "id"]);
 }
 
 function extractItemName(
@@ -395,7 +400,11 @@ function detectMarketAction(
   data: Record<string, unknown> = {},
   params: Record<string, unknown> = {},
 ): "BUY" | "SELL" | undefined {
-  if (haystack.includes("bought") || haystack.includes(" buy")) {
+  if (
+    haystack.includes("bought") ||
+    haystack.includes(" buy") ||
+    haystack.includes("abroad")
+  ) {
     return "BUY";
   }
   if (haystack.includes("sold") || haystack.includes(" sell")) {
@@ -450,6 +459,7 @@ function parseMarketLog(
   itemName?: string,
   amount?: number,
   price?: number,
+  tag?: TransactionTag,
 ): ParsedLog[] {
   if (!itemName || !amount || !price) return [];
   return [
@@ -461,6 +471,7 @@ function parseMarketLog(
       sourceType,
       loggedAt: log.timestamp * 1000,
       tornLogId: String(log.id),
+      ...(tag && { tag }),
     },
   ];
 }
@@ -548,6 +559,13 @@ function parseBazaarOrMarketLog(
     explicitMapping?.sourceType ||
     (haystack.includes("bazaar") ? "bazaar" : "item-market");
 
+  const tag: TransactionTag | undefined =
+    log.category.toLowerCase() === "travel" ||
+    haystack.includes("abroad") ||
+    haystack.includes("travel")
+      ? "Abroad"
+      : undefined;
+
   const nestedItems = extractItems(data);
   if (nestedItems.length) {
     return nestedItems.flatMap((item) => {
@@ -562,7 +580,7 @@ function parseBazaarOrMarketLog(
         extractPrice(data) ??
         (amount && total ? total / amount : undefined);
 
-      return parseMarketLog(log, type, sourceType, itemName, amount, price);
+      return parseMarketLog(log, type, sourceType, itemName, amount, price, tag);
     });
   }
 
@@ -574,7 +592,7 @@ function parseBazaarOrMarketLog(
   const price =
     extractPrice(data) ?? (amount && total ? total / amount : undefined);
 
-  return parseMarketLog(log, type, sourceType, itemName, amount, price);
+  return parseMarketLog(log, type, sourceType, itemName, amount, price, tag);
 }
 
 export function parseNormalizedLog(
@@ -625,7 +643,12 @@ export function parseNormalizedLog(
     }
   }
 
-  if (haystack.includes("bazaar") || haystack.includes("item market")) {
+  if (
+    haystack.includes("bazaar") ||
+    haystack.includes("item market") ||
+    haystack.includes("travel") ||
+    log.category.toLowerCase() === "travel"
+  ) {
     const logs = parseBazaarOrMarketLog(log, itemNameMap);
     return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
   }
@@ -635,11 +658,11 @@ export function parseNormalizedLog(
 
 async function getLogsForCategory(
   apiKey: string,
-  category: string,
+  category: number | string,
   cursor: SyncCursor,
 ) {
   let nextUrl = buildUrl(TORN_V2_API_BASE, "/user/log", {
-    category,
+    cat: category,
     from: cursor.lastTimestamp,
     to: Math.floor(Date.now() / 1000),
     limit: 100,

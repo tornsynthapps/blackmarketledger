@@ -77,6 +77,7 @@ export class TronWrapper {
       { cat: 6 }, // points market
       { cat: 162 }, // museum
       { cat: 182 }, // attack incoming
+      { cat: 15 }, // travel
     ];
 
     const logTypesNeeded = new Set([
@@ -88,6 +89,7 @@ export class TronWrapper {
       5011, // points market sell
       7000, // museum exchange
       8156, // attack mug received
+      4201, // abroad buy
     ]);
 
     if (!this.itemNameMap) {

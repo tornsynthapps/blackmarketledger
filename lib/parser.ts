@@ -21,7 +21,8 @@ export type TransactionSourceType =
   | "trade"
   | "points-market"
   | "museum"
-  | "attack";
+  | "attack"
+  | "travel";
 
 export interface BaseTransaction {
   id: string;

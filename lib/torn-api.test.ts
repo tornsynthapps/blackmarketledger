@@ -259,6 +259,40 @@ describe("torn-api helpers", () => {
     });
   });
 
+  it("parses the provided abroad buy payload shape", () => {
+    const result = parseNormalizedLog(
+      {
+        id: "2TIlJofbuUKmZKoJtJpd",
+        timestamp: 1775050457,
+        category: "Travel",
+        typeId: 4201,
+        title: "Item abroad buy",
+        data: {
+          item: 274,
+          quantity: 1,
+          cost_each: 400,
+          cost_total: 400,
+          area: 6,
+        },
+        params: {
+          color: "green",
+        },
+      },
+      new Map([[274, "xanax"]]),
+    );
+
+    expect(result.kind).toBe("parsed");
+    if (result.kind !== "parsed") return;
+    expect(result.logs[0]).toMatchObject({
+      type: "BUY",
+      item: "xanax",
+      amount: 1,
+      price: 400,
+      tag: "Abroad",
+      tornLogId: "2TIlJofbuUKmZKoJtJpd",
+    });
+  });
+
   it("parses points market logs using explicit type IDs", () => {
     const buyResult = parseNormalizedLog({
       id: "points-buy-1",
@@ -463,7 +497,7 @@ describe("torn-api helpers", () => {
     expect(firstUrl.pathname).toBe("/v2/user/log");
     expect(firstUrl.searchParams.get("cat")).toBe("11");
     expect(firstUrl.searchParams.get("from")).toBe("1772217000");
-    expect(firstUrl.searchParams.get("limit")).toBe("20");
+    expect(firstUrl.searchParams.get("limit")).toBe("100");
     expect(firstUrl.searchParams.get("sort")).toBe("desc");
     expect(firstUrl.searchParams.get("key")).toBe("test-key");
     expect(firstUrl.searchParams.get("to")).toBeTruthy();
@@ -499,7 +533,7 @@ describe("torn-api helpers", () => {
           })),
           _metadata: {
             links: {
-              prev: "https://api.torn.com/v2/user/log?cat=11&from=1772217000&to=1773893362&limit=20&sort=desc",
+              prev: "https://api.torn.com/v2/user/log?cat=11&from=1772217000&to=1773893282&limit=100&sort=desc",
               next: null,
             },
           },
@@ -509,13 +543,19 @@ describe("torn-api helpers", () => {
     await getNewLogs("test-key", { lastTimestamp: 1772217000, lastLogId: "" });
 
     const firstUrl = new URL(String(fetchMock.mock.calls[0][0]));
-    const secondUrl = new URL(String(fetchMock.mock.calls[3][0])); // 11, 18, 6 are first three, then 11 follow-up
+    const secondCall = fetchMock.mock.calls.find(call => {
+      const url = new URL(String(call[0]));
+      return url.searchParams.get("cat") === "11" && url.searchParams.get("to") === String(1773893382 - 100);
+    });
+    expect(secondCall).toBeTruthy();
+    if (!secondCall) return;
+    const secondUrl = new URL(String(secondCall[0]));
 
     expect(firstUrl.searchParams.get("from")).toBe("1772217000");
     expect(secondUrl.searchParams.get("from")).toBe("1772217000");
     expect(firstUrl.searchParams.get("to")).toBeTruthy();
-    expect(secondUrl.searchParams.get("to")).toBe(String(1773893382 - 20));
-    expect(secondUrl.searchParams.get("limit")).toBe("20");
+    expect(secondUrl.searchParams.get("to")).toBe(String(1773893382 - 100));
+    expect(secondUrl.searchParams.get("limit")).toBe("100");
     expect(secondUrl.searchParams.get("sort")).toBe("desc");
     expect(secondUrl.searchParams.get("cat")).toBe("11");
   });
@@ -531,7 +571,7 @@ describe("torn-api helpers", () => {
         }),
       } as Response)
       .mockResolvedValueOnce({
-        // 11
+        // Call 0 (Market)
         ok: true,
         json: async () => ({
           log: [],
@@ -539,7 +579,7 @@ describe("torn-api helpers", () => {
         }),
       } as Response)
       .mockResolvedValueOnce({
-        // 18
+        // Call 1 (Bazaar)
         ok: true,
         json: async () => ({
           log: [
@@ -557,14 +597,14 @@ describe("torn-api helpers", () => {
           ],
           _metadata: {
             links: {
-              prev: "https://api.torn.com/v2/user/log?cat=18&from=1772217000&to=1772216999&limit=20&sort=desc",
+              prev: "https://api.torn.com/v2/user/log?cat=18&from=1772217000&to=1772216999&limit=100&sort=desc",
               next: null,
             },
           },
         }),
       } as Response)
       .mockResolvedValueOnce({
-        // 6
+        // Call 2 (Points)
         ok: true,
         json: async () => ({
           log: [],
@@ -572,7 +612,31 @@ describe("torn-api helpers", () => {
         }),
       } as Response)
       .mockResolvedValueOnce({
-        // 18 follow-up
+        // Call 3 (Museum)
+        ok: true,
+        json: async () => ({
+          log: [],
+          _metadata: { links: { prev: null, next: null } },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        // Call 4 (Attacks)
+        ok: true,
+        json: async () => ({
+          log: [],
+          _metadata: { links: { prev: null, next: null } },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        // Call 5 (Travel)
+        ok: true,
+        json: async () => ({
+          log: [],
+          _metadata: { links: { prev: null, next: null } },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        // Call 6 (Bazaar follow-up)
         ok: true,
         json: async () => ({
           log: [
@@ -594,14 +658,18 @@ describe("torn-api helpers", () => {
 
     const result = await getNewLogs("test-key", {
       lastTimestamp: 1772217000,
-      lastLogId: "zzzz",
+      lastLogId: "0",
     });
 
-    expect(fetchMock.mock.calls[3]).toBeTruthy();
-    const thirdUrl = new URL(String(fetchMock.mock.calls[3][0]));
-    expect(thirdUrl.searchParams.get("cat")).toBe("18");
+    const followUpCall = fetchMock.mock.calls.find(call => {
+      const url = new URL(String(call[0]));
+      return url.searchParams.get("cat") === "18" && url.searchParams.get("to") === "1772216999";
+    });
+    expect(followUpCall).toBeTruthy();
+    if (!followUpCall) return;
+    const thirdUrl = new URL(String(followUpCall[0]));
     expect(thirdUrl.searchParams.get("to")).toBe("1772216999");
     expect(thirdUrl.searchParams.get("key")).toBe("test-key");
-    expect(result.logs).toHaveLength(0);
+    expect(result.logs).toHaveLength(2);
   });
 });
