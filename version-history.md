@@ -1,5 +1,9 @@
 # BlackMarket Ledger Version History
 
+## v5.0.1 (2026-04-01)
+- **Automatic Abroad Buy Tracking**: Updated Auto-Pilot to automatically fetch abroad buys from Torn API.
+- **Fix**: Fixed saving Weav3r key should update weav3r userID
+
 ## v5.0.0 (2026-04-01)
 - **Redesign**: Complete redesign of the application, using new shared design doc with other Synth apps.
 
