@@ -1,5 +1,8 @@
 # BlackMarket Ledger Version History
 
+## v5.0.0 (2026-04-01)
+- **Redesign**: Complete redesign of the application, using new shared design doc with other Synth apps.
+
 ## v4.5.0 (2026-03-31)
 - **Transactions Scheme**: Updated how transactions are stored giving more flexibility and control over transaction data.
 - **Transaction UI Refactor**: Updated transaction list styling, improved item canonicalization logic, and added test coverage for cross-ID item matching.
