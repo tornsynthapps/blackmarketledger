@@ -38,6 +38,12 @@ export function refreshApiKeysFromStorage(): void {
   dispatchApiKeysUpdate();
 }
 
+export function subscribeToApiKeys(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("api-keys-updated", listener);
+  return () => window.removeEventListener("api-keys-updated", listener);
+}
+
 function dispatchApiKeysUpdate(): void {
   try {
     if (typeof window !== "undefined") {

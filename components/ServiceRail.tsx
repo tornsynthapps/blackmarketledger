@@ -17,7 +17,15 @@ import {
   Settings02Icon
 } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from "react";
-import { useJournal } from "@/store/useJournal";
+import { useAuth } from "@/lib/useAuth";
+import { saveWeaverConfig } from "@/lib/auth";
+import { 
+  setTornApiKeyFull, 
+  setDriveApiKey, 
+  setTornApiRateLimit, 
+  setWeav3rApiRateLimit 
+} from "@/lib/api-keys";
+import { refreshApiRateLimiters } from "@/lib/torn-api";
 import { sendToExtension } from "@/lib/bmlconnect";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import { getGoogleDriveStatus } from "@/lib/drive-api";
@@ -36,12 +44,7 @@ export function ServiceRail() {
     tornApiKeyFull,
     tornApiRateLimit,
     weav3rApiRateLimit,
-    saveWeaverConfig,
-    saveTornApiKeyFull,
-    saveDriveApiKey,
-    updateTornApiRateLimit,
-    updateWeav3rApiRateLimit,
-  } = useJournal();
+  } = useAuth();
   const { vibrate } = useHapticFeedback();
   const [isOpen, setIsOpen] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
@@ -194,7 +197,7 @@ export function ServiceRail() {
     setDriveError("");
 
     try {
-      await saveDriveApiKey(tempDriveApiKey);
+      setDriveApiKey(tempDriveApiKey);
     } catch (error) {
       setDriveError(error instanceof Error ? error.message : "Failed to save Drive API key.");
     } finally {
@@ -208,12 +211,26 @@ export function ServiceRail() {
     setTornFullError("");
 
     try {
-      await saveTornApiKeyFull(tempTornApiKeyFull);
+      setTornApiKeyFull(tempTornApiKeyFull);
     } catch (error) {
       setTornFullError(error instanceof Error ? error.message : "Failed to save Torn full-access API key.");
     } finally {
       setIsSavingTornFullKey(false);
     }
+  };
+
+  const handleUpdateTornRateLimit = (value: number) => {
+    vibrate("utility");
+    const clamped = Math.max(10, Math.min(80, value));
+    setTornApiRateLimit(clamped);
+    refreshApiRateLimiters();
+  };
+
+  const handleUpdateWeav3rRateLimit = (value: number) => {
+    vibrate("utility");
+    const clamped = Math.max(10, Math.min(80, value));
+    setWeav3rApiRateLimit(clamped);
+    refreshApiRateLimiters();
   };
 
   if (!mounted) {
@@ -412,10 +429,7 @@ export function ServiceRail() {
                   {tempTornRateLimit !== tornApiRateLimit && (
                     <button
                       type="button"
-                      onClick={() => {
-                        vibrate("utility");
-                        void updateTornApiRateLimit(tempTornRateLimit);
-                      }}
+                      onClick={() => handleUpdateTornRateLimit(tempTornRateLimit)}
                       className="hardline-button w-full justify-center !py-1.5"
                     >
                       <HugeiconsIcon icon={SaveIcon} size={14} />
@@ -445,10 +459,7 @@ export function ServiceRail() {
                   {tempWeav3rRateLimit !== weav3rApiRateLimit && (
                     <button
                       type="button"
-                      onClick={() => {
-                        vibrate("utility");
-                        void updateWeav3rApiRateLimit(tempWeav3rRateLimit);
-                      }}
+                      onClick={() => handleUpdateWeav3rRateLimit(tempWeav3rRateLimit)}
                       className="hardline-button w-full justify-center !py-1.5"
                     >
                       <HugeiconsIcon icon={SaveIcon} size={14} />
