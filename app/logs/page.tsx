@@ -2,6 +2,13 @@
 
 import { useMemo, useState, useRef, Suspense } from "react";
 import { useJournal } from "@/store/useJournal";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  ArrowRight01Icon,
+  ArrowLeft01Icon,
+  ArrowUp01Icon,
+  ArrowDown01Icon,
+} from "@hugeicons/core-free-icons";
 import {
   Download,
   Upload,
@@ -202,6 +209,8 @@ function LogsPageContent() {
   const [isRefreshingDrive, setIsRefreshingDrive] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const storagePref =
     typeof window !== "undefined"
@@ -354,6 +363,17 @@ function LogsPageContent() {
       }
       return getTransactionTimestamp(b) - getTransactionTimestamp(a);
     });
+
+  const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   if (!isLoaded)
     return (
@@ -821,8 +841,12 @@ function LogsPageContent() {
       </div>
 
       <div className="bg-panel rounded-xl border border-border shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-        <div className="p-4 border-b border-border bg-foreground/[0.02] flex items-center justify-between">
-          <h2 className="font-semibold">{filteredLogs.length} Transactions</h2>
+        <div className="p-4 border-b border-border bg-foreground/[0.02] flex items-center justify-between flex-wrap gap-4">
+          <h2 className="font-semibold">
+            {filteredLogs.length > 0
+              ? `Showing ${startIndex + 1}-${Math.min(endIndex, filteredLogs.length)} of ${filteredLogs.length} Transactions`
+              : "No Transactions"}
+          </h2>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-xs text-foreground/60">
               <input
@@ -846,6 +870,7 @@ function LogsPageContent() {
                     vibrate("utility");
                   }
                   setSearch(e.target.value);
+                  setCurrentPage(1);
                 }}
                 className="w-full pl-9 pr-4 py-2 text-sm bg-panel border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
@@ -894,11 +919,59 @@ function LogsPageContent() {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map(renderTransactionRow)
+                paginatedLogs.map(renderTransactionRow)
               )}
             </tbody>
           </table>
         </div>
+
+        {filteredLogs.length > ITEMS_PER_PAGE && (
+          <div className="p-4 border-t border-border flex items-center justify-between">
+            <div className="text-sm text-foreground/60">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="First page"
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
+              </button>
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Previous page"
+              >
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  size={16}
+                />
+              </button>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Next page"
+              >
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  size={16}
+                />
+              </button>
+              <button
+                onClick={() => goToPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg hover:bg-foreground/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Last page"
+              >
+                <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectionMode && selectedIds.size > 0 && (
