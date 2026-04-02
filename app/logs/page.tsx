@@ -13,6 +13,7 @@ import {
   CheckSquare,
   Square,
   X,
+  ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -72,11 +73,18 @@ function isNewMugTransaction(
 function isLegacyTransaction(
   transaction: DisplayTransaction,
 ): transaction is LegacyTransaction {
-  return Boolean(transaction) && typeof transaction === "object" && "date" in transaction && "type" in transaction;
+  return (
+    Boolean(transaction) &&
+    typeof transaction === "object" &&
+    "date" in transaction &&
+    "type" in transaction
+  );
 }
 
 function getTransactionTimestamp(transaction: DisplayTransaction) {
-  return isLegacyTransaction(transaction) ? transaction.date : transaction.timestamp;
+  return isLegacyTransaction(transaction)
+    ? transaction.date
+    : transaction.timestamp;
 }
 
 function getDisplayItemName(transaction: DisplayTransaction) {
@@ -125,7 +133,10 @@ function getTradeWrapperMeta(transaction: WrapperTransaction) {
 
   if (transaction.partnerName || transaction.partnerID) {
     parts.push(
-      [transaction.partnerName, transaction.partnerID ? `#${transaction.partnerID}` : null]
+      [
+        transaction.partnerName,
+        transaction.partnerID ? `#${transaction.partnerID}` : null,
+      ]
         .filter(Boolean)
         .join(" "),
     );
@@ -164,10 +175,7 @@ function inferSourceType(
 
   if (transaction.source === "trade") return "trade";
   if (transaction.source) return transaction.source;
-  if (
-    transaction.tradeID ||
-    transaction.tornID?.startsWith("trade:")
-  )
+  if (transaction.tradeID || transaction.tornID?.startsWith("trade:"))
     return "trade";
   return undefined;
 }
@@ -201,7 +209,8 @@ function LogsPageContent() {
       : null;
 
   const transactionMap = useMemo(
-    () => new Map(transactions.map((transaction) => [transaction.id, transaction])),
+    () =>
+      new Map(transactions.map((transaction) => [transaction.id, transaction])),
     [transactions],
   );
 
@@ -211,7 +220,11 @@ function LogsPageContent() {
       if (isNewConcreteTransaction(transaction) && transaction.itemName) {
         map.set(transaction.itemID, transaction.itemName);
       }
-      if (isWrapperTransaction(transaction) && transaction.itemID !== null && transaction.itemName) {
+      if (
+        isWrapperTransaction(transaction) &&
+        transaction.itemID !== null &&
+        transaction.itemName
+      ) {
         map.set(transaction.itemID, transaction.itemName);
       }
     });
@@ -221,7 +234,8 @@ function LogsPageContent() {
   const visibleLogs = useMemo(() => {
     if (groupID) {
       return transactions.filter(
-        (transaction) => "groupID" in transaction && transaction.groupID === groupID,
+        (transaction) =>
+          "groupID" in transaction && transaction.groupID === groupID,
       );
     }
 
@@ -275,14 +289,14 @@ function LogsPageContent() {
       if (isWrapperTransaction(t)) {
         return Boolean(
           t.wrapperType.toLowerCase().includes(term) ||
-            t.description?.toLowerCase().includes(term) ||
-            t.partnerName?.toLowerCase().includes(term) ||
-            t.partnerID?.toLowerCase().includes(term) ||
-            t.receiptID?.toLowerCase().includes(term) ||
-            (showLinkedIds &&
-              (t.tornID?.toLowerCase().includes(term) ||
-                t.tradeID?.toLowerCase().includes(term) ||
-                t.id.toLowerCase().includes(term))),
+          t.description?.toLowerCase().includes(term) ||
+          t.partnerName?.toLowerCase().includes(term) ||
+          t.partnerID?.toLowerCase().includes(term) ||
+          t.receiptID?.toLowerCase().includes(term) ||
+          (showLinkedIds &&
+            (t.tornID?.toLowerCase().includes(term) ||
+              t.tradeID?.toLowerCase().includes(term) ||
+              t.id.toLowerCase().includes(term))),
         );
       }
 
@@ -293,7 +307,7 @@ function LogsPageContent() {
         if (!showLinkedIds) return false;
         return Boolean(
           t.tornID?.toLowerCase().includes(term) ||
-            t.tradeID?.toLowerCase().includes(term),
+          t.tradeID?.toLowerCase().includes(term),
         );
       }
 
@@ -303,7 +317,7 @@ function LogsPageContent() {
         if (!showLinkedIds) return false;
         return Boolean(
           t.tornID?.toLowerCase().includes(term) ||
-            t.tradeID?.toLowerCase().includes(term),
+          t.tradeID?.toLowerCase().includes(term),
         );
       }
 
@@ -321,7 +335,9 @@ function LogsPageContent() {
           "set point".includes(term)
         )
           return true;
-        return definition.items.some((item) => item.itemName.toLowerCase().includes(term));
+        return definition.items.some((item) =>
+          item.itemName.toLowerCase().includes(term),
+        );
       }
       if (t.item.toLowerCase().includes(term)) return true;
       if (!showLinkedIds) return false;
@@ -423,7 +439,9 @@ function LogsPageContent() {
       expanded.add(id);
       const transaction = transactionMap.get(id);
       if (transaction && isWrapperTransaction(transaction)) {
-        transaction.wrappedTransactionIDs.forEach((childId) => expanded.add(childId));
+        transaction.wrappedTransactionIDs.forEach((childId) =>
+          expanded.add(childId),
+        );
       }
     });
     return Array.from(expanded);
@@ -568,7 +586,9 @@ function LogsPageContent() {
         </td>
         <td className="px-6 py-4">
           <div className="font-medium">
-            {isWrapper ? t.description || `${t.wrapperType} wrapper` : getDisplayItemName(t)}
+            {isWrapper
+              ? t.description || `${t.wrapperType} wrapper`
+              : getDisplayItemName(t)}
           </div>
           {(sourceLabel ||
             (showLinkedIds &&
@@ -581,11 +601,21 @@ function LogsPageContent() {
                   {sourceLabel}
                 </span>
               )}
-              {showLinkedIds && isLegacyTransaction(t) && t.tornLogId && <span>Torn: {t.tornLogId}</span>}
-              {showLinkedIds && isLegacyTransaction(t) && t.tradeGroupId && <span>Trade: {t.tradeGroupId}</span>}
-              {showLinkedIds && isLegacyTransaction(t) && t.weav3rReceiptId && <span>Receipt: {t.weav3rReceiptId}</span>}
-              {showLinkedIds && !isLegacyTransaction(t) && t.tornID && <span>Torn: {t.tornID}</span>}
-              {showLinkedIds && !isLegacyTransaction(t) && t.tradeID && <span>Trade: {t.tradeID}</span>}
+              {showLinkedIds && isLegacyTransaction(t) && t.tornLogId && (
+                <span>Torn: {t.tornLogId}</span>
+              )}
+              {showLinkedIds && isLegacyTransaction(t) && t.tradeGroupId && (
+                <span>Trade: {t.tradeGroupId}</span>
+              )}
+              {showLinkedIds && isLegacyTransaction(t) && t.weav3rReceiptId && (
+                <span>Receipt: {t.weav3rReceiptId}</span>
+              )}
+              {showLinkedIds && !isLegacyTransaction(t) && t.tornID && (
+                <span>Torn: {t.tornID}</span>
+              )}
+              {showLinkedIds && !isLegacyTransaction(t) && t.tradeID && (
+                <span>Trade: {t.tradeID}</span>
+              )}
             </div>
           )}
           {isWrapper && t.wrapperType === "trade" && (
@@ -604,14 +634,16 @@ function LogsPageContent() {
           )}
         </td>
         <td className="px-6 py-4 text-right">
-          {isWrapper
-            ? `${t.wrappedTransactionIDs.length} txns`
-            : ""}
+          {isWrapper ? `${t.wrappedTransactionIDs.length} txns` : ""}
           {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL")
             ? t.amount.toLocaleString()
             : ""}
-          {isLegacyTransaction(t) && t.type === "CONVERT" ? `${t.fromAmount} → ${t.toAmount}` : ""}
-          {isLegacyTransaction(t) && t.type === "SET_CONVERT" ? `${t.times} sets` : ""}
+          {isLegacyTransaction(t) && t.type === "CONVERT"
+            ? `${t.fromAmount} → ${t.toAmount}`
+            : ""}
+          {isLegacyTransaction(t) && t.type === "SET_CONVERT"
+            ? `${t.times} sets`
+            : ""}
           {isNewConcreteTransaction(t)
             ? Math.abs(t.amount).toLocaleString()
             : ""}
@@ -622,65 +654,59 @@ function LogsPageContent() {
           {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL")
             ? `$${t.price.toLocaleString()}`
             : ""}
-          {isLegacyTransaction(t) && t.type === "MUG" ? `-$${t.amount.toLocaleString()}` : ""}
+          {isLegacyTransaction(t) && t.type === "MUG"
+            ? `-$${t.amount.toLocaleString()}`
+            : ""}
           {isNewConcreteTransaction(t) ? `$${t.price.toLocaleString()}` : ""}
           {isNewMugTransaction(t) ? `-$${t.amount.toLocaleString()}` : ""}
         </td>
-        <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-          {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL") && (
-            <button
-              onClick={(event) => {
-                event.stopPropagation();
-                vibrate("utility");
-                const newPriceStr = prompt(
-                  "Enter new price:",
-                  t.price.toString(),
-                );
-                const newAmountStr = prompt(
-                  "Enter new amount:",
-                  t.amount.toString(),
-                );
-                if (newPriceStr !== null && newAmountStr !== null) {
-                  const newPrice = parseInt(newPriceStr, 10);
-                  const newAmount = parseInt(newAmountStr, 10);
-                  if (!isNaN(newPrice) && !isNaN(newAmount)) {
-                    vibrate("success");
-                    editLog(t.id, { price: newPrice, amount: newAmount });
-                  } else {
-                    vibrate("danger");
-                    alert("Invalid numbers provided.");
-                  }
-                }
-              }}
-              className="text-primary/70 hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              vibrate("danger");
-              const idsToDelete = isWrapper ? [t.id, ...t.wrappedTransactionIDs] : [t.id];
-              if (confirm("Delete this log?")) deleteLogs(idsToDelete);
-            }}
-            className="text-danger/70 hover:text-danger hover:bg-danger/10 p-2 rounded-lg transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-          {isWrapper && (
-            <button
-              onClick={(event) => {
-                event.stopPropagation();
-                const params = new URLSearchParams(searchParams.toString());
-                params.set("groupID", t.id);
-                router.push(`/logs?${params.toString()}`);
-              }}
-              className="text-foreground/60 hover:text-foreground hover:bg-foreground/5 px-2 py-1 rounded-lg transition-colors text-base font-semibold"
-            >
-              {">"}
-            </button>
-          )}
+        <td className="px-6 py-4 text-right">
+          <div className="flex justify-end gap-2 items-center">
+            {isLegacyTransaction(t) &&
+              (t.type === "BUY" || t.type === "SELL") && (
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    vibrate("utility");
+                    const newPriceStr = prompt(
+                      "Enter new price:",
+                      t.price.toString(),
+                    );
+                    const newAmountStr = prompt(
+                      "Enter new amount:",
+                      t.amount.toString(),
+                    );
+                    if (newPriceStr !== null && newAmountStr !== null) {
+                      const newPrice = parseInt(newPriceStr, 10);
+                      const newAmount = parseInt(newAmountStr, 10);
+                      if (!isNaN(newPrice) && !isNaN(newAmount)) {
+                        vibrate("success");
+                        editLog(t.id, { price: newPrice, amount: newAmount });
+                      } else {
+                        vibrate("danger");
+                        alert("Invalid numbers provided.");
+                      }
+                    }
+                  }}
+                  className="text-primary/70 hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+            {isWrapper && (
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("groupID", t.id);
+                  router.push(`/logs?${params.toString()}`);
+                }}
+                className="text-foreground/60 hover:text-foreground hover:bg-foreground/5 p-1.5 rounded-lg transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </td>
       </tr>
     );
@@ -712,9 +738,9 @@ function LogsPageContent() {
               ? `Transaction Group ${groupID}`
               : filterItemID
                 ? `${formatItemName(itemNameByID.get(Number(filterItemID)) || `item ${filterItemID}`)} Logs`
-              : filterItem
-                ? `${formatItemName(filterItem)} Logs`
-                : "Manage Logs"}
+                : filterItem
+                  ? `${formatItemName(filterItem)} Logs`
+                  : "Manage Logs"}
           </h1>
           <p className="text-foreground/60 mt-2">
             View, edit, or delete specific transactions.
