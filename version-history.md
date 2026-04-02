@@ -1,5 +1,8 @@
 # BlackMarket Ledger Version History
 
+## v5.0.2 (2026-04-02)
+- **Unsupported Trade Item Handling**: Updated trade linking not to fast-fail when unsupported item is found.
+
 ## v5.0.1 (2026-04-01)
 - **Automatic Abroad Buy Tracking**: Updated Auto-Pilot to automatically fetch abroad buys from Torn API.
 - **Fix**: Fixed saving Weav3r key should update weav3r userID

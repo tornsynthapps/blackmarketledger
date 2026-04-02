@@ -142,11 +142,17 @@ export class TornAPI {
 
     mydebug(allTrades, "TornAPI.getTornTrades: All trades fetched");
 
-    return await Promise.all(
+    const results = await Promise.allSettled(
       allTrades.map(async (trade: Record<string, any>) => {
         return this.getTornTrade(trade.id);
       }),
     );
+    return results
+      .filter(
+        (res): res is PromiseFulfilledResult<TornTrade> =>
+          res.status === "fulfilled",
+      )
+      .map((res) => res.value);
   }
 }
 

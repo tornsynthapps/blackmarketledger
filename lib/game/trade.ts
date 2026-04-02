@@ -23,6 +23,18 @@ export class TornTradeMoney {
     }
 }
 
+export class UnsupportedTornTradeItem {
+    userID: number;
+    type: string;
+    details: any;
+
+    constructor(userID: number, type: string, details: any) {
+        this.userID = userID;
+        this.type = type;
+        this.details = details;
+    }
+}
+
 export class UnsupportedTradeItemError extends Error {
     constructor(message: string) {
         super(message);
@@ -44,9 +56,10 @@ export class TornTrade {
     description: string;
     userID: number;
     traderID: number;
-    items: (TornTradeItem | TornTradeMoney)[];
+    items: (TornTradeItem | TornTradeMoney | UnsupportedTornTradeItem)[];
     linkedReceiptId?: string;
     manuallyLiked: boolean = false;
+    hasUnsupportedItems: boolean = false;
 
     constructor(
         id: string,
@@ -64,6 +77,9 @@ export class TornTrade {
         this.userID = userID;
         this.traderID = traderID;
         this.items = TornTrade.standardizeItems(items);
+        this.hasUnsupportedItems = this.items.some(
+            (item) => item instanceof UnsupportedTornTradeItem,
+        );
 
         // this.validateTradeType();
     }
@@ -88,14 +104,22 @@ export class TornTrade {
                         details: { amount: item.amount },
                     };
                 }
+                if (item instanceof TornTradeItem) {
+                    return {
+                        type: "Item",
+                        user_id: item.userID,
+                        details: { id: item.itemID, amount: item.quantity },
+                    };
+                }
                 return {
-                    type: "Item",
+                    type: (item as UnsupportedTornTradeItem).type,
                     user_id: item.userID,
-                    details: { id: item.itemID, amount: item.quantity },
+                    details: (item as UnsupportedTornTradeItem).details,
                 };
             }),
             linkedReceiptId: this.linkedReceiptId,
             manuallyLiked: this.manuallyLiked,
+            hasUnsupportedItems: this.hasUnsupportedItems,
         };
     }
 
@@ -199,7 +223,9 @@ export class TornTrade {
      * @param items any[]: The items array to standardize.
      * @returns (TornTradeItem | TornTradeMoney)[]: The standardized items array.
      */
-    static standardizeItems(items: any[]): (TornTradeItem | TornTradeMoney)[] {
+    static standardizeItems(
+        items: any[],
+    ): (TornTradeItem | TornTradeMoney | UnsupportedTornTradeItem)[] {
         return items.map((item) => {
             if (item.type === "Money") {
                 return new TornTradeMoney(item.user_id, item.details.amount);
@@ -211,8 +237,10 @@ export class TornTrade {
                 );
             }
 
-            throw new UnsupportedTradeItemError(
-                `Unsupported trade item type: ${item.type}`,
+            return new UnsupportedTornTradeItem(
+                item.user_id,
+                item.type,
+                item.details,
             );
         });
     }
@@ -247,7 +275,10 @@ export class TornTrade {
 
         // Check for item mismatches.
         const missingItemsInReceipt = trade.items.filter((item) => {
-            if (item instanceof TornTradeMoney) {
+            if (
+                item instanceof TornTradeMoney ||
+                item instanceof UnsupportedTornTradeItem
+            ) {
                 return false;
             }
             return !receipt.items.some((rItem) => {
@@ -260,8 +291,11 @@ export class TornTrade {
 
         const missingItemsInTrade = receipt.items.filter((item) => {
             return !trade.items.some((tItem) => {
-                if (tItem instanceof TornTradeMoney) {
-                    return true;
+                if (
+                    tItem instanceof TornTradeMoney ||
+                    tItem instanceof UnsupportedTornTradeItem
+                ) {
+                    return false;
                 }
                 return (
                     tItem.itemID === item.itemID &&
@@ -306,6 +340,7 @@ export class TornTrade {
         );
         trade.linkedReceiptId = data.linkedReceiptId;
         trade.manuallyLiked = data.manuallyLiked || false;
+        trade.hasUnsupportedItems = data.hasUnsupportedItems || false;
         return trade;
     }
 

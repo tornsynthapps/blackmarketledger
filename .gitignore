@@ -48,3 +48,6 @@ next-env.d.ts
 
 # IDEs
 .vscode
+
+# Firebase
+.firebase

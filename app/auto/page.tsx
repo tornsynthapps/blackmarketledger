@@ -255,6 +255,9 @@ export default function AutoPilotPage() {
             status: "manual_required",
             sourceType: "trade",
             tornLogId: trade.tornLogId,
+            note: (trade as any).hasUnsupportedItems
+              ? "Contains unsupported items"
+              : undefined,
           }),
         );
       }
