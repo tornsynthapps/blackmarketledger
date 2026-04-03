@@ -4,15 +4,15 @@
 
 Auto-Pilot replaces manual log entry with a deterministic, idempotent ingestion pipeline using:
 
-* **Torn API (`/user/log`)** → source of truth for events
-* **Weav3r API (`/trades`)** → source of truth for trade itemization
+- **Torn API (`/user/log`)** → source of truth for events
+- **Weav3r API (`/trades`)** → source of truth for trade itemization
 
 The system is designed to be:
 
-* **Idempotent** (no duplicates)
-* **Deterministic** (stable ordering)
-* **Interrupt-safe** (resumable sync)
-* **Strict on discrepancies** (pause + user review)
+- **Idempotent** (no duplicates)
+- **Deterministic** (stable ordering)
+- **Interrupt-safe** (resumable sync)
+- **Strict on discrepancies** (pause + user review)
 
 ---
 
@@ -38,9 +38,9 @@ Torn logs are not safely iterable using timestamp alone.
 
 ```ts
 type SyncCursor = {
-  lastTimestamp: number
-  lastLogId: number
-}
+    lastTimestamp: number;
+    lastLogId: number;
+};
 ```
 
 ## Filtering Rule
@@ -56,28 +56,28 @@ if (
 
 ```ts
 logs.sort((a, b) => {
-  if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp
-  return a.id - b.id
-})
+    if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+    return a.id - b.id;
+});
 ```
 
 ## Sync Loop
 
 ```ts
 while (true) {
-  const logs = await fetchLogs({ from: cursor.lastTimestamp, limit: 100 })
+    const logs = await fetchLogs({ from: cursor.lastTimestamp, limit: 100 });
 
-  const filtered = applyCursorFilter(logs, cursor)
+    const filtered = applyCursorFilter(logs, cursor);
 
-  if (!filtered.length) break
+    if (!filtered.length) break;
 
-  processLogsSequentially(filtered)
+    processLogsSequentially(filtered);
 
-  cursor = extractCursorFromLast(filtered)
+    cursor = extractCursorFromLast(filtered);
 
-  persistCursor(cursor)
+    persistCursor(cursor);
 
-  if (logs.length < 100) break
+    if (logs.length < 100) break;
 }
 ```
 
@@ -104,26 +104,26 @@ while (true) {
 
 ```ts
 type NormalizedLog = {
-  id: number
-  timestamp: number
-  category: string
-  typeId: number
-  title: string
-  data: Record<string, any>
-}
+    id: number;
+    timestamp: number;
+    category: string;
+    typeId: number;
+    title: string;
+    data: Record<string, any>;
+};
 ```
 
 ## Rule
 
 ```ts
 const normalized = {
-  id: entry.id,
-  timestamp: entry.timestamp,
-  category: entry.details?.category,
-  typeId: entry.details?.id,
-  title: entry.details?.title,
-  data: entry.data || {}
-}
+    id: entry.id,
+    timestamp: entry.timestamp,
+    category: entry.details?.category,
+    typeId: entry.details?.id,
+    title: entry.details?.title,
+    data: entry.data || {},
+};
 ```
 
 ---
@@ -136,19 +136,19 @@ Torn logs provide **item IDs, not names**.
 
 ```ts
 function resolveItemName(itemId: number): string {
-  return ITEM_MAP[itemId] || `item_${itemId}`
+    return ITEM_MAP[itemId] || `item_${itemId}`;
 }
 ```
 
 ## Extraction
 
 ```ts
-const items = data.items || []
+const items = data.items || [];
 
-items.map(i => ({
-  item: resolveItemName(i.id),
-  amount: i.qty
-}))
+items.map((i) => ({
+    item: resolveItemName(i.id),
+    amount: i.qty,
+}));
 ```
 
 ---
@@ -159,11 +159,11 @@ items.map(i => ({
 
 Handled via parser:
 
-* Bazaar buy/sell
-* Item market
-* Points
-* Mugging
-* Conversions
+- Bazaar buy/sell
+- Item market
+- Points
+- Mugging
+- Conversions
 
 ### Rule
 
@@ -196,13 +196,13 @@ GET /trades/{userId}?from=t-5min&to=t+5min
 ### Primary
 
 ```ts
-receipt.id === tornLog.id
+receipt.id === tornLog.id;
 ```
 
 ### Fallback
 
-* timestamp proximity (±5s)
-* total value similarity
+- timestamp proximity (±5s)
+- total value similarity
 
 ---
 
@@ -230,12 +230,12 @@ compare:
 ## Step 5: Pause Flow
 
 ```ts
-setPaused(true)
+setPaused(true);
 setPendingDiscrepancy({
-  tornLog,
-  receipt,
-  differences
-})
+    tornLog,
+    receipt,
+    differences,
+});
 ```
 
 ---
@@ -244,14 +244,14 @@ setPendingDiscrepancy({
 
 ## Behavior (User-defined)
 
-* System **pauses ALL ingestion**
-* User must review discrepancy
-* After resolution → resume
+- System **pauses ALL ingestion**
+- User must review discrepancy
+- After resolution → resume
 
 ## UI Requirements
 
-* Side-by-side comparison
-* Confirm / Override / Skip
+- Side-by-side comparison
+- Confirm / Override / Skip
 
 ---
 
@@ -272,12 +272,12 @@ tradeGroupId?: string
 Split into multiple transactions:
 
 ```ts
-items.map(item => ({
-  item,
-  amount,
-  price,
-  tradeGroupId
-}))
+items.map((item) => ({
+    item,
+    amount,
+    price,
+    tradeGroupId,
+}));
 ```
 
 ---
@@ -287,12 +287,12 @@ items.map(item => ({
 Before inserting:
 
 ```ts
-if (exists(tornLogId)) return
+if (exists(tornLogId)) return;
 ```
 
 Must be enforced at:
 
-* store layer (not UI)
+- store layer (not UI)
 
 ---
 
@@ -309,10 +309,10 @@ getNewLogs(cursor: SyncCursor): Promise<{
 
 ### Responsibilities
 
-* fetch
-* normalize
-* sort
-* filter (cursor-safe)
+- fetch
+- normalize
+- sort
+- filter (cursor-safe)
 
 ---
 
@@ -331,21 +331,21 @@ User clicks:
 ## Execution
 
 ```ts
-if (paused) return
+if (paused) return;
 
 runSyncTask(async () => {
-  const { logs, nextCursor } = await getNewLogs(cursor)
+    const { logs, nextCursor } = await getNewLogs(cursor);
 
-  for (log of logs) {
-    if (isTrade(log)) {
-      await handleTrade(log)
-    } else {
-      parseAndInsert(log)
+    for (log of logs) {
+        if (isTrade(log)) {
+            await handleTrade(log);
+        } else {
+            parseAndInsert(log);
+        }
+
+        updateCursor(log);
     }
-
-    updateCursor(log)
-  }
-})
+});
 ```
 
 ---
@@ -367,8 +367,8 @@ loop:
 
 ### Requirement
 
-* persist after EVERY batch
-* allow resume after crash
+- persist after EVERY batch
+- allow resume after crash
 
 ---
 
@@ -376,13 +376,13 @@ loop:
 
 ## Limits
 
-* Torn: 100/min
-* Weav3r: 100/min
+- Torn: 100/min
+- Weav3r: 100/min
 
 ## Implementation
 
 ```ts
-maxRequestsPerMinute = 80
+maxRequestsPerMinute = 80;
 ```
 
 Use queue / delay if needed.
@@ -399,13 +399,13 @@ Use queue / delay if needed.
 
 ## Components
 
-* Sync Now button
-* Last sync timestamp
-* Starting date picker
-* Pause state indicator
-* Discrepancy modal
-* Recent logs list (with Torn + Weav3r IDs)
-* Toggle → Terminal
+- Sync Now button
+- Last sync timestamp
+- Starting date picker
+- Pause state indicator
+- Discrepancy modal
+- Recent logs list (with Torn + Weav3r IDs)
+- Toggle → Terminal
 
 ---
 
@@ -413,10 +413,10 @@ Use queue / delay if needed.
 
 ## Cases
 
-* API failure → retry (exponential backoff)
-* Rate limit → delay + retry
-* Parser failure → skip + log
-* Missing receipt → pause
+- API failure → retry (exponential backoff)
+- Rate limit → delay + retry
+- Parser failure → skip + log
+- Missing receipt → pause
 
 ---
 
@@ -438,11 +438,10 @@ Use queue / delay if needed.
 
 This design ensures:
 
-* No duplicate logs
-* No missed logs
-* Deterministic ingestion
-* Correct trade reconstruction
-* Safe recovery from interruptions
+- No duplicate logs
+- No missed logs
+- Deterministic ingestion
+- Correct trade reconstruction
+- Safe recovery from interruptions
 
 The system is now **production-safe**, not just functional.
-

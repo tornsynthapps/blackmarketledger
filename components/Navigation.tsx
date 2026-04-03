@@ -1,20 +1,20 @@
 "use client";
 
 import { HugeiconsIcon } from "@hugeicons/react";
-import { 
-    ChartRadarIcon, 
-    BankIcon, 
-    Airplane02Icon, 
-    ReceiptTextIcon, 
-    ComputerTerminal01Icon, 
-    Radar03Icon, 
-    Exchange01Icon, 
-    DatabaseIcon, 
-    Sun01Icon, 
-    Moon01Icon, 
-    Menu01Icon, 
+import {
+    ChartRadarIcon,
+    BankIcon,
+    Airplane02Icon,
+    ReceiptTextIcon,
+    ComputerTerminal01Icon,
+    Radar03Icon,
+    Exchange01Icon,
+    DatabaseIcon,
+    Sun01Icon,
+    Moon01Icon,
+    Menu01Icon,
     Cancel01Icon,
-    DiscordIcon 
+    DiscordIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,7 +46,10 @@ export function Navigation() {
     const { vibrate } = useHapticFeedback();
 
     useEffect(() => {
-        setIsDark(document.documentElement.classList.contains("dark") || !document.documentElement.classList.contains("light"));
+        setIsDark(
+            document.documentElement.classList.contains("dark") ||
+                !document.documentElement.classList.contains("light")
+        );
     }, []);
 
     const applyTheme = (theme: "dark" | "light") => {
@@ -66,81 +69,121 @@ export function Navigation() {
         <>
             {/* Top Navigation */}
             <nav className="nav-top sticky top-0 h-16 bg-background border-b-2 border-primary z-[70] transition-colors">
-            <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-6">
-                <Link href="/" onClick={() => vibrate("nav")} className="flex items-center gap-3">
-                    <div className="bg-primary p-1.5 border border-primary">
-                        <HugeiconsIcon icon={DatabaseIcon} size={20} color="var(--primary-foreground)" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="font-bold text-lg tracking-tight hidden sm:block leading-none uppercase font-sans">BlackMarket Ledger</span>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] font-mono font-bold text-primary px-1 border border-primary/20">V{pkg.version}</span>
-                            <span className="text-[9px] font-bold text-muted uppercase tracking-wider hidden sm:block">Industrial Engine</span>
+                <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between gap-6">
+                    <Link
+                        href="/"
+                        onClick={() => vibrate("nav")}
+                        className="flex items-center gap-3"
+                    >
+                        <div className="bg-primary p-1.5 border border-primary">
+                            <HugeiconsIcon
+                                icon={DatabaseIcon}
+                                size={20}
+                                color="var(--primary-foreground)"
+                            />
                         </div>
+                        <div className="flex flex-col">
+                            <span className="font-bold text-lg tracking-tight hidden sm:block leading-none uppercase font-sans">
+                                BlackMarket Ledger
+                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] font-mono font-bold text-primary px-1 border border-primary/20">
+                                    V{pkg.version}
+                                </span>
+                                <span className="text-[9px] font-bold text-muted uppercase tracking-wider hidden sm:block">
+                                    Industrial Engine
+                                </span>
+                            </div>
+                        </div>
+                    </Link>
+
+                    <div className="hidden sm:flex items-center gap-1">
+                        {navItems.map((item) => {
+                            const Icon = item.icon;
+                            const isActive =
+                                item.href === "/"
+                                    ? pathname === "/"
+                                    : pathname.startsWith(item.href);
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={() => vibrate("nav")}
+                                    className={cn(
+                                        "flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent",
+                                        isActive
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted hover:text-foreground hover:bg-foreground/5 hover:border-border"
+                                    )}
+                                >
+                                    <HugeiconsIcon
+                                        icon={Icon}
+                                        size={14}
+                                        color={
+                                            isActive ? "var(--primary-foreground)" : "currentColor"
+                                        }
+                                    />
+                                    <span className="hidden lg:inline">{item.name}</span>
+                                </Link>
+                            );
+                        })}
+                        <div className="w-[2px] h-6 bg-border mx-2" />
+                        <button
+                            onClick={toggleDark}
+                            className="p-1.5 rounded-none text-muted hover:text-foreground hover:bg-foreground/5 transition-colors border border-transparent hover:border-border"
+                            aria-label="Toggle dark mode"
+                        >
+                            <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={18} />
+                        </button>
                     </div>
-                </Link>
 
-                <div className="hidden sm:flex items-center gap-1">
-                    {navItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                onClick={() => vibrate("nav")}
-                                className={cn(
-                                    "flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent",
-                                    isActive ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground hover:bg-foreground/5 hover:border-border"
-                                )}
-                            >
-                                <HugeiconsIcon icon={Icon} size={14} color={isActive ? "var(--primary-foreground)" : "currentColor"} />
-                                <span className="hidden lg:inline">{item.name}</span>
-                            </Link>
-                        );
-                    })}
-                    <div className="w-[2px] h-6 bg-border mx-2" />
-                    <button
-                        onClick={toggleDark}
-                        className="p-1.5 rounded-none text-muted hover:text-foreground hover:bg-foreground/5 transition-colors border border-transparent hover:border-border"
-                        aria-label="Toggle dark mode"
-                    >
-                        <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={18} />
-                    </button>
-                </div>
-
-                <div className="flex items-center gap-1 sm:hidden">
-                    <button
-                        onClick={toggleDark}
-                        className="p-2 text-muted hover:text-foreground"
-                        aria-label="Toggle dark mode"
-                    >
-                        <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={18} />
-                    </button>
-                    <button
-                        onClick={() => {
-                            vibrate("nav");
-                            setIsDrawerOpen((open) => !open);
-                        }}
-                        className="p-2 text-foreground"
-                    >
-                        <HugeiconsIcon icon={isDrawerOpen ? Cancel01Icon : Menu01Icon} size={22} />
-                    </button>
-                </div>
+                    <div className="flex items-center gap-1 sm:hidden">
+                        <button
+                            onClick={toggleDark}
+                            className="p-2 text-muted hover:text-foreground"
+                            aria-label="Toggle dark mode"
+                        >
+                            <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={18} />
+                        </button>
+                        <button
+                            onClick={() => {
+                                vibrate("nav");
+                                setIsDrawerOpen((open) => !open);
+                            }}
+                            className="p-2 text-foreground"
+                        >
+                            <HugeiconsIcon
+                                icon={isDrawerOpen ? Cancel01Icon : Menu01Icon}
+                                size={22}
+                            />
+                        </button>
+                    </div>
                 </div>
             </nav>
 
             {/* Left Sidebar Navigation (Desktop Only) */}
             <aside className="nav-left flex w-[240px] h-full bg-panel flex-col justify-between py-8 px-4 shrink-0 transition-opacity border-r-2 border-primary z-[70]">
                 <div className="flex flex-col gap-10">
-                    <Link href="/" onClick={() => vibrate("nav")} className="flex items-center gap-3 px-2">
+                    <Link
+                        href="/"
+                        onClick={() => vibrate("nav")}
+                        className="flex items-center gap-3 px-2"
+                    >
                         <div className="bg-primary p-2">
-                            <HugeiconsIcon icon={DatabaseIcon} size={24} color="var(--primary-foreground)" />
+                            <HugeiconsIcon
+                                icon={DatabaseIcon}
+                                size={24}
+                                color="var(--primary-foreground)"
+                            />
                         </div>
                         <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-lg tracking-tighter leading-none uppercase font-sans">BML EDGE</span>
+                            <span className="font-bold text-lg tracking-tighter leading-none uppercase font-sans">
+                                BML EDGE
+                            </span>
                             <div className="flex items-center gap-1 mt-1">
-                                <span className="text-[10px] font-mono font-bold text-muted">V{pkg.version}</span>
+                                <span className="text-[10px] font-mono font-bold text-muted">
+                                    V{pkg.version}
+                                </span>
                             </div>
                         </div>
                     </Link>
@@ -148,7 +191,10 @@ export function Navigation() {
                     <div className="flex flex-col gap-1">
                         {navItems.map((item) => {
                             const Icon = item.icon;
-                            const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+                            const isActive =
+                                item.href === "/"
+                                    ? pathname === "/"
+                                    : pathname.startsWith(item.href);
                             return (
                                 <Link
                                     key={item.href}
@@ -156,12 +202,16 @@ export function Navigation() {
                                     onClick={() => vibrate("nav")}
                                     className={cn(
                                         "flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest transition-all border-l-2",
-                                        isActive 
-                                            ? "bg-primary/5 text-primary border-primary" 
+                                        isActive
+                                            ? "bg-primary/5 text-primary border-primary"
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 border-transparent"
                                     )}
                                 >
-                                    <HugeiconsIcon icon={Icon} size={16} color={isActive ? "var(--primary)" : "currentColor"} />
+                                    <HugeiconsIcon
+                                        icon={Icon}
+                                        size={16}
+                                        color={isActive ? "var(--primary)" : "currentColor"}
+                                    />
                                     <span>{item.name}</span>
                                 </Link>
                             );
@@ -179,10 +229,20 @@ export function Navigation() {
                     </button>
 
                     <div className="flex flex-row gap-2 pt-6 border-t border-border">
-                        <a href="https://discord.gg/Xz4GZfh4ep" target="_blank" rel="noreferrer noopener" className="flex-1 flex items-center justify-center h-10 border border-border hover:bg-foreground/5 transition-all text-muted hover:text-[#5865f2]">
+                        <a
+                            href="https://discord.gg/Xz4GZfh4ep"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="flex-1 flex items-center justify-center h-10 border border-border hover:bg-foreground/5 transition-all text-muted hover:text-[#5865f2]"
+                        >
                             <HugeiconsIcon icon={DiscordIcon} size={20} />
                         </a>
-                        <a href="https://buymeacoffee.com/pixelghost3165209" target="_blank" rel="noreferrer noopener" className="flex-[2] flex items-center justify-center h-10 bg-[#FFDD00] text-black font-bold text-[10px] uppercase tracking-wider hover:opacity-90 transition-all border border-black/10">
+                        <a
+                            href="https://buymeacoffee.com/pixelghost3165209"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="flex-[2] flex items-center justify-center h-10 bg-[#FFDD00] text-black font-bold text-[10px] uppercase tracking-wider hover:opacity-90 transition-all border border-black/10"
+                        >
                             SUPPORT DEV
                         </a>
                     </div>
@@ -200,7 +260,10 @@ export function Navigation() {
                         <div className="flex flex-col gap-1 p-4 pt-10">
                             {navItems.map((item) => {
                                 const Icon = item.icon;
-                                const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                                const isActive =
+                                    item.href === "/"
+                                        ? pathname === "/"
+                                        : pathname.startsWith(item.href);
 
                                 return (
                                     <Link
@@ -212,10 +275,20 @@ export function Navigation() {
                                         }}
                                         className={cn(
                                             "flex items-center gap-4 px-6 py-4 text-[13px] font-bold uppercase tracking-widest transition-all",
-                                            isActive ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground hover:bg-foreground/5"
+                                            isActive
+                                                ? "bg-primary text-primary-foreground"
+                                                : "text-muted hover:text-foreground hover:bg-foreground/5"
                                         )}
                                     >
-                                        <HugeiconsIcon icon={Icon} size={18} color={isActive ? "var(--primary-foreground)" : "currentColor"} />
+                                        <HugeiconsIcon
+                                            icon={Icon}
+                                            size={18}
+                                            color={
+                                                isActive
+                                                    ? "var(--primary-foreground)"
+                                                    : "currentColor"
+                                            }
+                                        />
                                         <span>{item.name}</span>
                                     </Link>
                                 );
@@ -227,4 +300,3 @@ export function Navigation() {
         </>
     );
 }
-

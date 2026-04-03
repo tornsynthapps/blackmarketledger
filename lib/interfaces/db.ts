@@ -17,12 +17,7 @@ interface LogStats {
     totalQuantity: number;
 }
 
-type LogSource =
-    | "item-market"
-    | "bazaar"
-    | "points-market"
-    | "museum"
-    | "attack";
+type LogSource = "item-market" | "bazaar" | "points-market" | "museum" | "attack";
 
 type LogType = "buy" | "sell" | "mug" | "convert" | "set-convert";
 
@@ -41,12 +36,7 @@ export interface StandardLog {
 }
 
 export type TransactionType = "transaction" | "wrapper" | "trade" | "receipt";
-export type TransactionData =
-    | TornTrade
-    | Weav3rReceipt
-    | TornItemLog
-    | AnyTrackedTransaction
-    | any;
+export type TransactionData = TornTrade | Weav3rReceipt | TornItemLog | AnyTrackedTransaction | any;
 
 export class DBInterface {
     /**
@@ -73,14 +63,13 @@ export class DBInterface {
      */
     async getRawLogsPage(
         cursor: number = 0,
-        limit: number = TRANSACTION_PAGE_SIZE,
+        limit: number = TRANSACTION_PAGE_SIZE
     ): Promise<{ logs: any[]; nextCursor: number | null }> {
         // Get database type, ie "GoogleCacheLogsDB" or "LogsDB"
         const storageType: StorageType = LocalStorageInterface.getStorageType();
 
         // Get database name, ie "GoogleCacheLogsDB" or "LogsDB"
-        const dbName =
-            storageType === "browser" ? "LogsDB" : "GoogleCacheLogsDB";
+        const dbName = storageType === "browser" ? "LogsDB" : "GoogleCacheLogsDB";
         return idb.getTransactionPage<any>(dbName, cursor, limit);
     }
 
@@ -91,9 +80,7 @@ export class DBInterface {
         const rawLogs = await this.getRawLogs();
 
         // Convert raw logs to standard logs
-        const logs = await Promise.all(
-            rawLogs.map(async (log) => await this.convertLog(log)),
-        );
+        const logs = await Promise.all(rawLogs.map(async (log) => await this.convertLog(log)));
 
         return logs;
     }
@@ -118,8 +105,8 @@ export class DBInterface {
                         log.title,
                         log.data.user_id,
                         log.data.trader_id,
-                        log.data.items,
-                    ),
+                        log.data.items
+                    )
             );
     }
 
@@ -135,15 +122,13 @@ export class DBInterface {
         }
 
         const trades = JSON.parse(rawTrades);
-        return trades.map((tradeData: any) =>
-            TornTrade.fromInterface(tradeData),
-        );
+        return trades.map((tradeData: any) => TornTrade.fromInterface(tradeData));
     }
 
     static migrationSetTrades(trades: TornTrade[]) {
         LocalStorageInterface.setItem(
             "migration_trades",
-            JSON.stringify(trades.map((trade) => trade.toInterface())),
+            JSON.stringify(trades.map((trade) => trade.toInterface()))
         );
     }
 
@@ -163,9 +148,7 @@ export class DBInterface {
      */
     static migrationUpdateTrade(trade: TornTrade): void {
         const currentTrades = this.migrationGetTrades();
-        const updatedTrades = currentTrades.map((t) =>
-            t.id === trade.id ? trade : t,
-        );
+        const updatedTrades = currentTrades.map((t) => (t.id === trade.id ? trade : t));
         this.migrationSetTrades(updatedTrades);
     }
 
@@ -176,15 +159,13 @@ export class DBInterface {
             return [];
         }
         const receipts = JSON.parse(rawReceipts);
-        return receipts.map((receiptData: any) =>
-            Weav3rReceipt.fromInterface(receiptData),
-        );
+        return receipts.map((receiptData: any) => Weav3rReceipt.fromInterface(receiptData));
     }
 
     static migrationSetReceipts(receipts: Weav3rReceipt[]) {
         LocalStorageInterface.setItem(
             "migration_receipts",
-            JSON.stringify(receipts.map((receipt) => receipt.toInterface())),
+            JSON.stringify(receipts.map((receipt) => receipt.toInterface()))
         );
     }
 
@@ -204,9 +185,7 @@ export class DBInterface {
      */
     static migrationUpdateReceipt(receipt: Weav3rReceipt): void {
         const currentReceipts = this.migrationGetReceipts();
-        const updatedReceipts = currentReceipts.map((r) =>
-            r.id === receipt.id ? receipt : r,
-        );
+        const updatedReceipts = currentReceipts.map((r) => (r.id === receipt.id ? receipt : r));
         this.migrationSetReceipts(updatedReceipts);
     }
 }

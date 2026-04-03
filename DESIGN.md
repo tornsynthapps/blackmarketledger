@@ -1,28 +1,28 @@
 # **Design System: “Hardline Interface”**
 
-*A sharp-edged, industrial, high-contrast UI language for cross-application consistency*
+_A sharp-edged, industrial, high-contrast UI language for cross-application consistency_
 
 ---
 
 ## 1. Concept Overview
 
 **Core Idea:**
-A brutally precise, engineered interface that feels *manufactured*, not decorated.
+A brutally precise, engineered interface that feels _manufactured_, not decorated.
 
 **Design DNA:**
 
-* Sharp 90° geometry (no rounded corners)
-* Dense, opaque surfaces
-* Strong typographic hierarchy
-* Mechanical interaction feedback
-* High contrast, deliberate color blocking
+- Sharp 90° geometry (no rounded corners)
+- Dense, opaque surfaces
+- Strong typographic hierarchy
+- Mechanical interaction feedback
+- High contrast, deliberate color blocking
 
 **Emotional Tone:**
 
-* Authoritative
-* Technical
-* Intentional
-* Slightly intimidating (in a good way)
+- Authoritative
+- Technical
+- Intentional
+- Slightly intimidating (in a good way)
 
 **Memorable Trait:**
 
@@ -34,36 +34,36 @@ A brutally precise, engineered interface that feels *manufactured*, not decorate
 
 ### 2.1 Geometry First
 
-* No border-radius (strictly `0px`)
-* Rectangular dominance
-* Hard edges and grid alignment
+- No border-radius (strictly `0px`)
+- Rectangular dominance
+- Hard edges and grid alignment
 
 ### 2.2 Opaque Layers
 
-* No glassmorphism, blur, or translucency
-* Use stacked panels with solid fills
-* Depth is created via **offset shadows**, not opacity
+- No glassmorphism, blur, or translucency
+- Use stacked panels with solid fills
+- Depth is created via **offset shadows**, not opacity
 
 ### 2.3 Typographic Authority
 
-* Typography replaces decoration
-* Large, bold labels
-* Monospace + grotesque pairing
+- Typography replaces decoration
+- Large, bold labels
+- Monospace + grotesque pairing
 
 ### 2.4 Visible Structure
 
-* Borders are explicit (1–2px lines)
-* Layout grids are *felt*, not hidden
-* Sections are boxed, framed, or segmented
+- Borders are explicit (1–2px lines)
+- Layout grids are _felt_, not hidden
+- Sections are boxed, framed, or segmented
 
 ### 2.5 Motion as Mechanics
 
-* No easing curves that feel “soft”
-* Use:
+- No easing curves that feel “soft”
+- Use:
+    - `cubic-bezier(0.2, 0, 0, 1)` (snappy)
+    - Linear transitions
 
-  * `cubic-bezier(0.2, 0, 0, 1)` (snappy)
-  * Linear transitions
-* Animations feel like toggles, not fluid morphs
+- Animations feel like toggles, not fluid morphs
 
 ---
 
@@ -74,30 +74,30 @@ A brutally precise, engineered interface that feels *manufactured*, not decorate
 **Base Palette:**
 
 ```css
---color-bg: #0B0B0C;
+--color-bg: #0b0b0c;
 --color-surface: #141416;
---color-elevated: #1C1C1F;
+--color-elevated: #1c1c1f;
 
---color-primary: #F2F2F2;
---color-secondary: #A1A1A6;
---color-muted: #6B6B70;
+--color-primary: #f2f2f2;
+--color-secondary: #a1a1a6;
+--color-muted: #6b6b70;
 ```
 
 **Accent Colors (used strategically):**
 
 ```css
---color-accent-red: #FF3B30;
---color-accent-yellow: #FFD60A;
---color-accent-blue: #0A84FF;
---color-accent-green: #32D74B;
+--color-accent-red: #ff3b30;
+--color-accent-yellow: #ffd60a;
+--color-accent-blue: #0a84ff;
+--color-accent-green: #32d74b;
 ```
 
 **Updated Rules (Website Context):**
 
-* ~80% grayscale, ~20% controlled color
-* One accent color per section
-* No gradients
-* Color used for hierarchy, not decoration
+- ~80% grayscale, ~20% controlled color
+- One accent color per section
+- No gradients
+- Color used for hierarchy, not decoration
 
 ---
 
@@ -105,8 +105,8 @@ A brutally precise, engineered interface that feels *manufactured*, not decorate
 
 **Font Pairing Strategy:**
 
-* **Display / Headers:** Industrial grotesque or neo-brutalist
-* **Body / UI / Data:** Monospace
+- **Display / Headers:** Industrial grotesque or neo-brutalist
+- **Body / UI / Data:** Monospace
 
 ---
 
@@ -134,25 +134,25 @@ Offset only
 
 **Style:**
 
-* Rectangular
-* Thick borders
-* High contrast
+- Rectangular
+- Thick borders
+- High contrast
 
 ```css
 .button {
-  background: #F2F2F2;
-  color: #000;
-  border: 2px solid #000;
-  padding: 12px 16px;
-  text-transform: uppercase;
+    background: #f2f2f2;
+    color: #000;
+    border: 2px solid #000;
+    padding: 12px 16px;
+    text-transform: uppercase;
 }
 ```
 
 **States:**
 
-* Hover: invert colors
-* Active: shift position (simulate press)
-* Disabled: desaturated gray
+- Hover: invert colors
+- Active: shift position (simulate press)
+- Disabled: desaturated gray
 
 ---
 
@@ -160,23 +160,23 @@ Offset only
 
 **Design:**
 
-* Terminal-like
-* Monospace font
-* No rounded edges
+- Terminal-like
+- Monospace font
+- No rounded edges
 
 ```css
 .input {
-  background: #0B0B0C;
-  border: 1px solid #3A3A3F;
-  color: #F2F2F2;
-  padding: 10px;
+    background: #0b0b0c;
+    border: 1px solid #3a3a3f;
+    color: #f2f2f2;
+    padding: 10px;
 }
 ```
 
 **Focus State:**
 
-* Bright border (accent color)
-* No glow
+- Bright border (accent color)
+- No glow
 
 ---
 
@@ -184,21 +184,21 @@ Offset only
 
 **Structure:**
 
-* Hard containers
-* Clear segmentation
+- Hard containers
+- Clear segmentation
 
 ```css
 .card {
-  background: #141416;
-  border: 1px solid #2A2A2E;
-  padding: 16px;
+    background: #141416;
+    border: 1px solid #2a2a2e;
+    padding: 16px;
 }
 ```
 
 **Variants:**
 
-* Elevated (thicker border)
-* Highlight (accent stripe on top)
+- Elevated (thicker border)
+- Highlight (accent stripe on top)
 
 ---
 
@@ -206,15 +206,15 @@ Offset only
 
 **Top Bar:**
 
-* Fixed height
-* Heavy bottom border
-* Left-aligned logo, right-aligned controls
+- Fixed height
+- Heavy bottom border
+- Left-aligned logo, right-aligned controls
 
 **Sidebar:**
 
-* Narrow, dense
-* Vertical labels
-* Active item = solid fill + border
+- Narrow, dense
+- Vertical labels
+- Active item = solid fill + border
 
 ---
 
@@ -222,14 +222,14 @@ Offset only
 
 **Design Philosophy:**
 
-* Data-first, zero fluff
+- Data-first, zero fluff
 
 Features:
 
-* Monospace
-* Row separators
-* No zebra striping
-* Hover = subtle background shift
+- Monospace
+- Row separators
+- No zebra striping
+- Hover = subtle background shift
 
 ---
 
@@ -237,9 +237,9 @@ Features:
 
 ### Compact Layout Directive
 
-* Reduce vertical whitespace
-* Prefer dense layouts
-* Avoid oversized padding
+- Reduce vertical whitespace
+- Prefer dense layouts
+- Avoid oversized padding
 
 ---
 
@@ -247,9 +247,9 @@ Features:
 
 ### 6.1 Animation Principles
 
-* Fast (100–180ms)
-* No bounce
-* No elastic effects
+- Fast (100–180ms)
+- No bounce
+- No elastic effects
 
 ### 6.2 Examples
 
@@ -261,13 +261,13 @@ transform: translate(2px, 2px);
 
 **Panel Reveal:**
 
-* Fade + slight upward motion
-* Staggered entry
+- Fade + slight upward motion
+- Staggered entry
 
 **Hover:**
 
-* Color inversion
-* Border emphasis
+- Color inversion
+- Border emphasis
 
 ---
 
@@ -275,18 +275,18 @@ transform: translate(2px, 2px);
 
 **Updated:**
 
-* Use **Hugeicons** exclusively
-* Maintain consistent stroke weight
-* No mixing icon libraries
+- Use **Hugeicons** exclusively
+- Maintain consistent stroke weight
+- No mixing icon libraries
 
 ---
 
 ## 8. Accessibility
 
-* High contrast ratios (WCAG AA+)
-* Focus states always visible
-* Keyboard navigation emphasized
-* Avoid relying on color alone for meaning
+- High contrast ratios (WCAG AA+)
+- Focus states always visible
+- Keyboard navigation emphasized
+- Avoid relying on color alone for meaning
 
 ---
 
@@ -296,14 +296,14 @@ Two core modes:
 
 ### Dark (Primary)
 
-* Default experience
-* Industrial feel
+- Default experience
+- Industrial feel
 
 ### Light (Optional)
 
-* White background
-* Black borders
-* Same structure, inverted palette
+- White background
+- Black borders
+- Same structure, inverted palette
 
 ---
 
@@ -313,26 +313,26 @@ Two core modes:
 
 Works with:
 
-* React / Next.js
-* Vue
-* Plain HTML/CSS
+- React / Next.js
+- Vue
+- Plain HTML/CSS
 
 ### CSS Strategy
 
-* Use CSS variables for tokens
-* Prefer utility + component hybrid approach
-* Avoid heavy UI libraries (maintain uniqueness)
+- Use CSS variables for tokens
+- Prefer utility + component hybrid approach
+- Avoid heavy UI libraries (maintain uniqueness)
 
 ---
 
 ## 11. What to Avoid (Strict)
 
-* ❌ Rounded corners
-* ❌ Soft gradients
-* ❌ Glassmorphism / blur
-* ❌ Playful animations
-* ❌ Overuse of color
-* ❌ Generic SaaS layouts
+- ❌ Rounded corners
+- ❌ Soft gradients
+- ❌ Glassmorphism / blur
+- ❌ Playful animations
+- ❌ Overuse of color
+- ❌ Generic SaaS layouts
 
 ---
 
@@ -340,11 +340,11 @@ Works with:
 
 This system works especially well for:
 
-* Developer tools
-* Admin dashboards
-* Financial systems
-* Data-heavy applications
-* Internal tools
+- Developer tools
+- Admin dashboards
+- Financial systems
+- Data-heavy applications
+- Internal tools
 
 ---
 
@@ -352,20 +352,20 @@ This system works especially well for:
 
 ### Professional Quality
 
-* Must look like a senior designer built it
-* No inconsistencies
-* No arbitrary decisions
+- Must look like a senior designer built it
+- No inconsistencies
+- No arbitrary decisions
 
 ### Coherence
 
-* Same components everywhere
-* Same spacing rhythm
-* Same interaction behavior
+- Same components everywhere
+- Same spacing rhythm
+- Same interaction behavior
 
 ### Compactness
 
-* Dense sections
-* Efficient layout
+- Dense sections
+- Efficient layout
 
 ---
 

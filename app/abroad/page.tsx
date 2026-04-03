@@ -5,9 +5,23 @@ import { useJournal } from "@/store/useJournal";
 import { formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
 import { Plane, AlertCircle, ArrowRightLeft, Loader2, Check, TrendingUp, Box } from "lucide-react";
 import StatsModal from "@/components/StatsModal";
-import { ProfitChart } from '@/components/ProfitChart';
-import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subYears, startOfYear, endOfYear } from 'date-fns';
-import { InventorySnapshot, applyTransaction, getTotals } from '@/lib/chartUtils';
+import { ProfitChart } from "@/components/ProfitChart";
+import {
+    format,
+    subDays,
+    subWeeks,
+    subMonths,
+    startOfDay,
+    endOfDay,
+    startOfWeek,
+    endOfWeek,
+    startOfMonth,
+    endOfMonth,
+    subYears,
+    startOfYear,
+    endOfYear,
+} from "date-fns";
+import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/chartUtils";
 
 const getTransactionTimestamp = (transaction: any) =>
     "date" in transaction ? transaction.date : transaction.timestamp;
@@ -17,18 +31,18 @@ const isAbroadTransaction = (transaction: any) =>
     ("stockType" in transaction && transaction.stockType === "abroad");
 
 const formatMoney = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
     }).format(val);
 };
 
 const formatLargeNumber = (val: number) => {
     const absVal = Math.abs(val);
-    if (absVal >= 1e9) return (val / 1e9).toFixed(1) + 'B';
-    if (absVal >= 1e6) return (val / 1e6).toFixed(1) + 'M';
-    if (absVal >= 1e3) return (val / 1e3).toFixed(0) + 'K';
+    if (absVal >= 1e9) return (val / 1e9).toFixed(1) + "B";
+    if (absVal >= 1e6) return (val / 1e6).toFixed(1) + "M";
+    if (absVal >= 1e3) return (val / 1e3).toFixed(0) + "K";
     return val.toString();
 };
 
@@ -42,11 +56,11 @@ export default function AbroadDashboard() {
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
         title: string;
-        statType: 'profit' | 'inventory' | 'mugLoss' | 'netProfit';
+        statType: "profit" | "inventory" | "mugLoss" | "netProfit";
     }>({
         isOpen: false,
-        title: '',
-        statType: 'profit'
+        title: "",
+        statType: "profit",
     });
 
     // Fetch Weav3r Pricelist
@@ -57,8 +71,8 @@ export default function AbroadDashboard() {
         setError(null);
 
         fetch(`https://weav3r.dev/api/pricelist/${weav3rUserId}?apiKey=${weav3rApiKey}`)
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data) => {
                 if (data.error) throw new Error(data.error);
 
                 if (Array.isArray(data)) {
@@ -70,30 +84,40 @@ export default function AbroadDashboard() {
                     setPrices(priceMap);
                 }
             })
-            .catch(err => {
+            .catch((err) => {
                 console.error("Failed to fetch pricelist", err);
                 setError(err.message || "Failed to load Weav3r pricelist.");
             })
             .finally(() => {
                 setIsFetching(false);
             });
-
     }, [isLoaded, weav3rUserId, weav3rApiKey]);
 
     const abroadStats = useMemo(() => {
-        const items: { name: string; stock: number; avgCost: number; totalCost: number; realizedProfit: number }[] = [];
+        const items: {
+            name: string;
+            stock: number;
+            avgCost: number;
+            totalCost: number;
+            realizedProfit: number;
+        }[] = [];
         let totalValue = 0;
         let totalProfit = 0;
 
         inventory.forEach((stats, name) => {
-            if (stats.abroadStock > 0 || stats.abroadRealizedProfit !== 0 || stats.abroadTotalCost > 0) {
-                const avgCost = stats.abroadStock > 0 ? stats.abroadTotalCost / stats.abroadStock : 0;
+            if (
+                stats.abroadStock > 0 ||
+                stats.abroadRealizedProfit !== 0 ||
+                stats.abroadTotalCost > 0
+            ) {
+                const avgCost =
+                    stats.abroadStock > 0 ? stats.abroadTotalCost / stats.abroadStock : 0;
                 items.push({
                     name,
                     stock: stats.abroadStock,
                     avgCost,
                     totalCost: Math.max(0, stats.abroadTotalCost),
-                    realizedProfit: stats.abroadRealizedProfit
+                    realizedProfit: stats.abroadRealizedProfit,
                 });
 
                 totalValue += Math.max(0, stats.abroadTotalCost);
@@ -107,26 +131,27 @@ export default function AbroadDashboard() {
         return { items, totalValue, totalProfit };
     }, [inventory]);
 
-    const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('abroad-range');
-            if (saved && ['daily', 'weekly', 'monthly', 'yearly'].includes(saved)) return saved as any;
+    const [timeRange, setTimeRange] = useState<"daily" | "weekly" | "monthly" | "yearly">(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("abroad-range");
+            if (saved && ["daily", "weekly", "monthly", "yearly"].includes(saved))
+                return saved as any;
         }
-        return 'daily';
+        return "daily";
     });
-    const [chartType, setChartType] = useState<'line' | 'area' | 'bar'>('area');
-    const [viewType, setViewType] = useState<'daily' | 'total'>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('abroad-view');
-            if (saved && ['daily', 'total'].includes(saved)) return saved as any;
+    const [chartType, setChartType] = useState<"line" | "area" | "bar">("area");
+    const [viewType, setViewType] = useState<"daily" | "total">(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("abroad-view");
+            if (saved && ["daily", "total"].includes(saved)) return saved as any;
         }
-        return 'total';
+        return "total";
     });
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('abroad-range', timeRange);
-            localStorage.setItem('abroad-view', viewType);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("abroad-range", timeRange);
+            localStorage.setItem("abroad-view", viewType);
         }
     }, [timeRange, viewType]);
 
@@ -135,28 +160,28 @@ export default function AbroadDashboard() {
 
         const now = new Date();
         let periods: Date[] = [];
-        let dateFormat = 'MMM dd';
+        let dateFormat = "MMM dd";
 
-        if (timeRange === 'daily') {
+        if (timeRange === "daily") {
             periods = Array.from({ length: 30 }, (_, i) => subDays(now, 29 - i));
-        } else if (timeRange === 'weekly') {
+        } else if (timeRange === "weekly") {
             periods = Array.from({ length: 12 }, (_, i) => subWeeks(now, 11 - i));
-            dateFormat = 'MMM dd';
-        } else if (timeRange === 'monthly') {
+            dateFormat = "MMM dd";
+        } else if (timeRange === "monthly") {
             periods = Array.from({ length: 12 }, (_, i) => subMonths(now, 11 - i));
-            dateFormat = 'MMM yyyy';
+            dateFormat = "MMM yyyy";
         } else {
             periods = Array.from({ length: 5 }, (_, i) => subMonths(now, (4 - i) * 12));
-            dateFormat = 'yyyy';
+            dateFormat = "yyyy";
         }
         const sortedTransactions = [...transactions].sort((a, b) => {
             const left = getTransactionTimestamp(a);
             const right = getTransactionTimestamp(b);
             if (left !== right) return left - right;
             const getPriority = (transaction: any) => {
-              if ("type" in transaction && transaction.type === 'BUY') return 0;
-              if ("amount" in transaction && transaction.amount >= 0) return 0;
-              return 1;
+                if ("type" in transaction && transaction.type === "BUY") return 0;
+                if ("amount" in transaction && transaction.amount >= 0) return 0;
+                return 1;
             };
             return getPriority(a) - getPriority(b);
         });
@@ -164,26 +189,29 @@ export default function AbroadDashboard() {
         if (sortedTransactions.length > 0) {
             const firstTxDate = new Date(getTransactionTimestamp(sortedTransactions[0]));
             let minDate: Date;
-            if (timeRange === 'daily') minDate = startOfDay(subDays(firstTxDate, 1));
-            else if (timeRange === 'weekly') minDate = startOfWeek(subWeeks(firstTxDate, 1));
-            else if (timeRange === 'monthly') minDate = startOfMonth(subMonths(firstTxDate, 1));
+            if (timeRange === "daily") minDate = startOfDay(subDays(firstTxDate, 1));
+            else if (timeRange === "weekly") minDate = startOfWeek(subWeeks(firstTxDate, 1));
+            else if (timeRange === "monthly") minDate = startOfMonth(subMonths(firstTxDate, 1));
             else minDate = startOfYear(subYears(firstTxDate, 1));
 
-            periods = periods.filter(p => p.getTime() >= minDate.getTime());
+            periods = periods.filter((p) => p.getTime() >= minDate.getTime());
         }
 
         const tempInventory = new Map<string, InventorySnapshot>();
         let transactionIndex = 0;
         let lastPeriodProfit = 0;
         const mugState = { total: 0 };
-        
-        return periods.map(period => {
+
+        return periods.map((period) => {
             let periodEnd: Date;
-            if (timeRange === 'daily') periodEnd = endOfDay(startOfDay(period));
-            else if (timeRange === 'weekly') periodEnd = endOfWeek(period);
+            if (timeRange === "daily") periodEnd = endOfDay(startOfDay(period));
+            else if (timeRange === "weekly") periodEnd = endOfWeek(period);
             else periodEnd = endOfMonth(period);
 
-            while (transactionIndex < sortedTransactions.length && getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()) {
+            while (
+                transactionIndex < sortedTransactions.length &&
+                getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()
+            ) {
                 applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState);
                 transactionIndex += 1;
             }
@@ -191,24 +219,27 @@ export default function AbroadDashboard() {
             const currentTotals = getTotals(tempInventory, mugState.total);
             const currentTotalProfit = currentTotals.abroadProfit;
 
-            const value = viewType === 'total' ? currentTotalProfit : currentTotalProfit - lastPeriodProfit;
+            const value =
+                viewType === "total" ? currentTotalProfit : currentTotalProfit - lastPeriodProfit;
             lastPeriodProfit = currentTotalProfit;
 
             return {
                 date: format(period, dateFormat),
                 profit: Math.round(value),
-                ts: periodEnd.getTime()
+                ts: periodEnd.getTime(),
             };
         });
     }, [isLoaded, transactions, timeRange, viewType]);
 
     const firstRelevantTxDate = useMemo(() => {
         const abroadTxs = transactions.filter(isAbroadTransaction);
-        return abroadTxs.length > 0 ? Math.min(...abroadTxs.map(getTransactionTimestamp)) : Infinity;
+        return abroadTxs.length > 0
+            ? Math.min(...abroadTxs.map(getTransactionTimestamp))
+            : Infinity;
     }, [transactions]);
 
     const averageProfit = useMemo(() => {
-        const relevantPeriods = chartData.filter(p => p.ts >= firstRelevantTxDate);
+        const relevantPeriods = chartData.filter((p) => p.ts >= firstRelevantTxDate);
         if (relevantPeriods.length === 0) return 0;
         return relevantPeriods.reduce((acc, curr) => acc + curr.profit, 0) / relevantPeriods.length;
     }, [chartData, firstRelevantTxDate]);
@@ -217,18 +248,24 @@ export default function AbroadDashboard() {
         return chartData.length > 0 ? chartData[chartData.length - 1].profit : 0;
     }, [chartData]);
 
-    const referenceValue = viewType === 'daily' ? averageProfit : finalTotalValue;
+    const referenceValue = viewType === "daily" ? averageProfit : finalTotalValue;
 
     const handleSelfSell = (itemGroup: { name: string; stock: number }) => {
         if (itemGroup.stock <= 0) return;
 
         const price = prices[itemGroup.name];
         if (!price || price <= 0) {
-            alert(`No valid buy price found for ${formatItemName(itemGroup.name)} on Weav3r. Cannot self sell.`);
+            alert(
+                `No valid buy price found for ${formatItemName(itemGroup.name)} on Weav3r. Cannot self sell.`
+            );
             return;
         }
 
-        if (!confirm(`Are you sure you want to self-sell ${itemGroup.stock}x ${formatItemName(itemGroup.name)} for $${price.toLocaleString()} each?\n\nThis will record a sale in Abroad and a reinvested purchase in Normal stock.`)) {
+        if (
+            !confirm(
+                `Are you sure you want to self-sell ${itemGroup.stock}x ${formatItemName(itemGroup.name)} for $${price.toLocaleString()} each?\n\nThis will record a sale in Abroad and a reinvested purchase in Normal stock.`
+            )
+        ) {
             return;
         }
 
@@ -238,19 +275,19 @@ export default function AbroadDashboard() {
         // Even though standard parser splits them, directly feeding `addLogs` with parsed objects skips the string parser but still routes through store logic.
         const logs: any[] = [
             {
-                type: 'SELL',
+                type: "SELL",
                 item: itemGroup.name,
                 amount: itemGroup.stock,
                 price: price,
-                tag: 'Abroad'
+                tag: "Abroad",
             },
             {
-                type: 'BUY',
+                type: "BUY",
                 item: itemGroup.name,
                 amount: itemGroup.stock,
                 price: price,
-                tag: 'Normal'
-            }
+                tag: "Normal",
+            },
         ];
 
         // Slight delay to allow UI to render spinner
@@ -265,12 +302,15 @@ export default function AbroadDashboard() {
         }, 500);
     };
 
-    const openStatsModal = (title: string, statType: 'profit' | 'inventory' | 'mugLoss' | 'netProfit') => {
+    const openStatsModal = (
+        title: string,
+        statType: "profit" | "inventory" | "mugLoss" | "netProfit"
+    ) => {
         setModalState({ isOpen: true, title, statType });
     };
 
     const closeStatsModal = () => {
-        setModalState({ isOpen: false, title: '', statType: 'profit' });
+        setModalState({ isOpen: false, title: "", statType: "profit" });
     };
 
     if (!isLoaded) return null;
@@ -278,13 +318,17 @@ export default function AbroadDashboard() {
     return (
         <div
             className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
-            style={{
-                '--primary': '#0d9488', // Emerald/Teal
-            } as React.CSSProperties}
+            style={
+                {
+                    "--primary": "#0d9488", // Emerald/Teal
+                } as React.CSSProperties
+            }
         >
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Abroad Tracking</h1>
-                <p className="text-foreground/60 mt-2">Manage items purchased internationally and track their separate cost basis.</p>
+                <p className="text-foreground/60 mt-2">
+                    Manage items purchased internationally and track their separate cost basis.
+                </p>
             </div>
 
             {/* Config warning */}
@@ -293,7 +337,10 @@ export default function AbroadDashboard() {
                     <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                     <div>
                         <h3 className="font-semibold text-warning">Weav3r Config Missing</h3>
-                        <p className="text-sm text-foreground/70 mt-1">Configure your Weav3r API Key and User ID on the Terminal page to enable the "Self Sell" feature automatically using your pricelist.</p>
+                        <p className="text-sm text-foreground/70 mt-1">
+                            Configure your Weav3r API Key and User ID on the Terminal page to enable
+                            the "Self Sell" feature automatically using your pricelist.
+                        </p>
                     </div>
                 </div>
             )}
@@ -320,15 +367,17 @@ export default function AbroadDashboard() {
                             <TrendingUp className="w-3" />
                             Abroad Overview
                         </h2>
-                        
+
                         <div className="space-y-6">
-                            <OverviewItem 
+                            <OverviewItem
                                 icon={<Plane className="w-4 h-4" />}
                                 label="Total Items"
-                                value={abroadStats.items.reduce((acc, curr) => acc + curr.stock, 0).toLocaleString()}
+                                value={abroadStats.items
+                                    .reduce((acc, curr) => acc + curr.stock, 0)
+                                    .toLocaleString()}
                                 subValue={`${abroadStats.items.length} Unique SKUs`}
                             />
-                            <OverviewItem 
+                            <OverviewItem
                                 icon={<TrendingUp className="w-4 h-4" />}
                                 label="Realized Profit"
                                 value={formatLargeNumber(abroadStats.totalProfit)}
@@ -343,8 +392,12 @@ export default function AbroadDashboard() {
                                 <Box className="w-6 h-6 text-primary" />
                             </div>
                             <div>
-                                <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">Active Abroad Assets</p>
-                                <p className="text-2xl font-black tracking-tight">{formatMoney(abroadStats.totalValue)}</p>
+                                <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">
+                                    Active Abroad Assets
+                                </p>
+                                <p className="text-2xl font-black tracking-tight">
+                                    {formatMoney(abroadStats.totalValue)}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -352,7 +405,7 @@ export default function AbroadDashboard() {
 
                 {/* Chart Area (2/3) */}
                 <div className="lg:col-span-2 pl-0 lg:pl-4">
-                    <ProfitChart 
+                    <ProfitChart
                         chartId="abroad-profits"
                         data={chartData}
                         viewType={viewType}
@@ -382,8 +435,12 @@ export default function AbroadDashboard() {
                         <tbody className="divide-y divide-border">
                             {abroadStats.items.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-foreground/50">
-                                        No abroad items found. Logs tagged with `Abroad` will appear here.
+                                    <td
+                                        colSpan={6}
+                                        className="px-6 py-12 text-center text-foreground/50"
+                                    >
+                                        No abroad items found. Logs tagged with `Abroad` will appear
+                                        here.
                                     </td>
                                 </tr>
                             ) : (
@@ -392,23 +449,43 @@ export default function AbroadDashboard() {
                                     const isSellingThis = sellingItemId === item.name;
 
                                     return (
-                                        <tr key={item.name} className="hover:bg-foreground/[0.01] transition-colors">
-                                            <td className="px-6 py-4 font-medium sm:whitespace-nowrap">{formatItemName(item.name)}</td>
+                                        <tr
+                                            key={item.name}
+                                            className="hover:bg-foreground/[0.01] transition-colors"
+                                        >
+                                            <td className="px-6 py-4 font-medium sm:whitespace-nowrap">
+                                                {formatItemName(item.name)}
+                                            </td>
                                             <td className="px-6 py-4 text-right font-mono">
                                                 <span className="bg-primary/10 text-primary px-2 py-1 rounded-md">
                                                     {item.stock.toLocaleString()}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right text-foreground/70">${Math.round(item.avgCost).toLocaleString()}</td>
-                                            <td className="px-6 py-4 text-right">${Math.round(item.totalCost).toLocaleString()}</td>
-                                            <td className={`px-6 py-4 text-right font-medium ${item.realizedProfit > 0 ? "text-success" : item.realizedProfit < 0 ? "text-danger" : "text-foreground/70"}`}>
-                                                {item.realizedProfit > 0 ? "+" : ""}${Math.round(item.realizedProfit).toLocaleString()}
+                                            <td className="px-6 py-4 text-right text-foreground/70">
+                                                ${Math.round(item.avgCost).toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                ${Math.round(item.totalCost).toLocaleString()}
+                                            </td>
+                                            <td
+                                                className={`px-6 py-4 text-right font-medium ${item.realizedProfit > 0 ? "text-success" : item.realizedProfit < 0 ? "text-danger" : "text-foreground/70"}`}
+                                            >
+                                                {item.realizedProfit > 0 ? "+" : ""}$
+                                                {Math.round(item.realizedProfit).toLocaleString()}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <button
                                                     onClick={() => handleSelfSell(item)}
-                                                    disabled={item.stock <= 0 || !availablePrice || isSellingThis}
-                                                    title={!availablePrice ? `No pricelist data found for ${formatItemName(item.name)}` : `Self sell to standard tracker stock at $${availablePrice.toLocaleString()} each`}
+                                                    disabled={
+                                                        item.stock <= 0 ||
+                                                        !availablePrice ||
+                                                        isSellingThis
+                                                    }
+                                                    title={
+                                                        !availablePrice
+                                                            ? `No pricelist data found for ${formatItemName(item.name)}`
+                                                            : `Self sell to standard tracker stock at $${availablePrice.toLocaleString()} each`
+                                                    }
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                                 >
                                                     {isSellingThis ? (
@@ -440,7 +517,17 @@ export default function AbroadDashboard() {
     );
 }
 
-function OverviewItem({ icon, label, value, subValue }: { icon: React.ReactNode, label: string, value: string, subValue: string }) {
+function OverviewItem({
+    icon,
+    label,
+    value,
+    subValue,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    value: string;
+    subValue: string;
+}) {
     return (
         <div className="flex items-center justify-between group/item">
             <div className="flex items-center gap-3">
@@ -448,7 +535,9 @@ function OverviewItem({ icon, label, value, subValue }: { icon: React.ReactNode,
                     {icon}
                 </div>
                 <div>
-                    <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">{label}</p>
+                    <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">
+                        {label}
+                    </p>
                     <p className="text-sm font-bold text-foreground/70">{subValue}</p>
                 </div>
             </div>

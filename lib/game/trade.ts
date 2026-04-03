@@ -68,7 +68,7 @@ export class TornTrade {
         description: string,
         userID: number,
         traderID: number,
-        items: any[],
+        items: any[]
     ) {
         this.id = id;
         this.tornLogId = tornLogId;
@@ -78,7 +78,7 @@ export class TornTrade {
         this.traderID = traderID;
         this.items = TornTrade.standardizeItems(items);
         this.hasUnsupportedItems = this.items.some(
-            (item) => item instanceof UnsupportedTornTradeItem,
+            (item) => item instanceof UnsupportedTornTradeItem
         );
 
         // this.validateTradeType();
@@ -129,23 +129,19 @@ export class TornTrade {
             if (item instanceof TornTradeMoney) {
                 if (item.userID !== (await MetadataInterface.getUserID())) {
                     throw new UnsupportedTradeTypeError(
-                        `Sender (${item.userID}) cannot trade money.`,
+                        `Sender (${item.userID}) cannot trade money.`
                     );
                 }
             }
             // TradeItem
             else if (item instanceof TornTradeItem) {
                 if (item.userID === (await MetadataInterface.getUserID())) {
-                    throw new UnsupportedTradeTypeError(
-                        `You (${item.userID}) cannot trade items.`,
-                    );
+                    throw new UnsupportedTradeTypeError(`You (${item.userID}) cannot trade items.`);
                 }
             }
             // Unsupported
             else {
-                throw new UnsupportedTradeTypeError(
-                    `Unsupported trade item found. ${item}.`,
-                );
+                throw new UnsupportedTradeTypeError(`Unsupported trade item found. ${item}.`);
             }
         }
     }
@@ -167,7 +163,7 @@ export class TornTrade {
         if (this.linkedReceiptId || receipt.linkedTradeId) {
             mydebug(
                 [this.linkedReceiptId, receipt.linkedTradeId],
-                "TornTrade.compareAndLinkReceipt: Receipt already linked",
+                "TornTrade.compareAndLinkReceipt: Receipt already linked"
             );
             return false;
         }
@@ -196,9 +192,7 @@ export class TornTrade {
      * @returns Total amount sent by the user.
      */
     getTotalValue(failSafe: boolean = false): number {
-        const moneyItems = this.items.filter(
-            (item) => item instanceof TornTradeMoney,
-        );
+        const moneyItems = this.items.filter((item) => item instanceof TornTradeMoney);
 
         if (moneyItems.length !== 1) {
             throw new Error("Invalid trade: more than one money item found.");
@@ -212,10 +206,7 @@ export class TornTrade {
      * @returns boolean: true if trade has only one money item.
      */
     hasOnlyOneMoneyItem(): boolean {
-        return (
-            this.items.filter((item) => item instanceof TornTradeMoney)
-                .length === 1
-        );
+        return this.items.filter((item) => item instanceof TornTradeMoney).length === 1;
     }
 
     /**
@@ -224,24 +215,16 @@ export class TornTrade {
      * @returns (TornTradeItem | TornTradeMoney)[]: The standardized items array.
      */
     static standardizeItems(
-        items: any[],
+        items: any[]
     ): (TornTradeItem | TornTradeMoney | UnsupportedTornTradeItem)[] {
         return items.map((item) => {
             if (item.type === "Money") {
                 return new TornTradeMoney(item.user_id, item.details.amount);
             } else if (item.type === "Item") {
-                return new TornTradeItem(
-                    item.user_id,
-                    item.details.id,
-                    item.details.amount,
-                );
+                return new TornTradeItem(item.user_id, item.details.id, item.details.amount);
             }
 
-            return new UnsupportedTornTradeItem(
-                item.user_id,
-                item.type,
-                item.details,
-            );
+            return new UnsupportedTornTradeItem(item.user_id, item.type, item.details);
         });
     }
 
@@ -253,13 +236,10 @@ export class TornTrade {
      */
     static compareReceipt(trade: TornTrade, receipt: Weav3rReceipt): Boolean {
         // Check if it's simple buy trade.
-        if (
-            trade.hasOnlyOneMoneyItem() &&
-            trade.getTotalValue() !== receipt.totalValue
-        ) {
+        if (trade.hasOnlyOneMoneyItem() && trade.getTotalValue() !== receipt.totalValue) {
             mydebug(
                 [trade.getTotalValue(), receipt.totalValue],
-                "TornTrade.compareReceipt: Receipt total value mismatch",
+                "TornTrade.compareReceipt: Receipt total value mismatch"
             );
             return false;
         }
@@ -268,54 +248,34 @@ export class TornTrade {
         if (receipt.createdAt < trade.timestamp - 6 * 60 * 60 - 10 * 60) {
             mydebug(
                 [trade.timestamp, receipt.createdAt],
-                "TornTrade.compareReceipt: Receipt too old",
+                "TornTrade.compareReceipt: Receipt too old"
             );
             return false;
         }
 
         // Check for item mismatches.
         const missingItemsInReceipt = trade.items.filter((item) => {
-            if (
-                item instanceof TornTradeMoney ||
-                item instanceof UnsupportedTornTradeItem
-            ) {
+            if (item instanceof TornTradeMoney || item instanceof UnsupportedTornTradeItem) {
                 return false;
             }
             return !receipt.items.some((rItem) => {
-                return (
-                    rItem.itemID === item.itemID &&
-                    rItem.quantity === item.quantity
-                );
+                return rItem.itemID === item.itemID && rItem.quantity === item.quantity;
             });
         });
 
         const missingItemsInTrade = receipt.items.filter((item) => {
             return !trade.items.some((tItem) => {
-                if (
-                    tItem instanceof TornTradeMoney ||
-                    tItem instanceof UnsupportedTornTradeItem
-                ) {
+                if (tItem instanceof TornTradeMoney || tItem instanceof UnsupportedTornTradeItem) {
                     return false;
                 }
-                return (
-                    tItem.itemID === item.itemID &&
-                    tItem.quantity === item.quantity
-                );
+                return tItem.itemID === item.itemID && tItem.quantity === item.quantity;
             });
         });
 
-        if (
-            missingItemsInReceipt.length > 0 ||
-            missingItemsInTrade.length > 0
-        ) {
+        if (missingItemsInReceipt.length > 0 || missingItemsInTrade.length > 0) {
             mydebug(
-                [
-                    missingItemsInReceipt,
-                    missingItemsInTrade,
-                    trade.items,
-                    receipt.items,
-                ],
-                "TornTrade.compareReceipt: Receipt missing items",
+                [missingItemsInReceipt, missingItemsInTrade, trade.items, receipt.items],
+                "TornTrade.compareReceipt: Receipt missing items"
             );
             return false;
         }
@@ -336,7 +296,7 @@ export class TornTrade {
             data.description,
             data.userID,
             data.traderID,
-            data.items,
+            data.items
         );
         trade.linkedReceiptId = data.linkedReceiptId;
         trade.manuallyLiked = data.manuallyLiked || false;
@@ -358,7 +318,7 @@ export class TornTrade {
             String(detail.description || ""),
             userID,
             Number(detail.trader_id),
-            detail.items,
+            detail.items
         );
         return trade;
     }
@@ -377,7 +337,7 @@ export class TornTrade {
             String(detail.description || ""),
             userID,
             Number(detail.trader_id),
-            detail.items,
+            detail.items
         );
         return trade;
     }
@@ -395,7 +355,7 @@ export class Weav3rReceiptItem {
         itemName: string,
         quantity: number,
         priceUsed: number,
-        totalValue: number,
+        totalValue: number
     ) {
         this.itemID = itemID;
         this.itemName = itemName;
@@ -434,9 +394,9 @@ export class Weav3rReceipt {
                         item.item_name,
                         item.quantity,
                         item.price_used,
-                        item.total_value,
-                    ),
-            ),
+                        item.total_value
+                    )
+            )
         );
     }
 
@@ -446,7 +406,7 @@ export class Weav3rReceipt {
         totalValue: number,
         createdAt: number,
         updatedAt: number,
-        items: any[],
+        items: any[]
     ) {
         this.id = id;
         this.weav3rReceiptId = weav3rReceiptId;
@@ -460,8 +420,8 @@ export class Weav3rReceipt {
                     item.item_name,
                     item.quantity,
                     item.price_used,
-                    item.total_value,
-                ),
+                    item.total_value
+                )
         );
     }
 
@@ -511,7 +471,7 @@ export class Weav3rReceipt {
             Number(data.total_value || 0),
             Number(data.created_at || 0),
             Number(data.updated_at || data.created_at || 0),
-            data.items || [],
+            data.items || []
         );
         receipt.linkedTradeId = data.linked_trade_id;
         receipt.trashed = data.trashed || false;

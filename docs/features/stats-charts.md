@@ -5,6 +5,7 @@ Visualize your trading performance with BML's interactive charts. This guide exp
 ## 📈 Accessing Charts
 
 Simply click on any **Stat Card** on the main dashboard to open its detailed trend modal.
+
 - **Total Realized Profit**
 - **Current Inventory Value**
 - **Total Mug Loss**
@@ -15,16 +16,19 @@ Simply click on any **Stat Card** on the main dashboard to open its detailed tre
 You can toggle between three different viewpoints:
 
 ### Daily View (30 Days)
+
 - **Format**: Line Chart.
 - **Use Case**: Track your day-to-day activity and spot immediate spikes or dips in profit/mugging.
 - [TODO] Add screenshot of Daily Line Chart.
 
 ### Weekly View (12 Weeks)
+
 - **Format**: Bar Chart.
 - **Use Case**: Observe your performance across several months, identifying which weeks were most productive.
 - [TODO] Add screenshot of Weekly Bar Chart.
 
 ### Monthly View (12 Months)
+
 - **Format**: Bar Chart.
 - **Use Case**: Long-term growth analysis. See how your trading empire has scaled over the past year.
 - [TODO] Add screenshot of Monthly Bar Chart.

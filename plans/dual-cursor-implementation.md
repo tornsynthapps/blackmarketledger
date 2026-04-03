@@ -1,7 +1,9 @@
 # Dual Cursor Implementation Plan for Auto-Pilot
 
 ## Overview
+
 Reimplement cursors in Auto-Pilot (/auto page) to use two separate cursors instead of one:
+
 - **Trade Cursor**: Tracks last fetched trade timestamp
 - **Item Cursor**: Tracks last fetched item transaction (logs) timestamp
 
@@ -26,20 +28,24 @@ graph TD
 ## Implementation Steps
 
 ### 1. Create DualCursor Type (lib/cursor.ts)
+
 Add a new interface to track both cursors:
+
 ```typescript
 export interface DualCursor {
-  tradeCursor: SyncCursor;
-  itemCursor: SyncCursor;
+    tradeCursor: SyncCursor;
+    itemCursor: SyncCursor;
 }
 ```
 
 ### 2. Update JournalConfig Interface (store/useJournal.ts)
+
 - Replace `autoPilotCursor` with `autoPilotTradeCursor` and `autoPilotItemCursor`
 - Add both to config persistence
 - Add migration logic for legacy single cursor
 
 ### 3. Update useJournal State (store/useJournal.ts)
+
 - Add `autoPilotTradeCursor` state variable
 - Add `autoPilotItemCursor` state variable
 - Update `applyConfig` function
@@ -49,9 +55,11 @@ export interface DualCursor {
 ### 4. Modify Sync Logic (app/auto/page.tsx)
 
 **Initialization:**
+
 - Initialize both cursors to the same timestamp on first run
 
 **Sync Logic:**
+
 ```
 IF there are unlinked trades in cache:
   - Disable sync with warning message
@@ -70,16 +78,18 @@ ELSE:
 ```
 
 ### 5. Update UI (app/auto/page.tsx)
+
 - Display both cursors with labels
 - Show sync status indicating what will be fetched
 - Disable sync button when:
-  - there are unlinked trades in cache
-  - Already syncing
-  - Has pending trades
+    - there are unlinked trades in cache
+    - Already syncing
+    - Has pending trades
 
 ### 6. Legacy Migration
+
 - On load, if only `autoPilotCursor` exists, migrate to dual cursor:
-  - Set both `tradeCursor` and `itemCursor` to the existing cursor values
+    - Set both `tradeCursor` and `itemCursor` to the existing cursor values
 
 ## Files to Modify
 
@@ -90,6 +100,7 @@ ELSE:
 ## Key Behavior Details
 
 ### When Trade Cursor == Item Cursor (Normal Sync)
+
 1. User clicks Sync
 2. Fetch trades from `tradeCursor.lastTimestamp`
 3. Link with receipts, handle discrepancies
@@ -97,13 +108,15 @@ ELSE:
 5. Item cursor remains unchanged (items already synced up to this point)
 
 ### When Trade Cursor > Item Cursor (Items Behind)
+
 1. User clicks Sync
 2. Detect `tradeCursor.lastTimestamp > itemCursor.lastTimestamp`
 3. Check for unlinked trades in cache:
-   - **If no unlinked trades**: Fetch item logs up to `tradeCursor.lastTimestamp`
+    - **If no unlinked trades**: Fetch item logs up to `tradeCursor.lastTimestamp`
 4. Update `itemCursor` to `tradeCursor.lastTimestamp`
 
 ### First Initialization
+
 - Set both cursors to current timestamp
 - User sees "Initialize Auto-Pilot" button initially
 - After first sync, shows "Sync Now" with both cursor values displayed

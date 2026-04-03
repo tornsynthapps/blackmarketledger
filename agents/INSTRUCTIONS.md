@@ -6,10 +6,10 @@
 
 Every function **must** include a structured comment that clearly specifies:
 
-* **Purpose:** What the function does
-* **Inputs:** Parameters with types and meaning
-* **Outputs:** Return value and type
-* **Side Effects (if any):** File I/O, network calls, mutations, etc.
+- **Purpose:** What the function does
+- **Inputs:** Parameters with types and meaning
+- **Outputs:** Return value and type
+- **Side Effects (if any):** File I/O, network calls, mutations, etc.
 
 **Example:**
 
@@ -24,13 +24,13 @@ Every function **must** include a structured comment that clearly specifies:
 
 ### 1.2 Inline Comments
 
-* Use comments to explain **why**, not just **what**
-* Add comments for:
+- Use comments to explain **why**, not just **what**
+- Add comments for:
+    - Non-obvious logic
+    - Complex conditions or transformations
+    - Workarounds or constraints
 
-  * Non-obvious logic
-  * Complex conditions or transformations
-  * Workarounds or constraints
-* Avoid redundant comments (e.g., `// increment i`)
+- Avoid redundant comments (e.g., `// increment i`)
 
 ---
 
@@ -38,22 +38,21 @@ Every function **must** include a structured comment that clearly specifies:
 
 ### 2.1 Single Responsibility Principle
 
-* Each function should perform **one well-defined task**
-* Avoid multi-purpose or overloaded functions
+- Each function should perform **one well-defined task**
+- Avoid multi-purpose or overloaded functions
 
 ### 2.2 Composition Over Monoliths
 
-* Break complex logic into smaller reusable units
-* Prefer composing small functions rather than writing large ones
+- Break complex logic into smaller reusable units
+- Prefer composing small functions rather than writing large ones
 
 ### 2.3 File Organization
 
-* Group related functionality into separate files/modules
-* Use clear directory structures:
-
-  * `services/` for business logic
-  * `utils/` for reusable helpers
-  * `models/` for data structures/types
+- Group related functionality into separate files/modules
+- Use clear directory structures:
+    - `services/` for business logic
+    - `utils/` for reusable helpers
+    - `models/` for data structures/types
 
 ---
 
@@ -61,36 +60,36 @@ Every function **must** include a structured comment that clearly specifies:
 
 ### 3.1 Variables
 
-* Use **descriptive and unambiguous names**
-* Avoid abbreviations unless universally understood
+- Use **descriptive and unambiguous names**
+- Avoid abbreviations unless universally understood
 
 **Good:**
 
 ```ts
-userId, totalPrice, isAuthenticated
+(userId, totalPrice, isAuthenticated);
 ```
 
 **Bad:**
 
 ```ts
-uid, tp, flag
+(uid, tp, flag);
 ```
 
 ### 3.2 Functions
 
-* Function names must clearly describe behavior
-* Use verb-based naming
+- Function names must clearly describe behavior
+- Use verb-based naming
 
 **Good:**
 
 ```ts
-getUserById, calculateTotalPrice, validateEmail
+(getUserById, calculateTotalPrice, validateEmail);
 ```
 
 **Bad:**
 
 ```ts
-getUser, processData, handleStuff
+(getUser, processData, handleStuff);
 ```
 
 ---
@@ -99,30 +98,30 @@ getUser, processData, handleStuff
 
 ### 4.1 Readability First
 
-* Code should be understandable without external explanation
-* Prefer clarity over cleverness
+- Code should be understandable without external explanation
+- Prefer clarity over cleverness
 
 ### 4.2 Consistency
 
-* Follow consistent formatting, naming, and structure across the codebase
+- Follow consistent formatting, naming, and structure across the codebase
 
 ### 4.3 Avoid Duplication
 
-* Extract repeated logic into reusable functions
+- Extract repeated logic into reusable functions
 
 ---
 
 ## 5. Error Handling
 
-* Handle all expected failure cases explicitly
-* Do not silently ignore errors
-* Provide meaningful error messages
+- Handle all expected failure cases explicitly
+- Do not silently ignore errors
+- Provide meaningful error messages
 
 **Example:**
 
 ```ts
 if (!user) {
-  throw new Error("User not found for given userId");
+    throw new Error("User not found for given userId");
 }
 ```
 
@@ -130,9 +129,9 @@ if (!user) {
 
 ## 6. Testing Considerations
 
-* Functions should be designed to be **testable in isolation**
-* Avoid hidden dependencies (e.g., global state)
-* Prefer pure functions where possible
+- Functions should be designed to be **testable in isolation**
+- Avoid hidden dependencies (e.g., global state)
+- Prefer pure functions where possible
 
 ---
 
@@ -140,29 +139,29 @@ if (!user) {
 
 ### 7.1 Deterministic Behavior
 
-* Do not make assumptions when requirements are unclear
-* Prefer explicit handling over implicit behavior
+- Do not make assumptions when requirements are unclear
+- Prefer explicit handling over implicit behavior
 
 ### 7.2 Minimal Scope Changes
 
-* Modify only what is necessary
-* Avoid refactoring unrelated code
+- Modify only what is necessary
+- Avoid refactoring unrelated code
 
 ### 7.3 Idempotency
 
-* Ensure repeated execution does not produce unintended side effects
+- Ensure repeated execution does not produce unintended side effects
 
 ### 7.4 No Hallucinated Dependencies
 
-* Do not introduce libraries, APIs, or files unless explicitly required
+- Do not introduce libraries, APIs, or files unless explicitly required
 
 ---
 
 ## 8. When in Doubt
 
-* Choose clarity over brevity
-* Choose explicitness over magic
-* Choose maintainability over speed
+- Choose clarity over brevity
+- Choose explicitness over magic
+- Choose maintainability over speed
 
 ---
 
@@ -170,7 +169,7 @@ if (!user) {
 
 The goal is to produce code that is:
 
-* Easy to read
-* Easy to test
-* Easy to maintain
-* Safe for automated agents to modify
+- Easy to read
+- Easy to test
+- Easy to maintain
+- Safe for automated agents to modify

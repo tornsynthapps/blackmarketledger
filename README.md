@@ -12,18 +12,24 @@ Blackmarket Ledger (BML) is a premium, comprehensive dashboard designed specific
 ## 🚀 Key Features
 
 ### ✈️ Abroad & Self-Sell
-Master your margins by differentiating between sourcing and trading profits. 
+
+Master your margins by differentiating between sourcing and trading profits.
+
 - Use **Self-Sell** to "buy from yourself" at market rates (e.g., Weav3r pricelist) and isolate the profit earned from traveling versus the profit earned from active trading.
 - [Learn more about Abroad & Self-Sell](./docs/features/abroad-self-sell)
 
 ### 🤖 Auto-Pilot
+
 Stop manual logging. Auto-Pilot syncs your Torn logs automatically.
+
 - Integrates with **Weav3r** for seamless trade receipt reconciliation.
 - Automatically processes item-market (buy/sell), bazaar (buy/sell), and mug logs.
 - [Explore Auto-Pilot](./docs/features/auto-pilot)
 
 ### 📊 Interactive Stats & Charts
+
 Visualize your journey from a small-time peddler to a market mogul.
+
 - Interactive line and bar charts for Daily, Weekly, and Monthly trends.
 - Track Net Profit, Inventory Value, and Mug Losses over time.
 - [Discover Stats & Charts](./docs/features/stats-charts)
@@ -31,26 +37,30 @@ Visualize your journey from a small-time peddler to a market mogul.
 ## 🛠️ Getting Started
 
 ### Prerequisites
+
 - Node.js (v20+)
 - A Torn API Key (Full Access required for Auto-Pilot)
 
 ### Installation
 
 1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/tornsynthapps/blackmarketledger.git
-   cd blackmarketledger
-   ```
+
+    ```bash
+    git clone https://github.com/tornsynthapps/blackmarketledger.git
+    cd blackmarketledger
+    ```
 
 2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+
+    ```bash
+    npm install
+    ```
 
 3. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
+
+    ```bash
+    npm run dev
+    ```
 
 4. Open [http://localhost:3000](http://localhost:3000) to see your ledger in action.
 
@@ -73,4 +83,4 @@ This project is licensed under the [MIT License](./LICENSE) (if applicable) or a
 
 ---
 
-*Built with ❤️ for the Torn community by [TornSynthApps](https://github.com/tornsynthapps).*
+_Built with ❤️ for the Torn community by [TornSynthApps](https://github.com/tornsynthapps)._

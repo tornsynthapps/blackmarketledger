@@ -12,4 +12,5 @@ Welcome to the official documentation for **Blackmarket Ledger** (BML).
 6. [FAQ & Troubleshooting](./faq-troubleshooting) - Solutions to common issues.
 
 ---
-*Built for the Torn community by TornSynthApps*
+
+_Built for the Torn community by TornSynthApps_

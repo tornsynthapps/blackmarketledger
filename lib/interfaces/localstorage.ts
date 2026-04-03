@@ -49,9 +49,7 @@ export class LocalStorageInterface {
 
     // Storage type (browser vs. google drive)
     static getStorageType(): StorageType {
-        return (
-            (this.getItem(this.STORAGE_TYPE_KEY) as StorageType) || "browser"
-        );
+        return (this.getItem(this.STORAGE_TYPE_KEY) as StorageType) || "browser";
     }
 
     static setStorageType(value: StorageType): void {

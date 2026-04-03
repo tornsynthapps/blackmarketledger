@@ -1,24 +1,7 @@
 {
-  "doubleQuote": true,
-  "tabWidth": 2,
-  "overrides": [
-    {
-      "files": "lib/game/*",
-      "options": {
-        "tabWidth": 4
-      }
-    },
-    {
-      "files": "lib/interfaces/*",
-      "options": {
-        "tabWidth": 4
-      }
-    },
-    {
-      "files": "lib/debug.ts",
-      "options": {
-        "tabWidth": 4
-      }
-    }
-  ]
+    "semi": true,
+    "singleQuote": false,
+    "tabWidth": 4,
+    "trailingComma": "es5",
+    "printWidth": 100
 }

@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, Database01Icon } from "@hugeicons/core-free-icons";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import { useJournal } from "@/store/useJournal";
-import * as idb from '@/lib/idb';
+import * as idb from "@/lib/idb";
 import { useGlobalSyncStatus } from "@/lib/syncStatus";
 import { MigrationModal } from "./MigrationModal";
 
@@ -29,10 +29,12 @@ export function Banners() {
                 }
             }
 
-            let stats = statsStr ? JSON.parse(statsStr) : {
-                forumClicks: 0,
-                forumCloseStreak: 0
-            };
+            let stats = statsStr
+                ? JSON.parse(statsStr)
+                : {
+                      forumClicks: 0,
+                      forumCloseStreak: 0,
+                  };
 
             setForumClicks(stats.forumClicks);
 
@@ -52,10 +54,12 @@ export function Banners() {
 
     const updateStats = async (key: string, val: number) => {
         let statsStr = await idb.get<string>("LogsDB", "blackmarket_banner_stats");
-        let stats = statsStr ? JSON.parse(statsStr) : {
-            forumClicks: 0,
-            forumCloseStreak: 0
-        };
+        let stats = statsStr
+            ? JSON.parse(statsStr)
+            : {
+                  forumClicks: 0,
+                  forumCloseStreak: 0,
+              };
         stats[key] = val;
         await idb.set("LogsDB", "blackmarket_banner_stats", JSON.stringify(stats));
         localStorage.setItem("blackmarket_banner_stats", JSON.stringify(stats));
@@ -89,10 +93,17 @@ export function Banners() {
                             SYSTEM UPGRADE REQUIRED
                         </p>
                         <p className="mt-1 text-[11px] opacity-70 uppercase">
-                            LocalStorage limit reached. Migrate to IndexedDB node for industrial-scale storage.
+                            LocalStorage limit reached. Migrate to IndexedDB node for
+                            industrial-scale storage.
                         </p>
                     </div>
-                    <button onClick={() => { vibrate("success"); performMigration(); }} className="hardline-button border-danger text-danger hover:bg-danger hover:text-white px-4 py-2 text-xs font-black uppercase whitespace-nowrap">
+                    <button
+                        onClick={() => {
+                            vibrate("success");
+                            performMigration();
+                        }}
+                        className="hardline-button border-danger text-danger hover:bg-danger hover:text-white px-4 py-2 text-xs font-black uppercase whitespace-nowrap"
+                    >
                         MIGRATE_DATABASE
                     </button>
                 </div>
@@ -114,8 +125,11 @@ export function Banners() {
                                 Archive found in legacy sector. Integrate into current data stream?
                             </p>
                         </div>
-                        <button 
-                            onClick={() => { vibrate("success"); setIsMigrationModalOpen(true); }} 
+                        <button
+                            onClick={() => {
+                                vibrate("success");
+                                setIsMigrationModalOpen(true);
+                            }}
                             className="hardline-button px-4 py-2 text-xs font-black uppercase whitespace-nowrap"
                         >
                             INIT_MIGRATION
@@ -128,7 +142,9 @@ export function Banners() {
                 <div className="bg-success/10 text-success border-b border-success/20 p-3 text-center relative text-sm animate-in fade-in slide-in-from-top-4 z-30 font-mono">
                     <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
                         <div className="flex-1">
-                            <p className="font-black uppercase tracking-widest text-[11px]">{syncStatus.message}</p>
+                            <p className="font-black uppercase tracking-widest text-[11px]">
+                                {syncStatus.message}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -166,16 +182,21 @@ export function Banners() {
                                 </p>
                             )}
                         </div>
-                        <button type="button" onClick={handleForumClose} className="p-1 border border-warning/20 bg-background/50 hover:bg-warning hover:text-white transition-all shrink-0" aria-label="Dismiss banner">
+                        <button
+                            type="button"
+                            onClick={handleForumClose}
+                            className="p-1 border border-warning/20 bg-background/50 hover:bg-warning hover:text-white transition-all shrink-0"
+                            aria-label="Dismiss banner"
+                        >
                             <HugeiconsIcon icon={Cancel01Icon} size={16} />
                         </button>
                     </div>
                 </div>
             )}
 
-            <MigrationModal 
-                isOpen={isMigrationModalOpen} 
-                onClose={() => setIsMigrationModalOpen(false)} 
+            <MigrationModal
+                isOpen={isMigrationModalOpen}
+                onClose={() => setIsMigrationModalOpen(false)}
             />
         </>
     );

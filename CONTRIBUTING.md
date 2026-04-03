@@ -5,27 +5,30 @@ First off, thank you for considering contributing to Blackmarket Ledger! It's pe
 ## 🛠️ Development Setup
 
 1. **Clone the Repo**:
-   ```bash
-   git clone https://github.com/tornsynthapps/blackmarketledger.git
-   cd blackmarketledger
-   ```
+
+    ```bash
+    git clone https://github.com/tornsynthapps/blackmarketledger.git
+    cd blackmarketledger
+    ```
 
 2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
+
+    ```bash
+    npm install
+    ```
 
 3. **Environment Variables**:
    Create a `.env.local` file in the root directory if you need to override any defaults (see `.env.production` for reference).
 
 4. **Run Dev Server**:
-   ```bash
-   npm run dev
-   ```
+    ```bash
+    npm run dev
+    ```
 
 ## 🧪 Testing
 
 We use **Vitest** for unit testing and **Playwright** for end-to-end testing.
+
 - Run unit tests: `npm test`
 - Run E2E tests: `npx playwright test`
 
@@ -45,4 +48,4 @@ We use **Vitest** for unit testing and **Playwright** for end-to-end testing.
 
 ---
 
-*Happy Coding!*
+_Happy Coding!_

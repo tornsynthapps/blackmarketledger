@@ -1,7 +1,4 @@
-import {
-    KeyNotFoundError,
-    LocalStorageInterface,
-} from "@/lib/interfaces/localstorage";
+import { KeyNotFoundError, LocalStorageInterface } from "@/lib/interfaces/localstorage";
 import { TornAPI } from "@/lib/game/api";
 import { TornUser } from "@/lib/game/user";
 import { mydebug } from "../debug";
@@ -20,10 +17,7 @@ export class MetadataInterface {
             } catch (error) {
                 if (error instanceof KeyNotFoundError) {
                     const response = await TornAPI.getBasicUserDetails();
-                    mydebug(
-                        response,
-                        "MetadataInterface.getUserID: User details fetched",
-                    );
+                    mydebug(response, "MetadataInterface.getUserID: User details fetched");
                     user = new TornUser(response.id, response.name);
                     LocalStorageInterface.setUser(user);
                 } else {

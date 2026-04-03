@@ -10,14 +10,18 @@ export default function TermsOfService() {
                     <FileText className="w-6 h-6" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">Terms of Use</h1>
-                <p className="text-foreground/60 mt-2">BML Connect &amp; BlackMarket Ledger Usage Policy</p>
+                <p className="text-foreground/60 mt-2">
+                    BML Connect &amp; BlackMarket Ledger Usage Policy
+                </p>
             </div>
 
             <div className="bg-panel border border-border p-6 rounded-xl space-y-6">
                 <section>
                     <h2 className="text-xl font-bold mb-4">API Key Usage Disclosure</h2>
                     <p className="text-foreground/80 leading-relaxed mb-4">
-                        BML Connect requires a Torn API key for account verification and subscription checks. The key is submitted from the extension to our Supabase verification function and then used to call Torn&apos;s basic user endpoint.
+                        BML Connect requires a Torn API key for account verification and
+                        subscription checks. The key is submitted from the extension to our Supabase
+                        verification function and then used to call Torn&apos;s basic user endpoint.
                     </p>
 
                     <div className="overflow-x-auto border border-border rounded-lg">
@@ -36,7 +40,9 @@ export default function TermsOfService() {
                                     <td className="p-3">Only locally</td>
                                     <td className="p-3">Nobody</td>
                                     <td className="p-3">Data Analytics</td>
-                                    <td className="p-3">Not shared. Stored securely in your browser's local storage.</td>
+                                    <td className="p-3">
+                                        Not shared. Stored securely in your browser's local storage.
+                                    </td>
                                     <td className="p-3">Check table below for details.</td>
                                 </tr>
                                 <tr>
@@ -48,8 +54,12 @@ export default function TermsOfService() {
                                 <tr>
                                     <td className="p-3">BML Connect API key</td>
                                     <td className="p-3">Browser extension storage</td>
-                                    <td className="p-3">Supabase function + Torn API (on verification)</td>
-                                    <td className="p-3">Identity lookup and subscription validation</td>
+                                    <td className="p-3">
+                                        Supabase function + Torn API (on verification)
+                                    </td>
+                                    <td className="p-3">
+                                        Identity lookup and subscription validation
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -69,13 +79,23 @@ export default function TermsOfService() {
                                 </tr>
                                 <tr>
                                     <td className="p-3">Logs Fetching using TornW3B (Weav3r)</td>
-                                    <td className="p-3">Public (Standard access required by Weav3r integration)</td>
-                                    <td className="p-3">Shared with Weav3r (please see <a href="https://weav3r.dev/privacy-policy">Weav3r&apos;s Privacy Policy</a>)</td>
+                                    <td className="p-3">
+                                        Public (Standard access required by Weav3r integration)
+                                    </td>
+                                    <td className="p-3">
+                                        Shared with Weav3r (please see{" "}
+                                        <a href="https://weav3r.dev/privacy-policy">
+                                            Weav3r&apos;s Privacy Policy
+                                        </a>
+                                        )
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td className="p-3">BML Connect</td>
                                     <td className="p-3">Public</td>
-                                    <td className="p-3">Only stored in your browser extension storage</td>
+                                    <td className="p-3">
+                                        Only stored in your browser extension storage
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -85,21 +105,27 @@ export default function TermsOfService() {
                 <section>
                     <h2 className="text-xl font-bold mb-2">Subscription-Gated Features</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        BML Connect displays the Torn in-page cost-basis box only for users with an active subscription record. Users may still sign in and view account state in the extension popup even if no active subscription exists.
+                        BML Connect displays the Torn in-page cost-basis box only for users with an
+                        active subscription record. Users may still sign in and view account state
+                        in the extension popup even if no active subscription exists.
                     </p>
                 </section>
 
                 <section>
                     <h2 className="text-xl font-bold mb-2">Acceptable Use</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        You agree to use your own Torn API key and to comply with Torn&apos;s API rules. You must not abuse, reverse engineer, disrupt, or overload the verification endpoint.
+                        You agree to use your own Torn API key and to comply with Torn&apos;s API
+                        rules. You must not abuse, reverse engineer, disrupt, or overload the
+                        verification endpoint.
                     </p>
                 </section>
 
                 <section>
                     <h2 className="text-xl font-bold mb-2">Disclaimer</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        This software is provided &quot;as is&quot; without warranties. We are not liable for losses, missed trades, API outages, or any indirect damages related to usage of BlackMarket Ledger or BML Connect.
+                        This software is provided &quot;as is&quot; without warranties. We are not
+                        liable for losses, missed trades, API outages, or any indirect damages
+                        related to usage of BlackMarket Ledger or BML Connect.
                     </p>
                 </section>
             </div>

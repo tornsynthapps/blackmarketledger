@@ -1,7 +1,7 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 import { History, GitCommitHorizontal } from "lucide-react";
-import pkg from '../../package.json';
+import pkg from "../../package.json";
 
 interface ChangelogEntry {
     version: string;
@@ -10,7 +10,7 @@ interface ChangelogEntry {
 }
 
 function parseChangelog(content: string): ChangelogEntry[] {
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     const entries: ChangelogEntry[] = [];
     let currentEntry: ChangelogEntry | null = null;
 
@@ -22,7 +22,7 @@ function parseChangelog(content: string): ChangelogEntry[] {
             currentEntry = {
                 version: headerMatch[1],
                 date: headerMatch[2],
-                items: []
+                items: [],
             };
             continue;
         }
@@ -32,7 +32,7 @@ function parseChangelog(content: string): ChangelogEntry[] {
         if (itemMatch && currentEntry) {
             currentEntry.items.push({
                 title: itemMatch[1],
-                description: itemMatch[2]
+                description: itemMatch[2],
             });
             continue;
         }
@@ -42,7 +42,7 @@ function parseChangelog(content: string): ChangelogEntry[] {
         if (simpleMatch && currentEntry && !itemMatch) {
             currentEntry.items.push({
                 title: "",
-                description: simpleMatch[1]
+                description: simpleMatch[1],
             });
         }
     }
@@ -52,10 +52,10 @@ function parseChangelog(content: string): ChangelogEntry[] {
 }
 
 export default async function ChangelogPage() {
-    const filePath = path.join(process.cwd(), 'version-history.md');
+    const filePath = path.join(process.cwd(), "version-history.md");
     let content = "";
     try {
-        content = fs.readFileSync(filePath, 'utf8');
+        content = fs.readFileSync(filePath, "utf8");
     } catch (e) {
         content = "## v0.0.0 (Error)\n- Error loading version history.";
     }
@@ -66,33 +66,39 @@ export default async function ChangelogPage() {
         <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Version History</h1>
-                <p className="text-foreground/60 mt-2">Track the latest updates and improvements.</p>
+                <p className="text-foreground/60 mt-2">
+                    Track the latest updates and improvements.
+                </p>
             </div>
 
             <div className="space-y-6">
                 {entries.map((entry, idx) => {
-                    const isCurrent = entry.version.replace('v', '') === pkg.version;
-                    
+                    const isCurrent = entry.version.replace("v", "") === pkg.version;
+
                     return (
-                        <div 
-                            key={entry.version} 
+                        <div
+                            key={entry.version}
                             className={`p-6 rounded-2xl border transition-all ${
-                                isCurrent 
-                                    ? "bg-panel border-primary/30 shadow-lg shadow-primary/5 ring-1 ring-primary/10 relative overflow-hidden" 
+                                isCurrent
+                                    ? "bg-panel border-primary/30 shadow-lg shadow-primary/5 ring-1 ring-primary/10 relative overflow-hidden"
                                     : "bg-panel/50 border-border/50 opacity-90"
                             }`}
                         >
                             {isCurrent && (
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-10 pointer-events-none" />
                             )}
-                            
+
                             <div className="flex items-center gap-4 mb-6">
-                                <div className={`p-2.5 rounded-xl ${isCurrent ? "bg-primary/10 text-primary" : "bg-foreground/5 text-foreground/45"}`}>
+                                <div
+                                    className={`p-2.5 rounded-xl ${isCurrent ? "bg-primary/10 text-primary" : "bg-foreground/5 text-foreground/45"}`}
+                                >
                                     <History className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <h2 className={`text-xl font-bold tracking-tight ${!isCurrent && "text-foreground/80"}`}>
+                                        <h2
+                                            className={`text-xl font-bold tracking-tight ${!isCurrent && "text-foreground/80"}`}
+                                        >
                                             {entry.version}
                                         </h2>
                                         {isCurrent && (
@@ -101,7 +107,9 @@ export default async function ChangelogPage() {
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-xs font-medium text-foreground/45 mt-0.5">{entry.date}</p>
+                                    <p className="text-xs font-medium text-foreground/45 mt-0.5">
+                                        {entry.date}
+                                    </p>
                                 </div>
                             </div>
 
@@ -109,10 +117,14 @@ export default async function ChangelogPage() {
                                 {entry.items.map((item, i) => (
                                     <li key={i} className="relative pl-8 group">
                                         <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
-                                            <GitCommitHorizontal className={`w-4 h-4 transition-colors ${isCurrent ? "text-primary/60" : "text-foreground/30"}`} />
+                                            <GitCommitHorizontal
+                                                className={`w-4 h-4 transition-colors ${isCurrent ? "text-primary/60" : "text-foreground/30"}`}
+                                            />
                                         </div>
                                         {item.title && (
-                                            <span className={`block text-sm font-bold tracking-tight mb-0.5 ${isCurrent ? "text-foreground/90" : "text-foreground/70"}`}>
+                                            <span
+                                                className={`block text-sm font-bold tracking-tight mb-0.5 ${isCurrent ? "text-foreground/90" : "text-foreground/70"}`}
+                                            >
                                                 {item.title}
                                             </span>
                                         )}

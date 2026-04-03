@@ -3,39 +3,39 @@
 import { useSyncExternalStore } from "react";
 
 export interface GlobalSyncStatus {
-  isSyncing: boolean;
-  message: string;
+    isSyncing: boolean;
+    message: string;
 }
 
 let currentStatus: GlobalSyncStatus = {
-  isSyncing: false,
-  message: "",
+    isSyncing: false,
+    message: "",
 };
 
 const listeners = new Set<() => void>();
 
 function emitChange() {
-  listeners.forEach((listener) => listener());
+    listeners.forEach((listener) => listener());
 }
 
 export function setGlobalSyncStatus(status: GlobalSyncStatus) {
-  currentStatus = status;
-  emitChange();
+    currentStatus = status;
+    emitChange();
 }
 
 export function getGlobalSyncStatus() {
-  return currentStatus;
+    return currentStatus;
 }
 
 export function subscribeToGlobalSyncStatus(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+    listeners.add(listener);
+    return () => listeners.delete(listener);
 }
 
 export function useGlobalSyncStatus() {
-  return useSyncExternalStore(
-    subscribeToGlobalSyncStatus,
-    getGlobalSyncStatus,
-    getGlobalSyncStatus,
-  );
+    return useSyncExternalStore(
+        subscribeToGlobalSyncStatus,
+        getGlobalSyncStatus,
+        getGlobalSyncStatus
+    );
 }

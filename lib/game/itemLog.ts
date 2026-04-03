@@ -1,9 +1,4 @@
-export type TornItemSource =
-    | "item-market"
-    | "bazaar"
-    | "points-market"
-    | "museum"
-    | "attack";
+export type TornItemSource = "item-market" | "bazaar" | "points-market" | "museum" | "attack";
 
 export class TornItemLog {
     itemID: number;
@@ -29,7 +24,7 @@ export class TornItemLog {
         source: TornItemSource,
         normalAmt: number = 0,
         abroadAmt: number = 0,
-        previousLog: TornItemLog | null = null,
+        previousLog: TornItemLog | null = null
     ) {
         this.itemID = itemID;
         this.price = price;
@@ -53,18 +48,10 @@ export class TornItemLog {
         let normalAmt = this.normalAmtInput;
         let abroadAmt = this.abroadAmtInput;
 
-        const previousTotalNormalStock = previousLog
-            ? previousLog.normalTotalAmt
-            : 0;
-        const previouseNormalCostBasis = previousLog
-            ? previousLog.normalCostBasis
-            : 0;
-        const previousTotalAbroadStock = previousLog
-            ? previousLog.abroadTotalAmt
-            : 0;
-        const previousAbroadCostBasis = previousLog
-            ? previousLog.abroadCostBasis
-            : 0;
+        const previousTotalNormalStock = previousLog ? previousLog.normalTotalAmt : 0;
+        const previouseNormalCostBasis = previousLog ? previousLog.normalCostBasis : 0;
+        const previousTotalAbroadStock = previousLog ? previousLog.abroadTotalAmt : 0;
+        const previousAbroadCostBasis = previousLog ? previousLog.abroadCostBasis : 0;
 
         // Noraml Stock.
         if (normalAmt >= 0) {
@@ -72,8 +59,7 @@ export class TornItemLog {
             this.normalAmt = normalAmt;
             this.normalTotalAmt = previousTotalNormalStock + normalAmt;
             this.normalCostBasis =
-                (previouseNormalCostBasis * previousTotalNormalStock +
-                    normalAmt * this.price) /
+                (previouseNormalCostBasis * previousTotalNormalStock + normalAmt * this.price) /
                 (previousTotalNormalStock + normalAmt);
         } else {
             // Selling.
@@ -98,8 +84,7 @@ export class TornItemLog {
             this.abroadAmt = abroadAmt;
             this.abroadTotalAmt = previousTotalAbroadStock + abroadAmt;
             this.abroadCostBasis =
-                (previousAbroadCostBasis * previousTotalAbroadStock +
-                    abroadAmt * this.price) /
+                (previousAbroadCostBasis * previousTotalAbroadStock + abroadAmt * this.price) /
                 (previousTotalAbroadStock + abroadAmt);
         } else {
             // Selling.
@@ -148,7 +133,7 @@ export class TornItemLog {
             input.source,
             input.normalAmtInput,
             input.abroadAmtInput,
-            null,
+            null
         );
 
         item.normalAmt = input.normalAmt;
