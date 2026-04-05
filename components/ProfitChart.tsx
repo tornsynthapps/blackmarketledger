@@ -47,6 +47,7 @@ interface ProfitChartProps {
         museumProfit?: boolean;
         abroadProfit?: boolean;
         netProfit?: boolean;
+        realizedProfit?: boolean;
     };
 }
 
@@ -62,7 +63,7 @@ export function ProfitChart({
     accentColor = "var(--primary)",
     formatValue = (val) => `${val.toLocaleString()}`,
     stackedMode = false,
-    visibleLines = { mugLoss: true, museumProfit: true, abroadProfit: true, netProfit: true },
+    visibleLines = { mugLoss: true, museumProfit: true, abroadProfit: true, netProfit: true, realizedProfit: true },
 }: ProfitChartProps) {
     const [chartType, setChartType] = useState<"line" | "area" | "bar">(
         stackedMode ? "area" : "area"
@@ -229,38 +230,28 @@ export function ProfitChart({
                                 formatter={(value: any, name) => [
                                     formatValue(value),
                                     name === "netProfit"
-                                        ? "Net Profit"
+                                        ? "Net"
                                         : name === "realizedProfit"
-                                          ? "Base Profit"
+                                          ? "Trading"
                                           : name === "museumProfit"
-                                            ? "Museum Profit"
+                                            ? "Museum"
                                             : name === "abroadProfit"
-                                              ? "Abroad Profit"
-                                              : "Mug Loss",
+                                              ? "Abroad"
+                                              : "Mug",
                                 ]}
                             />
-                            {/* Mug Loss Area - shown as negative (red) */}
-                            {visibleLines.mugLoss && (
+                            {/* Realized Profit Area - shown as positive (green) - Base Stack */}
+                            {visibleLines.realizedProfit && (
                                 <Area
                                     type="stepAfter"
-                                    dataKey="mugLoss"
-                                    stroke="var(--danger)"
+                                    dataKey="realizedProfit"
+                                    stroke="var(--success)"
                                     strokeWidth={1.5}
-                                    fill="var(--danger)"
+                                    fill="var(--success)"
                                     fillOpacity={0.2}
                                     stackId="1"
                                 />
                             )}
-                            {/* Realized Profit Area - shown as positive (green) - Base Stack */}
-                            <Area
-                                type="stepAfter"
-                                dataKey="realizedProfit"
-                                stroke="var(--success)"
-                                strokeWidth={1.5}
-                                fill="var(--success)"
-                                fillOpacity={0.2}
-                                stackId="1"
-                            />
                             {/* Stacked Museum Area */}
                             {visibleLines.museumProfit && (
                                 <Area
@@ -282,6 +273,18 @@ export function ProfitChart({
                                     strokeWidth={1.5}
                                     fill="#14b8a6"
                                     fillOpacity={0.5}
+                                    stackId="1"
+                                />
+                            )}
+                            {/* Mug Loss Area - shown as negative (red) */}
+                            {visibleLines.mugLoss && (
+                                <Area
+                                    type="stepAfter"
+                                    dataKey="mugLoss"
+                                    stroke="var(--danger)"
+                                    strokeWidth={1.5}
+                                    fill="var(--danger)"
+                                    fillOpacity={0.2}
                                     stackId="1"
                                 />
                             )}
@@ -345,7 +348,7 @@ export function ProfitChart({
                                 }}
                                 formatter={(value: any) => [
                                     formatValue(value),
-                                    viewType === "total" ? "TOTAL PROFIT" : "PERIOD PROFIT",
+                                    viewType === "total" ? "CUMULATIVE" : "INCREMENTAL",
                                 ]}
                             />
                             <Bar dataKey="profit" fill="var(--primary)" opacity={0.8} />
@@ -413,7 +416,7 @@ export function ProfitChart({
                                 }}
                                 formatter={(value: any) => [
                                     formatValue(value),
-                                    viewType === "total" ? "TOTAL PROFIT" : "PERIOD PROFIT",
+                                    viewType === "total" ? "CUMULATIVE" : "INCREMENTAL",
                                 ]}
                             />
                             <Line
@@ -488,7 +491,7 @@ export function ProfitChart({
                                 }}
                                 formatter={(value: any) => [
                                     formatValue(value),
-                                    viewType === "total" ? "TOTAL PROFIT" : "PERIOD PROFIT",
+                                    viewType === "total" ? "CUMULATIVE" : "INCREMENTAL",
                                 ]}
                             />
                             <Area

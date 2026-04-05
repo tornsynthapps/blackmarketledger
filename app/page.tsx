@@ -92,6 +92,7 @@ export default function Home() {
     const [viewType, setViewType] = useState<"daily" | "total">("daily");
 
     // Chart toggles
+    const [includeTrading, setIncludeTrading] = useState(true);
     const [includeMuseum, setIncludeMuseum] = useState(false);
     const [includeAbroad, setIncludeAbroad] = useState(false);
     const [includeMug, setIncludeMug] = useState(true);
@@ -103,6 +104,7 @@ export default function Home() {
         if (prefs) {
             try {
                 const p = JSON.parse(prefs);
+                if (p.includeTrading !== undefined) setIncludeTrading(p.includeTrading);
                 if (p.includeMuseum !== undefined) setIncludeMuseum(p.includeMuseum);
                 if (p.includeAbroad !== undefined) setIncludeAbroad(p.includeAbroad);
                 if (p.includeMug !== undefined) setIncludeMug(p.includeMug);
@@ -119,6 +121,7 @@ export default function Home() {
             localStorage.setItem(
                 "bml-main-chart-prefs",
                 JSON.stringify({
+                    includeTrading,
                     includeMuseum,
                     includeAbroad,
                     includeMug,
@@ -128,7 +131,7 @@ export default function Home() {
                 })
             );
         }
-    }, [includeMuseum, includeAbroad, includeMug, includeNetProfit, viewType, timeRange, isLoaded]);
+    }, [includeTrading, includeMuseum, includeAbroad, includeMug, includeNetProfit, viewType, timeRange, isLoaded]);
 
     const { stats, sortedItems } = useMemo(() => {
         let profit = 0;
@@ -344,11 +347,12 @@ export default function Home() {
             const museumProfit = currentTotals.museumProfit;
             const abroadProfit = currentTotals.abroadProfit;
 
-            let baseNetProfit = currentTotals.netProfit;
+            let baseNetProfit = 0;
+            if (includeTrading) baseNetProfit += totalRealized;
             if (includeMuseum) baseNetProfit += museumProfit;
             if (includeAbroad) baseNetProfit += abroadProfit;
 
-            const netProfit = baseNetProfit;
+            const netProfit = baseNetProfit - (includeMug ? totalMugLoss : 0);
 
             // For incremental view, get period-over-period values
             const incrementalRealized = totalRealized - previousTotals.profit;
@@ -378,7 +382,7 @@ export default function Home() {
                     : 0,
             };
         });
-    }, [isLoaded, transactions, timeRange, viewType, includeMuseum, includeAbroad]);
+    }, [isLoaded, transactions, timeRange, viewType, includeTrading, includeMuseum, includeAbroad]);
 
     if (!isLoaded)
         return (
@@ -400,25 +404,6 @@ export default function Home() {
     const referenceValue = viewType === "daily" ? averageNetProfit : finalNetProfit;
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-2 border-primary pb-6">
-                <div>
-                    <h1 className="text-4xl font-black tracking-tighter uppercase font-sans leading-none">
-                        Main Dashboard
-                    </h1>
-                    <p className="text-muted mt-2 font-mono text-[10px] uppercase tracking-[0.2em] font-bold">
-                        Trading Interface / Transaction Control
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => router.push("/docs")}
-                        className="flex items-center gap-3 px-4 py-2 border-2 border-border hover:border-primary hover:text-primary transition-all font-bold text-[11px] uppercase tracking-widest bg-panel"
-                    >
-                        <HugeiconsIcon icon={Book01Icon} size={14} />
-                        <span>Documentation</span>
-                    </button>
-                </div>
-            </div>
 
             {/* Hero Section */}
             <div className="bg-panel border-2 border-primary relative overflow-hidden">
@@ -428,40 +413,19 @@ export default function Home() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-0 border-b-2 border-primary">
                     <OverviewItem
                         icon={<HugeiconsIcon icon={ArrowUp02Icon} size={18} />}
-                        label="Realized Profit"
+                        label="Trading"
                         value={formatMoney(stats.profit)}
-                        subValue="Base standard"
                         valueClass="text-success"
-                    />
-                    <OverviewItem
-                        icon={<HugeiconsIcon icon={AlertCircleIcon} size={18} />}
-                        label="Total Mug Loss"
-                        value={formatMoney(totalMugLoss)}
-                        subValue="Lost to muggers"
-                        valueClass="text-danger"
-                        disabled={!includeMug}
+                        disabled={!includeTrading}
                         onToggle={() => {
                             vibrate("utility");
-                            setIncludeMug(!includeMug);
-                        }}
-                    />
-                    <OverviewItem
-                        icon={<HugeiconsIcon icon={Activity01Icon} size={18} />}
-                        label="Net Total Profit"
-                        value={formatMoney(netTotal)}
-                        subValue="Realized - Mug"
-                        valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
-                        disabled={!includeNetProfit}
-                        onToggle={() => {
-                            vibrate("utility");
-                            setIncludeNetProfit(!includeNetProfit);
+                            setIncludeTrading(!includeTrading);
                         }}
                     />
                     <OverviewItem
                         icon={<HugeiconsIcon icon={Coins01Icon} size={18} />}
-                        label="Museum Profit"
+                        label="Museum"
                         value={formatMoney(stats.museumProfit)}
-                        subValue="Points & Sets"
                         valueClass="text-warning"
                         disabled={!includeMuseum}
                         onToggle={() => {
@@ -471,15 +435,32 @@ export default function Home() {
                     />
                     <OverviewItem
                         icon={<HugeiconsIcon icon={PackageSearchIcon} size={18} />}
-                        label="Abroad Profit"
+                        label="Abroad"
                         value={formatMoney(stats.abroadProfit)}
-                        subValue="International items"
                         valueClass="text-info"
                         disabled={!includeAbroad}
                         onToggle={() => {
                             vibrate("utility");
                             setIncludeAbroad(!includeAbroad);
                         }}
+                    />
+                    <OverviewItem
+                        icon={<HugeiconsIcon icon={AlertCircleIcon} size={18} />}
+                        label="Mug"
+                        value={formatMoney(totalMugLoss)}
+                        valueClass="text-danger"
+                        disabled={!includeMug}
+                        onToggle={() => {
+                            vibrate("utility");
+                            setIncludeMug(!includeMug);
+                        }}
+                    />
+                    <OverviewItem
+                        icon={<HugeiconsIcon icon={Activity01Icon} size={18} />}
+                        label="Net"
+                        value={formatMoney(netTotal)}
+                        valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
+                        disabled={!includeNetProfit}
                     />
                 </div>
 
@@ -501,6 +482,7 @@ export default function Home() {
                             netProfit: includeNetProfit,
                             museumProfit: includeMuseum,
                             abroadProfit: includeAbroad,
+                            realizedProfit: includeTrading,
                         }}
                     />
                 </div>
@@ -511,7 +493,7 @@ export default function Home() {
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-6 bg-primary" />
                         <h2 className="font-black text-xs uppercase tracking-[0.3em]">
-                            Inventory & Profits
+                            Inventory
                         </h2>
                     </div>
                     <div className="relative w-full sm:max-w-xs">
@@ -608,7 +590,7 @@ export default function Home() {
                                     onClick={() => handleSort("totalCost")}
                                 >
                                     <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
-                                        <span>Total Cost</span>
+                                        <span>Cost</span>
                                         {sortConfig.key === "totalCost" ? (
                                             sortConfig.direction === "asc" ? (
                                                 <HugeiconsIcon icon={ArrowUp01Icon} size={12} />
@@ -629,7 +611,7 @@ export default function Home() {
                                     onClick={() => handleSort("realizedProfit")}
                                 >
                                     <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
-                                        <span>Realized Profit</span>
+                                        <span>Trading</span>
                                         {sortConfig.key === "realizedProfit" ? (
                                             sortConfig.direction === "asc" ? (
                                                 <HugeiconsIcon icon={ArrowUp01Icon} size={12} />
@@ -805,7 +787,6 @@ function OverviewItem({
     icon,
     label,
     value,
-    subValue,
     valueClass = "",
     disabled = false,
     onToggle,
@@ -813,7 +794,6 @@ function OverviewItem({
     icon: React.ReactNode;
     label: string;
     value: string;
-    subValue: string;
     valueClass?: string;
     disabled?: boolean;
     onToggle?: () => void;
@@ -821,10 +801,10 @@ function OverviewItem({
     return (
         <div
             onClick={onToggle}
-            className={`flex flex-col gap-1 p-6 transition-all duration-300 border-r-2 last:border-r-0 border-primary/20 ${onToggle ? "cursor-pointer hover:bg-primary/5" : ""} ${disabled ? "opacity-30 grayscale" : ""}`}
+            className={`flex flex-col gap-1 p-6 transition-all duration-300 border-r-2 last:border-r-0 border-primary/20 relative ${onToggle ? "cursor-pointer hover:bg-primary/5" : ""} ${disabled ? "opacity-30 grayscale" : ""}`}
         >
             <div className="flex items-center justify-between font-mono">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em]">{label}</p>
+                <p className="text-[12px] font-black uppercase tracking-[0.2em]">{label}</p>
                 <div className={disabled ? "text-muted" : "text-primary"}>{icon}</div>
             </div>
             <p
@@ -832,15 +812,9 @@ function OverviewItem({
             >
                 {value}
             </p>
-            <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">
-                {subValue}
-            </p>
             {onToggle && !disabled && (
-                <div className="flex items-center gap-1.5 mt-4">
-                    <div className="w-2 h-2 bg-success animate-pulse" />
-                    <span className="text-[8px] font-bold text-success uppercase tracking-widest">
-                        ACTIVE_MONITOR
-                    </span>
+                <div className="absolute top-2 right-2">
+                    <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse shadow-[0_0_8px_var(--success)]" />
                 </div>
             )}
         </div>
