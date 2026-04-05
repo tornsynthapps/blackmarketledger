@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
+import { CATEGORY_COLORS } from "@/lib/theme";
 import { formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
 import { Plane, AlertCircle, ArrowRightLeft, Loader2, Check, TrendingUp, Box } from "lucide-react";
 import StatsModal from "@/components/StatsModal";
@@ -320,16 +321,10 @@ export default function AbroadDashboard() {
             className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
             style={
                 {
-                    "--primary": "#0d9488", // Emerald/Teal
+                    "--primary": CATEGORY_COLORS.abroad.hex,
                 } as React.CSSProperties
             }
         >
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Abroad Tracking</h1>
-                <p className="text-foreground/60 mt-2">
-                    Manage items purchased internationally and track their separate cost basis.
-                </p>
-            </div>
 
             {/* Config warning */}
             {(!weav3rApiKey || !weav3rUserId) && (
@@ -413,7 +408,7 @@ export default function AbroadDashboard() {
                         timeRange={timeRange}
                         setTimeRange={setTimeRange}
                         referenceValue={referenceValue}
-                        primaryColor="#0d9488"
+                        primaryColor={CATEGORY_COLORS.abroad.hex}
                         formatValue={formatMoney}
                     />
                 </div>

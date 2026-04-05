@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
+import { CATEGORY_COLORS } from "@/lib/theme";
 import {
     format,
     subDays,
@@ -134,8 +135,8 @@ export default function Home() {
     }, [includeTrading, includeMuseum, includeAbroad, includeMug, includeNetProfit, viewType, timeRange, isLoaded]);
 
     const { stats, sortedItems } = useMemo(() => {
-        let profit = 0;
-        let invValue = 0;
+        let tradingProfit = 0;
+        let totalInvValue = 0;
         let museumProfit = 0;
         let abroadProfit = 0;
         const items: { name: string; stats: any }[] = [];
@@ -149,16 +150,16 @@ export default function Home() {
             if (isMuseum) {
                 museumProfit += stat.realizedProfit;
                 if (includeMuseum) {
-                    profit += stat.realizedProfit;
-                    invValue += Math.max(0, stat.totalCost);
                     items.push({ name, stats: stat });
+                    totalInvValue += Math.max(0, stat.totalCost);
                 }
             } else {
+                tradingProfit += stat.realizedProfit;
+                abroadProfit += stat.abroadRealizedProfit;
+
                 let itemProfit = stat.realizedProfit;
                 let itemValue = Math.max(0, stat.totalCost);
                 let itemStock = stat.stock;
-
-                abroadProfit += stat.abroadRealizedProfit;
 
                 if (includeAbroad) {
                     itemProfit += stat.abroadRealizedProfit;
@@ -166,26 +167,24 @@ export default function Home() {
                     itemStock += stat.abroadStock;
                 }
 
-                profit += itemProfit;
-                invValue += itemValue;
-                items.push({
-                    name,
-                    stats: {
-                        ...stat,
-                        realizedProfit: itemProfit,
-                        totalCost: itemValue,
-                        stock: itemStock,
-                    },
-                });
+                if (includeTrading) {
+                    items.push({
+                        name,
+                        stats: {
+                            ...stat,
+                            realizedProfit: itemProfit,
+                            totalCost: itemValue,
+                            stock: itemStock,
+                        },
+                    });
+                    totalInvValue += itemValue;
+                }
             }
         });
 
-        let filtered = items;
-        if (search.trim()) {
-            filtered = items.filter((item) =>
-                item.name.toLowerCase().includes(search.toLowerCase())
-            );
-        }
+        const filtered = items.filter((item) =>
+            item.name.toLowerCase().includes(search.toLowerCase())
+        );
 
         const sorted = filtered.sort((a, b) => {
             let aVal: number | string;
@@ -208,10 +207,15 @@ export default function Home() {
         });
 
         return {
-            stats: { profit, invValue, museumProfit, abroadProfit },
+            stats: {
+                profit: tradingProfit,
+                inventory: totalInvValue,
+                museumProfit,
+                abroadProfit,
+            },
             sortedItems: sorted,
         };
-    }, [inventory, sortConfig, search]);
+    }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad]);
 
     const totalPages = Math.ceil(sortedItems.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -245,7 +249,7 @@ export default function Home() {
         setModalState({ isOpen: false, title: "", statType: "profit" });
     };
 
-    const netTotal = stats.profit - totalMugLoss;
+    const netTotal = stats.profit + stats.museumProfit + stats.abroadProfit - totalMugLoss;
 
     const itemIdByName = useMemo(() => {
         const map = new Map<string, number>();
@@ -382,7 +386,7 @@ export default function Home() {
                     : 0,
             };
         });
-    }, [isLoaded, transactions, timeRange, viewType, includeTrading, includeMuseum, includeAbroad]);
+    }, [isLoaded, transactions, timeRange, viewType, includeTrading, includeMuseum, includeAbroad, includeMug]);
 
     if (!isLoaded)
         return (
@@ -415,7 +419,7 @@ export default function Home() {
                         icon={<HugeiconsIcon icon={ArrowUp02Icon} size={18} />}
                         label="Trading"
                         value={formatMoney(stats.profit)}
-                        valueClass="text-success"
+                        color={CATEGORY_COLORS.trading.hex}
                         disabled={!includeTrading}
                         onToggle={() => {
                             vibrate("utility");
@@ -426,7 +430,7 @@ export default function Home() {
                         icon={<HugeiconsIcon icon={Coins01Icon} size={18} />}
                         label="Museum"
                         value={formatMoney(stats.museumProfit)}
-                        valueClass="text-warning"
+                        color={CATEGORY_COLORS.museum.hex}
                         disabled={!includeMuseum}
                         onToggle={() => {
                             vibrate("utility");
@@ -437,7 +441,7 @@ export default function Home() {
                         icon={<HugeiconsIcon icon={PackageSearchIcon} size={18} />}
                         label="Abroad"
                         value={formatMoney(stats.abroadProfit)}
-                        valueClass="text-info"
+                        color={CATEGORY_COLORS.abroad.hex}
                         disabled={!includeAbroad}
                         onToggle={() => {
                             vibrate("utility");
@@ -448,7 +452,7 @@ export default function Home() {
                         icon={<HugeiconsIcon icon={AlertCircleIcon} size={18} />}
                         label="Mug"
                         value={formatMoney(totalMugLoss)}
-                        valueClass="text-danger"
+                        color={CATEGORY_COLORS.mug.hex}
                         disabled={!includeMug}
                         onToggle={() => {
                             vibrate("utility");
@@ -459,7 +463,7 @@ export default function Home() {
                         icon={<HugeiconsIcon icon={Activity01Icon} size={18} />}
                         label="Net"
                         value={formatMoney(netTotal)}
-                        valueClass={netTotal >= 0 ? "text-success" : "text-danger"}
+                        color={netTotal >= 0 ? CATEGORY_COLORS.net.hex : CATEGORY_COLORS.mug.hex}
                         disabled={!includeNetProfit}
                     />
                 </div>
@@ -787,14 +791,14 @@ function OverviewItem({
     icon,
     label,
     value,
-    valueClass = "",
+    color,
     disabled = false,
     onToggle,
 }: {
     icon: React.ReactNode;
     label: string;
     value: string;
-    valueClass?: string;
+    color: string;
     disabled?: boolean;
     onToggle?: () => void;
 }) {
@@ -808,13 +812,17 @@ function OverviewItem({
                 <div className={disabled ? "text-muted" : "text-primary"}>{icon}</div>
             </div>
             <p
-                className={`text-2xl font-black tracking-tighter mt-2 leading-none truncate ${disabled ? "text-foreground" : valueClass}`}
+                className={`text-2xl font-black tracking-tighter mt-2 leading-none truncate ${disabled ? "text-foreground" : ""}`}
+                style={{ color: disabled ? undefined : color }}
             >
                 {value}
             </p>
             {onToggle && !disabled && (
                 <div className="absolute top-2 right-2">
-                    <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse shadow-[0_0_8px_var(--success)]" />
+                    <div
+                        className="w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"
+                        style={{ backgroundColor: "#22c55e" }}
+                    />
                 </div>
             )}
         </div>

@@ -1001,7 +1001,7 @@ export function useJournal() {
         totalMugLoss,
         totalItemRealizedProfit,
         totalInventoryValue,
-        netTotalProfit: totalItemRealizedProfit - totalMugLoss,
+        netTotalProfit: totalItemRealizedProfit + totalAbroadRealizedProfit - totalMugLoss,
         weav3rApiKey,
         weav3rUserId,
         driveApiKey,

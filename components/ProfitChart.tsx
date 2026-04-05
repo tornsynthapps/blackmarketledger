@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Activity01Icon, Layers01Icon, BarChartIcon } from "@hugeicons/core-free-icons";
+import { CATEGORY_COLORS } from "@/lib/theme";
 
 interface ChartDataPoint {
     date: string;
@@ -240,14 +241,14 @@ export function ProfitChart({
                                               : "Mug",
                                 ]}
                             />
-                            {/* Realized Profit Area - shown as positive (green) - Base Stack */}
+                            {/* Realized Profit Area - shown as positive (purple) - Base Stack */}
                             {visibleLines.realizedProfit && (
                                 <Area
                                     type="stepAfter"
                                     dataKey="realizedProfit"
-                                    stroke="var(--success)"
+                                    stroke={CATEGORY_COLORS.trading.hex}
                                     strokeWidth={1.5}
-                                    fill="var(--success)"
+                                    fill={CATEGORY_COLORS.trading.hex}
                                     fillOpacity={0.2}
                                     stackId="1"
                                 />
@@ -257,9 +258,9 @@ export function ProfitChart({
                                 <Area
                                     type="stepAfter"
                                     dataKey="museumProfit"
-                                    stroke="#eab308"
+                                    stroke={CATEGORY_COLORS.museum.hex}
                                     strokeWidth={1.5}
-                                    fill="#eab308"
+                                    fill={CATEGORY_COLORS.museum.hex}
                                     fillOpacity={0.5}
                                     stackId="1"
                                 />
@@ -269,9 +270,9 @@ export function ProfitChart({
                                 <Area
                                     type="stepAfter"
                                     dataKey="abroadProfit"
-                                    stroke="#14b8a6"
+                                    stroke={CATEGORY_COLORS.abroad.hex}
                                     strokeWidth={1.5}
-                                    fill="#14b8a6"
+                                    fill={CATEGORY_COLORS.abroad.hex}
                                     fillOpacity={0.5}
                                     stackId="1"
                                 />
@@ -281,9 +282,9 @@ export function ProfitChart({
                                 <Area
                                     type="stepAfter"
                                     dataKey="mugLoss"
-                                    stroke="var(--danger)"
+                                    stroke={CATEGORY_COLORS.mug.hex}
                                     strokeWidth={1.5}
-                                    fill="var(--danger)"
+                                    fill={CATEGORY_COLORS.mug.hex}
                                     fillOpacity={0.2}
                                     stackId="1"
                                 />
@@ -296,7 +297,7 @@ export function ProfitChart({
                                     stroke="var(--foreground)"
                                     strokeWidth={2}
                                     dot={false}
-                                    activeDot={{ r: 4, strokeWidth: 0, fill: "var(--primary)" }}
+                                    activeDot={{ r: 4, strokeWidth: 0, fill: CATEGORY_COLORS.net.hex }}
                                 />
                             )}
                         </AreaChart>

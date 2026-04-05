@@ -191,6 +191,6 @@ export const getTotals = (
         museumProfit,
         museumInventory,
         mugLoss: totalMugLoss,
-        netProfit: profit - totalMugLoss,
+        netProfit: profit + museumProfit + abroadProfit - totalMugLoss,
     };
 };

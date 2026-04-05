@@ -1,6 +1,8 @@
 "use client";
 
-import { useJournal, InventoryItemStats } from "@/store/useJournal";
+import { useJournal } from "@/store/useJournal";
+import { InventoryItemStats } from "@/lib/interfaces/transactions";
+import { CATEGORY_COLORS } from "@/lib/theme";
 import {
     TrendingUp,
     Package,
@@ -393,24 +395,10 @@ export default function MuseumDashboard() {
             className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10"
             style={
                 {
-                    "--primary": "#f59e0b", // Amber
+                    "--primary": CATEGORY_COLORS.museum.hex,
                 } as React.CSSProperties
             }
         >
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-primary">
-                        Museum Dashboard
-                    </h1>
-                    <p className="text-foreground/60 mt-2">
-                        Specialized tracking for points conversions, item sets, and market
-                        economics.
-                    </p>
-                </div>
-                <div className="hidden sm:flex items-center justify-center p-3 bg-primary/10 rounded-2xl border border-primary/20">
-                    <Box className="w-8 h-8 text-primary shadow-[0_0_15px_-3px_#f59e0b20]" />
-                </div>
-            </div>
 
             {/* Hero Section: 1/3 Stats List - 2/3 Chart (always visible) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-panel rounded-3xl border border-border shadow-2xl p-8 relative overflow-hidden group">
@@ -497,7 +485,7 @@ export default function MuseumDashboard() {
                         timeRange={timeRange}
                         setTimeRange={setTimeRange}
                         referenceValue={referenceValue}
-                        primaryColor="#f59e0b"
+                        primaryColor={CATEGORY_COLORS.museum.hex}
                         formatValue={formatMoney}
                     />
                 </div>
