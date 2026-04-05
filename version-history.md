@@ -1,5 +1,10 @@
 # BlackMarket Ledger Version History
 
+## v5.0.3 (2026-04-05)
+
+- **Theme Color Tracker**: Created a centralized theme color tracker.
+- **Dashboard Chart**: Updated Dashboard Charts to be more compact, repositioned items, and renamed the titles.
+
 ## v5.0.2 (2026-04-02)
 
 - **Unsupported Trade Item Handling**: Updated trade linking not to fast-fail when unsupported item is found.
