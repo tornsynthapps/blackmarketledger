@@ -11,6 +11,7 @@ import {
     getTornApiRateLimit,
     getWeav3rApiRateLimit,
 } from "./api-keys";
+import { getStoredAuth, isAuthenticated as isTokenAuthenticated } from "./token-auth";
 
 export function useAuth() {
     const weav3rApiKey = useSyncExternalStore(subscribeToApiKeys, getApiKey, () => "");
@@ -33,6 +34,9 @@ export function useAuth() {
         () => 60
     );
 
+    const tokenAuth = getStoredAuth();
+    const isTokenAuth = isTokenAuthenticated();
+
     return {
         weav3rApiKey,
         weav3rUserId,
@@ -40,5 +44,8 @@ export function useAuth() {
         tornApiKeyFull,
         tornApiRateLimit,
         weav3rApiRateLimit,
+        tokenUserId: tokenAuth?.userId ?? "",
+        tokenUsername: tokenAuth?.username ?? "",
+        isTokenAuthenticated: isTokenAuth,
     };
 }
