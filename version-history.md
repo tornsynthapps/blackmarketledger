@@ -1,5 +1,12 @@
 # BlackMarket Ledger Version History
 
+## v5.1.2 (2026-04-06)
+
+- **Documentation Layout**: Removed global navigation and footer from documentation pages for a more focused experience.
+- **Navigation Enhancements**: Integrated a new industrial-style documentation sidebar with a "Back to App" link and consolidated footer links.
+- **Sidebar UX**: Redesigned documentation navigation to be fixed and non-scrollable with improved typography.
+- **Code Structure**: Implemented `LayoutWrapper` for cleaner conditional UI rendering across different page types.
+
 ## v5.1.1 (2026-04-06)
 
 - **Abroad Synchronization**: Fixed a calculation bug in `lib/chartUtils.ts` where museum items (Flowers/Plushies) were excluded from abroad totals, ensuring accurate charts on the Abroad page.
