@@ -181,7 +181,6 @@ function LogsPageContent() {
     const groupID = searchParams.get("groupID");
 
     const [search, setSearch] = useState(filterItem || "");
-    const [showLinkedIds, setShowLinkedIds] = useState(false);
     const [isRefreshingDrive, setIsRefreshingDrive] = useState(false);
     const [selectionMode, setSelectionMode] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -216,7 +215,10 @@ function LogsPageContent() {
     const visibleLogs = useMemo(() => {
         if (groupID) {
             return transactions.filter(
-                (transaction) => "groupID" in transaction && transaction.groupID === groupID
+                (transaction) =>
+                    "groupID" in transaction &&
+                    transaction.groupID === groupID &&
+                    transaction.id !== groupID
             );
         }
 
@@ -248,9 +250,9 @@ function LogsPageContent() {
                 const numericItemID = Number(filterItemID);
                 const wrapperMatchesItem = isWrapperTransaction(t)
                     ? t.itemID === numericItemID ||
-                      t.wrappedTransactionIDs.some((childId) => {
+                      (t.wrappedTransactionIDs || []).some((childId) => {
                           const child = transactionMap.get(childId);
-                          return isNewConcreteTransaction(child as DisplayTransaction)
+                          return child && isNewConcreteTransaction(child)
                               ? child.itemID === numericItemID
                               : false;
                       })
@@ -268,60 +270,47 @@ function LogsPageContent() {
             if (isWrapperTransaction(t)) {
                 return Boolean(
                     t.wrapperType.toLowerCase().includes(term) ||
-                    t.description?.toLowerCase().includes(term) ||
-                    t.partnerName?.toLowerCase().includes(term) ||
-                    t.partnerID?.toLowerCase().includes(term) ||
-                    t.receiptID?.toLowerCase().includes(term) ||
-                    (showLinkedIds &&
-                        (t.tornID?.toLowerCase().includes(term) ||
-                            t.tradeID?.toLowerCase().includes(term) ||
-                            t.id.toLowerCase().includes(term)))
+                        t.description?.toLowerCase().includes(term) ||
+                        t.partnerName?.toLowerCase().includes(term) ||
+                        t.partnerID?.toLowerCase().includes(term) ||
+                        t.receiptID?.toLowerCase().includes(term)
                 );
             }
 
             if (isNewConcreteTransaction(t)) {
                 if (t.description?.toLowerCase().includes(term)) return true;
-                if ((t.itemName || "").toLowerCase().includes(term)) return true;
-                if (t.stockType.toLowerCase().includes(term)) return true;
-                if (!showLinkedIds) return false;
-                return Boolean(
-                    t.tornID?.toLowerCase().includes(term) ||
-                    t.tradeID?.toLowerCase().includes(term)
-                );
+                return (t.itemName || "").toLowerCase().includes(term);
             }
 
             if (isNewMugTransaction(t)) {
                 if ("mug".includes(term)) return true;
-                if (t.description?.toLowerCase().includes(term)) return true;
-                if (!showLinkedIds) return false;
-                return Boolean(
-                    t.tornID?.toLowerCase().includes(term) ||
-                    t.tradeID?.toLowerCase().includes(term)
-                );
+                return t.description?.toLowerCase().includes(term) || false;
             }
 
-            if (t.type === "MUG") return "mug".includes(term);
-            if (t.type === "CONVERT")
-                return (
-                    t.fromItem.toLowerCase().includes(term) || t.toItem.toLowerCase().includes(term)
-                );
-            if (t.type === "SET_CONVERT") {
-                const definition = getMuseumExchangeDefinition(t.setType);
-                if (
-                    definition.label.toLowerCase().includes(term) ||
-                    `${definition.label.toLowerCase()} set`.includes(term) ||
-                    "set point".includes(term)
-                )
-                    return true;
-                return definition.items.some((item) => item.itemName.toLowerCase().includes(term));
+            if (isLegacyTransaction(t)) {
+                const legacy = t as LegacyTransaction;
+                if (legacy.type === "MUG") return "mug".includes(term);
+                if (legacy.type === "CONVERT")
+                    return (
+                        legacy.fromItem.toLowerCase().includes(term) ||
+                        legacy.toItem.toLowerCase().includes(term)
+                    );
+                if (legacy.type === "SET_CONVERT") {
+                    const definition = getMuseumExchangeDefinition(legacy.setType);
+                    if (
+                        definition.label.toLowerCase().includes(term) ||
+                        `${definition.label.toLowerCase()} set`.includes(term) ||
+                        "set point".includes(term)
+                    )
+                        return true;
+                    return definition.items.some((item) =>
+                        item.itemName.toLowerCase().includes(term)
+                    );
+                }
+                return legacy.item.toLowerCase().includes(term);
             }
-            if (t.item.toLowerCase().includes(term)) return true;
-            if (!showLinkedIds) return false;
-            return Boolean(
-                t.tornLogId?.toLowerCase().includes(term) ||
-                t.tradeGroupId?.toLowerCase().includes(term) ||
-                t.weav3rReceiptId?.toLowerCase().includes(term)
-            );
+
+            return false;
         })
         .sort((a, b) => {
             if (groupID) {
@@ -452,16 +441,19 @@ function LogsPageContent() {
             return `${getDisplayItemName(t)} • ${direction} ${Math.abs(t.amount).toLocaleString()} • ${t.stockType}`;
         }
 
-        if (t.type === "BUY" || t.type === "SELL") {
-            return `${t.type} ${t.amount.toLocaleString()}x ${formatItemName(t.item)}`;
+        if (isLegacyTransaction(t)) {
+            if (t.type === "BUY" || t.type === "SELL") {
+                return `${t.type} ${t.amount.toLocaleString()}x ${formatItemName(t.item)}`;
+            }
+            if (t.type === "CONVERT") {
+                return `${formatItemName(t.fromItem)} → ${formatItemName(t.toItem)}`;
+            }
+            if (t.type === "SET_CONVERT") {
+                const definition = getMuseumExchangeDefinition(t.setType);
+                return `${t.times}x ${definition.label}${definition.isSet ? " set" : ""}`;
+            }
         }
-        if (t.type === "CONVERT") {
-            return `${formatItemName(t.fromItem)} → ${formatItemName(t.toItem)}`;
-        }
-        if (t.type === "SET_CONVERT") {
-            const definition = getMuseumExchangeDefinition(t.setType);
-            return `${t.times}x ${definition.label}${definition.isSet ? " set" : ""}`;
-        }
+
         return "Mug loss";
     };
 
@@ -475,37 +467,25 @@ function LogsPageContent() {
         return (
             <tr
                 key={t.id}
-                className={`hover:bg-foreground/[0.02] transition-colors border-b border-border/50 ${isSelected ? "bg-primary/5" : ""} ${isWrapper ? "cursor-pointer" : ""} ${isSkipRow ? "opacity-60" : ""}`}
+                className={`hover:bg-foreground/[0.02] transition-colors border-b border-border/50 ${isSelected ? "bg-primary/5" : ""} ${isWrapper || selectionMode ? "cursor-pointer" : ""} ${isSkipRow ? "opacity-60" : ""}`}
                 onClick={() => {
-                    if (!isWrapper || selectionMode) return;
+                    if (selectionMode) {
+                        vibrate("utility");
+                        toggleSelection(t.id);
+                        return;
+                    }
+                    if (!isWrapper) return;
                     const params = new URLSearchParams(searchParams.toString());
                     params.set("groupID", t.id);
                     router.push(`/logs?${params.toString()}`);
                 }}
             >
-                {selectionMode && (
-                    <td className="px-4 py-4">
-                        <button
-                            onClick={() => {
-                                vibrate("utility");
-                                toggleSelection(t.id);
-                            }}
-                            className="p-1 rounded hover:bg-foreground/10 transition-colors"
-                        >
-                            {isSelected ? (
-                                <HugeiconsIcon icon={Tick01Icon} size={16} className="text-primary" />
-                            ) : (
-                                <HugeiconsIcon icon={Square01Icon} size={16} className="text-foreground/40" />
-                            )}
-                        </button>
-                    </td>
-                )}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/70">
                     {format(new Date(date), "MMM d, yyyy HH:mm")}
                 </td>
                 <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                        {isWrapper && (
+                        {isWrapperTransaction(t) && (
                             <span className="text-violet-700 font-medium bg-violet-500/10 px-2 py-1 rounded text-xs tracking-wider">
                                 {t.wrapperType.toUpperCase()}
                             </span>
@@ -569,46 +549,25 @@ function LogsPageContent() {
                 </td>
                 <td className="px-6 py-4">
                     <div className="font-medium">
-                        {isWrapper
+                        {isWrapperTransaction(t)
                             ? t.description || `${t.wrapperType} wrapper`
                             : getDisplayItemName(t)}
                     </div>
-                    {(sourceLabel ||
-                        (showLinkedIds &&
-                            (isLegacyTransaction(t)
-                                ? t.tornLogId || t.tradeGroupId || t.weav3rReceiptId
-                                : t.tornID || t.tradeID))) && (
+                    {sourceLabel && (
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-foreground/50">
-                            {sourceLabel && (
-                                <span className="rounded-full border border-border px-2 py-0.5 font-semibold uppercase tracking-wider">
-                                    {sourceLabel}
-                                </span>
-                            )}
-                            {showLinkedIds && isLegacyTransaction(t) && t.tornLogId && (
-                                <span>Torn: {t.tornLogId}</span>
-                            )}
-                            {showLinkedIds && isLegacyTransaction(t) && t.tradeGroupId && (
-                                <span>Trade: {t.tradeGroupId}</span>
-                            )}
-                            {showLinkedIds && isLegacyTransaction(t) && t.weav3rReceiptId && (
-                                <span>Receipt: {t.weav3rReceiptId}</span>
-                            )}
-                            {showLinkedIds && !isLegacyTransaction(t) && t.tornID && (
-                                <span>Torn: {t.tornID}</span>
-                            )}
-                            {showLinkedIds && !isLegacyTransaction(t) && t.tradeID && (
-                                <span>Trade: {t.tradeID}</span>
-                            )}
+                            <span className="rounded-full border border-border px-2 py-0.5 font-semibold uppercase tracking-wider">
+                                {sourceLabel}
+                            </span>
                         </div>
                     )}
-                    {isWrapper && t.wrapperType === "trade" && (
+                    {isWrapper && t.wrapperType === "trade" && !t.description && (
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-foreground/50">
                             {getTradeWrapperMeta(t).map((part) => (
                                 <span key={`${t.id}:${part}`}>{part}</span>
                             ))}
                         </div>
                     )}
-                    {isWrapper && (
+                    {isWrapperTransaction(t) && (
                         <div className="mt-1 text-[11px] text-foreground/50">
                             {groupID
                                 ? `${t.wrappedTransactionIDs.length} wrapped transaction${t.wrappedTransactionIDs.length === 1 ? "" : "s"} in this group`
@@ -617,7 +576,7 @@ function LogsPageContent() {
                     )}
                 </td>
                 <td className="px-6 py-4 text-right">
-                    {isWrapper ? `${t.wrappedTransactionIDs.length} txns` : ""}
+                    {isWrapperTransaction(t) ? `${t.wrappedTransactionIDs.length} txns` : ""}
                     {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL")
                         ? t.amount.toLocaleString()
                         : ""}
@@ -629,15 +588,50 @@ function LogsPageContent() {
                     {isNewMugTransaction(t) ? "-" : ""}
                 </td>
                 <td className="px-6 py-4 text-right">
-                    {isWrapper && t.price !== null ? `$${t.price.toLocaleString()}` : ""}
-                    {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL")
-                        ? `$${t.price.toLocaleString()}`
-                        : ""}
-                    {isLegacyTransaction(t) && t.type === "MUG"
-                        ? `-$${t.amount.toLocaleString()}`
-                        : ""}
-                    {isNewConcreteTransaction(t) ? `$${t.price.toLocaleString()}` : ""}
-                    {isNewMugTransaction(t) ? `-$${t.amount.toLocaleString()}` : ""}
+                    <div className="flex flex-col items-end">
+                        <div className="font-medium text-foreground">
+                            {isWrapperTransaction(t) && t.price !== null
+                                ? `$${t.price.toLocaleString()}`
+                                : ""}
+                            {isLegacyTransaction(t) && (t.type === "BUY" || t.type === "SELL")
+                                ? `$${t.price.toLocaleString()}`
+                                : ""}
+                            {isLegacyTransaction(t) && t.type === "MUG"
+                                ? `-$${t.amount.toLocaleString()}`
+                                : ""}
+                            {isNewConcreteTransaction(t) ? `$${t.price.toLocaleString()}` : ""}
+                            {isNewMugTransaction(t) ? `-$${t.amount.toLocaleString()}` : ""}
+                        </div>
+                        {(() => {
+                            let profitValue = 0;
+                            let hasSell = false;
+
+                            if (isNewConcreteTransaction(t) && t.amount < 0) {
+                                hasSell = true;
+                                profitValue = (t.price - (t.currentCostBasis || 0)) * Math.abs(t.amount);
+                            } else if (isWrapper) {
+                                t.wrappedTransactionIDs.forEach((childId) => {
+                                    const child = transactionMap.get(childId);
+                                    if (child && isNewConcreteTransaction(child) && child.amount < 0) {
+                                        hasSell = true;
+                                        profitValue +=
+                                            (child.price - (child.currentCostBasis || 0)) *
+                                            Math.abs(child.amount);
+                                    }
+                                });
+                            }
+
+                            if (!hasSell) return null;
+
+                            return (
+                                <div
+                                    className={`text-[12px] font-bold tracking-tight ${profitValue >= 0 ? "text-green-500/80" : "text-red-500/80"}`}
+                                >
+                                    {profitValue >= 0 ? "+" : "-"}${Math.abs(profitValue).toLocaleString()}
+                                </div>
+                            );
+                        })()}
+                    </div>
                 </td>
                 <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 items-center">
@@ -808,15 +802,6 @@ function LogsPageContent() {
                             : "No Transactions"}
                     </h2>
                     <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 text-xs text-foreground/60">
-                            <input
-                                type="checkbox"
-                                checked={showLinkedIds}
-                                onChange={(event) => setShowLinkedIds(event.target.checked)}
-                                className="rounded border-border"
-                            />
-                            Show Linked IDs
-                        </label>
                         <div className="relative w-64">
                             <HugeiconsIcon
                                 icon={Search01Icon}
@@ -825,9 +810,7 @@ function LogsPageContent() {
                             />
                             <input
                                 type="text"
-                                placeholder={
-                                    showLinkedIds ? "Search items or IDs..." : "Search items..."
-                                }
+                                placeholder="Search items..."
                                 value={search}
                                 onChange={(e) => {
                                     if (!search && e.target.value) {
@@ -846,24 +829,6 @@ function LogsPageContent() {
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs uppercase text-foreground/60 bg-foreground/5 sticky top-0 z-10">
                             <tr>
-                                {selectionMode && (
-                                    <th className="px-4 py-4">
-                                        <button
-                                            onClick={() => {
-                                                vibrate("utility");
-                                                toggleSelectAll();
-                                            }}
-                                            className="p-1 rounded hover:bg-foreground/10 transition-colors"
-                                        >
-                                            {selectedIds.size === filteredLogs.length &&
-                                            filteredLogs.length > 0 ? (
-                                                <HugeiconsIcon icon={Tick01Icon} size={16} className="text-primary" />
-                                            ) : (
-                                                <HugeiconsIcon icon={Square01Icon} size={16} className="text-foreground/40" />
-                                            )}
-                                        </button>
-                                    </th>
-                                )}
                                 <th className="px-6 py-4">Date</th>
                                 <th className="px-6 py-4">Action</th>
                                 <th className="px-6 py-4">Item</th>
@@ -876,7 +841,7 @@ function LogsPageContent() {
                             {filteredLogs.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={selectionMode ? 7 : 6}
+                                        colSpan={6}
                                         className="px-6 py-12 text-center text-foreground/50 italic"
                                     >
                                         No logs found matching your criteria.

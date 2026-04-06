@@ -114,6 +114,13 @@ export default function Home() {
                 if (p.timeRange !== undefined) setTimeRange(p.timeRange);
             } catch (e) {}
         }
+
+        const sortPref = localStorage.getItem("bml-inventory-sort-pref");
+        if (sortPref) {
+            try {
+                setSortConfig(JSON.parse(sortPref));
+            } catch (e) {}
+        }
     }, []);
 
     // Save prefs
@@ -133,6 +140,12 @@ export default function Home() {
             );
         }
     }, [includeTrading, includeMuseum, includeAbroad, includeMug, includeNetProfit, viewType, timeRange, isLoaded]);
+
+    useEffect(() => {
+        if (isLoaded) {
+            localStorage.setItem("bml-inventory-sort-pref", JSON.stringify(sortConfig));
+        }
+    }, [sortConfig, isLoaded]);
 
     const { stats, sortedItems } = useMemo(() => {
         let tradingProfit = 0;
@@ -523,11 +536,11 @@ export default function Home() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm border-collapse">
+                    <table className="w-full text-left text-sm border-collapse table-fixed">
                         <thead className="bg-foreground/[0.02]">
                             <tr>
                                 <th
-                                    className="px-6 py-4 cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
+                                    className="w-[35%] px-6 py-4 cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
                                     onClick={() => handleSort("name")}
                                 >
                                     <div className="flex items-center gap-2 uppercase font-black tracking-widest">
@@ -548,7 +561,7 @@ export default function Home() {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
+                                    className="w-[15%] px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
                                     onClick={() => handleSort("stock")}
                                 >
                                     <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
@@ -569,7 +582,7 @@ export default function Home() {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
+                                    className="w-[15%] px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
                                     onClick={() => handleSort("avgCost")}
                                 >
                                     <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
@@ -590,7 +603,7 @@ export default function Home() {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
+                                    className="w-[15%] px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
                                     onClick={() => handleSort("totalCost")}
                                 >
                                     <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
@@ -611,7 +624,7 @@ export default function Home() {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
+                                    className="w-[15%] px-6 py-4 text-right cursor-pointer hover:bg-foreground/5 border-b-2 border-border"
                                     onClick={() => handleSort("realizedProfit")}
                                 >
                                     <div className="flex items-center justify-end gap-2 uppercase font-black tracking-widest">
@@ -631,7 +644,7 @@ export default function Home() {
                                         )}
                                     </div>
                                 </th>
-                                <th className="px-6 py-4 border-b-2 border-border"></th>
+                                <th className="w-[5%] px-6 py-4 border-b-2 border-border"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y-2 divide-border/50">

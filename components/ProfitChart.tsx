@@ -118,14 +118,6 @@ export function ProfitChart({
                                 className={`h-3 w-3 transition-all ${viewType === "total" ? "translate-x-6 bg-primary" : "translate-x-0 bg-foreground/40"}`}
                             />
                         </div>
-                        <div>
-                            <p className="text-xs font-bold tracking-tight uppercase">
-                                {viewType === "total" ? "Cumulative" : "Incremental"}
-                            </p>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-foreground/30">
-                                {viewType === "total" ? "Total to date" : "Daily gains"}
-                            </p>
-                        </div>
                     </div>
 
                     {/* Reference Value Stat */}

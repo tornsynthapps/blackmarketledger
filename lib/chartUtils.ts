@@ -178,9 +178,13 @@ export const getTotals = (
         } else {
             profit += item.realizedProfit;
             inventoryVal += Math.max(0, item.totalCost);
-            abroadProfit += item.abroadRealizedProfit;
-            abroadInventory += Math.max(0, item.abroadTotalCost);
         }
+
+        // Abroad profit and inventory should be tracked for all items, 
+        // including those that might be considered "museum" items (flowers/plushies)
+        // if they were bought abroad.
+        abroadProfit += item.abroadRealizedProfit;
+        abroadInventory += Math.max(0, item.abroadTotalCost);
     });
 
     return {
