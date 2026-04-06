@@ -145,109 +145,123 @@ export default function MigrationPage() {
                     </div>
                 </div>
 
-                <div className="bg-foreground/[0.02] border border-border p-4 rounded-xl mt-4">
-                    <div className="flex justify-between items-center mb-6 border-b border-border/50 pb-4">
-                        <span className="font-semibold text-foreground/80">
-                            Available Unused Flushies:
-                        </span>
-                        <span className="text-xl font-bold text-primary">
-                            {flushieStock.toLocaleString()}
-                        </span>
-                    </div>
-
-                    <div className="space-y-6 mb-6">
-                        <div>
-                            <h3 className="font-medium mb-3">Flowers</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                {FLOWER_SET.map((flower) => (
-                                    <div
-                                        key={flower}
-                                        className="bg-background border border-border rounded-lg p-2 flex flex-col gap-1 text-sm"
-                                    >
-                                        <label
-                                            className="text-foreground/80 truncate text-xs"
-                                            title={formatItemName(flower)}
-                                        >
-                                            {formatItemName(flower)}
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={itemCounts[flower] || ""}
-                                            onChange={(e) =>
-                                                setItemCounts((prev) => ({
-                                                    ...prev,
-                                                    [flower]: parseInt(e.target.value) || 0,
-                                                }))
-                                            }
-                                            className="w-full px-2 py-1 bg-background border border-border/50 rounded focus:ring-1 focus:ring-primary/50 focus:outline-none"
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h3 className="font-medium mb-3">Plushies</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                {PLUSHIE_SET.map((plushie) => (
-                                    <div
-                                        key={plushie}
-                                        className="bg-background border border-border rounded-lg p-2 flex flex-col gap-1 text-sm"
-                                    >
-                                        <label
-                                            className="text-foreground/80 truncate text-xs"
-                                            title={formatItemName(plushie)}
-                                        >
-                                            {formatItemName(plushie)}
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={itemCounts[plushie] || ""}
-                                            onChange={(e) =>
-                                                setItemCounts((prev) => ({
-                                                    ...prev,
-                                                    [plushie]: parseInt(e.target.value) || 0,
-                                                }))
-                                            }
-                                            className="w-full px-2 py-1 bg-background border border-border/50 rounded focus:ring-1 focus:ring-primary/50 focus:outline-none"
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-2 pt-4 border-t border-border/50">
-                        <div className="text-sm">
-                            <span className="text-foreground/60">Total Required: </span>
-                            <span
-                                className={`font-semibold ${requiredFlushies > flushieStock ? "text-danger" : "text-foreground"}`}
-                            >
-                                {requiredFlushies.toLocaleString()} flushies
+                {flushieStock > 0 ? (
+                    <div className="bg-foreground/[0.02] border border-border p-4 rounded-xl mt-4">
+                        <div className="flex justify-between items-center mb-6 border-b border-border/50 pb-4">
+                            <span className="font-semibold text-foreground/80">
+                                Available Unused Flushies:
+                            </span>
+                            <span className="text-xl font-bold text-primary">
+                                {flushieStock.toLocaleString()}
                             </span>
                         </div>
-                        <button
-                            onClick={handleSetsMigrate}
-                            disabled={!isValidSetMigration || setMigrateStatus === "running"}
-                            className="px-6 py-2 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-                        >
-                            {setMigrateStatus === "running" ? (
-                                <HugeiconsIcon icon={RefreshIcon} size={16} className="animate-spin" />
-                            ) : (
-                                <HugeiconsIcon icon={Dna01Icon} size={16} />
-                            )}
-                            {setMigrateStatus === "running" ? "Converting..." : "Convert to Sets"}
-                        </button>
+
+                        <div className="space-y-6 mb-6">
+                            <div>
+                                <h3 className="font-medium mb-3">Flowers</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {FLOWER_SET.map((flower) => (
+                                        <div
+                                            key={flower}
+                                            className="bg-background border border-border rounded-lg p-2 flex flex-col gap-1 text-sm"
+                                        >
+                                            <label
+                                                className="text-foreground/80 truncate text-xs"
+                                                title={formatItemName(flower)}
+                                            >
+                                                {formatItemName(flower)}
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={itemCounts[flower] || ""}
+                                                onChange={(e) =>
+                                                    setItemCounts((prev) => ({
+                                                        ...prev,
+                                                        [flower]: parseInt(e.target.value) || 0,
+                                                    }))
+                                                }
+                                                className="w-full px-2 py-1 bg-background border border-border/50 rounded focus:ring-1 focus:ring-primary/50 focus:outline-none"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="font-medium mb-3">Plushies</h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {PLUSHIE_SET.map((plushie) => (
+                                        <div
+                                            key={plushie}
+                                            className="bg-background border border-border rounded-lg p-2 flex flex-col gap-1 text-sm"
+                                        >
+                                            <label
+                                                className="text-foreground/80 truncate text-xs"
+                                                title={formatItemName(plushie)}
+                                            >
+                                                {formatItemName(plushie)}
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={itemCounts[plushie] || ""}
+                                                onChange={(e) =>
+                                                    setItemCounts((prev) => ({
+                                                        ...prev,
+                                                        [plushie]: parseInt(e.target.value) || 0,
+                                                    }))
+                                                }
+                                                className="w-full px-2 py-1 bg-background border border-border/50 rounded focus:ring-1 focus:ring-primary/50 focus:outline-none"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between mt-2 pt-4 border-t border-border/50">
+                            <div className="text-sm">
+                                <span className="text-foreground/60">Total Required: </span>
+                                <span
+                                    className={`font-semibold ${requiredFlushies > flushieStock ? "text-danger" : "text-foreground"}`}
+                                >
+                                    {requiredFlushies.toLocaleString()} flushies
+                                </span>
+                            </div>
+                            <button
+                                onClick={handleSetsMigrate}
+                                disabled={!isValidSetMigration || setMigrateStatus === "running"}
+                                className="px-6 py-2 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                            >
+                                {setMigrateStatus === "running" ? (
+                                    <HugeiconsIcon
+                                        icon={RefreshIcon}
+                                        size={16}
+                                        className="animate-spin"
+                                    />
+                                ) : (
+                                    <HugeiconsIcon icon={Dna01Icon} size={16} />
+                                )}
+                                {setMigrateStatus === "running" ? "Converting..." : "Convert to Sets"}
+                            </button>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="bg-success/5 border border-success/20 p-4 rounded-xl mt-4 flex items-center gap-3 text-success">
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={20} />
+                        <span className="font-medium text-sm">
+                            Legacy migration complete. No unused "flushies" found in your inventory.
+                        </span>
+                    </div>
+                )}
 
                 {setMigrateStatus === "success" && (
                     <div className="text-sm font-medium text-success flex items-center gap-2 pt-2 animate-in fade-in">
-                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} /> Successfully generated set items!
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} /> Successfully
+                        generated set items!
                     </div>
                 )}
             </div>
