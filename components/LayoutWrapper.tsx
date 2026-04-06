@@ -11,6 +11,8 @@ import { PromoBannersDesktop } from "@/components/SideBanners";
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isDocs = pathname?.startsWith("/docs");
+    const isPublic = pathname?.startsWith("/public");
+    const hasGlobalUI = !isDocs && !isPublic;
 
     if (isDocs) {
         return <>{children}</>;
@@ -18,10 +20,10 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="layout-wrapper flex flex-col min-h-screen">
-            <Navigation />
+            {hasGlobalUI && <Navigation />}
             <div className="layout-main-content flex-1 flex flex-col min-w-0">
-                <Banners />
-                <PromoBannersDesktop />
+                {hasGlobalUI && <Banners />}
+                {hasGlobalUI && <PromoBannersDesktop />}
                 <main className="pt-8 pb-12 px-4 w-full max-w-6xl mx-auto flex-1 h-full flex flex-col">
                     <div className="flex-1">{children}</div>
 
@@ -75,7 +77,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                 </main>
             </div>
             <div className="fixed bottom-0 left-0 w-full h-[1px] bg-primary/10 pointer-events-none" />
-            <ServiceRail />
+            {hasGlobalUI && <ServiceRail />}
         </div>
     );
 }

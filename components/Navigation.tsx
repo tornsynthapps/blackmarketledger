@@ -17,6 +17,7 @@ import {
     DiscordIcon,
     UserIcon,
     BookOpenTextIcon,
+    Link01Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -40,6 +41,7 @@ const navItems = [
     { name: "Auto-Pilot", href: "/auto", icon: Radar03Icon, color: "var(--danger)" },
     { name: "BML Connect", href: "/bmlconnect", icon: Exchange01Icon, color: "var(--primary)" },
     { name: "Account", href: "/account", icon: UserIcon, color: "var(--info)" },
+    { name: "Links", href: "/links", icon: Link01Icon, color: "var(--accent-red)" },
 ];
 
 export function Navigation() {
