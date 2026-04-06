@@ -1,5 +1,11 @@
 # BlackMarket Ledger Version History
 
+## v5.1.0 (2026-04-06)
+
+- **Hardline Interface Overhaul**: Complete migration from Lucide to Hugeicons for a more industrial aesthetic.
+- **Brand Typography**: Integrated Space Grotesk, Space Mono, and VT323 for a premium, high-contrast look.
+- **System Cleanup**: Removed legacy icon dependencies and standardized icon rendering across all pages.
+
 ## v5.0.3 (2026-04-05)
 
 - **Theme Color Tracker**: Created a centralized theme color tracker.
