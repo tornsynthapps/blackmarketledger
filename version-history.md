@@ -1,5 +1,14 @@
 # BlackMarket Ledger Version History
 
+## v5.1.1 (2026-04-06)
+
+- **Abroad Synchronization**: Fixed a calculation bug in `lib/chartUtils.ts` where museum items (Flowers/Plushies) were excluded from abroad totals, ensuring accurate charts on the Abroad page.
+- **Account Page**: Introduced a new dedicated Account page for centralized user and service management.
+- **Logs UX & Profit Tracking**: Added realized profit/loss display for SELL transactions and simplified selection with row-level clicks.
+- **Data Integrity**: Fixed trade partner ID identification in Auto-Pilot and resolved over 20 TypeScript linting errors for improved stability.
+- **Dashboard Enhancements**: Implemented persistent inventory sorting and simplified chart control labels.
+- **Legal & Privacy**: Migrated API disclosures to Privacy page, deprecated BML Connect, and standardized full-width page layouts.
+
 ## v5.1.0 (2026-04-06)
 
 - **Hardline Interface Overhaul**: Complete migration from Lucide to Hugeicons for a more industrial aesthetic.
