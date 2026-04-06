@@ -83,7 +83,7 @@ export function Navigation() {
                             />
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-bold text-lg tracking-tight hidden sm:block leading-none uppercase font-sans">
+                            <span className="font-bold text-lg tracking-tight hidden sm:block leading-none uppercase font-vt323">
                                 BlackMarket Ledger
                             </span>
                             <div className="flex items-center gap-2 mt-1">
@@ -177,8 +177,8 @@ export function Navigation() {
                             />
                         </div>
                         <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-lg tracking-tighter leading-none uppercase font-sans">
-                                BML EDGE
+                            <span className="font-bold text-lg tracking-tighter leading-none uppercase font-vt323">
+                                BLACKMARKET LEDGER
                             </span>
                             <div className="flex items-center gap-1 mt-1">
                                 <span className="text-[10px] font-mono font-bold text-muted">

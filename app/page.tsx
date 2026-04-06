@@ -496,7 +496,7 @@ export default function Home() {
                 <div className="p-4 bg-foreground/[0.03] border-b-2 border-border flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-6 bg-primary" />
-                        <h2 className="font-black text-xs uppercase tracking-[0.3em]">
+                        <h2 className="font-black text-xl uppercase tracking-[0.3em]">
                             Inventory
                         </h2>
                     </div>
@@ -523,7 +523,7 @@ export default function Home() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left font-mono text-[11px] border-collapse">
+                    <table className="w-full text-left text-sm border-collapse">
                         <thead className="bg-foreground/[0.02]">
                             <tr>
                                 <th
@@ -666,18 +666,18 @@ export default function Home() {
                                                 {formatItemName(name)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <span className="bg-primary/10 text-primary px-2 py-1 font-bold whitespace-nowrap">
+                                                <span className="bg-primary/10 text-primary px-2 py-1 font-bold font-mono whitespace-nowrap">
                                                     {stats.stock.toLocaleString()} UNITS
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right text-muted">
+                                            <td className="px-6 py-4 text-right text-muted font-mono">
                                                 {formatMoney(avgCost)}
                                             </td>
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="px-6 py-4 text-right font-mono">
                                                 {formatMoney(stats.totalCost)}
                                             </td>
                                             <td
-                                                className={`px-6 py-4 text-right font-black ${stats.realizedProfit >= 0 ? "text-success" : "text-danger"}`}
+                                                className={`px-6 py-4 text-right font-black font-mono ${stats.realizedProfit >= 0 ? "text-success" : "text-danger"}`}
                                             >
                                                 {formatMoney(stats.realizedProfit)}
                                             </td>
@@ -812,7 +812,7 @@ function OverviewItem({
                 <div className={disabled ? "text-muted" : "text-primary"}>{icon}</div>
             </div>
             <p
-                className={`text-2xl font-black tracking-tighter mt-2 leading-none truncate ${disabled ? "text-foreground" : ""}`}
+                className={`text-2xl font-black font-mono tracking-tighter mt-2 leading-none truncate ${disabled ? "text-foreground" : ""}`}
                 style={{ color: disabled ? undefined : color }}
             >
                 {value}

@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import { getConnectionString, sendToExtension, regenerateToken } from "@/lib/bmlconnect";
 import Link from "next/link";
-import { Copy, RefreshCw, Terminal, Activity, CheckCircle, XCircle } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+    Copy01Icon,
+    RefreshIcon,
+    TerminalIcon,
+    Analytics01Icon,
+    CheckmarkCircle01Icon,
+    CancelCircleIcon,
+} from "@hugeicons/core-free-icons";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 export default function ConnectionSetup() {
@@ -84,7 +92,7 @@ export default function ConnectionSetup() {
                                 onClick={handleRegenerateToken}
                                 className="text-xs flex items-center gap-1.5 text-danger/80 hover:text-danger font-medium transition-colors"
                             >
-                                <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+                                <HugeiconsIcon icon={RefreshIcon} size={14} /> Regenerate
                             </button>
                         </div>
                         <div className="flex gap-2 p-1.5 bg-background rounded-xl border border-border focus-within:border-primary/50 transition-colors shadow-inner">
@@ -102,7 +110,7 @@ export default function ConnectionSetup() {
                                     vibrate("success");
                                 }}
                             >
-                                <Copy className="w-4 h-4" /> Copy
+                                <HugeiconsIcon icon={Copy01Icon} size={16} /> Copy
                             </button>
                         </div>
                     </section>
@@ -134,17 +142,17 @@ export default function ConnectionSetup() {
                     <div className="pt-6 border-t border-border">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-foreground/70 text-xs font-bold uppercase tracking-wider font-mono flex items-center gap-2">
-                                <Terminal className="w-4 h-4" /> Diagnostics
+                                <HugeiconsIcon icon={TerminalIcon} size={16} /> Diagnostics
                             </h3>
                             <span
                                 className={`text-[10px] font-bold tracking-wider font-mono px-2 py-0.5 rounded flex items-center gap-1 transition-colors ${status.includes("Failed") ? "bg-danger/10 text-danger" : status.includes("Success") ? "bg-success/10 text-success" : "bg-primary/10 text-primary"}`}
                             >
                                 {status.includes("Failed") ? (
-                                    <XCircle className="w-3 h-3" />
+                                    <HugeiconsIcon icon={CancelCircleIcon} size={12} />
                                 ) : status.includes("Success") ? (
-                                    <CheckCircle className="w-3 h-3" />
+                                    <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} />
                                 ) : (
-                                    <Activity className="w-3 h-3 animate-pulse" />
+                                    <HugeiconsIcon icon={Analytics01Icon} size={12} className="animate-pulse" />
                                 )}
                                 {status}
                             </span>

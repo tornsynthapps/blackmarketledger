@@ -2,6 +2,62 @@
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+    font-family: "VT323";
+    src: url("/fonts/VT323/VT323-Regular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Space Grotesk";
+    src: url("/fonts/Space_Grotesk/static/SpaceGrotesk-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Space Grotesk";
+    src: url("/fonts/Space_Grotesk/static/SpaceGrotesk-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Space Grotesk";
+    src: url("/fonts/Space_Grotesk/static/SpaceGrotesk-SemiBold.ttf") format("truetype");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Space Grotesk";
+    src: url("/fonts/Space_Grotesk/static/SpaceGrotesk-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Space Mono";
+    src: url("/fonts/Space_Mono/SpaceMono-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Space Mono";
+    src: url("/fonts/Space_Mono/SpaceMono-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     /* Hardline Palette - Dark (Default) */
     --background: #0b0b0c;
@@ -23,6 +79,10 @@
     --info: #0a84ff;
 
     --dots: rgba(255, 255, 255, 0.03);
+
+    /* Local Fonts */
+    --font-space-grotesk: "Space Grotesk", sans-serif;
+    --font-space-mono: "Space Mono", monospace;
 
     /* Snappy Transitions */
     --transition-speed: 150ms;
@@ -65,6 +125,7 @@
     --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
     --font-mono:
         var(--font-space-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --font-vt323: "VT323", monospace;
 
     --animate-snappy: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -81,7 +142,7 @@ body {
     background-image: radial-gradient(var(--dots) 1px, transparent 1px);
     background-size: 20px 20px;
     color: var(--foreground);
-    font-family: var(--font-mono); /* Primary UI font */
+    font-family: var(--font-sans); /* Space Grotesk as primary UI font */
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
 }
@@ -92,10 +153,10 @@ h3,
 h4,
 h5,
 h6 {
-    font-family: var(--font-sans);
-    font-weight: 700;
+    font-family: var(--font-vt323);
+    font-weight: 400;
     text-transform: uppercase;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.02em;
 }
 
 /* Typography Helpers */
@@ -177,10 +238,10 @@ table {
 }
 
 th {
-    font-family: var(--font-sans);
+    font-family: var(--font-vt323);
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
     padding: 12px 16px;
     text-align: left;
     background: var(--panel-elevated);

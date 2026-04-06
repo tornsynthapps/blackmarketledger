@@ -8,20 +8,16 @@ import {
     ArrowLeft01Icon,
     ArrowUp01Icon,
     ArrowDown01Icon,
+    Download01Icon,
+    Upload01Icon,
+    Delete02Icon,
+    PencilEdit01Icon,
+    Search01Icon,
+    RefreshIcon,
+    Tick01Icon,
+    Square01Icon,
+    Cancel01Icon,
 } from "@hugeicons/core-free-icons";
-import {
-    Download,
-    Upload,
-    Trash2,
-    Edit2,
-    Search,
-    ArrowLeft,
-    RefreshCw,
-    CheckSquare,
-    Square,
-    X,
-    ChevronRight,
-} from "lucide-react";
 import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -497,9 +493,9 @@ function LogsPageContent() {
                             className="p-1 rounded hover:bg-foreground/10 transition-colors"
                         >
                             {isSelected ? (
-                                <CheckSquare className="w-4 h-4 text-primary" />
+                                <HugeiconsIcon icon={Tick01Icon} size={16} className="text-primary" />
                             ) : (
-                                <Square className="w-4 h-4 text-foreground/40" />
+                                <HugeiconsIcon icon={Square01Icon} size={16} className="text-foreground/40" />
                             )}
                         </button>
                     </td>
@@ -672,7 +668,7 @@ function LogsPageContent() {
                                 }}
                                 className="text-primary/70 hover:text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors"
                             >
-                                <Edit2 className="w-4 h-4" />
+                                <HugeiconsIcon icon={PencilEdit01Icon} size={16} />
                             </button>
                         )}
                         {isWrapper && (
@@ -685,7 +681,7 @@ function LogsPageContent() {
                                 }}
                                 className="text-foreground/60 hover:text-foreground hover:bg-foreground/5 p-1.5 rounded-lg transition-colors"
                             >
-                                <ChevronRight className="w-4 h-4" />
+                                <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
                             </button>
                         )}
                     </div>
@@ -709,7 +705,7 @@ function LogsPageContent() {
                     onClick={() => vibrate("nav")}
                     className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+                    <HugeiconsIcon icon={ArrowLeft01Icon} size={16} /> Back to Dashboard
                 </Link>
             )}
 
@@ -735,14 +731,14 @@ function LogsPageContent() {
                             onClick={exitSelectionMode}
                             className="flex items-center gap-2 px-4 py-2 bg-panel border border-border shadow-sm rounded-lg hover:bg-foreground/5 transition-colors text-sm font-medium"
                         >
-                            <X className="w-4 h-4" /> Cancel
+                            <HugeiconsIcon icon={Cancel01Icon} size={16} /> Cancel
                         </button>
                     ) : (
                         <button
                             onClick={enterSelectionMode}
                             className="flex items-center gap-2 px-4 py-2 bg-panel border border-border shadow-sm rounded-lg hover:bg-foreground/5 transition-colors text-sm font-medium"
                         >
-                            <CheckSquare className="w-4 h-4" /> Select
+                            <HugeiconsIcon icon={Tick01Icon} size={16} /> Select
                         </button>
                     )}
                     {storagePref === "drive" && (
@@ -768,8 +764,10 @@ function LogsPageContent() {
                             disabled={isRefreshingDrive}
                             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white shadow-sm rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-60"
                         >
-                            <RefreshCw
-                                className={`w-4 h-4 ${isRefreshingDrive ? "animate-spin" : ""}`}
+                            <HugeiconsIcon
+                                icon={RefreshIcon}
+                                size={16}
+                                className={isRefreshingDrive ? "animate-spin" : ""}
                             />
                             Force Download
                         </button>
@@ -788,7 +786,7 @@ function LogsPageContent() {
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-panel border border-border shadow-sm rounded-lg hover:bg-foreground/5 transition-colors text-sm font-medium"
                     >
-                        <Upload className="w-4 h-4" /> Import Backup
+                        <HugeiconsIcon icon={Upload01Icon} size={16} /> Import Backup
                     </button>
                     <button
                         onClick={() => {
@@ -797,7 +795,7 @@ function LogsPageContent() {
                         }}
                         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground shadow-sm rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
                     >
-                        <Download className="w-4 h-4" /> Export Backup
+                        <HugeiconsIcon icon={Download01Icon} size={16} /> Export Backup
                     </button>
                 </div>
             </div>
@@ -820,7 +818,11 @@ function LogsPageContent() {
                             Show Linked IDs
                         </label>
                         <div className="relative w-64">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                            <HugeiconsIcon
+                                icon={Search01Icon}
+                                size={16}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40"
+                            />
                             <input
                                 type="text"
                                 placeholder={
@@ -855,9 +857,9 @@ function LogsPageContent() {
                                         >
                                             {selectedIds.size === filteredLogs.length &&
                                             filteredLogs.length > 0 ? (
-                                                <CheckSquare className="w-4 h-4 text-primary" />
+                                                <HugeiconsIcon icon={Tick01Icon} size={16} className="text-primary" />
                                             ) : (
-                                                <Square className="w-4 h-4 text-foreground/40" />
+                                                <HugeiconsIcon icon={Square01Icon} size={16} className="text-foreground/40" />
                                             )}
                                         </button>
                                     </th>
@@ -939,13 +941,13 @@ function LogsPageContent() {
                         onClick={handleBulkDelete}
                         className="flex items-center gap-2 px-4 py-2 bg-danger text-danger-foreground rounded-lg hover:bg-danger/90 transition-colors text-sm font-medium"
                     >
-                        <Trash2 className="w-4 h-4" /> Delete Selected
+                        <HugeiconsIcon icon={Delete02Icon} size={16} /> Delete Selected
                     </button>
                     <button
                         onClick={exitSelectionMode}
                         className="flex items-center gap-2 px-3 py-2 bg-foreground/5 rounded-lg hover:bg-foreground/10 transition-colors text-sm"
                     >
-                        <X className="w-4 h-4" />
+                        <HugeiconsIcon icon={Cancel01Icon} size={16} />
                     </button>
                 </div>
             )}

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { History, GitCommitHorizontal } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Clock01Icon, GitCommitIcon } from "@hugeicons/core-free-icons";
 import pkg from "../../package.json";
 
 interface ChangelogEntry {
@@ -92,7 +93,7 @@ export default async function ChangelogPage() {
                                 <div
                                     className={`p-2.5 rounded-xl ${isCurrent ? "bg-primary/10 text-primary" : "bg-foreground/5 text-foreground/45"}`}
                                 >
-                                    <History className="w-5 h-5" />
+                                    <HugeiconsIcon icon={Clock01Icon} size={20} />
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2">
@@ -117,8 +118,10 @@ export default async function ChangelogPage() {
                                 {entry.items.map((item, i) => (
                                     <li key={i} className="relative pl-8 group">
                                         <div className="absolute left-0 top-1.5 w-6 h-6 bg-panel flex items-center justify-center">
-                                            <GitCommitHorizontal
-                                                className={`w-4 h-4 transition-colors ${isCurrent ? "text-primary/60" : "text-foreground/30"}`}
+                                            <HugeiconsIcon
+                                                icon={GitCommitIcon}
+                                                size={16}
+                                                className={isCurrent ? "text-primary/60" : "text-foreground/30"}
                                             />
                                         </div>
                                         {item.title && (

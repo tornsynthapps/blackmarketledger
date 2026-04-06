@@ -1,6 +1,7 @@
 "use client";
 
-import { Info, ArrowLeft } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { InformationCircleIcon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 
 export default function LogFormats() {
@@ -11,7 +12,7 @@ export default function LogFormats() {
                     href="/add"
                     className="text-primary hover:underline flex items-center gap-1 text-sm font-medium mb-4 w-fit"
                 >
-                    <ArrowLeft className="w-4 h-4" /> Back to Terminal
+                    <HugeiconsIcon icon={ArrowLeft01Icon} size={16} /> Back to Terminal
                 </Link>
                 <h1 className="text-3xl font-bold tracking-tight">Supported Log Formats</h1>
                 <p className="text-foreground/60 mt-2">

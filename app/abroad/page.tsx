@@ -4,7 +4,16 @@ import { useMemo, useState, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
 import { CATEGORY_COLORS } from "@/lib/theme";
 import { formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
-import { Plane, AlertCircle, ArrowRightLeft, Loader2, Check, TrendingUp, Box } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+    Airplane01Icon,
+    AlertCircleIcon,
+    Exchange01Icon,
+    Loading03Icon,
+    CheckmarkCircle01Icon,
+    Analytics01Icon,
+    PackageIcon,
+} from "@hugeicons/core-free-icons";
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
 import {
@@ -329,7 +338,7 @@ export default function AbroadDashboard() {
             {/* Config warning */}
             {(!weav3rApiKey || !weav3rUserId) && (
                 <div className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-start gap-4">
-                    <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                    <HugeiconsIcon icon={AlertCircleIcon} size={20} className="text-warning shrink-0 mt-0.5" />
                     <div>
                         <h3 className="font-semibold text-warning">Weav3r Config Missing</h3>
                         <p className="text-sm text-foreground/70 mt-1">
@@ -342,7 +351,7 @@ export default function AbroadDashboard() {
 
             {error && (
                 <div className="bg-danger/10 border border-danger/20 p-4 rounded-xl flex items-start gap-4">
-                    <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
+                    <HugeiconsIcon icon={AlertCircleIcon} size={20} className="text-danger shrink-0 mt-0.5" />
                     <div>
                         <h3 className="font-semibold text-danger">Pricelist Error</h3>
                         <p className="text-sm text-danger/80 mt-1">{error}</p>
@@ -359,13 +368,13 @@ export default function AbroadDashboard() {
                 <div className="space-y-8 pr-0 lg:pr-8 border-r-0 lg:border-r border-border/50">
                     <div>
                         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-6 flex items-center gap-2">
-                            <TrendingUp className="w-3" />
+                            <HugeiconsIcon icon={Analytics01Icon} size={12} />
                             Abroad Overview
                         </h2>
 
                         <div className="space-y-6">
                             <OverviewItem
-                                icon={<Plane className="w-4 h-4" />}
+                                icon={<HugeiconsIcon icon={Airplane01Icon} size={16} />}
                                 label="Total Items"
                                 value={abroadStats.items
                                     .reduce((acc, curr) => acc + curr.stock, 0)
@@ -373,7 +382,7 @@ export default function AbroadDashboard() {
                                 subValue={`${abroadStats.items.length} Unique SKUs`}
                             />
                             <OverviewItem
-                                icon={<TrendingUp className="w-4 h-4" />}
+                                icon={<HugeiconsIcon icon={Analytics01Icon} size={16} />}
                                 label="Realized Profit"
                                 value={formatLargeNumber(abroadStats.totalProfit)}
                                 subValue="Net gains international"
@@ -384,7 +393,7 @@ export default function AbroadDashboard() {
                     <div className="pt-8 border-t border-border/50">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-primary/10 rounded-xl">
-                                <Box className="w-6 h-6 text-primary" />
+                                <HugeiconsIcon icon={PackageIcon} size={24} className="text-primary" />
                             </div>
                             <div>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">
@@ -484,9 +493,9 @@ export default function AbroadDashboard() {
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-primary/10 text-primary hover:bg-primary hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                                 >
                                                     {isSellingThis ? (
-                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        <HugeiconsIcon icon={Loading03Icon} size={14} className="animate-spin" />
                                                     ) : (
-                                                        <ArrowRightLeft className="w-3.5 h-3.5" />
+                                                        <HugeiconsIcon icon={Exchange01Icon} size={14} />
                                                     )}
                                                     Self Sell
                                                 </button>

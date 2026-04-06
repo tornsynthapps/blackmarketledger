@@ -3,20 +3,21 @@
 import { useJournal } from "@/store/useJournal";
 import { InventoryItemStats } from "@/lib/interfaces/transactions";
 import { CATEGORY_COLORS } from "@/lib/theme";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    TrendingUp,
-    Package,
-    History,
-    Library as Museum,
-    Box,
-    Flower2,
-    Coins,
-    Ghost,
-    Droplet,
-    ArrowRightLeft,
-    ShoppingCart,
-    LayoutDashboard,
-} from "lucide-react";
+    Analytics01Icon,
+    PackageIcon,
+    Clock01Icon,
+    LibraryIcon,
+    Package01Icon,
+    FlowerIcon,
+    Coins01Icon,
+    AnonymousIcon,
+    DropletIcon,
+    Exchange01Icon,
+    ShoppingCart01Icon,
+    DashboardSpeed01Icon,
+} from "@hugeicons/core-free-icons";
 import { useMemo, useState, useEffect } from "react";
 import {
     formatItemName,
@@ -409,19 +410,19 @@ export default function MuseumDashboard() {
                 <div className="space-y-8 pr-0 lg:pr-8 border-r-0 lg:border-r border-border/50">
                     <div>
                         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-6 flex items-center gap-2">
-                            <TrendingUp className="w-3 h-3" />
+                            <HugeiconsIcon icon={Analytics01Icon} size={12} />
                             Inventory Overview
                         </h2>
 
                         <div className="space-y-6">
                             <OverviewItem
-                                icon={<Coins className="w-4 h-4" />}
+                                icon={<HugeiconsIcon icon={Coins01Icon} size={16} />}
                                 label="Points Stock"
                                 value={pointsStats.stock.toLocaleString()}
                                 subValue={`Avg Cost: ${formatMoney(pointsAvg)}`}
                             />
                             <OverviewItem
-                                icon={<Flower2 className="w-4 h-4" />}
+                                icon={<HugeiconsIcon icon={FlowerIcon} size={16} />}
                                 label="Flower Stock"
                                 value={flowersData
                                     .reduce((acc, curr) => acc + curr.stats.stock, 0)
@@ -429,7 +430,7 @@ export default function MuseumDashboard() {
                                 subValue={`${flowerSetsPossible} Sets Ready`}
                             />
                             <OverviewItem
-                                icon={<Ghost className="w-4 h-4" />}
+                                icon={<HugeiconsIcon icon={AnonymousIcon} size={16} />}
                                 label="Plushie Stock"
                                 value={plushiesData
                                     .reduce((acc, curr) => acc + curr.stats.stock, 0)
@@ -437,7 +438,7 @@ export default function MuseumDashboard() {
                                 subValue={`${plushieSetsPossible} Sets Ready`}
                             />
                             <OverviewItem
-                                icon={<Museum className="w-4 h-4" />}
+                                icon={<HugeiconsIcon icon={LibraryIcon} size={16} />}
                                 label="Artifact Exchanges"
                                 value={artifactExchangeData
                                     .reduce((acc, curr) => acc + curr.exchangesReady, 0)
@@ -450,7 +451,7 @@ export default function MuseumDashboard() {
                     <div className="pt-8 border-t border-border/50">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-primary/10 rounded-xl">
-                                <Box className="w-6 h-6 text-primary" />
+                                <HugeiconsIcon icon={PackageIcon} size={24} className="text-primary" />
                             </div>
                             <div>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">
@@ -502,7 +503,7 @@ export default function MuseumDashboard() {
                                 : "text-foreground/60 hover:text-foreground/80"
                         }`}
                     >
-                        <LayoutDashboard className="w-3.5 h-3.5" />
+                        <HugeiconsIcon icon={DashboardSpeed01Icon} size={14} />
                         Overview
                     </button>
                     <button
@@ -513,7 +514,7 @@ export default function MuseumDashboard() {
                                 : "text-foreground/60 hover:text-foreground/80"
                         }`}
                     >
-                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <HugeiconsIcon icon={ShoppingCart01Icon} size={14} />
                         Buy Mode
                     </button>
                 </div>
@@ -526,7 +527,7 @@ export default function MuseumDashboard() {
                         <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-primary/10 rounded-xl">
-                                    <Flower2 className="w-6 h-6 text-primary" />
+                                    <HugeiconsIcon icon={FlowerIcon} size={24} className="text-primary" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold">Flower Sets</h2>
@@ -549,7 +550,7 @@ export default function MuseumDashboard() {
                         <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-primary/10 rounded-xl">
-                                    <Ghost className="w-6 h-6 text-primary" />
+                                    <HugeiconsIcon icon={AnonymousIcon} size={24} className="text-primary" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold">Plushie Sets</h2>
@@ -571,7 +572,7 @@ export default function MuseumDashboard() {
                         <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-primary/10 rounded-xl">
-                                    <Museum className="w-6 h-6 text-primary" />
+                                    <HugeiconsIcon icon={LibraryIcon} size={24} className="text-primary" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold">Artifact Exchanges</h2>
@@ -624,7 +625,7 @@ export default function MuseumDashboard() {
                     {/* Buy Mode: Flower Sets */}
                     <BuyPlanSection
                         title="Flower Sets"
-                        icon={<Flower2 className="w-6 h-6 text-primary" />}
+                        icon={<HugeiconsIcon icon={FlowerIcon} size={24} className="text-primary" />}
                         effort={flowerEffort}
                         setEffort={setFlowerEffort}
                         buyPlan={flowerBuyPlan}
@@ -634,7 +635,7 @@ export default function MuseumDashboard() {
                     {/* Buy Mode: Plushie Sets */}
                     <BuyPlanSection
                         title="Plushie Sets"
-                        icon={<Ghost className="w-6 h-6 text-primary" />}
+                        icon={<HugeiconsIcon icon={AnonymousIcon} size={24} className="text-primary" />}
                         effort={plushieEffort}
                         setEffort={setPlushieEffort}
                         buyPlan={plushieBuyPlan}
@@ -789,7 +790,7 @@ function BuyPlanSection({
 
             {buyPlan.itemsToBuy > 0 ? (
                 <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <ShoppingCart className="w-4 h-4 text-primary flex-shrink-0" />
+                    <HugeiconsIcon icon={ShoppingCart01Icon} size={16} className="text-primary flex-shrink-0" />
                     <p className="text-sm text-foreground/80">
                         Buy <span className="font-bold text-primary">{buyPlan.totalQty}</span> items
                         across <span className="font-bold text-primary">{buyPlan.itemsToBuy}</span>{" "}

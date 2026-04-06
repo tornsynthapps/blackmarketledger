@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useJournal } from "@/store/useJournal";
-import { Radar, Calendar, RefreshCw, ArrowLeft, ShieldAlert } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+    Radar01Icon,
+    Calendar03Icon,
+    RefreshIcon,
+    ArrowLeft01Icon,
+    AlertCircleIcon,
+} from "@hugeicons/core-free-icons";
 import Link from "next/link";
 
 export default function ResetCursorPage() {
@@ -68,13 +75,17 @@ export default function ResetCursorPage() {
                         href="/auto"
                         className="inline-flex items-center gap-2 text-sm text-foreground/50 hover:text-orange-500 transition-colors group"
                     >
-                        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                        <HugeiconsIcon
+                            icon={ArrowLeft01Icon}
+                            size={16}
+                            className="group-hover:-translate-x-1 transition-transform"
+                        />
                         Back to Auto-Pilot
                     </Link>
 
                     <div className="flex items-center gap-4">
                         <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20">
-                            <Radar className="h-8 w-8 text-orange-500 animate-pulse" />
+                            <HugeiconsIcon icon={Radar01Icon} size={32} className="text-orange-500 animate-pulse" />
                         </div>
                         <div>
                             <h1 className="text-4xl font-black tracking-tighter uppercase">
@@ -90,11 +101,11 @@ export default function ResetCursorPage() {
                 {/* Warning Card */}
                 <section className="relative overflow-hidden rounded-3xl border border-orange-500/30 bg-orange-500/[0.03] p-8">
                     <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <ShieldAlert className="h-24 w-24 text-orange-500" />
+                        <HugeiconsIcon icon={AlertCircleIcon} size={96} className="text-orange-500" />
                     </div>
                     <div className="relative z-10 space-y-4">
                         <h2 className="text-xl font-bold flex items-center gap-2 text-orange-500">
-                            <ShieldAlert className="h-5 w-5" />
+                            <HugeiconsIcon icon={AlertCircleIcon} size={20} />
                             Administrative Overrides
                         </h2>
                         <p className="text-sm text-foreground/70 leading-relaxed max-w-lg">
@@ -118,7 +129,7 @@ export default function ResetCursorPage() {
                                     <div className="p-4 rounded-2xl bg-panel border border-border shadow-sm">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <Calendar className="h-5 w-5 text-foreground/30" />
+                                                <HugeiconsIcon icon={Calendar03Icon} size={20} className="text-foreground/30" />
                                                 <span className="font-mono text-sm">
                                                     Trade: {currentTradeCursorDate}
                                                 </span>
@@ -133,7 +144,7 @@ export default function ResetCursorPage() {
                                     <div className="p-4 rounded-2xl bg-panel border border-border shadow-sm">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <Calendar className="h-5 w-5 text-foreground/30" />
+                                                <HugeiconsIcon icon={Calendar03Icon} size={20} className="text-foreground/30" />
                                                 <span className="font-mono text-sm">
                                                     Item: {currentItemCursorDate}
                                                 </span>
@@ -150,7 +161,7 @@ export default function ResetCursorPage() {
                                 <div className="p-4 rounded-2xl bg-panel border border-border shadow-sm">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <Calendar className="h-5 w-5 text-foreground/30" />
+                                            <HugeiconsIcon icon={Calendar03Icon} size={20} className="text-foreground/30" />
                                             <span className="font-mono text-sm">
                                                 {currentCursorDate}
                                             </span>
@@ -177,7 +188,7 @@ export default function ResetCursorPage() {
                                     className="w-full bg-panel border border-border rounded-2xl px-5 py-4 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/40 transition-all appearance-none"
                                 />
                                 <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 group-hover:opacity-40 transition-opacity">
-                                    <Calendar className="h-6 w-6" />
+                                    <HugeiconsIcon icon={Calendar03Icon} size={24} />
                                 </div>
                             </div>
                         </div>
@@ -189,10 +200,10 @@ export default function ResetCursorPage() {
                         >
                             <div className="relative z-10 flex items-center justify-center gap-3">
                                 {isUpdating ? (
-                                    <RefreshCw className="h-5 w-5 animate-spin" />
+                                    <HugeiconsIcon icon={RefreshIcon} size={20} className="animate-spin" />
                                 ) : (
                                     <>
-                                        <RefreshCw className="h-5 w-5 group-hover:rotate-180 transition-transform duration-700" />
+                                        <HugeiconsIcon icon={RefreshIcon} size={20} className="group-hover:rotate-180 transition-transform duration-700" />
                                         Recalibrate Temporal Sync
                                     </>
                                 )}

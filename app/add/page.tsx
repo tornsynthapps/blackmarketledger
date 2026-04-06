@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useJournal, InventoryItemStats } from "@/store/useJournal";
+import { useJournal } from "@/store/useJournal";
 import {
     parseLogLine,
     ParsedLog,
@@ -11,16 +11,17 @@ import {
     getMuseumExchangeDefinition,
 } from "@/lib/parser";
 import { calculateInventory, getLogBreakdown } from "@/lib/transactionBuilder";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    Check,
-    Info,
-    AlertCircle,
-    Save,
-    Trash2,
-    ShieldAlert,
-    AlertTriangle,
-    SkipForward,
-} from "lucide-react";
+    CheckmarkCircle01Icon,
+    InformationCircleIcon,
+    AlertCircleIcon,
+    FloppyDiskIcon,
+    Delete02Icon,
+    SecurityCheckIcon,
+    Alert01Icon,
+    Forward01Icon,
+} from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
@@ -183,7 +184,7 @@ export default function AddLogs() {
         <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
             {showToast && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-success text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-in slide-in-from-top-4 fade-in z-50">
-                    <Check className="w-5 h-5" />
+                    <HugeiconsIcon icon={CheckmarkCircle01Icon} size={20} />
                     <span className="font-medium">
                         Successfully saved {filteredLogs.length} logs!
                     </span>
@@ -202,7 +203,7 @@ export default function AddLogs() {
                     onClick={() => vibrate("nav")}
                     className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 hover:bg-primary hover:text-white rounded-lg text-xs font-semibold text-primary transition-all whitespace-nowrap"
                 >
-                    <Info className="w-3.5 h-3.5" /> Docs &rarr;
+                    <HugeiconsIcon icon={InformationCircleIcon} size={14} /> Docs &rarr;
                 </Link>
             </div>
 
@@ -303,27 +304,27 @@ export default function AddLogs() {
                         </div>
                         <div className="flex gap-4 text-[10px] font-bold">
                             <span className="text-primary flex items-center gap-1">
-                                <Check className="w-3 h-3" /> {validCount} Valid
+                                <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} /> {validCount} Valid
                             </span>
                             {inValidCount > 0 && (
                                 <span className="text-danger flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" /> {inValidCount} Invalid
+                                    <HugeiconsIcon icon={AlertCircleIcon} size={12} /> {inValidCount} Invalid
                                 </span>
                             )}
                             {skipNegativeStock && (
                                 <>
                                     <span className="text-success flex items-center gap-1">
-                                        <Check className="w-3 h-3" /> {completeCount} Complete
+                                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} /> {completeCount} Complete
                                     </span>
                                     {partialCount > 0 && (
                                         <span className="text-warning flex items-center gap-1">
-                                            <AlertTriangle className="w-3 h-3" /> {partialCount}{" "}
+                                            <HugeiconsIcon icon={Alert01Icon} size={12} /> {partialCount}{" "}
                                             Partial
                                         </span>
                                     )}
                                     {skippedCount > 0 && (
                                         <span className="text-foreground/50 flex items-center gap-1">
-                                            <SkipForward className="w-3 h-3" /> {skippedCount}{" "}
+                                            <HugeiconsIcon icon={Forward01Icon} size={12} /> {skippedCount}{" "}
                                             Skipped
                                         </span>
                                     )}
@@ -443,7 +444,7 @@ export default function AddLogs() {
                                                     </div>
                                                 ) : lineText.trim() ? (
                                                     <div className="text-[10px] text-danger font-bold flex items-center gap-1 h-6">
-                                                        <AlertCircle className="w-3 h-3" /> Error
+                                                        <HugeiconsIcon icon={AlertCircleIcon} size={12} /> Error
                                                     </div>
                                                 ) : null}
                                             </div>
@@ -493,7 +494,7 @@ export default function AddLogs() {
                             disabled={validCount === 0}
                             className="px-6 py-2 bg-primary text-primary-foreground font-semibold rounded-lg shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all active:scale-95 text-xs"
                         >
-                            <Save className="w-3.5 h-3.5" />
+                            <HugeiconsIcon icon={FloppyDiskIcon} size={14} />
                             Run Import
                         </button>
                     </div>
@@ -503,7 +504,7 @@ export default function AddLogs() {
                 <div className="pt-4 border-t border-border">
                     <div className="bg-danger/5 border border-danger/20 p-3 rounded-xl flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <ShieldAlert className="w-5 h-5 text-danger" />
+                            <HugeiconsIcon icon={SecurityCheckIcon} size={20} className="text-danger" />
                             <div>
                                 <h3 className="text-danger font-semibold text-sm">Danger Zone</h3>
                                 <p className="text-[11px] text-foreground/60">
@@ -526,7 +527,7 @@ export default function AddLogs() {
                             }}
                             className="px-3 py-1.5 bg-danger/10 text-danger hover:bg-danger hover:text-white font-medium rounded-lg text-xs transition-colors flex items-center gap-1.5"
                         >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <HugeiconsIcon icon={Delete02Icon} size={14} />
                             Clear Tracker
                         </button>
                     </div>

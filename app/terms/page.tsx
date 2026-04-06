@@ -1,13 +1,14 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { File01Icon } from "@hugeicons/core-free-icons";
 
 export default function TermsOfService() {
     return (
         <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
                 <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4">
-                    <FileText className="w-6 h-6" />
+                    <HugeiconsIcon icon={File01Icon} size={24} />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">Terms of Use</h1>
                 <p className="text-foreground/60 mt-2">

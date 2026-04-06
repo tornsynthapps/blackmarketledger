@@ -2,7 +2,15 @@
 
 import { useMemo, useState, Suspense, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
-import { ArrowLeft, CheckCircle2, PauseCircle, AlertTriangle, Search, Filter } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+    ArrowLeft01Icon,
+    CheckmarkCircle01Icon,
+    PauseCircleIcon,
+    Alert01Icon,
+    Search01Icon,
+    FilterIcon,
+} from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -103,7 +111,7 @@ function ActivityPageContent() {
                     href="/auto"
                     className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors"
                 >
-                    <ArrowLeft className="w-4 h-4" /> Back to Auto-Pilot
+                    <HugeiconsIcon icon={ArrowLeft01Icon} size={16} /> Back to Auto-Pilot
                 </Link>
             </div>
 
@@ -116,7 +124,7 @@ function ActivityPageContent() {
 
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-panel p-4 rounded-2xl border border-border shadow-sm">
                 <div className="relative flex-1 w-full">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
+                    <HugeiconsIcon icon={Search01Icon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
                     <input
                         type="text"
                         placeholder="Search activity, log IDs..."
@@ -126,7 +134,7 @@ function ActivityPageContent() {
                     />
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-                    <Filter className="w-4 h-4 text-foreground/40 hidden sm:block" />
+                    <HugeiconsIcon icon={FilterIcon} size={16} className="text-foreground/40 hidden sm:block" />
                     {sourceTypes.map((type) => (
                         <button
                             key={type.value}
@@ -167,11 +175,11 @@ function ActivityPageContent() {
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                     {record.status === "imported" ? (
-                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-green-500" />
                                     ) : record.status === "manual_required" ? (
-                                        <PauseCircle className="h-4 w-4 text-amber-500" />
+                                        <HugeiconsIcon icon={PauseCircleIcon} size={16} className="text-amber-500" />
                                     ) : (
-                                        <AlertTriangle className="h-4 w-4 text-foreground/50" />
+                                        <HugeiconsIcon icon={Alert01Icon} size={16} className="text-foreground/50" />
                                     )}
                                     <p className="font-bold">{record.title}</p>
                                     <span className="text-[10px] bg-foreground/5 border border-border px-2 py-0.5 rounded uppercase tracking-wider font-bold text-foreground/50">

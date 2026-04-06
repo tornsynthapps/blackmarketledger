@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    RefreshCw,
-    Trash2,
-    ChevronRight,
-    ChevronDown,
-    Database,
-    HardDrive,
-    Key,
-    ChevronUp,
-} from "lucide-react";
+    RefreshIcon,
+    Delete02Icon,
+    ArrowRight01Icon,
+    ArrowDown01Icon,
+    Database01Icon,
+    Database02Icon,
+    Key01Icon,
+    ArrowUp01Icon,
+} from "@hugeicons/core-free-icons";
 
 interface StorageItem {
     key: string;
@@ -50,9 +51,9 @@ function JSONValue({ value, forceExpanded = false }: { value: any; forceExpanded
                 className="flex items-center gap-1 text-foreground/60 hover:text-primary transition-colors"
             >
                 {expanded ? (
-                    <ChevronDown className="w-3 h-3" />
+                    <HugeiconsIcon icon={ArrowDown01Icon} size={12} />
                 ) : (
-                    <ChevronRight className="w-3 h-3" />
+                    <HugeiconsIcon icon={ArrowRight01Icon} size={12} />
                 )}
                 <span className="text-amber-400">{expanded ? "Object" : "Object"}</span>
                 <span className="text-foreground/40 text-xs">
@@ -85,7 +86,7 @@ function StorageSection({
         <div className="bg-panel/50 border border-border/50 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-border/50 bg-panel">
                 <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5 text-primary" />
+                    <HugeiconsIcon icon={Icon} size={20} className="text-primary" />
                     <h2 className="text-lg font-semibold">{title}</h2>
                     <span className="text-sm text-foreground/50">({items.length} items)</span>
                 </div>
@@ -94,7 +95,7 @@ function StorageSection({
                     className="p-2 hover:bg-foreground/10 rounded-lg transition-colors"
                     title="Refresh"
                 >
-                    <RefreshCw className="w-4 h-4" />
+                    <HugeiconsIcon icon={RefreshIcon} size={16} />
                 </button>
             </div>
             {items.length === 0 ? (
@@ -120,7 +121,7 @@ function StorageSection({
                                     className="p-1.5 text-foreground/40 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors shrink-0"
                                     title="Delete"
                                 >
-                                    <Trash2 className="w-4 h-4" />
+                                    <HugeiconsIcon icon={Delete02Icon} size={16} />
                                 </button>
                             </div>
                         </div>
@@ -285,13 +286,13 @@ export default function DebugStoragePage() {
 
             {loading ? (
                 <div className="flex items-center justify-center py-12">
-                    <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                    <HugeiconsIcon icon={RefreshIcon} size={24} className="animate-spin text-primary" />
                 </div>
             ) : (
                 <div className="space-y-6">
                     <StorageSection
                         title="Local Storage"
-                        icon={HardDrive}
+                        icon={Database02Icon}
                         items={localStorageItems}
                         onDelete={deleteLocalStorage}
                         onRefresh={loadStorage}
@@ -299,7 +300,7 @@ export default function DebugStoragePage() {
 
                     <StorageSection
                         title="Session Storage"
-                        icon={Key}
+                        icon={Key01Icon}
                         items={sessionStorageItems}
                         onDelete={deleteSessionStorage}
                         onRefresh={loadStorage}
@@ -308,7 +309,7 @@ export default function DebugStoragePage() {
                     <div className="bg-panel/50 border border-border/50 rounded-xl overflow-hidden">
                         <div className="flex items-center justify-between p-4 border-b border-border/50 bg-panel">
                             <div className="flex items-center gap-3">
-                                <Database className="w-5 h-5 text-primary" />
+                                <HugeiconsIcon icon={Database01Icon} size={20} className="text-primary" />
                                 <h2 className="text-lg font-semibold">IndexedDB</h2>
                                 <span className="text-sm text-foreground/50">
                                     ({idbDatabases.length} databases)
@@ -321,9 +322,9 @@ export default function DebugStoragePage() {
                                     title={expandAllIDB ? "Collapse All" : "Expand All"}
                                 >
                                     {expandAllIDB ? (
-                                        <ChevronUp className="w-4 h-4" />
+                                        <HugeiconsIcon icon={ArrowUp01Icon} size={16} />
                                     ) : (
-                                        <ChevronDown className="w-4 h-4" />
+                                        <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
                                     )}
                                 </button>
                                 <button
@@ -331,7 +332,7 @@ export default function DebugStoragePage() {
                                     className="p-2 hover:bg-foreground/10 rounded-lg transition-colors"
                                     title="Refresh"
                                 >
-                                    <RefreshCw className="w-4 h-4" />
+                                    <HugeiconsIcon icon={RefreshIcon} size={16} />
                                 </button>
                             </div>
                         </div>
@@ -349,9 +350,9 @@ export default function DebugStoragePage() {
                                             className="w-full flex items-center gap-2 p-4 hover:bg-foreground/[0.02] transition-colors text-left"
                                         >
                                             {expandedDB.has(db.name) ? (
-                                                <ChevronDown className="w-4 h-4 text-foreground/40" />
+                                                <HugeiconsIcon icon={ArrowDown01Icon} size={16} className="text-foreground/40" />
                                             ) : (
-                                                <ChevronRight className="w-4 h-4 text-foreground/40" />
+                                                <HugeiconsIcon icon={ArrowRight01Icon} size={16} className="text-foreground/40" />
                                             )}
                                             <span className="font-mono text-sm font-medium text-primary">
                                                 {db.name}

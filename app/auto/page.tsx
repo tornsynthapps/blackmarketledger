@@ -2,24 +2,25 @@
 
 import Link from "next/link";
 import { useMemo, useState, useRef, useEffect } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    AlertTriangle,
-    CheckCircle2,
-    Clock3,
-    PauseCircle,
-    Radar,
-    RefreshCcw,
-    Tags,
-    Store,
-    Coins,
-    Box,
-    Link2Off,
-    ChevronRight,
-    ChevronDown,
-    Activity,
-    CloudDownload,
-    Plane,
-} from "lucide-react";
+    Alert01Icon,
+    CheckmarkCircle01Icon,
+    Clock01Icon,
+    PauseCircleIcon,
+    Radar01Icon,
+    RefreshIcon,
+    Tag01Icon,
+    Store01Icon,
+    Coins01Icon,
+    PackageIcon,
+    Link01Icon,
+    ArrowRight01Icon,
+    ArrowDown01Icon,
+    Analytics01Icon,
+    CloudDownloadIcon,
+    Airplane01Icon,
+} from "@hugeicons/core-free-icons";
 import { useJournal } from "@/store/useJournal";
 import {
     buildImportRecord,
@@ -263,7 +264,7 @@ export default function AutoPilotPage() {
                 id: "trade-unlinked",
                 label: "Unlinked Trades",
                 count: unlinkedTrades.length,
-                icon: Link2Off,
+                icon: Link01Icon,
                 type: "trade" as const,
                 color: "orange",
             },
@@ -271,7 +272,7 @@ export default function AutoPilotPage() {
                 id: "trade-success",
                 label: "Successful Trades",
                 count: trades.filter((t) => t.isLinked() || t.manuallyLiked).length,
-                icon: CheckCircle2,
+                icon: CheckmarkCircle01Icon,
                 type: "trade" as const,
                 color: "green",
             },
@@ -279,7 +280,7 @@ export default function AutoPilotPage() {
                 id: "item-market",
                 label: "Item Market Logs",
                 count: transactions.filter((tx: any) => tx.sourceType === "item-market").length,
-                icon: Tags,
+                icon: Tag01Icon,
                 type: "item-market" as const,
                 color: "violet",
             },
@@ -287,7 +288,7 @@ export default function AutoPilotPage() {
                 id: "bazaar",
                 label: "Bazaar Logs",
                 count: transactions.filter((tx: any) => tx.sourceType === "bazaar").length,
-                icon: Store,
+                icon: Store01Icon,
                 type: "bazaar" as const,
                 color: "blue",
             },
@@ -295,7 +296,7 @@ export default function AutoPilotPage() {
                 id: "points-market",
                 label: "Points Market Logs",
                 count: transactions.filter((tx: any) => tx.sourceType === "points-market").length,
-                icon: Coins,
+                icon: Coins01Icon,
                 type: "points-market" as const,
                 color: "amber",
             },
@@ -303,7 +304,7 @@ export default function AutoPilotPage() {
                 id: "museum",
                 label: "Museum Logs",
                 count: transactions.filter((tx: any) => tx.sourceType === "museum").length,
-                icon: Box,
+                icon: PackageIcon,
                 type: "museum" as const,
                 color: "rose",
             },
@@ -311,7 +312,7 @@ export default function AutoPilotPage() {
                 id: "travel",
                 label: "Travel Logs",
                 count: transactions.filter((tx: any) => tx.sourceType === "travel").length,
-                icon: Plane,
+                icon: Airplane01Icon,
                 type: "travel" as const,
                 color: "green",
             },
@@ -614,7 +615,7 @@ export default function AutoPilotPage() {
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                     <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-orange-700 dark:text-orange-300">
-                        <Radar className="h-3.5 w-3.5" />
+                        <HugeiconsIcon icon={Radar01Icon} size={14} />
                         Auto-Pilot
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight">
@@ -644,7 +645,7 @@ export default function AutoPilotPage() {
             {/* Beta Warning Banner */}
             <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
                 <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
+                    <HugeiconsIcon icon={Alert01Icon} size={20} className="shrink-0 text-yellow-600 dark:text-yellow-400" />
                     <div className="space-y-1">
                         <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
                             Beta Feature
@@ -676,8 +677,10 @@ export default function AutoPilotPage() {
                                     disabled={isRunning || isSyncDisabled}
                                     className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <RefreshCcw
-                                        className={`h-4 w-4 ${isRunning || isFetchingFromDrive ? "animate-spin" : ""}`}
+                                    <HugeiconsIcon
+                                        icon={RefreshIcon}
+                                        size={16}
+                                        className={isRunning || isFetchingFromDrive ? "animate-spin" : ""}
                                     />
                                     {isFetchingFromDrive
                                         ? "Positioning ..."
@@ -702,8 +705,10 @@ export default function AutoPilotPage() {
                                                     disabled={isRunning || isSyncDisabled}
                                                     className="inline-flex items-center justify-center rounded-xl border border-orange-500/30 bg-orange-500/10 px-2.5 py-2.5 text-sm font-semibold text-orange-500 transition-opacity hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
-                                                    <ChevronDown
-                                                        className={`h-4 w-4 transition-transform ${showRepositionMenu ? "rotate-180" : ""}`}
+                                                    <HugeiconsIcon
+                                                        icon={ArrowDown01Icon}
+                                                        size={16}
+                                                        className={`transition-transform ${showRepositionMenu ? "rotate-180" : ""}`}
                                                     />
                                                 </button>
                                                 {showRepositionMenu && (
@@ -722,7 +727,7 @@ export default function AutoPilotPage() {
                                                             }
                                                             className="flex w-full items-center gap-2 rounded-t-xl px-4 py-3 text-sm font-semibold text-foreground hover:bg-background/50 transition-colors disabled:opacity-50"
                                                         >
-                                                            <CloudDownload className="h-4 w-4" />
+                                                            <HugeiconsIcon icon={CloudDownloadIcon} size={16} />
                                                             Sync Cursor
                                                         </button>
                                                     </div>
@@ -843,7 +848,7 @@ export default function AutoPilotPage() {
 
                 <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
                     <div className="flex items-center gap-2 mb-6">
-                        <Activity className="h-5 w-5 text-orange-500" />
+                        <HugeiconsIcon icon={Analytics01Icon} size={20} className="text-orange-500" />
                         <h2 className="text-xl font-bold">Auto-Pilot Overview</h2>
                     </div>
 
@@ -856,7 +861,7 @@ export default function AutoPilotPage() {
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`p-2.5 rounded-xl bg-${stat.color}-500/10`}>
-                                        <stat.icon className={`h-5 w-5 text-${stat.color}-500`} />
+                                        <HugeiconsIcon icon={stat.icon} size={20} className={`text-${stat.color}-500`} />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-sm tracking-tight">
@@ -871,7 +876,11 @@ export default function AutoPilotPage() {
                                     <span className="text-xl font-bold tabular-nums group-hover:text-orange-500 transition-colors">
                                         {stat.count}
                                     </span>
-                                    <ChevronRight className="h-4 w-4 text-foreground/30 group-hover:text-orange-500 transition-all group-hover:translate-x-0.5" />
+                                    <HugeiconsIcon
+                                        icon={ArrowRight01Icon}
+                                        size={16}
+                                        className="text-foreground/30 group-hover:text-orange-500 transition-all group-hover:translate-x-0.5"
+                                    />
                                 </div>
                             </Link>
                         ))}
@@ -923,11 +932,11 @@ export default function AutoPilotPage() {
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                     {record.status === "imported" ? (
-                                        <CheckCircle2 className="h-4 w-4 text-green-500 font-bold" />
+                                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-green-500 font-bold" />
                                     ) : record.status === "manual_required" ? (
-                                        <PauseCircle className="h-4 w-4 text-orange-500" />
+                                        <HugeiconsIcon icon={PauseCircleIcon} size={16} className="text-orange-500" />
                                     ) : (
-                                        <AlertTriangle className="h-4 w-4 text-foreground/50" />
+                                        <HugeiconsIcon icon={Alert01Icon} size={16} className="text-foreground/50" />
                                     )}
                                     <p className="font-bold tracking-tight">{record.title}</p>
                                     <span className="text-[10px] bg-foreground/5 py-0.5 px-2 rounded font-bold text-foreground/50 uppercase tracking-widest">
@@ -982,7 +991,7 @@ export default function AutoPilotPage() {
                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/80 py-4 text-sm font-bold text-orange-500 transition-all hover:bg-orange-500 hover:text-white"
                         >
                             Show All Activity History
-                            <ChevronRight className="h-4 w-4" />
+                            <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
                         </Link>
                     )}
                 </div>

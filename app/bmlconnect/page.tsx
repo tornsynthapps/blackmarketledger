@@ -2,21 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    Activity,
-    ArrowRightLeft,
-    CheckCircle2,
-    Database,
-    Download,
-    Eye,
-    EyeOff,
-    RefreshCw,
-    Save,
-    Server,
-    Settings,
-    ShieldCheck,
-    Unlink,
-} from "lucide-react";
+    Analytics01Icon,
+    Exchange01Icon,
+    CheckmarkCircle01Icon,
+    Database01Icon,
+    Download01Icon,
+    ViewIcon,
+    ViewOffIcon,
+    RefreshIcon,
+    FloppyDiskIcon,
+    CloudIcon,
+    Settings01Icon,
+    Shield01Icon,
+    Unlink02Icon,
+} from "@hugeicons/core-free-icons";
 import { useJournal } from "@/store/useJournal";
 import {
     initiateGoogleDriveSetup,
@@ -355,7 +356,7 @@ export default function BMLConnectPage() {
         return (
             <div className="flex flex-col items-center justify-center bg-background font-sans max-w-2xl mx-auto text-center py-12 px-6">
                 <div className="p-4 bg-primary/10 rounded-full text-primary mb-6">
-                    <Database className="w-12 h-12" />
+                    <HugeiconsIcon icon={Database01Icon} size={48} />
                 </div>
                 <h1 className="text-2xl font-bold mb-4">Migration Required</h1>
                 <p className="text-foreground/60 mb-8 leading-relaxed">
@@ -365,7 +366,7 @@ export default function BMLConnectPage() {
                 </p>
                 <div className="bg-foreground/5 border border-border p-6 rounded-2xl w-full text-left space-y-4">
                     <h2 className="font-bold flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-primary" />
+                        <HugeiconsIcon icon={Analytics01Icon} size={16} className="text-primary" />
                         How to migrate:
                     </h2>
                     <ol className="text-sm text-foreground/70 space-y-3 list-decimal list-inside">
@@ -432,7 +433,7 @@ export default function BMLConnectPage() {
                 <div className="relative z-10">
                     {driveSuccessBanner && (
                         <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
-                            <CheckCircle2 className="h-4 w-4" />
+                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} />
                             Google Drive Connected
                         </div>
                     )}
@@ -452,7 +453,7 @@ export default function BMLConnectPage() {
                     <div className="space-y-6">
                         <div className="rounded-xl border border-border bg-foreground/5 p-5">
                             <h3 className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-sm font-bold">
-                                <ShieldCheck className="h-4 w-4 text-primary" /> Subscription
+                                <HugeiconsIcon icon={Shield01Icon} size={16} className="text-primary" /> Subscription
                                 Details
                             </h3>
                             {userInfo ? (
@@ -504,7 +505,7 @@ export default function BMLConnectPage() {
                                             onClick={handleRefreshSubscription}
                                             className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20"
                                         >
-                                            <RefreshCw className="h-3 w-3" /> Refresh Status
+                                            <HugeiconsIcon icon={RefreshIcon} size={12} /> Refresh Status
                                         </button>
                                     </div>
                                 </>
@@ -526,7 +527,7 @@ export default function BMLConnectPage() {
 
                         <div className="rounded-xl border border-border bg-foreground/5 p-5">
                             <h3 className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-sm font-bold">
-                                <Database className="h-4 w-4 text-primary" /> Storage Configuration
+                                <HugeiconsIcon icon={Database01Icon} size={16} className="text-primary" /> Storage Configuration
                             </h3>
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -537,7 +538,7 @@ export default function BMLConnectPage() {
                                     className={`cursor-pointer rounded-xl border-2 p-4 text-left transition-all ${storageLocation === "browser" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/50"}`}
                                 >
                                     <div className="mb-2 flex items-center gap-3">
-                                        <Server className="h-5 w-5 text-foreground/60" />
+                                        <HugeiconsIcon icon={CloudIcon} size={20} className="text-foreground/60" />
                                         <div className="text-sm font-bold">Local Browser</div>
                                     </div>
                                     <p className="text-xs text-foreground/60">
@@ -555,7 +556,7 @@ export default function BMLConnectPage() {
                                 >
                                     <div className="mb-2 flex items-start justify-between">
                                         <div className="flex items-center gap-3">
-                                            <ShieldCheck className="h-5 w-5 text-amber-500" />
+                                            <HugeiconsIcon icon={Shield01Icon} size={20} className="text-amber-500" />
                                             <div className="text-sm font-bold">
                                                 Google Drive Sync
                                             </div>
@@ -576,8 +577,10 @@ export default function BMLConnectPage() {
                                             <div
                                                 className={`flex h-12 w-12 items-center justify-center rounded-2xl ${driveStatus.connected ? "bg-primary/20 text-primary" : "bg-foreground/10 text-foreground/40"}`}
                                             >
-                                                <RefreshCw
-                                                    className={`h-6 w-6 ${driveActionBusy ? "animate-spin" : ""}`}
+                                                <HugeiconsIcon
+                                                    icon={RefreshIcon}
+                                                    size={24}
+                                                    className={driveActionBusy ? "animate-spin" : ""}
                                                 />
                                             </div>
                                             <div>
@@ -597,15 +600,17 @@ export default function BMLConnectPage() {
                                                         }
                                                         className="rounded-lg border border-border bg-background p-2 text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
                                                     >
-                                                        <Settings className="h-4 w-4" />
+                                                        <HugeiconsIcon icon={Settings01Icon} size={16} />
                                                     </button>
                                                     <button
                                                         onClick={handleDriveLoad}
                                                         disabled={driveActionBusy}
                                                         className={`flex items-center gap-2 rounded-lg py-2 px-4 text-xs font-bold uppercase tracking-wider transition-all ${storageLocation === "drive" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "bg-panel text-primary border border-primary/30 hover:bg-primary/5"}`}
                                                     >
-                                                        <Download
-                                                            className={`h-3.5 w-3.5 ${driveActionBusy ? "animate-bounce" : ""}`}
+                                                        <HugeiconsIcon
+                                                            icon={Download01Icon}
+                                                            size={14}
+                                                            className={driveActionBusy ? "animate-bounce" : ""}
                                                         />
                                                         {storageLocation === "drive"
                                                             ? "Connected"
@@ -632,7 +637,7 @@ export default function BMLConnectPage() {
                                                 onClick={handleDisconnectDrive}
                                                 className="flex items-center gap-2 text-xs font-bold text-danger hover:text-danger/80"
                                             >
-                                                <Unlink className="h-3.5 w-3.5" /> Disconnect Google
+                                                <HugeiconsIcon icon={Unlink02Icon} size={14} /> Disconnect Google
                                                 Drive
                                             </button>
                                         </div>
@@ -646,9 +651,9 @@ export default function BMLConnectPage() {
                                         className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-primary py-4 text-sm font-black uppercase tracking-widest text-primary-foreground transition-all hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/20 active:scale-[0.98] disabled:opacity-50"
                                     >
                                         {driveActionBusy ? (
-                                            <RefreshCw className="h-5 w-5 animate-spin" />
+                                            <HugeiconsIcon icon={RefreshIcon} size={20} className="animate-spin" />
                                         ) : (
-                                            <Save className="h-5 w-5" />
+                                            <HugeiconsIcon icon={FloppyDiskIcon} size={20} />
                                         )}
                                         Sync Current Ledger
                                     </button>
@@ -674,7 +679,7 @@ export default function BMLConnectPage() {
                     <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8">
                         <h2 className="text-xl font-bold mb-4">Identity Verification</h2>
                         <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-500 leading-relaxed">
-                            <ShieldCheck className="w-5 h-5 mb-2" />
+                            <HugeiconsIcon icon={Shield01Icon} size={20} className="mb-2" />
                             Provide your Torn API key to verify your Whale subscription.
                         </div>
                         <div className="space-y-4">
@@ -695,9 +700,9 @@ export default function BMLConnectPage() {
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground"
                                     >
                                         {showApiKey ? (
-                                            <EyeOff className="w-4 h-4" />
+                                            <HugeiconsIcon icon={ViewOffIcon} size={16} />
                                         ) : (
-                                            <Eye className="w-4 h-4" />
+                                            <HugeiconsIcon icon={ViewIcon} size={16} />
                                         )}
                                     </button>
                                 </div>
@@ -725,7 +730,7 @@ export default function BMLConnectPage() {
             {showDriveAuthChoiceDialog && (
                 <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8 text-center">
-                        <RefreshCw className="w-12 h-12 text-primary mx-auto mb-4" />
+                        <HugeiconsIcon icon={RefreshIcon} size={48} className="text-primary mx-auto mb-4" />
                         <h2 className="text-xl font-bold mb-2">Authorize Drive</h2>
                         <p className="text-sm text-foreground/60 mb-8">
                             Click below to authorize with Google.
@@ -764,7 +769,7 @@ export default function BMLConnectPage() {
                 <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8 text-center">
                         <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <ShieldCheck className="w-8 h-8 text-amber-500" />
+                            <HugeiconsIcon icon={Shield01Icon} size={32} className="text-amber-500" />
                         </div>
                         <h2 className="text-xl font-bold mb-2">Start Your Free Trial</h2>
                         <p className="text-sm text-foreground/60 mb-6">
@@ -776,15 +781,15 @@ export default function BMLConnectPage() {
                             <p className="text-xs text-foreground/50 mb-2">Trial includes:</p>
                             <ul className="text-sm text-left space-y-1">
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4 text-success" /> Full Drive
+                                    <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-success" /> Full Drive
                                     sync access
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4 text-success" /> Cloud backup &
+                                    <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-success" /> Cloud backup &
                                     restore
                                 </li>
                                 <li className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4 text-success" /> Multi-device
+                                    <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-success" /> Multi-device
                                     access
                                 </li>
                             </ul>
@@ -852,7 +857,7 @@ export default function BMLConnectPage() {
                                     className="group w-full flex items-center gap-4 bg-primary p-4 rounded-2xl hover:bg-primary/90 transition-all text-left border-2 border-primary shadow-lg shadow-primary/20"
                                 >
                                     <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                                        <Save className="w-6 h-6 text-white" />
+                                        <HugeiconsIcon icon={FloppyDiskIcon} size={24} className="text-white" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between gap-4">
@@ -882,7 +887,7 @@ export default function BMLConnectPage() {
                                     className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-primary/10 border border-border/50 hover:border-primary/20 transition-all text-left"
                                 >
                                     <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                        <ArrowRightLeft className="w-6 h-6 text-primary" />
+                                        <HugeiconsIcon icon={Exchange01Icon} size={24} className="text-primary" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between gap-4">
@@ -910,7 +915,7 @@ export default function BMLConnectPage() {
                                     className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-foreground/10 border border-border/50 transition-all text-left"
                                 >
                                     <div className="h-12 w-12 rounded-xl bg-foreground/10 flex items-center justify-center shrink-0">
-                                        <Database className="w-6 h-6 text-foreground/40" />
+                                        <HugeiconsIcon icon={Database01Icon} size={24} className="text-foreground/40" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between gap-4">
@@ -950,7 +955,7 @@ export default function BMLConnectPage() {
             {isMigrating && (
                 <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-background/50 backdrop-blur-md">
                     <div className="text-center">
-                        <RefreshCw className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+                        <HugeiconsIcon icon={RefreshIcon} size={40} className="animate-spin text-primary mx-auto mb-4" />
                         <p className="text-sm font-black uppercase tracking-widest text-primary">
                             Migrating Storage...
                         </p>

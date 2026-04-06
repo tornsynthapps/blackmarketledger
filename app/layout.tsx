@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/Navigation";
 import { Banners } from "@/components/Banners";
@@ -7,17 +6,6 @@ import { VisitorCounter } from "@/components/VisitorCounter";
 import { ServiceRail } from "@/components/ServiceRail";
 import Link from "next/link";
 import { PromoBannersDesktop } from "@/components/SideBanners";
-
-const spaceGrotesk = Space_Grotesk({
-    variable: "--font-space-grotesk",
-    subsets: ["latin"],
-});
-
-const spaceMono = Space_Mono({
-    variable: "--font-space-mono",
-    weight: ["400", "700"],
-    subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
     title: "BlackMarket Ledger",
@@ -55,7 +43,7 @@ export default function RootLayout({
                 />
             </head>
             <body
-                className={`${spaceGrotesk.variable} ${spaceMono.variable} font-mono antialiased selection:bg-primary selection:text-primary-foreground`}
+                className="antialiased selection:bg-primary selection:text-primary-foreground"
             >
                 <div className="layout-wrapper flex flex-col min-h-screen">
                     <Navigation />
@@ -65,7 +53,7 @@ export default function RootLayout({
                         <main className="pt-8 pb-12 px-4 w-full max-w-6xl mx-auto flex-1 h-full flex flex-col">
                             <div className="flex-1">{children}</div>
 
-                            <footer className="mt-24 pt-12 pb-12 border-t-2 border-primary flex flex-col md:flex-row items-center justify-between gap-8 text-[11px] uppercase tracking-widest font-bold text-muted">
+                            <footer className="mt-24 pt-12 pb-12 border-t-2 border-primary flex flex-col md:flex-row items-center justify-between gap-8 text-[11px] uppercase tracking-widest font-bold text-muted font-vt323">
                                 <div className="flex items-center gap-4">
                                     <div className="bg-primary text-primary-foreground px-2 py-0.5">
                                         BML

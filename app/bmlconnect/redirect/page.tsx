@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckmarkCircle01Icon, CancelCircleIcon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { completeGoogleDriveSetup } from "@/lib/drive-api";
 
 function AuthCallbackContent() {
@@ -49,7 +50,7 @@ function AuthCallbackContent() {
             <div className="w-full max-w-md p-8 bg-panel rounded-2xl border border-border text-center shadow-sm">
                 {status === "loading" && (
                     <>
-                        <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+                        <HugeiconsIcon icon={Loading03Icon} size={48} className="text-primary animate-spin mx-auto mb-4" />
                         <h1 className="text-xl font-bold mb-2">Finalizing Connection</h1>
                         <p className="text-foreground/60 text-sm">
                             Please wait while we secure your Google Drive tunnel...
@@ -59,7 +60,7 @@ function AuthCallbackContent() {
 
                 {status === "success" && (
                     <>
-                        <CheckCircle className="w-12 h-12 text-success mx-auto mb-4" />
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={48} className="text-success mx-auto mb-4" />
                         <h1 className="text-xl font-bold mb-2">Connected!</h1>
                         <p className="text-foreground/60 text-sm">
                             Google Drive is successfully linked. Redirecting you back...
@@ -69,7 +70,7 @@ function AuthCallbackContent() {
 
                 {status === "error" && (
                     <>
-                        <XCircle className="w-12 h-12 text-danger mx-auto mb-4" />
+                        <HugeiconsIcon icon={CancelCircleIcon} size={48} className="text-danger mx-auto mb-4" />
                         <h1 className="text-xl font-bold mb-2">Connection Failed</h1>
                         <p className="text-danger/80 text-sm mb-6">{error}</p>
                         <button
@@ -90,7 +91,7 @@ export default function GoogleAuthCallback() {
         <Suspense
             fallback={
                 <div className="flex min-h-screen items-center justify-center bg-background">
-                    <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                    <HugeiconsIcon icon={Loading03Icon} size={48} className="text-primary animate-spin" />
                 </div>
             }
         >

@@ -1,13 +1,12 @@
-"use client";
-
-import { Shield } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Shield01Icon } from "@hugeicons/core-free-icons";
 
 export default function PrivacyPolicy() {
     return (
         <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
                 <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4">
-                    <Shield className="w-6 h-6" />
+                    <HugeiconsIcon icon={Shield01Icon} size={24} />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
                 <p className="text-foreground/60 mt-2">Last updated: March 11, 2026</p>

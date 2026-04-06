@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
-import { ReceiptText, Trash2 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+    Note01Icon,
+    Delete02Icon,
+} from "@hugeicons/core-free-icons";
 import { useJournal } from "@/store/useJournal";
 import { createParsedLogsFromNewReceipt } from "@/lib/torn-api";
 import { TornTrade, Weav3rReceipt } from "@/lib/game/trade";
@@ -102,7 +106,7 @@ export default function ReceiptReviewPage() {
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                     <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-orange-700 dark:text-orange-300">
-                        <ReceiptText className="h-3.5 w-3.5" />
+                        <HugeiconsIcon icon={Note01Icon} size={14} />
                         Receipt Review
                     </div>
                     <h1 className="text-3xl font-bold tracking-tight">
@@ -217,7 +221,7 @@ export default function ReceiptReviewPage() {
                                         onClick={() => void trashReceipt(receipt.id)}
                                         className="mt-3 rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground/75 transition-colors hover:bg-foreground/5 hover:text-foreground flex items-center gap-2"
                                     >
-                                        <Trash2 className="h-4 w-4" />
+                                        <HugeiconsIcon icon={Delete02Icon} size={16} />
                                         Trash Receipt
                                     </button>
                                 </div>

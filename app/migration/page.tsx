@@ -9,7 +9,14 @@ import {
     ConvertTransaction,
 } from "@/lib/parser";
 import { useState, useMemo } from "react";
-import { AlertCircle, Check, Database, RefreshCw, Dna } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+    AlertCircleIcon,
+    CheckmarkCircle01Icon,
+    Database02Icon,
+    RefreshIcon,
+    Dna01Icon,
+} from "@hugeicons/core-free-icons";
 
 export default function MigrationPage() {
     const { isLoaded, transactions, restoreData, inventory } = useJournal();
@@ -125,7 +132,7 @@ export default function MigrationPage() {
             <div className="bg-panel border border-border p-6 rounded-xl space-y-4">
                 <div className="flex items-start gap-4">
                     <div className="p-3 bg-primary/10 rounded-lg text-primary shrink-0">
-                        <Dna className="w-6 h-6" />
+                        <HugeiconsIcon icon={Dna01Icon} size={24} />
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold">Convert Legacy Flushies to Sets</h2>
@@ -229,9 +236,9 @@ export default function MigrationPage() {
                             className="px-6 py-2 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                         >
                             {setMigrateStatus === "running" ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                <HugeiconsIcon icon={RefreshIcon} size={16} className="animate-spin" />
                             ) : (
-                                <Dna className="w-4 h-4" />
+                                <HugeiconsIcon icon={Dna01Icon} size={16} />
                             )}
                             {setMigrateStatus === "running" ? "Converting..." : "Convert to Sets"}
                         </button>
@@ -240,7 +247,7 @@ export default function MigrationPage() {
 
                 {setMigrateStatus === "success" && (
                     <div className="text-sm font-medium text-success flex items-center gap-2 pt-2 animate-in fade-in">
-                        <Check className="w-4 h-4" /> Successfully generated set items!
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} /> Successfully generated set items!
                     </div>
                 )}
             </div>
@@ -248,7 +255,7 @@ export default function MigrationPage() {
             <div className="bg-panel border border-border p-6 rounded-xl space-y-4">
                 <div className="flex items-start gap-4">
                     <div className="p-3 bg-primary/10 rounded-lg text-primary shrink-0">
-                        <Database className="w-6 h-6" />
+                        <HugeiconsIcon icon={Database02Icon} size={24} />
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold">Standardize Item Names (v0.2.0)</h2>
@@ -266,9 +273,9 @@ export default function MigrationPage() {
                 >
                     <div className="flex items-center gap-2 font-medium">
                         {issues.length > 0 ? (
-                            <AlertCircle className="w-5 h-5" />
+                            <HugeiconsIcon icon={AlertCircleIcon} size={20} />
                         ) : (
-                            <Check className="w-5 h-5" />
+                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={20} />
                         )}
                         Found {issues.length} log{issues.length !== 1 ? "s" : ""} containing
                         uppercase characters.
@@ -283,9 +290,9 @@ export default function MigrationPage() {
                             className="w-full sm:w-auto px-6 py-2.5 bg-primary text-primary-foreground font-medium rounded-lg shadow-sm hover:bg-primary/90 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                         >
                             {status === "running" ? (
-                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                <HugeiconsIcon icon={RefreshIcon} size={16} className="animate-spin" />
                             ) : (
-                                <Database className="w-4 h-4" />
+                                <HugeiconsIcon icon={Database02Icon} size={16} />
                             )}
                             {status === "running" ? "Migrating..." : "Run Database Fix"}
                         </button>
@@ -294,7 +301,7 @@ export default function MigrationPage() {
 
                 {status === "success" && (
                     <div className="text-sm font-medium text-success flex items-center gap-2 pt-2 animate-in fade-in">
-                        <Check className="w-4 h-4" /> Migration complete! Your data is properly
+                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} /> Migration complete! Your data is properly
                         standardized.
                     </div>
                 )}

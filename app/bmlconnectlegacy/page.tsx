@@ -2,23 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    Activity,
-    ArrowRightLeft,
-    CheckCircle2,
-    Database,
-    Download,
-    ExternalLink,
-    Eye,
-    EyeOff,
-    RefreshCw,
-    Save,
-    Server,
-    Settings,
-    ShieldCheck,
-    Trash2,
-    Unlink,
-} from "lucide-react";
+    Analytics01Icon,
+    Exchange01Icon,
+    CheckmarkCircle01Icon,
+    Database01Icon,
+    Download01Icon,
+    ArrowUpRight01Icon,
+    ViewIcon,
+    ViewOffIcon,
+    RefreshIcon,
+    FloppyDiskIcon,
+    Database02Icon,
+    Settings01Icon,
+    Shield01Icon,
+    Delete02Icon,
+    Unlink01Icon,
+} from "@hugeicons/core-free-icons";
 import { useJournal } from "@/store/useJournal";
 import { getConnectionString, sendToExtension } from "@/lib/bmlconnect";
 import {
@@ -373,7 +374,7 @@ export default function BMLDashboard() {
                 <div className="relative z-10">
                     {driveSuccessBanner && (
                         <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
-                            <CheckCircle2 className="h-4 w-4" />
+                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} />
                             Google Drive Connected
                         </div>
                     )}
@@ -393,7 +394,7 @@ export default function BMLDashboard() {
                     {!isExtensionInstalled ? (
                         <div className="py-12 text-center">
                             <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
-                                <Download className="h-6 w-6" />
+                                <HugeiconsIcon icon={Download01Icon} size={24} />
                             </div>
                             <h2 className="mb-2 text-lg font-bold">Extension Required</h2>
                             <p className="mx-auto mb-6 max-w-sm text-sm text-foreground/60">
@@ -407,7 +408,7 @@ export default function BMLDashboard() {
                                     rel="noreferrer noopener"
                                     className="flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                                 >
-                                    <Download className="h-4 w-4" /> Install Extension
+                                    <HugeiconsIcon icon={Download01Icon} size={16} /> Install Extension
                                 </a>
                                 <button
                                     onClick={() => window.location.reload()}
@@ -428,7 +429,7 @@ export default function BMLDashboard() {
                     ) : !isConnected && !bypassExtension ? (
                         <div className="py-12 text-center">
                             <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-danger/10 text-danger">
-                                <Activity className="h-6 w-6" />
+                                <HugeiconsIcon icon={Analytics01Icon} size={24} />
                             </div>
                             <h2 className="mb-2 text-lg font-bold">Tunnel Connection Failed</h2>
                             <p className="mx-auto mb-6 max-w-sm text-sm text-foreground/60">
@@ -454,7 +455,7 @@ export default function BMLDashboard() {
                         <div className="space-y-6">
                             <div className="rounded-xl border border-border bg-foreground/5 p-5">
                                 <h3 className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-sm font-bold">
-                                    <ShieldCheck className="h-4 w-4 text-primary" /> Authorization
+                                    <HugeiconsIcon icon={Shield01Icon} size={16} className="text-primary" /> Authorization
                                     Details
                                 </h3>
                                 <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -502,14 +503,14 @@ export default function BMLDashboard() {
                                         onClick={handleRefreshSubscription}
                                         className="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary transition-colors hover:bg-primary/20"
                                     >
-                                        <RefreshCw className="h-3 w-3" /> Refresh Subscription
+                                        <HugeiconsIcon icon={RefreshIcon} size={12} /> Refresh Subscription
                                     </button>
                                 </div>
                             </div>
 
                             <div className="rounded-xl border border-border bg-foreground/5 p-5">
                                 <h3 className="mb-4 flex items-center gap-2 border-b border-border pb-3 text-sm font-bold">
-                                    <Database className="h-4 w-4 text-primary" /> Storage
+                                    <HugeiconsIcon icon={Database01Icon} size={16} className="text-primary" /> Storage
                                     Configuration
                                 </h3>
 
@@ -521,7 +522,7 @@ export default function BMLDashboard() {
                                         className={`cursor-pointer rounded-xl border-2 p-4 text-left transition-all ${storageLocation === "browser" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/50"}`}
                                     >
                                         <div className="mb-2 flex items-center gap-3">
-                                            <Server className="h-5 w-5 text-foreground/60" />
+                                            <HugeiconsIcon icon={Database02Icon} size={16} className="text-foreground/60" />
                                             <div className="text-sm font-bold">Local Browser</div>
                                         </div>
                                         <p className="text-xs text-foreground/60">
@@ -535,7 +536,7 @@ export default function BMLDashboard() {
                                     >
                                         <div className="mb-2 flex items-start justify-between">
                                             <div className="flex items-center gap-3">
-                                                <ShieldCheck className="h-5 w-5 text-amber-500" />
+                                                <HugeiconsIcon icon={Shield01Icon} size={20} className="text-amber-500" />
                                                 <div className="text-sm font-bold">
                                                     Extension Database
                                                 </div>
@@ -557,8 +558,10 @@ export default function BMLDashboard() {
                                                 <div
                                                     className={`flex h-12 w-12 items-center justify-center rounded-2xl ${driveStatus.connected ? "bg-primary/20 text-primary" : "bg-foreground/10 text-foreground/40"}`}
                                                 >
-                                                    <RefreshCw
-                                                        className={`h-6 w-6 ${driveActionBusy ? "animate-spin" : ""}`}
+                                                    <HugeiconsIcon
+                                                        icon={RefreshIcon}
+                                                        size={24}
+                                                        className={driveActionBusy ? "animate-spin" : ""}
                                                     />
                                                 </div>
                                                 <div>
@@ -580,15 +583,17 @@ export default function BMLDashboard() {
                                                             }
                                                             className="rounded-lg border border-border bg-background p-2 text-foreground/60 transition-colors hover:bg-foreground/5 hover:text-foreground"
                                                         >
-                                                            <Settings className="h-4 w-4" />
+                                                            <HugeiconsIcon icon={Settings01Icon} size={16} />
                                                         </button>
                                                         <button
                                                             onClick={handleDriveLoad}
                                                             disabled={driveActionBusy}
                                                             className={`flex items-center gap-2 rounded-lg py-2 px-4 text-xs font-bold uppercase tracking-wider transition-all ${storageLocation === "drive" ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25" : "bg-panel text-primary border border-primary/30 hover:bg-primary/5"}`}
                                                         >
-                                                            <Download
-                                                                className={`h-3.5 w-3.5 ${driveActionBusy ? "animate-bounce" : ""}`}
+                                                            <HugeiconsIcon
+                                                                icon={Download01Icon}
+                                                                size={14}
+                                                                className={driveActionBusy ? "animate-bounce" : ""}
                                                             />
                                                             {storageLocation === "drive"
                                                                 ? "Connected"
@@ -617,7 +622,7 @@ export default function BMLDashboard() {
                                                     onClick={handleDisconnectDrive}
                                                     className="flex items-center gap-2 text-xs font-bold text-danger hover:text-danger/80"
                                                 >
-                                                    <Unlink className="h-3.5 w-3.5" /> Disconnect
+                                                    <HugeiconsIcon icon={Unlink01Icon} size={14} /> Disconnect
                                                     Google Drive
                                                 </button>
                                             </div>
@@ -631,9 +636,9 @@ export default function BMLDashboard() {
                                             className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-primary py-4 text-sm font-black uppercase tracking-widest text-primary-foreground transition-all hover:scale-[1.01] hover:shadow-xl hover:shadow-primary/20 active:scale-[0.98] disabled:opacity-50"
                                         >
                                             {driveActionBusy ? (
-                                                <RefreshCw className="h-5 w-5 animate-spin" />
+                                                <HugeiconsIcon icon={RefreshIcon} size={20} className="animate-spin" />
                                             ) : (
-                                                <Save className="h-5 w-5" />
+                                                <HugeiconsIcon icon={FloppyDiskIcon} size={20} />
                                             )}
                                             Sync Current Ledger
                                         </button>
@@ -651,7 +656,7 @@ export default function BMLDashboard() {
                     <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8">
                         <h2 className="text-xl font-bold mb-4">Google Drive Setup</h2>
                         <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-500 leading-relaxed">
-                            <ShieldCheck className="w-5 h-5 mb-2" />
+                            <HugeiconsIcon icon={Shield01Icon} size={20} className="mb-2" />
                             Your API key will be stored securely and used only for sync.
                         </div>
                         <div className="space-y-4">
@@ -672,9 +677,9 @@ export default function BMLDashboard() {
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground"
                                     >
                                         {showApiKey ? (
-                                            <EyeOff className="w-4 h-4" />
+                                            <HugeiconsIcon icon={ViewOffIcon} size={16} />
                                         ) : (
-                                            <Eye className="w-4 h-4" />
+                                            <HugeiconsIcon icon={ViewIcon} size={16} />
                                         )}
                                     </button>
                                 </div>
@@ -702,7 +707,7 @@ export default function BMLDashboard() {
             {showDriveAuthChoiceDialog && (
                 <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="w-full max-w-md rounded-3xl bg-panel border border-border p-8 text-center">
-                        <RefreshCw className="w-12 h-12 text-primary mx-auto mb-4" />
+                        <HugeiconsIcon icon={RefreshIcon} size={48} className="text-primary mx-auto mb-4" />
                         <h2 className="text-xl font-bold mb-2">Authorize Drive</h2>
                         <p className="text-sm text-foreground/60 mb-8">
                             Click below to authorize with Google.
@@ -781,7 +786,7 @@ export default function BMLDashboard() {
                                     className="group w-full flex items-center gap-4 bg-primary p-4 rounded-2xl hover:bg-primary/90 transition-all text-left border-2 border-primary shadow-lg shadow-primary/20"
                                 >
                                     <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                                        <Save className="w-6 h-6 text-white" />
+                                        <HugeiconsIcon icon={FloppyDiskIcon} size={24} className="text-white" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between gap-4">
@@ -811,7 +816,7 @@ export default function BMLDashboard() {
                                     className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-primary/10 border border-border/50 hover:border-primary/20 transition-all text-left"
                                 >
                                     <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                        <ArrowRightLeft className="w-6 h-6 text-primary" />
+                                        <HugeiconsIcon icon={Exchange01Icon} size={24} className="text-primary" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between gap-4">
@@ -839,7 +844,7 @@ export default function BMLDashboard() {
                                     className="w-full flex items-center gap-4 bg-foreground/5 p-4 rounded-2xl hover:bg-foreground/10 border border-border/50 transition-all text-left"
                                 >
                                     <div className="h-12 w-12 rounded-xl bg-foreground/10 flex items-center justify-center shrink-0">
-                                        <Database className="w-6 h-6 text-foreground/40" />
+                                        <HugeiconsIcon icon={Database01Icon} size={24} className="text-foreground/40" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between gap-4">
@@ -879,7 +884,7 @@ export default function BMLDashboard() {
             {isMigrating && (
                 <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-background/50 backdrop-blur-md">
                     <div className="text-center">
-                        <RefreshCw className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+                        <HugeiconsIcon icon={RefreshIcon} size={40} className="animate-spin text-primary mx-auto mb-4" />
                         <p className="text-sm font-black uppercase tracking-widest text-primary">
                             Migrating Storage...
                         </p>
