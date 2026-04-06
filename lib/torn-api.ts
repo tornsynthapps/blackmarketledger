@@ -994,9 +994,18 @@ export function findMatchingReceipt(
 
 export function createParsedLogsFromReceipt(
     trade: TornTradeDetail,
-    receipt: Weav3rReceipt
+    receipt: Weav3rReceipt,
+    currentUserId: string
 ): ParsedLog[] {
     const tradeItemCount = receipt.items.length;
+    // Correctly identify partner ID by picking the one that's not the current user
+    const partnerID = String(trade.user?.id) === String(currentUserId) 
+        ? String(trade.trader?.id || "") 
+        : String(trade.user?.id || "");
+    const partnerName = String(trade.user?.id) === String(currentUserId)
+        ? String(trade.trader?.name || "")
+        : String(trade.user?.name || "");
+
     return receipt.items.map((item) => ({
         type: "BUY",
         item: normalizeItemName(item.item_name),
@@ -1007,8 +1016,8 @@ export function createParsedLogsFromReceipt(
         tornLogId: `trade:${trade.id}`,
         weav3rReceiptId: receipt.id,
         tradeGroupId: String(trade.id),
-        tradePartnerName: String(trade.trader?.name || ""),
-        tradePartnerID: String(trade.trader?.id || ""),
+        tradePartnerName: partnerName,
+        tradePartnerID: partnerID,
         tradeItemCount,
     }));
 }
@@ -1034,10 +1043,20 @@ function extractTradePartnerName(description: string) {
 
 export function createParsedLogsFromNewReceipt(
     trade: TornTrade,
-    receipt: NewWeav3rReceipt
+    receipt: NewWeav3rReceipt,
+    currentUserId: string
 ): ParsedLog[] {
     const tradeItemCount = receipt.items.length;
-    const partnerName = extractTradePartnerName(trade.description);
+    const partnerNameFromDesc = extractTradePartnerName(trade.description);
+    
+    // Correctly identify partner ID by picking the one that's not the current user
+    const partnerID = String(trade.userID) === String(currentUserId)
+        ? String(trade.traderID || "")
+        : String(trade.userID || "");
+    
+    // Use the traderID from TornTrade as fallback or if description parsing fails
+    const partnerName = partnerNameFromDesc || (String(trade.userID) === String(currentUserId) ? "Trade Partner" : "Initiator");
+
     return receipt.items.map((item: NewWeav3rReceiptItem) => {
         return {
             type: "BUY",
@@ -1050,7 +1069,7 @@ export function createParsedLogsFromNewReceipt(
             weav3rReceiptId: receipt.id,
             tradeGroupId: String(trade.id),
             tradePartnerName: partnerName,
-            tradePartnerID: String(trade.traderID || ""),
+            tradePartnerID: partnerID,
             tradeItemCount,
         };
     });

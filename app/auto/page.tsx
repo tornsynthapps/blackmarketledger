@@ -185,7 +185,7 @@ export default function AutoPilotPage() {
     const importedTradeIds = useMemo(() => {
         return new Set(
             transactions
-                .map((transaction) => transaction.tornLogId)
+                .map((transaction) => (transaction as any).tornID || (transaction as any).tornLogId)
                 .filter((value): value is string => Boolean(value))
         );
     }, [transactions]);
@@ -541,7 +541,11 @@ export default function AutoPilotPage() {
                             mydebug([trade, receipt], "AutoPilot: linked trade");
                             mydebug(trade, "AutoPilot: linked trade");
 
-                            const parsedLogs = createParsedLogsFromNewReceipt(trade, receipt);
+                            const parsedLogs = createParsedLogsFromNewReceipt(
+                                trade,
+                                receipt,
+                                weav3rUserId
+                            );
                             newAllNewParsedLogs.push(...parsedLogs);
                             break;
                         }
