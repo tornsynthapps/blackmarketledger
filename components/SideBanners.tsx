@@ -3,6 +3,9 @@
 import Image from "next/image";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { BookOpenTextIcon } from "@hugeicons/core-free-icons";
+import Link from "next/link";
 
 function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -20,6 +23,17 @@ export function PromoBannersDesktop({ className }: PromoBannersProps) {
                 className
             )}
         >
+            {/* Documentation */}
+            <Link
+                href="/docs"
+                className="group flex items-center h-8 bg-panel hover:bg-panel-elevated transition-all duration-200 border border-border shrink-0 px-3 gap-2"
+            >
+                <HugeiconsIcon icon={BookOpenTextIcon} size={16} className="text-primary" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80 group-hover:text-primary transition-colors whitespace-nowrap">
+                    Docs
+                </span>
+            </Link>
+
             {/* Discord */}
             <a
                 href="https://discord.gg/Xz4GZfh4ep"

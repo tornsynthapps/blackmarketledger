@@ -1,5 +1,10 @@
 # BlackMarket Ledger Version History
 
+## v5.1.3 (2026-04-06)
+
+- **Dashboard Chart**: Fixed stats to show proper abroad profit.
+- **Navigation**: Updated navigation to include link to docs, and use icons only in top navigation.
+
 ## v5.1.2 (2026-04-06)
 
 - **Documentation Layout**: Removed global navigation and footer from documentation pages for a more focused experience.

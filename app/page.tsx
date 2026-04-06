@@ -160,15 +160,35 @@ export default function Home() {
                 name.toLowerCase() === "points" ||
                 MUSEUM_TRACKED_ITEMS.includes(name.toLowerCase());
 
+            abroadProfit += stat.abroadRealizedProfit;
+
             if (isMuseum) {
                 museumProfit += stat.realizedProfit;
+
+                let itemProfit = stat.realizedProfit;
+                let itemValue = Math.max(0, stat.totalCost);
+                let itemStock = stat.stock;
+
+                if (includeAbroad) {
+                    itemProfit += stat.abroadRealizedProfit;
+                    itemValue += Math.max(0, stat.abroadTotalCost);
+                    itemStock += stat.abroadStock;
+                }
+
                 if (includeMuseum) {
-                    items.push({ name, stats: stat });
-                    totalInvValue += Math.max(0, stat.totalCost);
+                    items.push({
+                        name,
+                        stats: {
+                            ...stat,
+                            realizedProfit: itemProfit,
+                            totalCost: itemValue,
+                            stock: itemStock,
+                        },
+                    });
+                    totalInvValue += itemValue;
                 }
             } else {
                 tradingProfit += stat.realizedProfit;
-                abroadProfit += stat.abroadRealizedProfit;
 
                 let itemProfit = stat.realizedProfit;
                 let itemValue = Math.max(0, stat.totalCost);

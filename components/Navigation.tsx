@@ -16,6 +16,7 @@ import {
     Cancel01Icon,
     DiscordIcon,
     UserIcon,
+    BookOpenTextIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -112,7 +113,7 @@ export function Navigation() {
                                     href={item.href}
                                     onClick={() => vibrate("nav")}
                                     className={cn(
-                                        "flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent",
+                                        "group flex items-center gap-0 hover:gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent",
                                         isActive
                                             ? "bg-primary text-primary-foreground"
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 hover:border-border"
@@ -125,7 +126,9 @@ export function Navigation() {
                                             isActive ? "var(--primary-foreground)" : "currentColor"
                                         }
                                     />
-                                    <span className="hidden lg:inline">{item.name}</span>
+                                    <span className="max-w-0 overflow-hidden group-hover:max-w-32 transition-all duration-300 whitespace-nowrap">
+                                        {item.name}
+                                    </span>
                                 </Link>
                             );
                         })}
@@ -222,13 +225,23 @@ export function Navigation() {
                 </div>
 
                 <div className="flex flex-col gap-6 px-2">
-                    <button
-                        onClick={toggleDark}
-                        className="flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-muted hover:text-foreground bg-foreground/5 hover:bg-foreground/10 transition-all w-full text-left"
-                    >
-                        <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={16} />
-                        <span>{isDark ? "Light System" : "Dark System"}</span>
-                    </button>
+                    <div className="flex flex-row gap-2">
+                        <Link
+                            href="/docs"
+                            onClick={() => vibrate("nav")}
+                            className="flex-1 flex items-center justify-center gap-2 h-10 bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
+                        >
+                            <HugeiconsIcon icon={BookOpenTextIcon} size={18} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Docs</span>
+                        </Link>
+                        <button
+                            onClick={toggleDark}
+                            className="w-10 h-10 flex items-center justify-center bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
+                            aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+                        >
+                            <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={20} />
+                        </button>
+                    </div>
 
                     <div className="flex flex-row gap-2 pt-6 border-t border-border">
                         <a
