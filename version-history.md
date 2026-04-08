@@ -1,5 +1,9 @@
 # BlackMarket Ledger Version History
 
+## v5.2.0 (2026-04-08)
+
+- **Set Conversion**: Improved set conversion logic to handle price distribution and total value. Updated trade linking to support sets.
+
 ## v5.1.3 (2026-04-06)
 
 - **Dashboard Chart**: Fixed stats to show proper abroad profit.
