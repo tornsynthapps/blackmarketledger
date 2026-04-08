@@ -108,6 +108,44 @@ export const PLUSHIE_SET = [
     "stingray plushie",
 ];
 
+export interface SetItemInfo {
+    name: string;
+    id: number;
+    marketValue: number;
+}
+
+export const FLOWER_SET_ITEMS: SetItemInfo[] = [
+    { name: "dahlia", id: 260, marketValue: 2445 },
+    { name: "orchid", id: 264, marketValue: 6925 },
+    { name: "african violet", id: 282, marketValue: 61326 },
+    { name: "cherry blossom", id: 277, marketValue: 32713 },
+    { name: "peony", id: 276, marketValue: 60162 },
+    { name: "ceibo flower", id: 271, marketValue: 33078 },
+    { name: "edelweiss", id: 272, marketValue: 7356 },
+    { name: "crocus", id: 263, marketValue: 6939 },
+    { name: "heather", id: 267, marketValue: 37119 },
+    { name: "tribulus omanense", id: 385, marketValue: 64802 },
+    { name: "banana orchid", id: 617, marketValue: 9696 },
+];
+
+export const PLUSHIE_SET_ITEMS: SetItemInfo[] = [
+    { name: "sheep plushie", id: 186, marketValue: 559 },
+    { name: "teddy bear plushie", id: 187, marketValue: 555 },
+    { name: "kitten plushie", id: 215, marketValue: 570 },
+    { name: "jaguar plushie", id: 258, marketValue: 14458 },
+    { name: "wolverine plushie", id: 261, marketValue: 6922 },
+    { name: "nessie plushie", id: 266, marketValue: 33111 },
+    { name: "red fox plushie", id: 268, marketValue: 34097 },
+    { name: "monkey plushie", id: 269, marketValue: 34014 },
+    { name: "chamois plushie", id: 273, marketValue: 9655 },
+    { name: "panda plushie", id: 274, marketValue: 53422 },
+    { name: "lion plushie", id: 281, marketValue: 59568 },
+    { name: "camel plushie", id: 384, marketValue: 73263 },
+    { name: "stingray plushie", id: 618, marketValue: 6879 },
+];
+
+export type SetType = "flower" | "plushie";
+
 export interface MuseumExchangeRequirement {
     itemID: number;
     itemName: string;

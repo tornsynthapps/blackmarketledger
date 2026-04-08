@@ -7,13 +7,13 @@ import {
 } from "./parser";
 import { createRateLimiter } from "./rate-limiter";
 import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "./api-keys";
-import { TornTrade } from "./game/trade";
-export type { ParsedLog };
-
 import {
+    TornTrade,
     Weav3rReceiptItem as NewWeav3rReceiptItem,
     Weav3rReceipt as NewWeav3rReceipt,
 } from "./game/trade";
+
+import { getSetItems } from "./market-prices";
 
 export const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
@@ -999,15 +999,23 @@ export function createParsedLogsFromReceipt(
 ): ParsedLog[] {
     const tradeItemCount = receipt.items.length;
     // Correctly identify partner ID by picking the one that's not the current user
-    const partnerID = String(trade.user?.id) === String(currentUserId) 
-        ? String(trade.trader?.id || "") 
-        : String(trade.user?.id || "");
-    const partnerName = String(trade.user?.id) === String(currentUserId)
-        ? String(trade.trader?.name || "")
-        : String(trade.user?.name || "");
+    const partnerID =
+        String(trade.user?.id) === String(currentUserId)
+            ? String(trade.trader?.id || "")
+            : String(trade.user?.id || "");
+    const partnerName =
+        String(trade.user?.id) === String(currentUserId)
+            ? String(trade.trader?.name || "")
+            : String(trade.user?.name || "");
+
+    // Determine trade direction: BUY if current user received items, SELL if current user sent items
+    // If trade.user?.id === currentUserId, user initiated the trade → sent items → SELL
+    // If trade.trader?.id === currentUserId, user received the trade → received items → BUY
+    const isIncoming = String(trade.trader?.id) === String(currentUserId);
+    const tradeType: "BUY" | "SELL" = isIncoming ? "BUY" : "SELL";
 
     return receipt.items.map((item) => ({
-        type: "BUY",
+        type: tradeType,
         item: normalizeItemName(item.item_name),
         amount: Number(item.quantity),
         price: Number(item.price_used),
@@ -1046,20 +1054,30 @@ export function createParsedLogsFromNewReceipt(
     receipt: NewWeav3rReceipt,
     currentUserId: string
 ): ParsedLog[] {
-    const tradeItemCount = receipt.items.length;
+    const expandedItems = TornTrade.expandSetItems(receipt);
+    const tradeItemCount = expandedItems.length;
     const partnerNameFromDesc = extractTradePartnerName(trade.description);
-    
-    // Correctly identify partner ID by picking the one that's not the current user
-    const partnerID = String(trade.userID) === String(currentUserId)
-        ? String(trade.traderID || "")
-        : String(trade.userID || "");
-    
-    // Use the traderID from TornTrade as fallback or if description parsing fails
-    const partnerName = partnerNameFromDesc || (String(trade.userID) === String(currentUserId) ? "Trade Partner" : "Initiator");
 
-    return receipt.items.map((item: NewWeav3rReceiptItem) => {
+    // Correctly identify partner ID by picking the one that's not the current user
+    const partnerID =
+        String(trade.userID) === String(currentUserId)
+            ? String(trade.traderID || "")
+            : String(trade.userID || "");
+
+    // Use the traderID from TornTrade as fallback or if description parsing fails
+    const partnerName =
+        partnerNameFromDesc ||
+        (String(trade.userID) === String(currentUserId) ? "Trade Partner" : "Initiator");
+
+    // Determine trade direction: BUY if current user received items, SELL if current user sent items
+    // If trade.userID === currentUserId, user initiated the trade → sent items → SELL
+    // If trade.traderID === currentUserId, user received the trade → received items → BUY
+    const isIncoming = String(trade.traderID) === String(currentUserId);
+    const tradeType: "BUY" | "SELL" = isIncoming ? "BUY" : "SELL";
+
+    return expandedItems.map((item: NewWeav3rReceiptItem) => {
         return {
-            type: "BUY",
+            type: tradeType,
             item: normalizeItemName(item.itemName),
             amount: Number(item.quantity),
             price: Number(item.priceUsed),

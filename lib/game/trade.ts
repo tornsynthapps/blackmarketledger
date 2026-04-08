@@ -1,5 +1,12 @@
 import { mydebug } from "../debug";
 import { MetadataInterface } from "../interfaces/metadata";
+import { SetItemInfo } from "../parser";
+import {
+    calculateItemProportions,
+    calculateSetTotalMarketValue,
+    getItemNameById,
+    getSetItems,
+} from "../market-prices";
 
 export class TornTradeItem {
     userID: number;
@@ -157,13 +164,24 @@ export class TornTrade {
     /**
      * Compares a Weav3rReceipt against this trade and links it if valid.
      * @param receipt Weav3rReceipt: The receipt to compare.
+     * @param currentUserId string: The current user's ID to determine trade direction.
      * @returns Boolean: true if receipt is valid, false otherwise.
      */
-    compareAndLinkReceipt(receipt: Weav3rReceipt): Boolean {
+    compareAndLinkReceipt(receipt: Weav3rReceipt, currentUserId?: string): Boolean {
         if (this.linkedReceiptId || receipt.linkedTradeId) {
             mydebug(
                 [this.linkedReceiptId, receipt.linkedTradeId],
                 "TornTrade.compareAndLinkReceipt: Receipt already linked"
+            );
+            return false;
+        }
+
+        // Check trade direction: only match receipts for incoming trades (user received items)
+        // Outgoing trades (user sent items) should not be linked to receipts
+        if (currentUserId && !this.isIncoming(currentUserId)) {
+            mydebug(
+                [this.traderID, currentUserId],
+                "TornTrade.compareAndLinkReceipt: Skipping outgoing trade"
             );
             return false;
         }
@@ -185,6 +203,15 @@ export class TornTrade {
      */
     compareReceipt(receipt: Weav3rReceipt): Boolean {
         return TornTrade.compareReceipt(this, receipt);
+    }
+
+    /**
+     * Checks if this trade is incoming (current user received items).
+     * @param currentUserId string: The current user's ID.
+     * @returns boolean: true if incoming, false if outgoing.
+     */
+    isIncoming(currentUserId: string): boolean {
+        return String(this.traderID) === String(currentUserId);
     }
 
     /**
@@ -235,10 +262,25 @@ export class TornTrade {
      * @returns boolean: true if receipt is valid, false otherwise.
      */
     static compareReceipt(trade: TornTrade, receipt: Weav3rReceipt): Boolean {
+        const hasMoneyItem = trade.items.some((item) => item instanceof TornTradeMoney);
+        const tradeTotalValue = hasMoneyItem
+            ? (trade.items.find((item) => item instanceof TornTradeMoney) as TornTradeMoney).amount
+            : 0;
+
+        // Expand set items (-1 for Flower Set, -2 for Plushie Set) to individual items
+        // Pass trade's total value for distribution since receipt set items have totalValue = 0
+        const expandedReceiptItems = TornTrade.expandSetItems(receipt, tradeTotalValue);
+
+        // Calculate total value from expanded receipt items
+        const expandedTotalValue = expandedReceiptItems.reduce(
+            (sum, item) => sum + item.totalValue,
+            0
+        );
+
         // Check if it's simple buy trade.
-        if (trade.hasOnlyOneMoneyItem() && trade.getTotalValue() !== receipt.totalValue) {
+        if (trade.hasOnlyOneMoneyItem() && trade.getTotalValue() !== expandedTotalValue) {
             mydebug(
-                [trade.getTotalValue(), receipt.totalValue],
+                [trade.getTotalValue(), expandedTotalValue],
                 "TornTrade.compareReceipt: Receipt total value mismatch"
             );
             return false;
@@ -253,17 +295,17 @@ export class TornTrade {
             return false;
         }
 
-        // Check for item mismatches.
+        // Check for item mismatches using expanded items.
         const missingItemsInReceipt = trade.items.filter((item) => {
             if (item instanceof TornTradeMoney || item instanceof UnsupportedTornTradeItem) {
                 return false;
             }
-            return !receipt.items.some((rItem) => {
+            return !expandedReceiptItems.some((rItem) => {
                 return rItem.itemID === item.itemID && rItem.quantity === item.quantity;
             });
         });
 
-        const missingItemsInTrade = receipt.items.filter((item) => {
+        const missingItemsInTrade = expandedReceiptItems.filter((item) => {
             return !trade.items.some((tItem) => {
                 if (tItem instanceof TornTradeMoney || tItem instanceof UnsupportedTornTradeItem) {
                     return false;
@@ -274,13 +316,138 @@ export class TornTrade {
 
         if (missingItemsInReceipt.length > 0 || missingItemsInTrade.length > 0) {
             mydebug(
-                [missingItemsInReceipt, missingItemsInTrade, trade.items, receipt.items],
+                [missingItemsInReceipt, missingItemsInTrade, trade.items, expandedReceiptItems],
                 "TornTrade.compareReceipt: Receipt missing items"
             );
             return false;
         }
 
         return true;
+    }
+
+    /**
+     * Expands set items (Flower Set -1, Plushie Set -2) in a receipt to individual items.
+     * Also merges items that appear both in set and individually.
+     * @param receipt Weav3rReceipt: The receipt to expand.
+     * @param tradeTotalValue number: Optional total value from trade for distribution when receipt set items have totalValue = 0.
+     * @returns Weav3rReceiptItem[]: Expanded and merged items.
+     */
+    static expandSetItems(
+        receipt: Weav3rReceipt,
+        tradeTotalValue: number = 0
+    ): Weav3rReceiptItem[] {
+        const expandedItems: Weav3rReceiptItem[] = [];
+
+        for (const item of receipt.items) {
+            if (item.itemID === -1) {
+                const setType: "flower" | "plushie" = "flower";
+                const setTotalMP = calculateSetTotalMarketValue(setType);
+                const proportions = calculateItemProportions(setType, setTotalMP);
+                const setItems = getSetItems(setType);
+                // Use trade total value if receipt item total is 0, otherwise use receipt item total
+                const setValue = item.priceUsed > 0 ? item.priceUsed : 0;
+
+                // Calculate price per item for each set item based on proportions
+                const itemPrices: number[] = [];
+                for (const setItem of setItems) {
+                    const proportion = proportions.get(setItem.id) || 0;
+                    const pricePerItem = Math.floor(setValue * proportion);
+                    itemPrices.push(pricePerItem);
+                }
+
+                // Distribute remainder to first items to maintain total
+                const distributedTotal = itemPrices.reduce((sum, p) => sum + p, 0);
+                const remainder = setValue - distributedTotal;
+                for (let i = 0; i < remainder; i++) {
+                    itemPrices[i] += 1;
+                }
+
+                // Create expanded items with pricePerItem and totalValue = pricePerItem * quantity
+                for (let i = 0; i < setItems.length; i++) {
+                    const setItem = setItems[i];
+                    const pricePerItem = itemPrices[i];
+                    const itemTotalValue = pricePerItem * item.quantity;
+                    expandedItems.push(
+                        new Weav3rReceiptItem(
+                            setItem.id,
+                            setItem.name,
+                            item.quantity,
+                            pricePerItem,
+                            itemTotalValue
+                        )
+                    );
+                }
+            } else if (item.itemID === -2) {
+                const setType: "flower" | "plushie" = "plushie";
+                const setTotalMP = calculateSetTotalMarketValue(setType);
+                const proportions = calculateItemProportions(setType, setTotalMP);
+                const setItems = getSetItems(setType);
+                // Use trade total value if receipt item total is 0, otherwise use receipt item total
+                const totalValue = item.priceUsed > 0 ? item.priceUsed : 0;
+
+                // Calculate price per item for each set item based on proportions
+                const itemPrices: number[] = [];
+                for (const setItem of setItems) {
+                    const proportion = proportions.get(setItem.id) || 0;
+                    const pricePerItem = Math.floor(totalValue * proportion);
+                    itemPrices.push(pricePerItem);
+                }
+
+                // Distribute remainder to first items to maintain total
+                const distributedTotal = itemPrices.reduce((sum, p) => sum + p, 0);
+                const remainder = totalValue - distributedTotal;
+                for (let i = 0; i < remainder; i++) {
+                    itemPrices[i] += 1;
+                }
+
+                // Create expanded items with pricePerItem and totalValue = pricePerItem * quantity
+                for (let i = 0; i < setItems.length; i++) {
+                    const setItem = setItems[i];
+                    const pricePerItem = itemPrices[i];
+                    const itemTotalValue = pricePerItem * item.quantity;
+                    expandedItems.push(
+                        new Weav3rReceiptItem(
+                            setItem.id,
+                            setItem.name,
+                            item.quantity,
+                            pricePerItem,
+                            itemTotalValue
+                        )
+                    );
+                }
+            } else {
+                expandedItems.push(item);
+            }
+        }
+
+        // Merge items with same itemID by summing quantities and values
+        const mergedMap = new Map<number, Weav3rReceiptItem>();
+        for (const item of expandedItems) {
+            const existing = mergedMap.get(item.itemID);
+            if (existing) {
+                const newQuantity = existing.quantity + item.quantity;
+                // Calculate weighted average price
+                const newPriceUsed =
+                    (existing.priceUsed * existing.quantity + item.priceUsed * item.quantity) /
+                    newQuantity;
+                existing.quantity = newQuantity;
+                existing.priceUsed = newPriceUsed;
+                existing.totalValue += item.totalValue;
+            } else {
+                mergedMap.set(
+                    item.itemID,
+                    new Weav3rReceiptItem(
+                        item.itemID,
+                        item.itemName,
+                        item.quantity,
+                        item.priceUsed,
+                        item.totalValue
+                    )
+                );
+            }
+        }
+
+        return Array.from(mergedMap.values());
     }
 
     /**
@@ -349,19 +516,22 @@ export class Weav3rReceiptItem {
     quantity: number;
     priceUsed: number;
     totalValue: number;
+    marketPriceAtTime?: number;
 
     constructor(
         itemID: number,
         itemName: string,
         quantity: number,
         priceUsed: number,
-        totalValue: number
+        totalValue: number,
+        marketPriceAtTime?: number
     ) {
         this.itemID = itemID;
         this.itemName = itemName;
         this.quantity = quantity;
         this.priceUsed = priceUsed;
         this.totalValue = totalValue;
+        this.marketPriceAtTime = marketPriceAtTime;
     }
 }
 
@@ -394,7 +564,8 @@ export class Weav3rReceipt {
                         item.item_name,
                         item.quantity,
                         item.price_used,
-                        item.total_value
+                        item.total_value,
+                        item.market_price_at_time ? Number(item.market_price_at_time) : undefined
                     )
             )
         );

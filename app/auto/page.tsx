@@ -537,7 +537,7 @@ export default function AutoPilotPage() {
                 setStatusMessage(`${statusMessage}\nLinking trades...`);
                 for (const trade of newtornTrades) {
                     for (const receipt of neweav3rReceipts) {
-                        if (trade.compareAndLinkReceipt(receipt)) {
+                        if (trade.compareAndLinkReceipt(receipt, weav3rUserId)) {
                             mydebug([trade, receipt], "AutoPilot: linked trade");
                             mydebug(trade, "AutoPilot: linked trade");
 
@@ -649,7 +649,11 @@ export default function AutoPilotPage() {
             {/* Beta Warning Banner */}
             <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
                 <div className="flex items-start gap-3">
-                    <HugeiconsIcon icon={Alert01Icon} size={20} className="shrink-0 text-yellow-600 dark:text-yellow-400" />
+                    <HugeiconsIcon
+                        icon={Alert01Icon}
+                        size={20}
+                        className="shrink-0 text-yellow-600 dark:text-yellow-400"
+                    />
                     <div className="space-y-1">
                         <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
                             Beta Feature
@@ -684,7 +688,9 @@ export default function AutoPilotPage() {
                                     <HugeiconsIcon
                                         icon={RefreshIcon}
                                         size={16}
-                                        className={isRunning || isFetchingFromDrive ? "animate-spin" : ""}
+                                        className={
+                                            isRunning || isFetchingFromDrive ? "animate-spin" : ""
+                                        }
                                     />
                                     {isFetchingFromDrive
                                         ? "Positioning ..."
@@ -731,7 +737,10 @@ export default function AutoPilotPage() {
                                                             }
                                                             className="flex w-full items-center gap-2 rounded-t-xl px-4 py-3 text-sm font-semibold text-foreground hover:bg-background/50 transition-colors disabled:opacity-50"
                                                         >
-                                                            <HugeiconsIcon icon={CloudDownloadIcon} size={16} />
+                                                            <HugeiconsIcon
+                                                                icon={CloudDownloadIcon}
+                                                                size={16}
+                                                            />
                                                             Sync Cursor
                                                         </button>
                                                     </div>
@@ -852,7 +861,11 @@ export default function AutoPilotPage() {
 
                 <section className="rounded-2xl border border-border bg-panel p-5 shadow-sm">
                     <div className="flex items-center gap-2 mb-6">
-                        <HugeiconsIcon icon={Analytics01Icon} size={20} className="text-orange-500" />
+                        <HugeiconsIcon
+                            icon={Analytics01Icon}
+                            size={20}
+                            className="text-orange-500"
+                        />
                         <h2 className="text-xl font-bold">Auto-Pilot Overview</h2>
                     </div>
 
@@ -865,7 +878,11 @@ export default function AutoPilotPage() {
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`p-2.5 rounded-xl bg-${stat.color}-500/10`}>
-                                        <HugeiconsIcon icon={stat.icon} size={20} className={`text-${stat.color}-500`} />
+                                        <HugeiconsIcon
+                                            icon={stat.icon}
+                                            size={20}
+                                            className={`text-${stat.color}-500`}
+                                        />
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-sm tracking-tight">
@@ -936,11 +953,23 @@ export default function AutoPilotPage() {
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                     {record.status === "imported" ? (
-                                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-green-500 font-bold" />
+                                        <HugeiconsIcon
+                                            icon={CheckmarkCircle01Icon}
+                                            size={16}
+                                            className="text-green-500 font-bold"
+                                        />
                                     ) : record.status === "manual_required" ? (
-                                        <HugeiconsIcon icon={PauseCircleIcon} size={16} className="text-orange-500" />
+                                        <HugeiconsIcon
+                                            icon={PauseCircleIcon}
+                                            size={16}
+                                            className="text-orange-500"
+                                        />
                                     ) : (
-                                        <HugeiconsIcon icon={Alert01Icon} size={16} className="text-foreground/50" />
+                                        <HugeiconsIcon
+                                            icon={Alert01Icon}
+                                            size={16}
+                                            className="text-foreground/50"
+                                        />
                                     )}
                                     <p className="font-bold tracking-tight">{record.title}</p>
                                     <span className="text-[10px] bg-foreground/5 py-0.5 px-2 rounded font-bold text-foreground/50 uppercase tracking-widest">
