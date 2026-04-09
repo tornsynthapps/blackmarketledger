@@ -1,5 +1,15 @@
 # BlackMarket Ledger Version History
 
+## v5.4.0 (2026-04-09)
+
+- **Set Pricelist in Museum**: Added "Set Pricelist" mode for Flower and Plushie sets in Museum page.
+- **Item Grid Display**: Shows item name, stock, market price, current %, and editable new % for each item.
+- **Auto Button**: Calculates offer percentage based on configurable stock thresholds (defaults: 500→101%, 1000→100%, 2000→98%, else 95%).
+- **Settings Panel**: Allows customizing both stock thresholds and offer percentages (supports floating values).
+- **Weav3r Integration**: Save button updates pricelist via Weav3r API.
+- **Mode Toggle**: Unified mode state (overview/buy/pricelist) with mode labels next to headings.
+- **Color Coding**: Green for Buy Mode, Blue for Set Pricelist mode (applied to buttons and table components).
+
 ## v5.3.0 (2026-04-09)
 
 - **Agent Instructions Enhancement**: Added guidelines for checking unstaged changes and confirming with users before updating version history.

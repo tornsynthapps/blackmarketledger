@@ -15,7 +15,7 @@ import {
     AnonymousIcon,
     DropletIcon,
     Exchange01Icon,
-    ShoppingCart01Icon,
+    ShoppingBasket03Icon,
     DashboardSpeed01Icon,
     AlertCircleIcon,
     Loading03Icon,
@@ -731,7 +731,7 @@ export default function MuseumDashboard() {
                                     }`}
                                 title="Buy Mode"
                             >
-                                <HugeiconsIcon icon={ShoppingCart01Icon} size={20} />
+                                <HugeiconsIcon icon={ShoppingBasket03Icon} size={20} />
                             </button>
                             <button
                                 onClick={() =>
@@ -769,7 +769,7 @@ export default function MuseumDashboard() {
                             {flowerBuyPlan.totalQty > 0 && (
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/30 rounded-lg">
                                     <HugeiconsIcon
-                                        icon={ShoppingCart01Icon}
+                                        icon={ShoppingBasket03Icon}
                                         size={14}
                                         className="text-success flex-shrink-0"
                                     />
@@ -1027,14 +1027,14 @@ export default function MuseumDashboard() {
                                             <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
                                                 <tr>
                                                     <th className="px-4 py-3 text-left">Item</th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                    Market Price
-                                                </th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                    Current %
-                                                </th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        Market Price
+                                                    </th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        Current %
+                                                    </th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border">
@@ -1174,7 +1174,7 @@ export default function MuseumDashboard() {
                                     }`}
                                 title="Buy Mode"
                             >
-                                <HugeiconsIcon icon={ShoppingCart01Icon} size={20} />
+                                <HugeiconsIcon icon={ShoppingBasket03Icon} size={20} />
                             </button>
                             <button
                                 onClick={() =>
@@ -1212,7 +1212,7 @@ export default function MuseumDashboard() {
                             {plushieBuyPlan.totalQty > 0 && (
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/30 rounded-lg">
                                     <HugeiconsIcon
-                                        icon={ShoppingCart01Icon}
+                                        icon={ShoppingBasket03Icon}
                                         size={14}
                                         className="text-success flex-shrink-0"
                                     />
@@ -1470,14 +1470,14 @@ export default function MuseumDashboard() {
                                             <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
                                                 <tr>
                                                     <th className="px-4 py-3 text-left">Item</th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                    Market Price
-                                                </th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                    Current %
-                                                </th>
-                                                <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        Market Price
+                                                    </th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        Current %
+                                                    </th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border">
@@ -1728,19 +1728,18 @@ function ItemGridCard({
 
     return (
         <div
-            className={`p-4 rounded-lg border transition-all ${
-                isBuyMode
+            className={`p-4 rounded-lg border transition-all ${isBuyMode
                     ? needsBuy
                         ? "border-success/50 bg-success/10 shadow-md ring-1 ring-success/20"
                         : "border-success/20 bg-success/[0.02]"
                     : isPriceMode
-                    ? "border-blue-500/40 bg-blue-500/[0.08] shadow-sm"
-                    : needsBuy
-                    ? "border-success/30 bg-success/5"
-                    : stats.stock > 0
-                    ? "border-primary/30 bg-primary/5"
-                    : "border-border/50 bg-background/50"
-            }`}
+                        ? "border-blue-500/40 bg-blue-500/[0.08] shadow-sm"
+                        : needsBuy
+                            ? "border-success/30 bg-success/5"
+                            : stats.stock > 0
+                                ? "border-primary/30 bg-primary/5"
+                                : "border-border/50 bg-background/50"
+                }`}
         >
             <h4 className="font-semibold text-sm truncate" title={formatItemName(name)}>
                 {formatItemName(name)}
@@ -1832,7 +1831,7 @@ function BuyPlanSection({
             {buyPlan.itemsToBuy > 0 ? (
                 <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg">
                     <HugeiconsIcon
-                        icon={ShoppingCart01Icon}
+                        icon={ShoppingBasket03Icon}
                         size={16}
                         className="text-primary flex-shrink-0"
                     />
