@@ -173,15 +173,22 @@ if (!user) {
 ---
 
 ## 9. Additional Commands
+- Commands can start with command:, command, command/, /command, etc.
 
 ### 9.1 Update version history
 - Check git history and look for last version commit. It can be in from chore(version): or something similar.
 - Check all the changes since the last version commit.
 - If user hasn't provided the new version, ask for it.
-- Check for any unstaged and uncommitted changes.
 - Ask user to confirm the new version and changes to be made in version history.
 - Update the version history file with the new version and changes.
 - Update package.json with the new version.
+
+### 9.2 Commit changes
+- Check for any unstaged changes.
+- Create a commit message with the changes.
+- Commit message should be in the format of feat/fix/chore/docs/refactor/test/style/perf/build/ci/revert/release/wip/add/remove/update/fix/merge/rename/bump(scope): commit message.
+- Ask user to confirm the commit message.
+- Commit changes.
 
 ## Summary
 
