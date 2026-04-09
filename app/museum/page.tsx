@@ -17,14 +17,21 @@ import {
     Exchange01Icon,
     ShoppingCart01Icon,
     DashboardSpeed01Icon,
+    AlertCircleIcon,
+    Loading03Icon,
+    CheckmarkCircle01Icon,
+    SettingsIcon,
+    PencilEdit02Icon
 } from "@hugeicons/core-free-icons";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
     formatItemName,
     FLOWER_SET,
     MUSEUM_EXCHANGE_DEFINITIONS,
     MUSEUM_TRACKED_ITEMS,
     PLUSHIE_SET,
+    FLOWER_SET_ITEMS,
+    PLUSHIE_SET_ITEMS,
 } from "@/lib/parser";
 import { ProfitChart } from "@/components/ProfitChart";
 import {
@@ -130,7 +137,7 @@ function computeBuyPlanByItems(items: { name: string; stock: number }[], numItem
 }
 
 export default function MuseumDashboard() {
-    const { isLoaded, inventory, transactions } = useJournal();
+    const { isLoaded, inventory, transactions, weav3rApiKey, weav3rUserId } = useJournal();
 
     const {
         flushieStats,
@@ -173,8 +180,8 @@ export default function MuseumDashboard() {
                 const exchangesReady =
                     items.length > 0
                         ? Math.min(
-                              ...items.map((item) => Math.floor(item.stats.stock / item.quantity))
-                          )
+                            ...items.map((item) => Math.floor(item.stats.stock / item.quantity))
+                        )
                         : 0;
 
                 return {
@@ -269,20 +276,59 @@ export default function MuseumDashboard() {
         }
         return 1;
     });
-    const [showFlowerBuyPlan, setShowFlowerBuyPlan] = useState<boolean>(() => {
+    const [flowerMode, setFlowerMode] = useState<"view" | "buy" | "price">(() => {
         if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("museum-show-flower-buy-plan");
-            if (saved !== null) return saved === "true";
+            const buy = localStorage.getItem("museum-show-flower-buy-plan") === "true";
+            const price = localStorage.getItem("museum-show-flower-pricelist") === "true";
+            if (price) return "price";
+            if (buy) return "buy";
         }
-        return false;
+        return "view";
     });
-    const [showPlushieBuyPlan, setShowPlushieBuyPlan] = useState<boolean>(() => {
+    const [plushieMode, setPlushieMode] = useState<"view" | "buy" | "price">(() => {
         if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("museum-show-plushie-buy-plan");
-            if (saved !== null) return saved === "true";
+            const buy = localStorage.getItem("museum-show-plushie-buy-plan") === "true";
+            const price = localStorage.getItem("museum-show-plushie-pricelist") === "true";
+            if (price) return "price";
+            if (buy) return "buy";
         }
-        return false;
+        return "view";
     });
+
+    const defaultThresholds = {
+        threshold1: 500,
+        threshold2: 1000,
+        threshold3: 2000,
+        offer1: 101,
+        offer2: 100,
+        offer3: 98,
+        offerElse: 95,
+    };
+
+    const [thresholdSettings, setThresholdSettings] = useState<typeof defaultThresholds>(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("museum-pricelist-thresholds");
+            if (saved !== null) {
+                try {
+                    return { ...defaultThresholds, ...JSON.parse(saved) };
+                } catch {
+                    return defaultThresholds;
+                }
+            }
+        }
+        return defaultThresholds;
+    });
+
+    const [marketPrices, setMarketPrices] = useState<Record<number, number>>({});
+    const [userPricelist, setUserPricelist] = useState<Record<string, number>>({});
+    const [isFetchingPricelist, setIsFetchingPricelist] = useState(false);
+    const [isUpdatingPricelist, setIsUpdatingPricelist] = useState(false);
+    const [pricelistError, setPricelistError] = useState<string | null>(null);
+    const [pricelistSuccess, setPricelistSuccess] = useState<string | null>(null);
+
+    const [flowerPricelistEdits, setFlowerPricelistEdits] = useState<Record<string, number>>({});
+    const [plushiePricelistEdits, setPlushiePricelistEdits] = useState<Record<string, number>>({});
+    const [showThresholdSettings, setShowThresholdSettings] = useState(false);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -291,8 +337,15 @@ export default function MuseumDashboard() {
             localStorage.setItem("museum-mode", mode);
             localStorage.setItem("museum-flower-num-items", flowerNumItems.toString());
             localStorage.setItem("museum-plushie-num-items", plushieNumItems.toString());
-            localStorage.setItem("museum-show-flower-buy-plan", showFlowerBuyPlan.toString());
-            localStorage.setItem("museum-show-plushie-buy-plan", showPlushieBuyPlan.toString());
+            localStorage.setItem("museum-flower-mode", flowerMode);
+            localStorage.setItem("museum-plushie-mode", plushieMode);
+            localStorage.setItem("museum-pricelist-thresholds", JSON.stringify(thresholdSettings));
+
+            // Legacy support
+            localStorage.setItem("museum-show-flower-buy-plan", (flowerMode === "buy").toString());
+            localStorage.setItem("museum-show-flower-pricelist", (flowerMode === "price").toString());
+            localStorage.setItem("museum-show-plushie-buy-plan", (plushieMode === "buy").toString());
+            localStorage.setItem("museum-show-plushie-pricelist", (plushieMode === "price").toString());
         }
     }, [
         timeRange,
@@ -300,8 +353,9 @@ export default function MuseumDashboard() {
         mode,
         flowerNumItems,
         plushieNumItems,
-        showFlowerBuyPlan,
-        showPlushieBuyPlan,
+        flowerMode,
+        plushieMode,
+        thresholdSettings,
     ]);
 
     const chartData = useMemo(() => {
@@ -393,6 +447,142 @@ export default function MuseumDashboard() {
                 plushieNumItems
             ),
         [plushiesData, plushieNumItems]
+    );
+
+    const fetchPricelistData = useCallback(async () => {
+        if (!weav3rApiKey || !weav3rUserId) {
+            setPricelistError("Weav3r API key not configured. Please set it up in Terminal.");
+            return;
+        }
+
+        setIsFetchingPricelist(true);
+        setPricelistError(null);
+
+        try {
+            const [marketRes, pricelistRes] = await Promise.all([
+                fetch("https://weav3r.dev/api/marketplace"),
+                fetch(`https://weav3r.dev/api/pricelist/${weav3rUserId}?apiKey=${weav3rApiKey}`),
+            ]);
+
+            const marketData = await marketRes.json();
+            const pricelistData = await pricelistRes.json();
+
+            if (marketData.error) throw new Error(marketData.error);
+            if (pricelistData.error) throw new Error(pricelistData.error);
+
+            const priceMap: Record<number, number> = {};
+            if (Array.isArray(marketData.items)) {
+                marketData.items.forEach((item: any) => {
+                    if (item.item_id && item.market_price) {
+                        priceMap[item.item_id] = item.market_price;
+                    }
+                });
+            }
+            setMarketPrices(priceMap);
+
+            const userPriceMap: Record<string, number> = {};
+            if (Array.isArray(pricelistData)) {
+                pricelistData.forEach((item: any) => {
+                    const normalizedName = item.name?.trim().toLowerCase();
+                    if (normalizedName && item.buyPrice) {
+                        userPriceMap[normalizedName] = item.buyPrice;
+                    }
+                });
+            }
+            setUserPricelist(userPriceMap);
+        } catch (err: any) {
+            console.error("Failed to fetch pricelist data", err);
+            setPricelistError(err.message || "Failed to load pricelist data");
+        } finally {
+            setIsFetchingPricelist(false);
+        }
+    }, [weav3rApiKey, weav3rUserId]);
+
+    useEffect(() => {
+        if ((flowerMode === "price" || plushieMode === "price") && isLoaded) {
+            fetchPricelistData();
+        }
+    }, [flowerMode, plushieMode, isLoaded, fetchPricelistData]);
+
+    const calculateOfferPercentage = useCallback(
+        (stock: number, thresholds: typeof thresholdSettings): number => {
+            if (stock <= thresholds.threshold1) return thresholds.offer1;
+            if (stock <= thresholds.threshold2) return thresholds.offer2;
+            if (stock <= thresholds.threshold3) return thresholds.offer3;
+            return thresholds.offerElse;
+        },
+        []
+    );
+
+    const applyAutoPricing = useCallback(
+        (setType: "flower" | "plushie") => {
+            const data = setType === "flower" ? flowersData : plushiesData;
+            const setEdits =
+                setType === "flower" ? setFlowerPricelistEdits : setPlushiePricelistEdits;
+
+            const newEdits: Record<string, number> = {};
+            data.forEach((item) => {
+                const percentage = calculateOfferPercentage(item.stats.stock, thresholdSettings);
+                newEdits[item.name] = percentage;
+            });
+            setEdits(newEdits);
+        },
+        [flowersData, plushiesData, calculateOfferPercentage, thresholdSettings]
+    );
+
+    const savePricelist = useCallback(
+        async (setType: "flower" | "plushie") => {
+            if (!weav3rApiKey || !weav3rUserId) {
+                setPricelistError("Weav3r API key not configured");
+                return;
+            }
+
+            const edits = setType === "flower" ? flowerPricelistEdits : plushiePricelistEdits;
+            const setItems = setType === "flower" ? FLOWER_SET_ITEMS : PLUSHIE_SET_ITEMS;
+
+            const itemsToUpdate = Object.entries(edits).map(([itemName, percentage]) => {
+                const setItem = setItems.find((si) => si.name === itemName);
+                return {
+                    itemID: setItem?.id || 0,
+                    pricingType: "market_percentage" as const,
+                    pricingValue: percentage,
+                    inflationProtectionEnabled: false,
+                    roundToPlace: 0,
+                };
+            });
+
+            if (itemsToUpdate.length === 0) {
+                setPricelistError("No changes to save");
+                return;
+            }
+
+            setIsUpdatingPricelist(true);
+            setPricelistError(null);
+            setPricelistSuccess(null);
+
+            try {
+                const response = await fetch(
+                    `https://weav3r.dev/api/pricelist/${weav3rUserId}?apiKey=${weav3rApiKey}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ items: itemsToUpdate }),
+                    }
+                );
+
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+
+                setPricelistSuccess(`Successfully updated ${setType} pricelist!`);
+                setTimeout(() => setPricelistSuccess(null), 3000);
+            } catch (err: any) {
+                console.error("Failed to update pricelist", err);
+                setPricelistError(err.message || "Failed to update pricelist");
+            } finally {
+                setIsUpdatingPricelist(false);
+            }
+        },
+        [weav3rApiKey, weav3rUserId, flowerPricelistEdits, plushiePricelistEdits]
     );
 
     if (!isLoaded)
@@ -530,19 +720,34 @@ export default function MuseumDashboard() {
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setShowFlowerBuyPlan(!showFlowerBuyPlan)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                showFlowerBuyPlan
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "bg-primary/10 text-primary hover:bg-primary/20"
-                            }`}
-                        >
-                            <HugeiconsIcon icon={ShoppingCart01Icon} size={14} />
-                            Buy Plan
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() =>
+                                    setFlowerMode(flowerMode === "buy" ? "view" : "buy")
+                                }
+                                className={`p-2 rounded-lg transition-all ${flowerMode === "buy"
+                                    ? "bg-success text-success-foreground shadow-sm"
+                                    : "bg-success/10 text-success hover:bg-success/20"
+                                    }`}
+                                title="Buy Mode"
+                            >
+                                <HugeiconsIcon icon={ShoppingCart01Icon} size={20} />
+                            </button>
+                            <button
+                                onClick={() =>
+                                    setFlowerMode(flowerMode === "price" ? "view" : "price")
+                                }
+                                className={`p-2 rounded-lg transition-all ${flowerMode === "price"
+                                    ? "bg-blue-500 text-white shadow-sm"
+                                    : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                                    }`}
+                                title="Set Pricelist"
+                            >
+                                <HugeiconsIcon icon={PencilEdit02Icon} size={20} />
+                            </button>
+                        </div>
                     </div>
-                    {showFlowerBuyPlan && (
+                    {flowerMode === "buy" && (
                         <div className="mb-4 flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-foreground/60 whitespace-nowrap">
@@ -562,7 +767,7 @@ export default function MuseumDashboard() {
                                 />
                             </div>
                             {flowerBuyPlan.totalQty > 0 && (
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-success/5 border border-success/20 rounded-lg">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/30 rounded-lg">
                                     <HugeiconsIcon
                                         icon={ShoppingCart01Icon}
                                         size={14}
@@ -587,9 +792,343 @@ export default function MuseumDashboard() {
                             )}
                         </div>
                     )}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {flowerMode === "price" && (
+                        <div className="mb-6">
+                            {!weav3rApiKey || !weav3rUserId ? (
+                                <div className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-start gap-4">
+                                    <HugeiconsIcon
+                                        icon={AlertCircleIcon}
+                                        size={20}
+                                        className="text-warning shrink-0 mt-0.5"
+                                    />
+                                    <div>
+                                        <h3 className="font-semibold text-warning">
+                                            Weav3r Config Missing
+                                        </h3>
+                                        <p className="text-sm text-foreground/70 mt-1">
+                                            Configure your Weav3r API Key and User ID on the
+                                            Terminal page to enable the "Set Pricelist" feature.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : isFetchingPricelist ? (
+                                <div className="flex items-center justify-center gap-2 py-8 text-foreground/60">
+                                    <HugeiconsIcon
+                                        icon={Loading03Icon}
+                                        size={20}
+                                        className="animate-spin"
+                                    />
+                                    <span>Loading pricelist data...</span>
+                                </div>
+                            ) : (
+                                <>
+                                    {pricelistError && (
+                                        <div className="mb-4 bg-danger/10 border border-danger/20 p-3 rounded-lg flex items-center gap-2 text-danger text-sm">
+                                            <HugeiconsIcon icon={AlertCircleIcon} size={16} />
+                                            {pricelistError}
+                                        </div>
+                                    )}
+                                    {pricelistSuccess && (
+                                        <div className="mb-4 bg-success/10 border border-success/20 p-3 rounded-lg flex items-center gap-2 text-success text-sm">
+                                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} />
+                                            {pricelistSuccess}
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 mb-4 flex-wrap">
+                                        <button
+                                            onClick={() => applyAutoPricing("flower")}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                                        >
+                                            <HugeiconsIcon icon={DashboardSpeed01Icon} size={14} />
+                                            Auto
+                                        </button>
+                                        <button
+                                            onClick={() => savePricelist("flower")}
+                                            disabled={
+                                                isUpdatingPricelist ||
+                                                Object.keys(flowerPricelistEdits).length === 0
+                                            }
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-success/10 text-success hover:bg-success/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            {isUpdatingPricelist ? (
+                                                <HugeiconsIcon
+                                                    icon={Loading03Icon}
+                                                    size={14}
+                                                    className="animate-spin"
+                                                />
+                                            ) : (
+                                                <HugeiconsIcon
+                                                    icon={CheckmarkCircle01Icon}
+                                                    size={14}
+                                                />
+                                            )}
+                                            Save Pricelist
+                                        </button>
+                                        {Object.keys(flowerPricelistEdits).length > 0 && (
+                                            <span className="text-xs text-foreground/60">
+                                                {Object.keys(flowerPricelistEdits).length} pending
+                                                change(s)
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() =>
+                                                setShowThresholdSettings(!showThresholdSettings)
+                                            }
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${showThresholdSettings
+                                                ? "bg-primary text-primary-foreground shadow-sm"
+                                                : "bg-primary/10 text-primary hover:bg-primary/20"
+                                                }`}
+                                        >
+                                            <HugeiconsIcon icon={SettingsIcon} size={14} />
+                                            Settings
+                                        </button>
+                                    </div>
+                                    {showThresholdSettings && (
+                                        <div className="mb-4 p-4 bg-foreground/5 rounded-lg border border-border">
+                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground/60 mb-3">
+                                                Stock Thresholds (Auto Button)
+                                            </h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Threshold 1
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={thresholdSettings.threshold1}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                threshold1:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Offer %
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offer1}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offer1:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Threshold 2
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={thresholdSettings.threshold2}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                threshold2:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Offer %
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offer2}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offer2:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Threshold 3
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={thresholdSettings.threshold3}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                threshold3:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Offer %
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offer3}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offer3:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Above Threshold 3
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offerElse}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offerElse:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="overflow-x-auto rounded-lg border border-blue-500/30 bg-blue-500/[0.02]">
+                                        <table className="w-full text-sm">
+                                            <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left">Item</th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                    Market Price
+                                                </th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                    Current %
+                                                </th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border">
+                                                {flowersData.map((item) => {
+                                                    const setItem = FLOWER_SET_ITEMS.find(
+                                                        (si) => si.name === item.name
+                                                    );
+                                                    const itemId = setItem?.id || 0;
+                                                    const marketPrice =
+                                                        marketPrices[itemId] ||
+                                                        setItem?.marketValue ||
+                                                        0;
+                                                    const currentPrice =
+                                                        userPricelist[item.name.toLowerCase()] || 0;
+                                                    const currentPercentage =
+                                                        marketPrice > 0
+                                                            ? Math.round(
+                                                                (currentPrice / marketPrice) * 100
+                                                            )
+                                                            : 0;
+                                                    const newPercentage =
+                                                        flowerPricelistEdits[item.name] ??
+                                                        currentPercentage;
+
+                                                    return (
+                                                        <tr
+                                                            key={item.name}
+                                                            className="hover:bg-foreground/[0.01]"
+                                                        >
+                                                            <td className="px-4 py-3 font-medium">
+                                                                {formatItemName(item.name)}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right font-mono">
+                                                                {item.stats.stock.toLocaleString()}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right font-mono">
+                                                                ${marketPrice.toLocaleString()}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <span
+                                                                    className={
+                                                                        currentPercentage > 0
+                                                                            ? "text-success"
+                                                                            : "text-foreground/40"
+                                                                    }
+                                                                >
+                                                                    {currentPercentage > 0
+                                                                        ? `${currentPercentage}%`
+                                                                        : "—"}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={200}
+                                                                    value={newPercentage}
+                                                                    onChange={(e) => {
+                                                                        const val = parseInt(
+                                                                            e.target.value,
+                                                                            10
+                                                                        );
+                                                                        if (
+                                                                            !isNaN(val) &&
+                                                                            val >= 0
+                                                                        ) {
+                                                                            setFlowerPricelistEdits(
+                                                                                (prev) => ({
+                                                                                    ...prev,
+                                                                                    [item.name]:
+                                                                                        val,
+                                                                                })
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="w-20 px-2 py-1 text-sm font-bold text-center bg-background border border-blue-500/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                                                                />
+                                                                <span className="ml-1 text-xs">
+                                                                    %
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                    <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-xl transition-colors ${flowerMode === "buy" ? "bg-success/[0.03] border border-success/20" : flowerMode === "price" ? "bg-blue-500/[0.03] border border-blue-500/20" : ""}`}>
                         {flowersData.map((item) => {
-                            const buyInfo = showFlowerBuyPlan
+                            const buyInfo = flowerMode === "buy"
                                 ? flowerBuyPlan.purchases.find((p) => p.name === item.name)
                                 : undefined;
                             return (
@@ -598,6 +1137,7 @@ export default function MuseumDashboard() {
                                     name={item.name}
                                     stats={item.stats}
                                     buyInfo={buyInfo}
+                                    mode={flowerMode}
                                 />
                             );
                         })}
@@ -623,19 +1163,34 @@ export default function MuseumDashboard() {
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setShowPlushieBuyPlan(!showPlushieBuyPlan)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                showPlushieBuyPlan
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "bg-primary/10 text-primary hover:bg-primary/20"
-                            }`}
-                        >
-                            <HugeiconsIcon icon={ShoppingCart01Icon} size={14} />
-                            Buy Plan
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() =>
+                                    setPlushieMode(plushieMode === "buy" ? "view" : "buy")
+                                }
+                                className={`p-2 rounded-lg transition-all ${plushieMode === "buy"
+                                    ? "bg-success text-success-foreground shadow-sm"
+                                    : "bg-success/10 text-success hover:bg-success/20"
+                                    }`}
+                                title="Buy Mode"
+                            >
+                                <HugeiconsIcon icon={ShoppingCart01Icon} size={20} />
+                            </button>
+                            <button
+                                onClick={() =>
+                                    setPlushieMode(plushieMode === "price" ? "view" : "price")
+                                }
+                                className={`p-2 rounded-lg transition-all ${plushieMode === "price"
+                                    ? "bg-blue-500 text-white shadow-sm"
+                                    : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                                    }`}
+                                title="Set Pricelist"
+                            >
+                                <HugeiconsIcon icon={PencilEdit02Icon} size={20} />
+                            </button>
+                        </div>
                     </div>
-                    {showPlushieBuyPlan && (
+                    {plushieMode === "buy" && (
                         <div className="mb-4 flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-foreground/60 whitespace-nowrap">
@@ -655,7 +1210,7 @@ export default function MuseumDashboard() {
                                 />
                             </div>
                             {plushieBuyPlan.totalQty > 0 && (
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-success/5 border border-success/20 rounded-lg">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/30 rounded-lg">
                                     <HugeiconsIcon
                                         icon={ShoppingCart01Icon}
                                         size={14}
@@ -680,9 +1235,343 @@ export default function MuseumDashboard() {
                             )}
                         </div>
                     )}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {plushieMode === "price" && (
+                        <div className="mb-6">
+                            {!weav3rApiKey || !weav3rUserId ? (
+                                <div className="bg-warning/10 border border-warning/20 p-4 rounded-xl flex items-start gap-4">
+                                    <HugeiconsIcon
+                                        icon={AlertCircleIcon}
+                                        size={20}
+                                        className="text-warning shrink-0 mt-0.5"
+                                    />
+                                    <div>
+                                        <h3 className="font-semibold text-warning">
+                                            Weav3r Config Missing
+                                        </h3>
+                                        <p className="text-sm text-foreground/70 mt-1">
+                                            Configure your Weav3r API Key and User ID on the
+                                            Terminal page to enable the "Set Pricelist" feature.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : isFetchingPricelist ? (
+                                <div className="flex items-center justify-center gap-2 py-8 text-foreground/60">
+                                    <HugeiconsIcon
+                                        icon={Loading03Icon}
+                                        size={20}
+                                        className="animate-spin"
+                                    />
+                                    <span>Loading pricelist data...</span>
+                                </div>
+                            ) : (
+                                <>
+                                    {pricelistError && (
+                                        <div className="mb-4 bg-danger/10 border border-danger/20 p-3 rounded-lg flex items-center gap-2 text-danger text-sm">
+                                            <HugeiconsIcon icon={AlertCircleIcon} size={16} />
+                                            {pricelistError}
+                                        </div>
+                                    )}
+                                    {pricelistSuccess && (
+                                        <div className="mb-4 bg-success/10 border border-success/20 p-3 rounded-lg flex items-center gap-2 text-success text-sm">
+                                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} />
+                                            {pricelistSuccess}
+                                        </div>
+                                    )}
+                                    <div className="flex items-center gap-2 mb-4 flex-wrap">
+                                        <button
+                                            onClick={() => applyAutoPricing("plushie")}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                                        >
+                                            <HugeiconsIcon icon={DashboardSpeed01Icon} size={14} />
+                                            Auto
+                                        </button>
+                                        <button
+                                            onClick={() => savePricelist("plushie")}
+                                            disabled={
+                                                isUpdatingPricelist ||
+                                                Object.keys(plushiePricelistEdits).length === 0
+                                            }
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-success/10 text-success hover:bg-success/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                        >
+                                            {isUpdatingPricelist ? (
+                                                <HugeiconsIcon
+                                                    icon={Loading03Icon}
+                                                    size={14}
+                                                    className="animate-spin"
+                                                />
+                                            ) : (
+                                                <HugeiconsIcon
+                                                    icon={CheckmarkCircle01Icon}
+                                                    size={14}
+                                                />
+                                            )}
+                                            Save Pricelist
+                                        </button>
+                                        {Object.keys(plushiePricelistEdits).length > 0 && (
+                                            <span className="text-xs text-foreground/60">
+                                                {Object.keys(plushiePricelistEdits).length} pending
+                                                change(s)
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() =>
+                                                setShowThresholdSettings(!showThresholdSettings)
+                                            }
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${showThresholdSettings
+                                                ? "bg-primary text-primary-foreground shadow-sm"
+                                                : "bg-primary/10 text-primary hover:bg-primary/20"
+                                                }`}
+                                        >
+                                            <HugeiconsIcon icon={SettingsIcon} size={14} />
+                                            Settings
+                                        </button>
+                                    </div>
+                                    {showThresholdSettings && (
+                                        <div className="mb-4 p-4 bg-foreground/5 rounded-lg border border-border">
+                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground/60 mb-3">
+                                                Stock Thresholds (Auto Button)
+                                            </h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Threshold 1
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={thresholdSettings.threshold1}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                threshold1:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Offer %
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offer1}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offer1:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Threshold 2
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={thresholdSettings.threshold2}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                threshold2:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Offer %
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offer2}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offer2:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Threshold 3
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={thresholdSettings.threshold3}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                threshold3:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Offer %
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offer3}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offer3:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-foreground/60 block mb-1">
+                                                        Above Threshold 3
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={200}
+                                                        value={thresholdSettings.offerElse}
+                                                        onChange={(e) =>
+                                                            setThresholdSettings((prev) => ({
+                                                                ...prev,
+                                                                offerElse:
+                                                                    parseFloat(e.target.value) || 0,
+                                                            }))
+                                                        }
+                                                        className="w-full px-2 py-1 text-sm bg-background border border-border rounded-lg"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="overflow-x-auto rounded-lg border border-blue-500/30 bg-blue-500/[0.02]">
+                                        <table className="w-full text-sm">
+                                            <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left">Item</th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                    Market Price
+                                                </th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                    Current %
+                                                </th>
+                                                <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border">
+                                                {plushiesData.map((item) => {
+                                                    const setItem = PLUSHIE_SET_ITEMS.find(
+                                                        (si) => si.name === item.name
+                                                    );
+                                                    const itemId = setItem?.id || 0;
+                                                    const marketPrice =
+                                                        marketPrices[itemId] ||
+                                                        setItem?.marketValue ||
+                                                        0;
+                                                    const currentPrice =
+                                                        userPricelist[item.name.toLowerCase()] || 0;
+                                                    const currentPercentage =
+                                                        marketPrice > 0
+                                                            ? Math.round(
+                                                                (currentPrice / marketPrice) * 100
+                                                            )
+                                                            : 0;
+                                                    const newPercentage =
+                                                        plushiePricelistEdits[item.name] ??
+                                                        currentPercentage;
+
+                                                    return (
+                                                        <tr
+                                                            key={item.name}
+                                                            className="hover:bg-foreground/[0.01]"
+                                                        >
+                                                            <td className="px-4 py-3 font-medium">
+                                                                {formatItemName(item.name)}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right font-mono">
+                                                                {item.stats.stock.toLocaleString()}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right font-mono">
+                                                                ${marketPrice.toLocaleString()}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <span
+                                                                    className={
+                                                                        currentPercentage > 0
+                                                                            ? "text-success"
+                                                                            : "text-foreground/40"
+                                                                    }
+                                                                >
+                                                                    {currentPercentage > 0
+                                                                        ? `${currentPercentage}%`
+                                                                        : "—"}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right">
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={200}
+                                                                    value={newPercentage}
+                                                                    onChange={(e) => {
+                                                                        const val = parseInt(
+                                                                            e.target.value,
+                                                                            10
+                                                                        );
+                                                                        if (
+                                                                            !isNaN(val) &&
+                                                                            val >= 0
+                                                                        ) {
+                                                                            setPlushiePricelistEdits(
+                                                                                (prev) => ({
+                                                                                    ...prev,
+                                                                                    [item.name]:
+                                                                                        val,
+                                                                                })
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                    className="w-20 px-2 py-1 text-sm font-bold text-center bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
+                                                                />
+                                                                <span className="ml-1 text-xs">
+                                                                    %
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                    <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-xl transition-colors ${plushieMode === "buy" ? "bg-success/[0.03] border border-success/20" : plushieMode === "price" ? "bg-blue-500/[0.03] border border-blue-500/20" : ""}`}>
                         {plushiesData.map((item) => {
-                            const buyInfo = showPlushieBuyPlan
+                            const buyInfo = plushieMode === "buy"
                                 ? plushieBuyPlan.purchases.find((p) => p.name === item.name)
                                 : undefined;
                             return (
@@ -691,6 +1580,7 @@ export default function MuseumDashboard() {
                                     name={item.name}
                                     stats={item.stats}
                                     buyInfo={buyInfo}
+                                    mode={plushieMode}
                                 />
                             );
                         })}
@@ -824,16 +1714,33 @@ function ItemGridCard({
     name,
     stats,
     buyInfo,
+    mode,
 }: {
     name: string;
     stats: InventoryItemStats;
     buyInfo?: { current: number; buy: number };
+    mode?: "buy" | "price" | "view";
 }) {
     const avgCost = stats.stock > 0 ? stats.totalCost / stats.stock : 0;
     const needsBuy = buyInfo && buyInfo.buy > 0;
+    const isBuyMode = mode === "buy";
+    const isPriceMode = mode === "price";
+
     return (
         <div
-            className={`p-4 rounded-lg border ${needsBuy ? "border-success/30 bg-success/5" : stats.stock > 0 ? "border-primary/30 bg-primary/5" : "border-border/50 bg-background/50"}`}
+            className={`p-4 rounded-lg border transition-all ${
+                isBuyMode
+                    ? needsBuy
+                        ? "border-success/50 bg-success/10 shadow-md ring-1 ring-success/20"
+                        : "border-success/20 bg-success/[0.02]"
+                    : isPriceMode
+                    ? "border-blue-500/40 bg-blue-500/[0.08] shadow-sm"
+                    : needsBuy
+                    ? "border-success/30 bg-success/5"
+                    : stats.stock > 0
+                    ? "border-primary/30 bg-primary/5"
+                    : "border-border/50 bg-background/50"
+            }`}
         >
             <h4 className="font-semibold text-sm truncate" title={formatItemName(name)}>
                 {formatItemName(name)}
