@@ -1,5 +1,12 @@
 # BlackMarket Ledger Version History
 
+## v5.3.0 (2026-04-09)
+
+- **Agent Instructions Enhancement**: Added guidelines for checking unstaged changes and confirming with users before updating version history.
+- **Plan Management**: New plan file for tracking agent work and task delegation.
+- **Organization**: New task organization file for project management.
+- **Museum Updates**: Improvements to museum page functionality.
+
 ## v5.2.0 (2026-04-08)
 
 - **Set Conversion**: Improved set conversion logic to handle price distribution and total value. Updated trade linking to support sets.

@@ -89,41 +89,32 @@ const formatLargeNumber = (val: number) => {
 };
 
 /**
- * Compute the optimal buy plan to maximize complete sets using effort-based heuristic.
- * Effort = maximum average additional sets gained per item type purchased.
- * Condition: (target - currentSets) / itemsToBuy <= effort
- * Constraint: never buy ALL items (at least 1 item must have stock >= target).
+ * Compute buy plan to maximize sets by buying a specific number of different items.
  * @param items - Array of items with name and current stock
- * @param effort - Maximum average additional sets per item type purchased
+ * @param numItems - Number of different items to buy (N)
  * @returns Object containing target sets, purchase details, and summary stats
+ *
+ * Algorithm:
+ * - Sort items by stock ascending (least to most)
+ * - Target = stock of (N+1)th item (the item just after the N items we're buying)
+ * - For each of first N items: buy = target - current stock
+ * - If N >= total items, target = last item stock (no buying beyond that)
+ *
+ * Example: Kitten(5), Wolverine(19), Nessie(27), Chamois(30), ...
+ * - N=1: Target=19 (Wolverine), buy 14 of Kitten (19-5)
+ * - N=3: Target=30 (Chamois), buy 25 Kitten, 11 Wolverine, 3 Nessie
  */
-function computeBuyPlan(items: { name: string; stock: number }[], effort: number) {
-    if (items.length === 0) {
+function computeBuyPlanByItems(items: { name: string; stock: number }[], numItems: number) {
+    if (items.length === 0 || numItems <= 0) {
         return { target: 0, purchases: [], itemsToBuy: 0, totalQty: 0 };
     }
 
     const sorted = [...items].sort((a, b) => a.stock - b.stock);
-    const currentSets = sorted[0].stock;
-    let bestTarget = currentSets;
+    const targetIndex = Math.min(numItems, sorted.length - 1);
+    const target = sorted[targetIndex]?.stock ?? sorted[sorted.length - 1].stock;
 
-    for (let i = 1; i < sorted.length; i++) {
-        const target = sorted[i].stock;
-        if (target <= currentSets) continue;
-        const itemsToBuy = i;
-        const setsPerItem = (target - currentSets) / itemsToBuy;
-        if (setsPerItem > effort) break;
-        bestTarget = target + 1;
-    }
-
-    if (bestTarget === currentSets) {
-        const itemsAtMin = sorted.filter((s) => s.stock === currentSets).length;
-        if (itemsAtMin < sorted.length && effort >= 1 / itemsAtMin) {
-            bestTarget = currentSets + 1;
-        }
-    }
-
-    const purchases = items.map((item) => {
-        const buy = Math.max(0, bestTarget - item.stock);
+    const purchases = sorted.map((item) => {
+        const buy = Math.max(0, target - item.stock);
         return { name: item.name, current: item.stock, buy };
     });
 
@@ -131,7 +122,7 @@ function computeBuyPlan(items: { name: string; stock: number }[], effort: number
     const totalQty = purchases.reduce((sum, p) => sum + p.buy, 0);
 
     return {
-        target: bestTarget,
+        target,
         purchases,
         itemsToBuy: itemsToBuyCount,
         totalQty,
@@ -258,25 +249,39 @@ export default function MuseumDashboard() {
         }
         return "overview";
     });
-    const [flowerEffort, setFlowerEffort] = useState<number>(() => {
+    const [flowerNumItems, setFlowerNumItems] = useState<number>(() => {
         if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("museum-flower-effort");
+            const saved = localStorage.getItem("museum-flower-num-items");
             if (saved !== null) {
                 const n = parseInt(saved, 10);
-                if (!isNaN(n) && n >= 0) return n;
+                if (!isNaN(n) && n >= 1) return n;
             }
         }
-        return 5;
+        return 1;
     });
-    const [plushieEffort, setPlushieEffort] = useState<number>(() => {
+    const [plushieNumItems, setPlushieNumItems] = useState<number>(() => {
         if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("museum-plushie-effort");
+            const saved = localStorage.getItem("museum-plushie-num-items");
             if (saved !== null) {
                 const n = parseInt(saved, 10);
-                if (!isNaN(n) && n >= 0) return n;
+                if (!isNaN(n) && n >= 1) return n;
             }
         }
-        return 5;
+        return 1;
+    });
+    const [showFlowerBuyPlan, setShowFlowerBuyPlan] = useState<boolean>(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("museum-show-flower-buy-plan");
+            if (saved !== null) return saved === "true";
+        }
+        return false;
+    });
+    const [showPlushieBuyPlan, setShowPlushieBuyPlan] = useState<boolean>(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("museum-show-plushie-buy-plan");
+            if (saved !== null) return saved === "true";
+        }
+        return false;
     });
 
     useEffect(() => {
@@ -284,10 +289,20 @@ export default function MuseumDashboard() {
             localStorage.setItem("museum-range", timeRange);
             localStorage.setItem("museum-view", viewType);
             localStorage.setItem("museum-mode", mode);
-            localStorage.setItem("museum-flower-effort", flowerEffort.toString());
-            localStorage.setItem("museum-plushie-effort", plushieEffort.toString());
+            localStorage.setItem("museum-flower-num-items", flowerNumItems.toString());
+            localStorage.setItem("museum-plushie-num-items", plushieNumItems.toString());
+            localStorage.setItem("museum-show-flower-buy-plan", showFlowerBuyPlan.toString());
+            localStorage.setItem("museum-show-plushie-buy-plan", showPlushieBuyPlan.toString());
         }
-    }, [timeRange, viewType, mode, flowerEffort, plushieEffort]);
+    }, [
+        timeRange,
+        viewType,
+        mode,
+        flowerNumItems,
+        plushieNumItems,
+        showFlowerBuyPlan,
+        showPlushieBuyPlan,
+    ]);
 
     const chartData = useMemo(() => {
         if (!isLoaded || !transactions.length) return [];
@@ -365,19 +380,19 @@ export default function MuseumDashboard() {
 
     const flowerBuyPlan = useMemo(
         () =>
-            computeBuyPlan(
+            computeBuyPlanByItems(
                 flowersData.map((f) => ({ name: f.name, stock: f.stats.stock })),
-                flowerEffort
+                flowerNumItems
             ),
-        [flowersData, flowerEffort]
+        [flowersData, flowerNumItems]
     );
     const plushieBuyPlan = useMemo(
         () =>
-            computeBuyPlan(
+            computeBuyPlanByItems(
                 plushiesData.map((p) => ({ name: p.name, stock: p.stats.stock })),
-                plushieEffort
+                plushieNumItems
             ),
-        [plushiesData, plushieEffort]
+        [plushiesData, plushieNumItems]
     );
 
     if (!isLoaded)
@@ -400,7 +415,6 @@ export default function MuseumDashboard() {
                 } as React.CSSProperties
             }
         >
-
             {/* Hero Section: 1/3 Stats List - 2/3 Chart (always visible) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-panel rounded-3xl border border-border shadow-2xl p-8 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-bl-[10rem] -z-10 pointer-events-none transition-transform group-hover:scale-110 duration-700" />
@@ -451,7 +465,11 @@ export default function MuseumDashboard() {
                     <div className="pt-8 border-t border-border/50">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-primary/10 rounded-xl">
-                                <HugeiconsIcon icon={PackageIcon} size={24} className="text-primary" />
+                                <HugeiconsIcon
+                                    icon={PackageIcon}
+                                    size={24}
+                                    className="text-primary"
+                                />
                             </div>
                             <div>
                                 <p className="text-[10px] uppercase font-black tracking-widest text-foreground/45">
@@ -492,157 +510,249 @@ export default function MuseumDashboard() {
                 </div>
             </div>
 
-            {/* Mode Toggle */}
-            <div className="flex justify-center">
-                <div className="flex items-center bg-panel border border-border rounded-xl p-1">
-                    <button
-                        onClick={() => setMode("overview")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            mode === "overview"
-                                ? "bg-primary text-primary-foreground shadow-sm"
-                                : "text-foreground/60 hover:text-foreground/80"
-                        }`}
-                    >
-                        <HugeiconsIcon icon={DashboardSpeed01Icon} size={14} />
-                        Overview
-                    </button>
-                    <button
-                        onClick={() => setMode("buy")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                            mode === "buy"
-                                ? "bg-primary text-primary-foreground shadow-sm"
-                                : "text-foreground/60 hover:text-foreground/80"
-                        }`}
-                    >
-                        <HugeiconsIcon icon={ShoppingCart01Icon} size={14} />
-                        Buy Mode
-                    </button>
+            <>
+                {/* Flowers Section */}
+                <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-primary/10 rounded-xl">
+                                <HugeiconsIcon
+                                    icon={FlowerIcon}
+                                    size={24}
+                                    className="text-primary"
+                                />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold">Flower Sets</h2>
+                                <p className="text-sm text-foreground/60">
+                                    {Math.max(0, flowerSetsPossible)} complete sets ready to
+                                    convert.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowFlowerBuyPlan(!showFlowerBuyPlan)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                showFlowerBuyPlan
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                            }`}
+                        >
+                            <HugeiconsIcon icon={ShoppingCart01Icon} size={14} />
+                            Buy Plan
+                        </button>
+                    </div>
+                    {showFlowerBuyPlan && (
+                        <div className="mb-4 flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-foreground/60 whitespace-nowrap">
+                                    Different Items:
+                                </span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    value={flowerNumItems}
+                                    onChange={(e) => {
+                                        const n = parseInt(e.target.value, 10);
+                                        if (!isNaN(n) && n >= 1) setFlowerNumItems(n);
+                                        else if (e.target.value === "") setFlowerNumItems(1);
+                                    }}
+                                    className="w-16 px-2 py-1.5 text-sm font-bold text-center bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
+                                />
+                            </div>
+                            {flowerBuyPlan.totalQty > 0 && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-success/5 border border-success/20 rounded-lg">
+                                    <HugeiconsIcon
+                                        icon={ShoppingCart01Icon}
+                                        size={14}
+                                        className="text-success flex-shrink-0"
+                                    />
+                                    <p className="text-xs text-foreground/80">
+                                        Buy{" "}
+                                        <span className="font-bold text-success">
+                                            {flowerBuyPlan.totalQty}
+                                        </span>{" "}
+                                        items across{" "}
+                                        <span className="font-bold text-success">
+                                            {flowerBuyPlan.itemsToBuy}
+                                        </span>{" "}
+                                        types to reach{" "}
+                                        <span className="font-bold text-success">
+                                            {flowerBuyPlan.target}
+                                        </span>{" "}
+                                        sets.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {flowersData.map((item) => {
+                            const buyInfo = showFlowerBuyPlan
+                                ? flowerBuyPlan.purchases.find((p) => p.name === item.name)
+                                : undefined;
+                            return (
+                                <ItemGridCard
+                                    key={item.name}
+                                    name={item.name}
+                                    stats={item.stats}
+                                    buyInfo={buyInfo}
+                                />
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
 
-            {mode === "overview" ? (
-                <>
-                    {/* Flowers Section */}
-                    <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
-                        <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-3 bg-primary/10 rounded-xl">
-                                    <HugeiconsIcon icon={FlowerIcon} size={24} className="text-primary" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-bold">Flower Sets</h2>
-                                    <p className="text-sm text-foreground/60">
-                                        {Math.max(0, flowerSetsPossible)} complete sets ready to
-                                        convert.
-                                    </p>
-                                </div>
+                {/* Plushies Section */}
+                <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-primary/10 rounded-xl">
+                                <HugeiconsIcon
+                                    icon={AnonymousIcon}
+                                    size={24}
+                                    className="text-primary"
+                                />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold">Plushie Sets</h2>
+                                <p className="text-sm text-foreground/60">
+                                    {Math.max(0, plushieSetsPossible)} complete sets ready to
+                                    convert.
+                                </p>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {flowersData.map((item) => (
-                                <ItemGridCard key={item.name} name={item.name} stats={item.stats} />
-                            ))}
+                        <button
+                            onClick={() => setShowPlushieBuyPlan(!showPlushieBuyPlan)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                showPlushieBuyPlan
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                            }`}
+                        >
+                            <HugeiconsIcon icon={ShoppingCart01Icon} size={14} />
+                            Buy Plan
+                        </button>
+                    </div>
+                    {showPlushieBuyPlan && (
+                        <div className="mb-4 flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-foreground/60 whitespace-nowrap">
+                                    Different Items:
+                                </span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    value={plushieNumItems}
+                                    onChange={(e) => {
+                                        const n = parseInt(e.target.value, 10);
+                                        if (!isNaN(n) && n >= 1) setPlushieNumItems(n);
+                                        else if (e.target.value === "") setPlushieNumItems(1);
+                                    }}
+                                    className="w-16 px-2 py-1.5 text-sm font-bold text-center bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
+                                />
+                            </div>
+                            {plushieBuyPlan.totalQty > 0 && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-success/5 border border-success/20 rounded-lg">
+                                    <HugeiconsIcon
+                                        icon={ShoppingCart01Icon}
+                                        size={14}
+                                        className="text-success flex-shrink-0"
+                                    />
+                                    <p className="text-xs text-foreground/80">
+                                        Buy{" "}
+                                        <span className="font-bold text-success">
+                                            {plushieBuyPlan.totalQty}
+                                        </span>{" "}
+                                        items across{" "}
+                                        <span className="font-bold text-success">
+                                            {plushieBuyPlan.itemsToBuy}
+                                        </span>{" "}
+                                        types to reach{" "}
+                                        <span className="font-bold text-success">
+                                            {plushieBuyPlan.target}
+                                        </span>{" "}
+                                        sets.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        {plushiesData.map((item) => {
+                            const buyInfo = showPlushieBuyPlan
+                                ? plushieBuyPlan.purchases.find((p) => p.name === item.name)
+                                : undefined;
+                            return (
+                                <ItemGridCard
+                                    key={item.name}
+                                    name={item.name}
+                                    stats={item.stats}
+                                    buyInfo={buyInfo}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
+                    <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-primary/10 rounded-xl">
+                                <HugeiconsIcon
+                                    icon={LibraryIcon}
+                                    size={24}
+                                    className="text-primary"
+                                />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold">Artifact Exchanges</h2>
+                                <p className="text-sm text-foreground/60">
+                                    Museum conversions beyond flower and plushie sets.
+                                </p>
+                            </div>
                         </div>
                     </div>
-
-                    {/* Plushies Section */}
-                    <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
-                        <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-3 bg-primary/10 rounded-xl">
-                                    <HugeiconsIcon icon={AnonymousIcon} size={24} className="text-primary" />
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                        {artifactExchangeData.map((exchange) => (
+                            <div
+                                key={exchange.key}
+                                className="rounded-xl border border-border/70 bg-background/50 p-4"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 className="font-semibold">
+                                            {exchange.definition.label}
+                                        </h3>
+                                        <p className="text-sm text-foreground/60">
+                                            {exchange.exchangesReady} ready ·{" "}
+                                            {exchange.definition.pointsPerExchange.toLocaleString()}{" "}
+                                            points each
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-bold">Plushie Sets</h2>
-                                    <p className="text-sm text-foreground/60">
-                                        {Math.max(0, plushieSetsPossible)} complete sets ready to
-                                        convert.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {plushiesData.map((item) => (
-                                <ItemGridCard key={item.name} name={item.name} stats={item.stats} />
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="bg-panel rounded-xl border border-border shadow-sm p-6">
-                        <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-3 bg-primary/10 rounded-xl">
-                                    <HugeiconsIcon icon={LibraryIcon} size={24} className="text-primary" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-bold">Artifact Exchanges</h2>
-                                    <p className="text-sm text-foreground/60">
-                                        Museum conversions beyond flower and plushie sets.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                            {artifactExchangeData.map((exchange) => (
-                                <div
-                                    key={exchange.key}
-                                    className="rounded-xl border border-border/70 bg-background/50 p-4"
-                                >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div>
-                                            <h3 className="font-semibold">
-                                                {exchange.definition.label}
-                                            </h3>
-                                            <p className="text-sm text-foreground/60">
-                                                {exchange.exchangesReady} ready ·{" "}
-                                                {exchange.definition.pointsPerExchange.toLocaleString()}{" "}
-                                                points each
-                                            </p>
+                                <div className="mt-3 space-y-2">
+                                    {exchange.items.map((item) => (
+                                        <div
+                                            key={`${exchange.key}:${item.itemID}`}
+                                            className="flex items-center justify-between text-sm"
+                                        >
+                                            <span className="text-foreground/75">
+                                                {item.quantity}x {formatItemName(item.itemName)}
+                                            </span>
+                                            <span className="font-medium text-primary">
+                                                {item.stats.stock.toLocaleString()}
+                                            </span>
                                         </div>
-                                    </div>
-                                    <div className="mt-3 space-y-2">
-                                        {exchange.items.map((item) => (
-                                            <div
-                                                key={`${exchange.key}:${item.itemID}`}
-                                                className="flex items-center justify-between text-sm"
-                                            >
-                                                <span className="text-foreground/75">
-                                                    {item.quantity}x {formatItemName(item.itemName)}
-                                                </span>
-                                                <span className="font-medium text-primary">
-                                                    {item.stats.stock.toLocaleString()}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
-                </>
-            ) : (
-                <>
-                    {/* Buy Mode: Flower Sets */}
-                    <BuyPlanSection
-                        title="Flower Sets"
-                        icon={<HugeiconsIcon icon={FlowerIcon} size={24} className="text-primary" />}
-                        effort={flowerEffort}
-                        setEffort={setFlowerEffort}
-                        buyPlan={flowerBuyPlan}
-                        currentSets={flowerSetsPossible}
-                    />
-
-                    {/* Buy Mode: Plushie Sets */}
-                    <BuyPlanSection
-                        title="Plushie Sets"
-                        icon={<HugeiconsIcon icon={AnonymousIcon} size={24} className="text-primary" />}
-                        effort={plushieEffort}
-                        setEffort={setPlushieEffort}
-                        buyPlan={plushieBuyPlan}
-                        currentSets={plushieSetsPossible}
-                    />
-                </>
-            )}
+                </div>
+            </>
         </div>
     );
 }
@@ -710,27 +820,49 @@ function OverviewItem({
     );
 }
 
-function ItemGridCard({ name, stats }: { name: string; stats: InventoryItemStats }) {
+function ItemGridCard({
+    name,
+    stats,
+    buyInfo,
+}: {
+    name: string;
+    stats: InventoryItemStats;
+    buyInfo?: { current: number; buy: number };
+}) {
     const avgCost = stats.stock > 0 ? stats.totalCost / stats.stock : 0;
+    const needsBuy = buyInfo && buyInfo.buy > 0;
     return (
         <div
-            className={`p-4 rounded-lg border ${stats.stock > 0 ? "border-primary/30 bg-primary/5" : "border-border/50 bg-background/50"}`}
+            className={`p-4 rounded-lg border ${needsBuy ? "border-success/30 bg-success/5" : stats.stock > 0 ? "border-primary/30 bg-primary/5" : "border-border/50 bg-background/50"}`}
         >
             <h4 className="font-semibold text-sm truncate" title={formatItemName(name)}>
                 {formatItemName(name)}
             </h4>
             <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-xs text-foreground/60">Stock:</span>
+                <span className="text-xs text-foreground/60">
+                    {buyInfo ? "Current:" : "Stock:"}
+                </span>
                 <span
-                    className={`font-bold ${stats.stock > 0 ? "text-primary" : "text-foreground/50"}`}
+                    className={`font-bold ${needsBuy ? "text-success" : stats.stock > 0 ? "text-primary" : "text-foreground/50"}`}
                 >
-                    {stats.stock}
+                    {buyInfo ? buyInfo.current : stats.stock}
                 </span>
             </div>
-            <div className="mt-1 flex items-baseline justify-between">
-                <span className="text-xs text-foreground/60">Avg Cost:</span>
-                <span className="text-xs font-medium">{formatMoney(avgCost)}</span>
-            </div>
+            {buyInfo ? (
+                <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-xs text-foreground/60">Buy:</span>
+                    <span
+                        className={`font-bold ${needsBuy ? "text-success" : "text-foreground/40"}`}
+                    >
+                        {needsBuy ? `+${buyInfo.buy}` : "—"}
+                    </span>
+                </div>
+            ) : (
+                <div className="mt-1 flex items-baseline justify-between">
+                    <span className="text-xs text-foreground/60">Avg Cost:</span>
+                    <span className="text-xs font-medium">{formatMoney(avgCost)}</span>
+                </div>
+            )}
         </div>
     );
 }
@@ -742,15 +874,15 @@ function ItemGridCard({ name, stats }: { name: string; stats: InventoryItemStats
 function BuyPlanSection({
     title,
     icon,
-    effort,
-    setEffort,
+    numItems,
+    setNumItems,
     buyPlan,
     currentSets,
 }: {
     title: string;
     icon: React.ReactNode;
-    effort: number;
-    setEffort: (n: number) => void;
+    numItems: number;
+    setNumItems: (n: number) => void;
     buyPlan: {
         target: number;
         purchases: { name: string; current: number; buy: number }[];
@@ -772,16 +904,18 @@ function BuyPlanSection({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-foreground/60 whitespace-nowrap">Effort:</span>
+                    <span className="text-xs text-foreground/60 whitespace-nowrap">
+                        Different Items:
+                    </span>
                     <input
                         type="number"
-                        min={0}
-                        max={99}
-                        value={effort}
+                        min={1}
+                        max={20}
+                        value={numItems}
                         onChange={(e) => {
                             const n = parseInt(e.target.value, 10);
-                            if (!isNaN(n) && n >= 0) setEffort(n);
-                            else if (e.target.value === "") setEffort(0);
+                            if (!isNaN(n) && n >= 1) setNumItems(n);
+                            else if (e.target.value === "") setNumItems(1);
                         }}
                         className="w-16 px-2 py-1.5 text-sm font-bold text-center bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
                     />
@@ -790,7 +924,11 @@ function BuyPlanSection({
 
             {buyPlan.itemsToBuy > 0 ? (
                 <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <HugeiconsIcon icon={ShoppingCart01Icon} size={16} className="text-primary flex-shrink-0" />
+                    <HugeiconsIcon
+                        icon={ShoppingCart01Icon}
+                        size={16}
+                        className="text-primary flex-shrink-0"
+                    />
                     <p className="text-sm text-foreground/80">
                         Buy <span className="font-bold text-primary">{buyPlan.totalQty}</span> items
                         across <span className="font-bold text-primary">{buyPlan.itemsToBuy}</span>{" "}

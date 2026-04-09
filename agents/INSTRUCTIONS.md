@@ -32,6 +32,13 @@ Every function **must** include a structured comment that clearly specifies:
 
 - Avoid redundant comments (e.g., `// increment i`)
 
+### 1.3 Folder READMEs
+- Each folder should have a README.md file that explains the purpose of the folder and its contents.
+- If there is no README.md file, create one and add a brief description of the folder's contents.
+- Whenever a new file is added to the folder, update the README.md file to reflect the new file's name and purpose.
+- Whenever a file is deleted from the folder, update the README.md file to reflect the deleted file's name and purpose.
+- Whenever a file is updated in the folder, update the README.md file to reflect the updated file's name and purpose.
+
 ---
 
 ## 2. Modular Design
@@ -164,6 +171,17 @@ if (!user) {
 - Choose maintainability over speed
 
 ---
+
+## 9. Additional Commands
+
+### 9.1 Update version history
+- Check git history and look for last version commit. It can be in from chore(version): or something similar.
+- Check all the changes since the last version commit.
+- If user hasn't provided the new version, ask for it.
+- Check for any unstaged and uncommitted changes.
+- Ask user to confirm the new version and changes to be made in version history.
+- Update the version history file with the new version and changes.
+- Update package.json with the new version.
 
 ## Summary
 
