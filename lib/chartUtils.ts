@@ -1,4 +1,3 @@
-import { MUSEUM_TRACKED_ITEMS } from "@/lib/parser";
 import type { Transaction as LegacyTransaction } from "@/lib/parser";
 import type {
     AnyTrackedTransaction,
@@ -168,10 +167,7 @@ export const getTotals = (
     let museumInventory = 0;
 
     inventory.forEach((item, name) => {
-        const isMuseum =
-            name.toLowerCase() === "points" ||
-            name.toLowerCase() === "flushie" ||
-            MUSEUM_TRACKED_ITEMS.includes(name.toLowerCase());
+        const isMuseum = name.toLowerCase() === "points";
         if (isMuseum) {
             museumProfit += item.realizedProfit;
             museumInventory += Math.max(0, item.totalCost);
@@ -180,7 +176,7 @@ export const getTotals = (
             inventoryVal += Math.max(0, item.totalCost);
         }
 
-        // Abroad profit and inventory should be tracked for all items, 
+        // Abroad profit and inventory should be tracked for all items,
         // including those that might be considered "museum" items (flowers/plushies)
         // if they were bought abroad.
         abroadProfit += item.abroadRealizedProfit;

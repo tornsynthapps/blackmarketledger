@@ -139,7 +139,16 @@ export default function Home() {
                 })
             );
         }
-    }, [includeTrading, includeMuseum, includeAbroad, includeMug, includeNetProfit, viewType, timeRange, isLoaded]);
+    }, [
+        includeTrading,
+        includeMuseum,
+        includeAbroad,
+        includeMug,
+        includeNetProfit,
+        viewType,
+        timeRange,
+        isLoaded,
+    ]);
 
     useEffect(() => {
         if (isLoaded) {
@@ -155,10 +164,7 @@ export default function Home() {
         const items: { name: string; stats: any }[] = [];
 
         inventory.forEach((stat, name) => {
-            const isMuseum =
-                name.toLowerCase() === "flushie" ||
-                name.toLowerCase() === "points" ||
-                MUSEUM_TRACKED_ITEMS.includes(name.toLowerCase());
+            const isMuseum = name.toLowerCase() === "points";
 
             abroadProfit += stat.abroadRealizedProfit;
 
@@ -419,7 +425,16 @@ export default function Home() {
                     : 0,
             };
         });
-    }, [isLoaded, transactions, timeRange, viewType, includeTrading, includeMuseum, includeAbroad, includeMug]);
+    }, [
+        isLoaded,
+        transactions,
+        timeRange,
+        viewType,
+        includeTrading,
+        includeMuseum,
+        includeAbroad,
+        includeMug,
+    ]);
 
     if (!isLoaded)
         return (
@@ -441,7 +456,6 @@ export default function Home() {
     const referenceValue = viewType === "daily" ? averageNetProfit : finalNetProfit;
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-
             {/* Hero Section */}
             <div className="bg-panel border-2 border-primary relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 -mr-32 -mt-32 rotate-45 pointer-events-none" />
@@ -529,9 +543,7 @@ export default function Home() {
                 <div className="p-4 bg-foreground/[0.03] border-b-2 border-border flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-6 bg-primary" />
-                        <h2 className="font-black text-xl uppercase tracking-[0.3em]">
-                            Inventory
-                        </h2>
+                        <h2 className="font-black text-xl uppercase tracking-[0.3em]">Inventory</h2>
                     </div>
                     <div className="relative w-full sm:max-w-xs">
                         <HugeiconsIcon
