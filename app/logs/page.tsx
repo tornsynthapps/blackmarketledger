@@ -270,10 +270,10 @@ function LogsPageContent() {
             if (isWrapperTransaction(t)) {
                 return Boolean(
                     t.wrapperType.toLowerCase().includes(term) ||
-                        t.description?.toLowerCase().includes(term) ||
-                        t.partnerName?.toLowerCase().includes(term) ||
-                        t.partnerID?.toLowerCase().includes(term) ||
-                        t.receiptID?.toLowerCase().includes(term)
+                    t.description?.toLowerCase().includes(term) ||
+                    t.partnerName?.toLowerCase().includes(term) ||
+                    t.partnerID?.toLowerCase().includes(term) ||
+                    t.receiptID?.toLowerCase().includes(term)
                 );
             }
 
@@ -604,30 +604,46 @@ function LogsPageContent() {
                         </div>
                         {(() => {
                             let profitValue = 0;
+                            let costBasisTotal = 0;
                             let hasSell = false;
 
                             if (isNewConcreteTransaction(t) && t.amount < 0) {
                                 hasSell = true;
-                                profitValue = (t.price - (t.currentCostBasis || 0)) * Math.abs(t.amount);
+                                const absAmount = Math.abs(t.amount);
+                                profitValue = (t.price - (t.currentCostBasis || 0)) * absAmount;
+                                costBasisTotal = (t.currentCostBasis || 0) * absAmount;
                             } else if (isWrapper) {
                                 t.wrappedTransactionIDs.forEach((childId) => {
                                     const child = transactionMap.get(childId);
-                                    if (child && isNewConcreteTransaction(child) && child.amount < 0) {
+                                    if (
+                                        child &&
+                                        isNewConcreteTransaction(child) &&
+                                        child.amount < 0
+                                    ) {
                                         hasSell = true;
+                                        const absAmount = Math.abs(child.amount);
                                         profitValue +=
                                             (child.price - (child.currentCostBasis || 0)) *
-                                            Math.abs(child.amount);
+                                            absAmount;
+                                        costBasisTotal += (child.currentCostBasis || 0) * absAmount;
                                     }
                                 });
                             }
 
                             if (!hasSell) return null;
 
+                            const profitPercentage =
+                                costBasisTotal > 0 ? (profitValue / costBasisTotal) * 100 : 0;
+
                             return (
                                 <div
                                     className={`text-[12px] font-bold tracking-tight ${profitValue >= 0 ? "text-green-500/80" : "text-red-500/80"}`}
                                 >
-                                    {profitValue >= 0 ? "+" : "-"}${Math.abs(profitValue).toLocaleString()}
+                                    {profitValue >= 0 ? "+" : "-"}$
+                                    {Math.round(Math.abs(profitValue)).toLocaleString()}
+                                    {" · "}
+                                    {profitValue >= 0 ? "+" : "-"}
+                                    {Math.round(Math.abs(profitPercentage))}%
                                 </div>
                             );
                         })()}
