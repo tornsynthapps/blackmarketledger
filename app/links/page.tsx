@@ -15,6 +15,8 @@ import {
     AccountSetting01Icon,
     Clock01Icon,
     UserGroupIcon,
+    File01Icon,
+    Shield01Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
@@ -104,6 +106,18 @@ export default function LinksPage() {
             icon: Clock01Icon,
             desc: "View the latest updates and changes",
         },
+        {
+            name: "Terms of Service",
+            href: "/terms",
+            icon: File01Icon,
+            desc: "Acceptable use and user agreements",
+        },
+        {
+            name: "Privacy Policy",
+            href: "/privacy",
+            icon: Shield01Icon,
+            desc: "How we handle and protect your data",
+        },
     ];
 
     return (
@@ -159,7 +173,7 @@ export default function LinksPage() {
                     <div className="h-[2px] grow bg-border" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-1">
                     {publicPages.map((page) => (
                         <Link
                             key={page.href}
