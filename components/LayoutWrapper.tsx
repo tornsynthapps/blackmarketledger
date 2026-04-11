@@ -24,12 +24,12 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
             <div className="layout-main-content flex-1 flex flex-col min-w-0">
                 {hasGlobalUI && <Banners />}
                 {hasGlobalUI && <PromoBannersDesktop />}
-                <main className="pt-8 pb-12 px-4 w-full max-w-6xl mx-auto flex-1 h-full flex flex-col">
+                <main className="pt-8 px-4 w-full max-w-6xl mx-auto flex-1 h-full flex flex-col">
                     <div className="flex-1">{children}</div>
 
-                    <footer className="mt-24 pt-12 pb-12 border-t-2 border-primary flex flex-col md:flex-row items-center justify-between gap-8 text-[11px] uppercase tracking-widest font-bold text-muted font-vt323">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-primary text-primary-foreground px-2 py-0.5">
+                    <footer className="mt-8 pt-4 pb-4 border-t border-primary flex flex-col md:flex-row items-center justify-between gap-4 text-sm uppercase tracking-widest font-bold text-muted font-vt323">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-primary text-primary-foreground px-2 py-0.5 text-xs">
                                 BML
                             </div>
                             <span>&copy; {new Date().getFullYear()}</span>
@@ -43,11 +43,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                             </a>
                         </div>
 
-                        <div className="flex-1 flex justify-center opacity-70 grayscale">
-                            <VisitorCounter />
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-8 gap-y-2">
+                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-6 gap-y-1">
                             <Link
                                 href="/changelog"
                                 className="hover:text-foreground transition-colors"
@@ -60,10 +56,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                             >
                                 Migration
                             </Link>
-                            <Link
-                                href="/terms"
-                                className="hover:text-foreground transition-colors"
-                            >
+                            <Link href="/terms" className="hover:text-foreground transition-colors">
                                 Terms
                             </Link>
                             <Link
@@ -72,6 +65,9 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                             >
                                 Privacy
                             </Link>
+                            <div className="opacity-70 grayscale ml-2">
+                                <VisitorCounter />
+                            </div>
                         </div>
                     </footer>
                 </main>

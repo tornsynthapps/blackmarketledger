@@ -169,7 +169,7 @@ export function Navigation() {
             </nav>
 
             {/* Left Sidebar Navigation (Desktop Only) */}
-            <aside className="nav-left flex w-[240px] h-full bg-panel flex-col justify-between py-8 px-4 shrink-0 transition-opacity border-r-2 border-primary z-[70]">
+            <aside className="nav-left flex w-[240px] h-full bg-panel flex-col justify-between py-4 px-4 shrink-0 transition-opacity border-r-2 border-primary z-[70]">
                 <div className="flex flex-col gap-10">
                     <Link
                         href="/"
@@ -226,39 +226,41 @@ export function Navigation() {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-6 px-2">
+                <div className="flex flex-col gap-3 px-2">
                     <div className="flex flex-row gap-2">
                         <Link
                             href="/docs"
                             onClick={() => vibrate("nav")}
-                            className="flex-1 flex items-center justify-center gap-2 h-10 bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
+                            className="flex-1 flex items-center justify-center gap-2 h-8 bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
                         >
-                            <HugeiconsIcon icon={BookOpenTextIcon} size={18} />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">Docs</span>
+                            <HugeiconsIcon icon={BookOpenTextIcon} size={14} />
+                            <span className="text-[9px] font-bold uppercase tracking-wider">
+                                Docs
+                            </span>
                         </Link>
                         <button
                             onClick={toggleDark}
-                            className="w-10 h-10 flex items-center justify-center bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
+                            className="w-8 h-8 flex items-center justify-center bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
                             aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
                         >
-                            <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={20} />
+                            <HugeiconsIcon icon={isDark ? Sun01Icon : Moon01Icon} size={16} />
                         </button>
                     </div>
 
-                    <div className="flex flex-row gap-2 pt-6 border-t border-border">
+                    <div className="flex flex-row gap-2 pt-3 border-t border-border">
                         <a
                             href="https://discord.gg/Xz4GZfh4ep"
                             target="_blank"
                             rel="noreferrer noopener"
-                            className="flex-1 flex items-center justify-center h-10 border border-border hover:bg-foreground/5 transition-all text-muted hover:text-[#5865f2]"
+                            className="flex-1 flex items-center justify-center h-8 border border-border hover:bg-foreground/5 transition-all text-muted hover:text-[#5865f2]"
                         >
-                            <HugeiconsIcon icon={DiscordIcon} size={20} />
+                            <HugeiconsIcon icon={DiscordIcon} size={16} />
                         </a>
                         <a
                             href="https://buymeacoffee.com/pixelghost3165209"
                             target="_blank"
                             rel="noreferrer noopener"
-                            className="flex-[2] flex items-center justify-center h-10 bg-[#FFDD00] text-black font-bold text-[10px] uppercase tracking-wider hover:opacity-90 transition-all border border-black/10"
+                            className="flex-[2] flex items-center justify-center h-8 bg-[#FFDD00] text-black font-bold text-[9px] uppercase tracking-wider hover:opacity-90 transition-all border border-black/10"
                         >
                             SUPPORT DEV
                         </a>

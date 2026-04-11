@@ -24,18 +24,18 @@ export function VisitorCounter() {
     }, []);
 
     if (!stats)
-        return <div className="h-4 w-32 animate-pulse bg-foreground/5 border border-border"></div>;
+        return <div className="h-4 w-24 animate-pulse bg-foreground/5 border border-border"></div>;
 
     return (
-        <div className="flex items-center gap-4 text-[10px] font-black uppercase bg-muted/20 py-1.5 px-4 border border-border border-l-4 border-l-primary font-mono tracking-widest">
-            <div className="flex items-center gap-2" title="Visitors Today">
-                <HugeiconsIcon icon={UserIcon} size={14} className="text-primary" />
-                <span>{stats.todayViews.toLocaleString()} ACTIVE_NODES</span>
+        <div className="flex items-center gap-2 text-xs font-black uppercase bg-muted/20 py-0.5 px-2 border border-border border-l-2 border-l-primary font-vt323 tracking-wider">
+            <div className="flex items-center gap-1" title="Visitors Today">
+                <HugeiconsIcon icon={UserIcon} size={10} className="text-primary" />
+                <span>{stats.todayViews.toLocaleString()} TODAY</span>
             </div>
-            <div className="w-px h-3 bg-border"></div>
-            <div className="flex items-center gap-2" title="Total Visitors">
-                <HugeiconsIcon icon={UserGroupIcon} size={14} className="text-primary" />
-                <span>{stats.totalViews.toLocaleString()} TOTAL_THROUGHPUT</span>
+            <div className="w-px h-2 bg-border"></div>
+            <div className="flex items-center gap-1" title="Total Visitors">
+                <HugeiconsIcon icon={UserGroupIcon} size={10} className="text-primary" />
+                <span>{stats.totalViews.toLocaleString()} TOTAL</span>
             </div>
         </div>
     );
