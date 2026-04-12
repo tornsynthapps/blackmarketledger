@@ -344,7 +344,9 @@ function LogsPageContent() {
         const url = URL.createObjectURL(dataBlob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `torn-invest-backup-${format(new Date(), "yyyy-MM-dd")}.json`;
+        const timestamp = Date.now();
+        const dateTime = format(new Date(), "yyyy-MM-dd-HHmm");
+        link.download = `${dateTime}-${timestamp}-${transactions.length}.json`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
