@@ -1,65 +1,115 @@
-class NewRateLimiter {
-    aquire: () => Promise<void>;
-    tryAquire: () => boolean;
-    getWaitTime: () => number;
+/**
+ * Token bucket rate limiter implementation.
+ * @param requestsPerMinute (number): Maximum requests allowed per minute (1-80)
+ */
+export class NewRateLimiter {
+    static readonly MIN_REQUESTS_PER_MINUTE = 1;
+    static readonly MAX_REQUESTS_PER_MINUTE = 80;
+    static readonly DEFAULT_REQUESTS_PER_MINUTE = 60;
+
+    private readonly windowMs: number;
+    private readonly maxRequests: number;
+    private timestamps: number[] = [];
 
     constructor(requestsPerMinute: number) {
-        const windowMs = 60 * 1000;
-        const maxRequests = Math.max(1, Math.min(requestsPerMinute, 1000));
+        this.windowMs = 60 * 1000;
+        this.maxRequests = Math.max(
+            NewRateLimiter.MIN_REQUESTS_PER_MINUTE,
+            Math.min(requestsPerMinute, NewRateLimiter.MAX_REQUESTS_PER_MINUTE)
+        );
+    }
 
-        const timestamps: number[] = [];
+    /**
+     * Acquires a slot in the rate limiter, waiting if necessary.
+     * @returns (Promise<void>): Resolves when a slot is acquired
+     */
+    async acquire(): Promise<void> {
+        while (true) {
+            this.cleanupExpiredTimestamps();
 
-        this.aquire = async () => {
-            while (true) {
-                const now = Date.now();
-                const windowStart = now - windowMs;
-
-                // First, remove all expired timestamps (outside the window)
-                while (timestamps.length > 0 && timestamps[0] <= windowStart) {
-                    timestamps.shift();
-                }
-
-                // If under limit, add current timestamp and proceed
-                if (timestamps.length < maxRequests) {
-                    timestamps.push(now);
-                    return;
-                }
-
-                // At/over limit - wait for oldest to expire, then loop
-                const oldest = timestamps[0];
-                const waitTime = oldest - windowStart + 10;
-                await new Promise((resolve) => setTimeout(resolve, waitTime));
-            }
-        };
-
-        this.tryAquire = () => {
-            const now = Date.now();
-            const windowStart = now - windowMs;
-
-            const validTimestamps = timestamps.filter((t) => t > windowStart);
-
-            if (validTimestamps.length < maxRequests) {
-                validTimestamps.push(now);
-                timestamps.length = 0;
-                timestamps.push(...validTimestamps);
-                return true;
+            if (this.timestamps.length < this.maxRequests) {
+                this.timestamps.push(Date.now());
+                return;
             }
 
-            return false;
-        };
+            const waitTime = this.getWaitTime();
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
+        }
+    }
 
-        this.getWaitTime = () => {
-            const now = Date.now();
-            const windowStart = now - windowMs;
+    /**
+     * Attempts to acquire a slot without waiting.
+     * @returns (boolean): True if slot acquired, false otherwise
+     */
+    tryAcquire(): boolean {
+        this.cleanupExpiredTimestamps();
 
-            const validTimestamps = timestamps.filter((t) => t > windowStart);
+        if (this.timestamps.length < this.maxRequests) {
+            this.timestamps.push(Date.now());
+            return true;
+        }
 
-            if (validTimestamps.length < maxRequests) {
-                return 0;
-            }
+        return false;
+    }
 
-            const oldest = Math.min(...validTimestamps);
-            return oldest - windowStart + 10;
-        };
+    /**
+     * Gets the time to wait before a slot becomes available.
+     * @returns (number): Milliseconds to wait (0 if slot available)
+     */
+    getWaitTime(): number {
+        const validTimestamps = this.getValidTimestamps();
+
+        if (validTimestamps.length < this.maxRequests) {
+            return 0;
+        }
+
+        const oldest = Math.min(...validTimestamps);
+        const windowStart = Date.now() - this.windowMs;
+        return oldest - windowStart + 10;
+    }
+
+    /**
+     * Clears all timestamps, resetting the limiter.
+     */
+    reset(): void {
+        this.timestamps = [];
+    }
+
+    /**
+     * Returns the configured requests per minute limit.
+     * @returns (number): Maximum requests per minute
+     */
+    getRequestsPerMinute(): number {
+        return this.maxRequests;
+    }
+
+    /**
+     * Returns the number of available slots in the current window.
+     * @returns (number): Available slots (0 or positive)
+     */
+    getAvailableSlots(): number {
+        this.cleanupExpiredTimestamps();
+        return Math.max(0, this.maxRequests - this.timestamps.length);
+    }
+
+    /**
+     * Gets timestamps within the current window.
+     * @returns (number[]): Array of valid timestamps
+     */
+    private getValidTimestamps(): number[] {
+        const now = Date.now();
+        const windowStart = now - this.windowMs;
+        return this.timestamps.filter((t) => t > windowStart);
+    }
+
+    /**
+     * Removes all timestamps outside the current window.
+     */
+    private cleanupExpiredTimestamps(): void {
+        const now = Date.now();
+        const windowStart = now - this.windowMs;
+        while (this.timestamps.length > 0 && this.timestamps[0] <= windowStart) {
+            this.timestamps.shift();
+        }
     }
 }
