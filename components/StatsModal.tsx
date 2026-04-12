@@ -19,7 +19,7 @@ import {
     LineChart,
     Line,
 } from "recharts";
-import { FLOWER_SET, PLUSHIE_SET, Transaction } from "@/lib/parser";
+import { FLOWER_SET, PLUSHIE_SET, Transaction } from "@/lib/old/parser";
 import type { AnyTrackedTransaction } from "@/lib/old/interfaces/transactions";
 import {
     format,
@@ -33,7 +33,7 @@ import {
     subWeeks,
     subMonths,
 } from "date-fns";
-import { InventorySnapshot, LedgerTotals, applyTransaction, getTotals } from "@/lib/chartUtils";
+import { InventorySnapshot, LedgerTotals, applyTransaction, getTotals } from "@/lib/old/chartUtils";
 
 interface StatsModalProps {
     isOpen: boolean;

@@ -8,7 +8,7 @@ import {
     Delete02Icon,
 } from "@hugeicons/core-free-icons";
 import { useJournal } from "@/store/useJournal";
-import { createParsedLogsFromNewReceipt } from "@/lib/torn-api";
+import { createParsedLogsFromNewReceipt } from "@/lib/old/torn-api";
 import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
 import { DBInterface } from "@/lib/old/interfaces/db";
 

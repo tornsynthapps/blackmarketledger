@@ -21,16 +21,16 @@ import {
 import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { TransactionSourceType, formatItemName, getMuseumExchangeDefinition } from "@/lib/parser";
+import { TransactionSourceType, formatItemName, getMuseumExchangeDefinition } from "@/lib/old/parser";
 import {
     AnyTrackedTransaction,
     MugTransaction,
     Transaction as NewTransaction,
     WrapperTransaction,
 } from "@/lib/old/interfaces/transactions";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 
-type LegacyTransaction = import("@/lib/parser").Transaction;
+type LegacyTransaction = import("@/lib/old/parser").Transaction;
 type DisplayTransaction = LegacyTransaction | AnyTrackedTransaction;
 
 function isWrapperTransaction(transaction: DisplayTransaction): transaction is WrapperTransaction {

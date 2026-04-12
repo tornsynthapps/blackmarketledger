@@ -2,7 +2,7 @@
 
 import { useJournal } from "@/store/useJournal";
 import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
-import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/parser";
+import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/old/parser";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     ArrowUp02Icon,
@@ -22,10 +22,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
-import { CATEGORY_COLORS } from "@/lib/theme";
+import { CATEGORY_COLORS } from "@/lib/old/theme";
 import {
     format,
     subDays,
@@ -41,7 +41,7 @@ import {
     startOfYear,
     endOfYear,
 } from "date-fns";
-import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/chartUtils";
+import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/old/chartUtils";
 import type { AnyTrackedTransaction } from "@/lib/old/interfaces/transactions";
 
 const getTransactionTimestamp = (transaction: any) =>

@@ -21,7 +21,7 @@ import {
     Unlink01Icon,
 } from "@hugeicons/core-free-icons";
 import { useJournal } from "@/store/useJournal";
-import { getConnectionString, sendToExtension } from "@/lib/bmlconnect";
+import { getConnectionString, sendToExtension } from "@/lib/old/bmlconnect";
 import {
     initiateGoogleDriveSetup,
     getGoogleDriveStatus,
@@ -29,10 +29,10 @@ import {
     writeGoogleDriveData,
     deleteGoogleDriveData,
     disconnectGoogleDrive,
-} from "@/lib/drive-api";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import * as idb from "@/lib/idb";
-import type { Transaction } from "@/lib/parser";
+} from "@/lib/old/drive-api";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
+import * as idb from "@/lib/old/idb";
+import type { Transaction } from "@/lib/old/parser";
 
 type StorageLocation = "browser" | "extension" | "drive";
 

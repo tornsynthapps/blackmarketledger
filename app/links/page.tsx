@@ -19,7 +19,7 @@ import {
     Shield01Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 
 export default function LinksPage() {
     const { vibrate } = useHapticFeedback();

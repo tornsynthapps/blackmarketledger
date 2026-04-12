@@ -12,7 +12,7 @@ import {
     Database01Icon,
     RefreshIcon,
 } from "@hugeicons/core-free-icons";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 
 interface MigrationModalProps {
     isOpen: boolean;

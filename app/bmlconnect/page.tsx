@@ -24,10 +24,10 @@ import {
     getGoogleDriveStatus,
     writeGoogleDriveData,
     disconnectGoogleDrive,
-} from "@/lib/drive-api";
-import { verifySubscription, claimTrial, SubscriptionStatus } from "@/lib/subscription-api";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import * as idb from "@/lib/idb";
+} from "@/lib/old/drive-api";
+import { verifySubscription, claimTrial, SubscriptionStatus } from "@/lib/old/subscription-api";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
+import * as idb from "@/lib/old/idb";
 
 type StorageLocation = "browser" | "drive";
 

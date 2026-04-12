@@ -19,7 +19,7 @@ import {
     initiateMessageSignup,
     verifySignup,
     AuthResponse,
-} from "@/lib/token-api";
+} from "@/lib/old/token-api";
 import {
     saveAuth,
     clearAuth,
@@ -27,8 +27,8 @@ import {
     getValidUntil,
     isSubscriptionValid,
     StoredAuth,
-} from "@/lib/token-auth";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+} from "@/lib/old/token-auth";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import { clsx } from "clsx";
 
 type AuthMode = "signin" | "signup";

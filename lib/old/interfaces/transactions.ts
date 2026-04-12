@@ -4,7 +4,7 @@ import {
     Transaction as LegacyJournalTransaction,
     TransactionSourceType,
     normalizeItemName,
-} from "../../parser";
+} from "@/lib/old/parser";
 import { TornItemSource } from "../game/itemLog";
 
 export const CURR_TRANSACTION_VERSION = 3;

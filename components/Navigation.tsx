@@ -25,7 +25,7 @@ import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import pkg from "@/package.json";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import Image from "next/image";
 
 function cn(...inputs: (string | undefined | null | false)[]) {

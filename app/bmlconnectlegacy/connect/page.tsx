@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getConnectionString, sendToExtension, regenerateToken } from "@/lib/bmlconnect";
+import { getConnectionString, sendToExtension, regenerateToken } from "@/lib/old/bmlconnect";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -12,7 +12,7 @@ import {
     CheckmarkCircle01Icon,
     CancelCircleIcon,
 } from "@hugeicons/core-free-icons";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 
 export default function ConnectionSetup() {
     const [connectionToken, setConnectionToken] = useState<string>("");

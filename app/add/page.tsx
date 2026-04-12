@@ -9,8 +9,8 @@ import {
     formatToStandardLog,
     PARSER_VERSION,
     getMuseumExchangeDefinition,
-} from "@/lib/parser";
-import { calculateInventory, getLogBreakdown } from "@/lib/transactionBuilder";
+} from "@/lib/old/parser";
+import { calculateInventory, getLogBreakdown } from "@/lib/old/transactionBuilder";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     CheckmarkCircle01Icon,
@@ -23,7 +23,7 @@ import {
     Forward01Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 
 export default function AddLogs() {
     const [input, setInput] = useState("");

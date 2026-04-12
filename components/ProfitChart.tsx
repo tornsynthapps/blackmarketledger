@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Activity01Icon, Layers01Icon, BarChartIcon } from "@hugeicons/core-free-icons";
-import { CATEGORY_COLORS } from "@/lib/theme";
+import { CATEGORY_COLORS } from "@/lib/old/theme";
 
 interface ChartDataPoint {
     date: string;

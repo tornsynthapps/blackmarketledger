@@ -2,7 +2,7 @@
 
 import { useJournal } from "@/store/useJournal";
 import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
-import { CATEGORY_COLORS } from "@/lib/theme";
+import { CATEGORY_COLORS } from "@/lib/old/theme";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     Analytics01Icon,
@@ -32,7 +32,7 @@ import {
     PLUSHIE_SET,
     FLOWER_SET_ITEMS,
     PLUSHIE_SET_ITEMS,
-} from "@/lib/parser";
+} from "@/lib/old/parser";
 import { ProfitChart } from "@/components/ProfitChart";
 import {
     format,
@@ -49,7 +49,7 @@ import {
     startOfYear,
     endOfYear,
 } from "date-fns";
-import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/chartUtils";
+import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/old/chartUtils";
 
 const getTransactionTimestamp = (transaction: any) =>
     "date" in transaction ? transaction.date : transaction.timestamp;

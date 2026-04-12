@@ -1,4 +1,4 @@
-import type { Transaction as LegacyTransaction } from "@/lib/parser";
+import type { Transaction as LegacyTransaction } from "@/lib/old/parser";
 import type {
     AnyTrackedTransaction,
     MugTransaction,

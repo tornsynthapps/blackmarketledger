@@ -3,10 +3,10 @@
 import { useState, useEffect, type MouseEvent } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, Database01Icon } from "@hugeicons/core-free-icons";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import { useJournal } from "@/store/useJournal";
-import * as idb from "@/lib/idb";
-import { useGlobalSyncStatus } from "@/lib/syncStatus";
+import * as idb from "@/lib/old/idb";
+import { useGlobalSyncStatus } from "@/lib/old/syncStatus";
 import { MigrationModal } from "./MigrationModal";
 
 export function Banners() {

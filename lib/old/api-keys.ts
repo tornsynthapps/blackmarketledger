@@ -1,4 +1,4 @@
-import { LocalStorageInterface } from "./old/interfaces/localstorage";
+import { LocalStorageInterface } from "./interfaces/localstorage";
 
 export const CONFIG_KEY = "torn_invest_tracker_config";
 export const CONNECTION_TOKEN_KEY = "connectionToken";

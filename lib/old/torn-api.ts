@@ -11,7 +11,7 @@ import {
     TornTrade,
     Weav3rReceiptItem as NewWeav3rReceiptItem,
     Weav3rReceipt as NewWeav3rReceipt,
-} from "./old/game/trade";
+} from "./game/trade";
 
 import { getSetItems } from "./market-prices";
 

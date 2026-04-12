@@ -8,7 +8,7 @@ import {
     InformationCircleIcon,
     ActivityIcon,
 } from "@hugeicons/core-free-icons";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 
 interface SyncConsoleProps {
     onSync: (apiKey: string) => Promise<void>;

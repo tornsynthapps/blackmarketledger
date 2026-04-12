@@ -1,4 +1,4 @@
-import { LocalStorageInterface } from "./old/interfaces/localstorage";
+import { LocalStorageInterface } from "./interfaces/localstorage";
 
 const DEBUG =
     process.env.NEXT_PUBLIC_DEBUG === "true" ||

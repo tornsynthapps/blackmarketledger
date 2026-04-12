@@ -63,6 +63,15 @@ Every function **must** include a structured comment that clearly specifies:
 
 ---
 
+### 2.4 Object-Oriented Design (IMPORTANT)
+
+- Use classes and objects to represent complex data structures
+- Use inheritance and composition to create reusable components
+- Use interfaces to define contracts and enforce behavior
+- Use abstract classes and mixins to create flexible and extensible code
+
+---
+
 ## 3. Naming Conventions
 
 ### 3.1 Variables

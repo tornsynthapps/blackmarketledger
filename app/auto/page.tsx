@@ -28,13 +28,13 @@ import {
     NormalizedLog,
     SyncCursor,
     AutoPilotImportRecord,
-} from "@/lib/torn-api";
-import { TransactionSourceType } from "@/lib/parser";
-import { TronWrapper } from "@/lib/torn-wrapper";
-import { needsItemSync } from "@/lib/cursor";
+} from "@/lib/old/torn-api";
+import { TransactionSourceType } from "@/lib/old/parser";
+import { TronWrapper } from "@/lib/old/torn-wrapper";
+import { needsItemSync } from "@/lib/old/cursor";
 import { T3BAPI, TornAPI } from "@/lib/old/game/api";
 import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
-import { mydebug } from "@/lib/debug";
+import { mydebug } from "@/lib/old/debug";
 import { DBInterface } from "@/lib/old/interfaces/db";
 
 const MAX_RECENT_IMPORTS = 500;

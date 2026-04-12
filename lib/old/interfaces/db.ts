@@ -1,5 +1,5 @@
 import { LocalStorageInterface, StorageType } from "./localstorage";
-import * as idb from "@/lib/idb";
+import * as idb from "@/lib/old/idb";
 import { TornTrade, Weav3rReceipt } from "../game/trade";
 import { TornItemLog, TornItemSource } from "../game/itemLog";
 import {

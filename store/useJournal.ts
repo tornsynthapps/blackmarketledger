@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ParsedLog, normalizeItemName } from "@/lib/parser";
+import { ParsedLog, normalizeItemName } from "@/lib/old/parser";
 import {
     AnyTrackedTransaction,
     buildTransactionsFromParsedLogs,
@@ -10,10 +10,10 @@ import {
     isMugTransaction,
     migrateLegacyTransactions,
 } from "@/lib/old/interfaces/transactions";
-import { sendToExtension } from "@/lib/bmlconnect";
-import * as idb from "@/lib/idb";
-import { setGlobalSyncStatus } from "@/lib/syncStatus";
-import { loadGoogleDriveData, writeGoogleDriveData } from "@/lib/drive-api";
+import { sendToExtension } from "@/lib/old/bmlconnect";
+import * as idb from "@/lib/old/idb";
+import { setGlobalSyncStatus } from "@/lib/old/syncStatus";
+import { loadGoogleDriveData, writeGoogleDriveData } from "@/lib/old/drive-api";
 import {
     AutoPilotImportRecord,
     AutoPilotTradeLink,
@@ -23,7 +23,7 @@ import {
     Weav3rReceipt,
     getTornItems,
     refreshApiRateLimiters,
-} from "@/lib/torn-api";
+} from "@/lib/old/torn-api";
 import {
     refreshApiKeysFromStorage,
     getApiKey as extGetApiKey,
@@ -38,8 +38,8 @@ import {
     setTornApiKeyFull as extSetTornApiKeyFull,
     setTornApiRateLimit as extSetTornApiRateLimit,
     setWeav3rApiRateLimit as extSetWeav3rApiRateLimit,
-} from "@/lib/api-keys";
-import { DualCursor, createDualCursor } from "@/lib/cursor";
+} from "@/lib/old/api-keys";
+import { DualCursor, createDualCursor } from "@/lib/old/cursor";
 
 const STORAGE_KEY = "torn_invest_tracker_logs";
 const CONFIG_KEY = "torn_invest_tracker_config";
@@ -147,7 +147,7 @@ function isLegacyTransactionRecord(transaction: unknown) {
     );
 }
 
-function isLegacyTransactionArray(value: unknown): value is import("@/lib/parser").Transaction[] {
+function isLegacyTransactionArray(value: unknown): value is import("@/lib/old/parser").Transaction[] {
     return Array.isArray(value) && value.some((entry) => isLegacyTransactionRecord(entry));
 }
 

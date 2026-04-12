@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useJournal } from "@/store/useJournal";
-import { CATEGORY_COLORS } from "@/lib/theme";
-import { formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/parser";
+import { CATEGORY_COLORS } from "@/lib/old/theme";
+import { formatItemName, FLOWER_SET, PLUSHIE_SET } from "@/lib/old/parser";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     Airplane01Icon,
@@ -31,7 +31,7 @@ import {
     startOfYear,
     endOfYear,
 } from "date-fns";
-import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/chartUtils";
+import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/old/chartUtils";
 
 const getTransactionTimestamp = (transaction: any) =>
     "date" in transaction ? transaction.date : transaction.timestamp;

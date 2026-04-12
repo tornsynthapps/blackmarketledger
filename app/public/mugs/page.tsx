@@ -10,7 +10,7 @@ import {
     ArrowLeft01Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import { BoardHeader } from "@/components/Leaderboard/BoardHeader";
 import { SyncConsole } from "@/components/Leaderboard/SyncConsole";
 import { LeaderboardTable, LeaderboardEntry } from "@/components/Leaderboard/LeaderboardTable";

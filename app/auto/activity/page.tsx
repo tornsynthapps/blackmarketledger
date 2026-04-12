@@ -14,8 +14,8 @@ import {
 import Link from "next/link";
 import { format } from "date-fns";
 import { useSearchParams, useRouter } from "next/navigation";
-import { TransactionSourceType } from "@/lib/parser";
-import { buildImportRecord, AutoPilotImportRecord } from "@/lib/torn-api";
+import { TransactionSourceType } from "@/lib/old/parser";
+import { buildImportRecord, AutoPilotImportRecord } from "@/lib/old/torn-api";
 import { TornTrade } from "@/lib/old/game/trade";
 import { DBInterface } from "@/lib/old/interfaces/db";
 

@@ -1,10 +1,10 @@
-import { mydebug } from "../../debug";
+import { mydebug } from "../debug";
 import { LocalStorageInterface } from "../interfaces/localstorage";
 import { MetadataInterface } from "../interfaces/metadata";
-import { buildUrl, TornTradeDetailItem, TornTradeListItem } from "../../torn-api";
+import { buildUrl, TornTradeDetailItem, TornTradeListItem } from "../torn-api";
 import { TornTrade, Weav3rReceipt } from "./trade";
-import { createRateLimiter } from "../../rate-limiter";
-import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "../../api-keys";
+import { createRateLimiter } from "../rate-limiter";
+import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "../api-keys";
 
 let tornRateLimiter = createRateLimiter(getTornApiRateLimit());
 let weav3rRateLimiter = createRateLimiter(getWeav3rApiRateLimit());

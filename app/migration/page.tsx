@@ -7,7 +7,7 @@ import {
     PLUSHIE_SET,
     Transaction,
     ConvertTransaction,
-} from "@/lib/parser";
+} from "@/lib/old/parser";
 import { useState, useMemo } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {

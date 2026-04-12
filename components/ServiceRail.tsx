@@ -17,18 +17,18 @@ import {
     Settings02Icon,
 } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/lib/useAuth";
-import { saveWeaverConfig } from "@/lib/auth";
+import { useAuth } from "@/lib/old/useAuth";
+import { saveWeaverConfig } from "@/lib/old/auth";
 import {
     setTornApiKeyFull,
     setDriveApiKey,
     setTornApiRateLimit,
     setWeav3rApiRateLimit,
-} from "@/lib/api-keys";
-import { refreshApiRateLimiters } from "@/lib/torn-api";
-import { sendToExtension } from "@/lib/bmlconnect";
-import { useHapticFeedback } from "@/lib/useHapticFeedback";
-import { getGoogleDriveStatus } from "@/lib/drive-api";
+} from "@/lib/old/api-keys";
+import { refreshApiRateLimiters } from "@/lib/old/torn-api";
+import { sendToExtension } from "@/lib/old/bmlconnect";
+import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
+import { getGoogleDriveStatus } from "@/lib/old/drive-api";
 
 type ServiceItem = {
     name: string;

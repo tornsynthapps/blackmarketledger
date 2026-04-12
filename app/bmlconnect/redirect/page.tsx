@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CheckmarkCircle01Icon, CancelCircleIcon, Loading03Icon } from "@hugeicons/core-free-icons";
-import { completeGoogleDriveSetup } from "@/lib/drive-api";
+import { completeGoogleDriveSetup } from "@/lib/old/drive-api";
 
 function AuthCallbackContent() {
     const searchParams = useSearchParams();
