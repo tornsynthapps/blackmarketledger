@@ -434,12 +434,17 @@ export function isMugTransaction(
 export class TransactionBuilder {
     transactions: AnyTrackedTransaction[];
     lastTransactionPerItemType: Map<string, Transaction>;
+    onTrace?: (event: string, data: any) => void;
 
-    constructor(existingTransactions: Array<AnyTrackedTransaction | Record<string, any>> = []) {
+    constructor(
+        existingTransactions: Array<AnyTrackedTransaction | Record<string, any>> = [],
+        onTrace?: (event: string, data: any) => void
+    ) {
         this.transactions = existingTransactions
             .map((transaction) => hydrateTransaction(transaction))
             .sort(compareTransactions);
         this.lastTransactionPerItemType = new Map();
+        this.onTrace = onTrace;
         this.rebuildIndexes();
     }
 
@@ -699,6 +704,7 @@ export class TransactionBuilder {
         const splitOrder: TransactionStockType[] = ["normal", "abroad", "city-find", "consumption"];
         let remaining = Math.abs(input.amount);
         const resolvedInputs: TransactionInput[] = [];
+        const splitBreakdown: Record<string, number> = {};
 
         splitOrder.forEach((stockType) => {
             if (remaining <= 0) {
@@ -718,6 +724,7 @@ export class TransactionBuilder {
                 stockType,
             });
             remaining -= used;
+            splitBreakdown[stockType] = used;
         });
 
         if (remaining > 0) {
@@ -725,6 +732,16 @@ export class TransactionBuilder {
                 ...input,
                 amount: -remaining,
                 stockType: "skip",
+            });
+            splitBreakdown["skip"] = remaining;
+        }
+
+        if (this.onTrace && resolvedInputs.length > 1) {
+            this.onTrace("item_log_split", {
+                itemID: input.itemID,
+                itemName: input.itemName,
+                totalAmount: input.amount,
+                breakdown: splitBreakdown,
             });
         }
 
@@ -1230,9 +1247,10 @@ function getTradeWrapperDescription(input: {
 export function buildTransactionsFromParsedLogs(
     baseTransactions: AnyTrackedTransaction[],
     parsedLogs: ParsedLog[],
-    itemIDResolver?: ItemIDResolver
+    itemIDResolver?: ItemIDResolver,
+    onTrace?: (event: string, data: any) => void
 ): AnyTrackedTransaction[] {
-    const builder = new TransactionBuilder(baseTransactions);
+    const builder = new TransactionBuilder(baseTransactions, onTrace);
     const existingTornIDs = new Set(
         baseTransactions
             .map((transaction) => transaction.tornID)

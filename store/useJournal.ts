@@ -782,7 +782,10 @@ export function useJournal() {
     }, []);
 
     const addLogs = useCallback(
-        async (parsedLogs: ParsedLog[], options?: { skipNegativeStock?: boolean }) => {
+        async (
+            parsedLogs: ParsedLog[],
+            options?: { skipNegativeStock?: boolean; onTrace?: (event: string, data: any) => void }
+        ) => {
             const storagePref = localStorage.getItem("bml_storage_pref");
             const baseTransactions =
                 storagePref === "drive"
@@ -792,7 +795,8 @@ export function useJournal() {
             const nextTransactions = buildTransactionsFromParsedLogs(
                 baseTransactions,
                 parsedLogs,
-                itemResolver
+                itemResolver,
+                options?.onTrace
             );
             saveTransactions(nextTransactions);
         },

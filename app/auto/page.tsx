@@ -29,6 +29,7 @@ import {
     SyncCursor,
     AutoPilotImportRecord,
 } from "@/lib/old/torn-api";
+import { calculateInventoryFromTransactions, InventoryItemStats } from "@/lib/old/interfaces/transactions";
 import { TransactionSourceType } from "@/lib/old/parser";
 import { TronWrapper } from "@/lib/old/torn-wrapper";
 import { needsItemSync } from "@/lib/old/cursor";
@@ -36,6 +37,7 @@ import { T3BAPI, TornAPI } from "@/lib/old/game/api";
 import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
 import { mydebug } from "@/lib/old/debug";
 import { DBInterface } from "@/lib/old/interfaces/db";
+import { Blackbox } from "@/lib/blackbox";
 
 const MAX_RECENT_IMPORTS = 500;
 
@@ -393,18 +395,56 @@ export default function AutoPilotPage() {
         return newCursor;
     };
 
+    const getInventorySnapshot = () => {
+        const inventoryMap = calculateInventoryFromTransactions(transactions);
+        const snapshot: Record<string, any> = {};
+        inventoryMap.forEach((stats: InventoryItemStats, itemName: string) => {
+            snapshot[itemName] = {
+                stock: stats.stock,
+                abroadStock: stats.abroadStock,
+                totalCost: stats.totalCost,
+                abroadTotalCost: stats.abroadTotalCost,
+            };
+        });
+        return snapshot;
+    };
+
     const syncNow = async () => {
-        // 1. Handle Errors.
+        const blackbox = await Blackbox.create();
+        let blackboxLogs: any[] = [];
+
+        const logToBlackbox = async (event: string, data: any) => {
+            const logEntry = { event, data, timestamp: new Date().toISOString() };
+            blackboxLogs.push(logEntry);
+            await blackbox.addLog(logEntry);
+        };
+
+        const inventoryBefore = getInventorySnapshot();
+        await logToBlackbox("inventory_snapshot", { inventory: inventoryBefore, type: "pre_sync" });
+
+        await logToBlackbox("sync_start", {
+            hasTornApiKey: !!tornApiKeyFull,
+            hasWeav3rApiKey: !!weav3rApiKey,
+            hasWeav3rUserId: !!weav3rUserId,
+            tradeCursor: autoPilotTradeCursor,
+            itemCursor: autoPilotItemCursor,
+            hasUnlinkedTrades,
+            inventory_before: inventoryBefore,
+        });
+
         if (!tornApiKeyFull) {
+            await logToBlackbox("error", { message: "Missing Torn full-access key" });
             setPageError("Save a Torn full-access key in Service Access before syncing.");
             return;
         }
         if (!weav3rApiKey || !weav3rUserId) {
+            await logToBlackbox("error", { message: "Missing Weav3r API key or user ID" });
             setPageError("Save your Weav3r/Torn API key first so receipts can be fetched.");
             return;
         }
 
         if (hasUnlinkedTrades) {
+            await logToBlackbox("error", { message: "Unlinked trades exist" });
             setPageError("Review unlinked trades in the cache before running another sync.");
             return;
         }
@@ -446,14 +486,24 @@ export default function AutoPilotPage() {
             let nextTradeCursor = tradeCursor;
             let nextItemCursor = itemCursor;
 
-            // Handle items fetch - if Trade Cursor > Item Cursor, fetch items first
+            await logToBlackbox("sync_initialized", {
+                tradeCursor,
+                itemCursor,
+                syncType: "pending",
+            });
+
             if (tradeCursor.lastTimestamp > itemCursor.lastTimestamp) {
                 syncType = "item";
                 setStatusMessage(
                     `Fetching item logs up to trade cursor (${new Date(tradeCursor.lastTimestamp * 1000).toLocaleString()})...`
                 );
 
-                // Fetch items up to the trade cursor timestamp
+                await logToBlackbox("item_sync_start", {
+                    itemCursor,
+                    tradeCursor,
+                    targetTimestamp: tradeCursor.lastTimestamp,
+                });
+
                 const itemResult = await wrapper.getNewLogs(
                     {
                         lastTimestamp: itemCursor.lastTimestamp,
@@ -468,8 +518,14 @@ export default function AutoPilotPage() {
                     nextCursor: newItemCursor,
                 } = itemResult;
 
-                // Add items to the import
+                await logToBlackbox("item_fetch_result", {
+                    itemCount: itemLogs.length,
+                    parsedCount: itemParsedLogs.length,
+                    newItemCursor,
+                });
+
                 for (const log of itemLogs) {
+                    await logToBlackbox("log_detail", log);
                     batchRecords.push(
                         buildImportRecord({
                             id: `log:${log.id}`,
@@ -481,22 +537,35 @@ export default function AutoPilotPage() {
                         })
                     );
                 }
+
+                for (const parsedLog of itemParsedLogs) {
+                    await logToBlackbox("item_added", {
+                        import_type: "item_log",
+                        ...parsedLog,
+                    });
+                }
+
                 allNewParsedLogs.push(...itemParsedLogs);
-                console.log(newItemCursor);
                 nextItemCursor = newItemCursor;
 
-                // Import item logs (bazaar, item-market, points, museum)
                 if (itemParsedLogs.length) {
                     setStatusMessage(
                         `Importing ${itemParsedLogs.length} item logs into your ledger...`
                     );
-                    await addLogs(itemParsedLogs, { skipNegativeStock: false });
+                    await addLogs(itemParsedLogs, { skipNegativeStock: false, onTrace: logToBlackbox });
+                    await logToBlackbox("item_import_result", {
+                        count: itemParsedLogs.length,
+                        success: true,
+                    });
+                } else {
+                    await logToBlackbox("item_import_result", {
+                        count: 0,
+                        success: true,
+                    });
                 }
 
-                // Update trade cursor to match item cursor position so both are synchronized
                 nextTradeCursor = { ...nextItemCursor };
 
-                // Save the updated item cursor
                 await saveAutoPilotState({
                     autoPilotCursor: nextItemCursor,
                     autoPilotTradeCursor: nextTradeCursor,
@@ -505,39 +574,71 @@ export default function AutoPilotPage() {
                 });
 
                 setStatusMessage("Item sync completed.");
-            }
-
-            // 2.3 Handle trade fetch.
-            else {
+                await logToBlackbox("item_sync_complete", {
+                    nextItemCursor,
+                    nextTradeCursor,
+                });
+            } else {
                 syncType = "trade";
-
-                // Fetch trades with error handling for Torn API error 17
                 const tradeStart = tradeCursor.lastTimestamp;
                 const now = Math.floor(Date.now() / 1000);
                 const toTimestamp = now - 1;
 
-                // New implementation.
-                // Fetch trades from trade cursor position
                 setStatusMessage(`${statusMessage}\nFetching completed trades...`);
+
+                await logToBlackbox("trade_fetch_request", {
+                    startTimestamp: tradeStart,
+                    toTimestamp,
+                });
+
                 const newtornTrades: TornTrade[] = await TornAPI.getTornTrades(
                     tradeStart,
                     toTimestamp
                 );
                 mydebug(newtornTrades, "AutoPilot: Fetched trades");
+                await logToBlackbox("trade_fetch_result", {
+                    count: newtornTrades.length,
+                    tradeIds: newtornTrades.map((t) => t.id),
+                });
+
+                for (const trade of newtornTrades) {
+                    await logToBlackbox("trade_detail", trade.toInterface());
+                }
+
                 setStatusMessage(`${statusMessage}\nFetching receipts...`);
+
+                await logToBlackbox("receipt_fetch_request", {
+                    startTimestamp: tradeStart - 10 * 60 * 60,
+                    toTimestamp,
+                });
+
                 const neweav3rReceipts: Weav3rReceipt[] = await T3BAPI.getReceipts(
                     tradeStart - 10 * 60 * 60,
                     toTimestamp
                 );
                 mydebug(neweav3rReceipts, "AutoPilot: Fetched receipts");
+                await logToBlackbox("receipt_fetch_result", {
+                    count: neweav3rReceipts.length,
+                    receiptIds: neweav3rReceipts.map((r) => r.id),
+                });
+
+                for (const receipt of neweav3rReceipts) {
+                    await logToBlackbox("receipt_detail", receipt.toInterface());
+                }
 
                 const newAllNewParsedLogs: any[] = [];
+                const linkedTrades: any[] = [];
 
-                // Link trades and receipts, collect parsed logs from linked pairs
                 setStatusMessage(`${statusMessage}\nLinking trades...`);
+
+                await logToBlackbox("linking_start", {
+                    tradesCount: newtornTrades.length,
+                    receiptsCount: neweav3rReceipts.length,
+                });
+
                 for (const trade of newtornTrades) {
                     for (const receipt of neweav3rReceipts) {
-                        if (trade.compareAndLinkReceipt(receipt, weav3rUserId)) {
+                        if (trade.compareAndLinkReceipt(receipt, weav3rUserId, logToBlackbox)) {
                             mydebug([trade, receipt], "AutoPilot: linked trade");
                             mydebug(trade, "AutoPilot: linked trade");
 
@@ -546,11 +647,33 @@ export default function AutoPilotPage() {
                                 receipt,
                                 weav3rUserId
                             );
+
+                            for (const parsedLog of parsedLogs) {
+                                await logToBlackbox("item_added", {
+                                    import_type: "trade_linked",
+                                    tradeId: trade.id,
+                                    receiptId: receipt.id,
+                                    ...parsedLog,
+                                });
+                            }
+
                             newAllNewParsedLogs.push(...parsedLogs);
+                            linkedTrades.push({
+                                tradeId: trade.id,
+                                receiptId: receipt.id,
+                                logCount: parsedLogs.length,
+                                tradeDetails: trade.toInterface(),
+                                receiptDetails: receipt.toInterface(),
+                            });
                             break;
                         }
                     }
                 }
+
+                await logToBlackbox("linking_result", {
+                    linkedCount: linkedTrades.length,
+                    linkedTrades,
+                });
 
                 DBInterface.migrationAddTrades(newtornTrades);
                 DBInterface.migrationAddReceipts(neweav3rReceipts);
@@ -560,33 +683,41 @@ export default function AutoPilotPage() {
                     (receipt) => !receipt.linkedTradeId
                 );
 
+                await logToBlackbox("unlinked_summary", {
+                    unlinkedTradesCount: newUnlinkedTrades.length,
+                    unlinkedTradesIds: newUnlinkedTrades.map((t) => t.id),
+                    unlinkedReceiptsCount: newUnlinkedReceipts.length,
+                    unlinkedReceiptsIds: newUnlinkedReceipts.map((r) => r.id),
+                });
+
                 setStatusMessage(
                     `Found ${newUnlinkedTrades.length} unlinked trades ` +
                         `and ${newUnlinkedReceipts.length} unlinked receipts.`
                 );
                 setStatusMessage(`Found ${newAllNewParsedLogs.length} logs.`);
 
-                // Add imported logs
                 if (newAllNewParsedLogs.length) {
                     setStatusMessage(
                         `Importing ${newAllNewParsedLogs.length} linked trades into your ledger...`
                     );
-                    await addLogs(newAllNewParsedLogs, { skipNegativeStock: false });
+                    await addLogs(newAllNewParsedLogs, {
+                        skipNegativeStock: false,
+                        onTrace: logToBlackbox,
+                    });
+                    await logToBlackbox("trade_import_result", {
+                        count: newAllNewParsedLogs.length,
+                        success: true,
+                    });
+                } else {
+                    await logToBlackbox("trade_import_result", {
+                        count: 0,
+                        success: true,
+                    });
                 }
 
-                // Refresh local state
                 setTrades(DBInterface.migrationGetTrades());
                 setReceipts(DBInterface.migrationGetReceipts());
-                //         itemId: 0,
-                //         amount: 0,
-                //       };
-                //     }),
-                //     receipt: undefined,
-                //     differences: [],
-                //   });
-                // });
 
-                // Save state
                 nextTradeCursor = { lastTimestamp: toTimestamp, lastLogId: "" };
                 if (nextTradeCursor) {
                     await saveAutoPilotState({
@@ -603,9 +734,23 @@ export default function AutoPilotPage() {
                         ? `Auto-Pilot sync completed. ${unlinkedTrades.length} unlinked trades and ${newUnlinkedReceipts.length} unlinked receipts need review.`
                         : "Auto-Pilot sync completed.";
                 setStatusMessage(syncCompletedMessage);
+
+                await logToBlackbox("sync_complete", {
+                    tradeCursor: nextTradeCursor,
+                    itemCursor: nextItemCursor,
+                    unlinkedCount,
+                    syncType: "trade",
+                });
             }
+            const inventoryAfter = getInventorySnapshot();
+            await logToBlackbox("inventory_after", { inventory: inventoryAfter });
         } catch (error) {
-            setPageError(error instanceof Error ? error.message : "Auto-Pilot sync failed.");
+            const errorMessage = error instanceof Error ? error.message : "Auto-Pilot sync failed.";
+            await logToBlackbox("sync_error", {
+                message: errorMessage,
+                stack: error instanceof Error ? error.stack : undefined,
+            });
+            setPageError(errorMessage);
             setStatusMessage("");
         } finally {
             setIsRunning(false);

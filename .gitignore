@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Firebase
 .firebase
+
+# MCPs
+.playwright-mcp

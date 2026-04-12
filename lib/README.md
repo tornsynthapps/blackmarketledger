@@ -6,6 +6,13 @@ Core library utilities and API integrations.
 
 - `api.ts` - API utilities including `NewRateLimiter` class
     - `NewRateLimiter` - Token bucket rate limiter (1-80 requests/minute)
+- `storage.ts` - LocalStorage utilities for key-value persistence
+    - `Storage.getDictFromLocalStorage()` - Retrieves and parses dictionary from localStorage
+    - `Storage.appendInLocalStorage()` - Adds/updates key-value pair in localStorage dictionary
+- `blackbox.ts` - Logging and data persistence for blackbox entries
+    - `Blackbox.getUniqueId()` - Generates unique identifier for instance
+    - `Blackbox.addLog()` - Adds log entry with timestamp to logs
+    - `Blackbox.save()` - Persists current logs to localStorage
 
 ## Subdirectories
 

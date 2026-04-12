@@ -165,14 +165,28 @@ export class TornTrade {
      * Compares a Weav3rReceipt against this trade and links it if valid.
      * @param receipt Weav3rReceipt: The receipt to compare.
      * @param currentUserId string: The current user's ID to determine trade direction.
+     * @param onTrace (event: string, data: any) => void: Optional trace callback for logging.
      * @returns Boolean: true if receipt is valid, false otherwise.
      */
-    compareAndLinkReceipt(receipt: Weav3rReceipt, currentUserId?: string): Boolean {
+    compareAndLinkReceipt(
+        receipt: Weav3rReceipt,
+        currentUserId?: string,
+        onTrace?: (event: string, data: any) => void
+    ): Boolean {
         if (this.linkedReceiptId || receipt.linkedTradeId) {
             mydebug(
                 [this.linkedReceiptId, receipt.linkedTradeId],
                 "TornTrade.compareAndLinkReceipt: Receipt already linked"
             );
+            if (onTrace) {
+                onTrace("linking_skipped", {
+                    reason: "already_linked",
+                    tradeId: this.id,
+                    receiptId: receipt.id,
+                    tradeLinkedId: this.linkedReceiptId,
+                    receiptLinkedId: receipt.linkedTradeId,
+                });
+            }
             return false;
         }
 
@@ -183,15 +197,37 @@ export class TornTrade {
                 [this.traderID, currentUserId],
                 "TornTrade.compareAndLinkReceipt: Skipping outgoing trade"
             );
+            if (onTrace) {
+                onTrace("linking_skipped", {
+                    reason: "outgoing_trade",
+                    tradeId: this.id,
+                    traderId: this.traderID,
+                    currentUserId,
+                });
+            }
             return false;
         }
 
-        if (!this.compareReceipt(receipt)) {
+        if (onTrace) {
+            onTrace("linking_try", {
+                tradeId: this.id,
+                receiptId: receipt.id,
+            });
+        }
+
+        if (!this.compareReceipt(receipt, onTrace)) {
             return false;
         }
 
         this.linkedReceiptId = receipt.id;
         receipt.linkedTradeId = this.tornLogId;
+
+        if (onTrace) {
+            onTrace("linking_success", {
+                tradeId: this.id,
+                receiptId: receipt.id,
+            });
+        }
 
         return true;
     }
@@ -199,10 +235,11 @@ export class TornTrade {
     /**
      * Compares a Weav3rReceipt against this trade.
      * @param receipt Weav3rReceipt: The receipt to compare.
+     * @param onTrace (event: string, data: any) => void: Optional trace callback for logging.
      * @returns Boolean: true if receipt is valid, false otherwise.
      */
-    compareReceipt(receipt: Weav3rReceipt): Boolean {
-        return TornTrade.compareReceipt(this, receipt);
+    compareReceipt(receipt: Weav3rReceipt, onTrace?: (event: string, data: any) => void): Boolean {
+        return TornTrade.compareReceipt(this, receipt, onTrace);
     }
 
     /**
@@ -259,9 +296,14 @@ export class TornTrade {
      * Checks if a trade receipt is valid for a given trade.
      * @param trade TornTrade: The trade to check against.
      * @param receipt Weav3rReceipt: The receipt to check.
+     * @param onTrace (event: string, data: any) => void: Optional trace callback for logging.
      * @returns boolean: true if receipt is valid, false otherwise.
      */
-    static compareReceipt(trade: TornTrade, receipt: Weav3rReceipt): Boolean {
+    static compareReceipt(
+        trade: TornTrade,
+        receipt: Weav3rReceipt,
+        onTrace?: (event: string, data: any) => void
+    ): Boolean {
         const hasMoneyItem = trade.items.some((item) => item instanceof TornTradeMoney);
         const tradeTotalValue = hasMoneyItem
             ? (trade.items.find((item) => item instanceof TornTradeMoney) as TornTradeMoney).amount
@@ -283,6 +325,14 @@ export class TornTrade {
                 [trade.getTotalValue(), expandedTotalValue],
                 "TornTrade.compareReceipt: Receipt total value mismatch"
             );
+            if (onTrace) {
+                onTrace("linking_failure_value_mismatch", {
+                    tradeId: trade.id,
+                    receiptId: receipt.id,
+                    tradeValue: trade.getTotalValue(),
+                    receiptValue: expandedTotalValue,
+                });
+            }
             return false;
         }
 
@@ -292,6 +342,14 @@ export class TornTrade {
                 [trade.timestamp, receipt.createdAt],
                 "TornTrade.compareReceipt: Receipt too old"
             );
+            if (onTrace) {
+                onTrace("linking_failure_receipt_too_old", {
+                    tradeId: trade.id,
+                    receiptId: receipt.id,
+                    tradeTimestamp: trade.timestamp,
+                    receiptCreatedAt: receipt.createdAt,
+                });
+            }
             return false;
         }
 
@@ -319,6 +377,20 @@ export class TornTrade {
                 [missingItemsInReceipt, missingItemsInTrade, trade.items, expandedReceiptItems],
                 "TornTrade.compareReceipt: Receipt missing items"
             );
+            if (onTrace) {
+                onTrace("linking_failure_item_mismatch", {
+                    tradeId: trade.id,
+                    receiptId: receipt.id,
+                    missingInReceipt: missingItemsInReceipt.map((i: any) => ({
+                        itemID: i.itemID,
+                        quantity: i.quantity,
+                    })),
+                    missingInTrade: missingItemsInTrade.map((i: any) => ({
+                        itemID: i.itemID,
+                        quantity: i.quantity,
+                    })),
+                });
+            }
             return false;
         }
 
