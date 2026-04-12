@@ -17,7 +17,7 @@ import {
     UserGroupIcon,
     File01Icon,
     Shield01Icon,
-    DatabaseIcon,
+    PackageProcessIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
@@ -65,7 +65,7 @@ export default function LinksPage() {
         {
             name: "Blackbox",
             href: "/blackbox",
-            icon: DatabaseIcon,
+            icon: PackageProcessIcon,
             desc: "Detailed diagnostic logs and sync tracking",
         },
         {

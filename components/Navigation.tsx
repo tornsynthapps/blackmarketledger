@@ -18,6 +18,7 @@ import {
     UserIcon,
     BookOpenTextIcon,
     Link01Icon,
+    PackageProcessIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -39,7 +40,7 @@ const navItems = [
     { name: "Logs", href: "/logs", icon: ReceiptTextIcon, color: "var(--secondary)" },
     { name: "Terminal", href: "/add", icon: ComputerTerminal01Icon, color: "var(--muted)" },
     { name: "Auto-Pilot", href: "/auto", icon: Radar03Icon, color: "var(--danger)" },
-    { name: "Blackbox", href: "/blackbox", icon: DatabaseIcon, color: "var(--secondary)" },
+    { name: "Blackbox", href: "/blackbox", icon: PackageProcessIcon, color: "var(--secondary)" },
     { name: "BML Connect", href: "/bmlconnect", icon: Exchange01Icon, color: "var(--primary)" },
     { name: "Account", href: "/account", icon: UserIcon, color: "var(--info)" },
     { name: "Links", href: "/links", icon: Link01Icon, color: "var(--accent-red)" },
