@@ -9,7 +9,7 @@ import {
     InventoryItemStats,
     isMugTransaction,
     migrateLegacyTransactions,
-} from "@/lib/interfaces/transactions";
+} from "@/lib/old/interfaces/transactions";
 import { sendToExtension } from "@/lib/bmlconnect";
 import * as idb from "@/lib/idb";
 import { setGlobalSyncStatus } from "@/lib/syncStatus";

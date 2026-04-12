@@ -1,7 +1,7 @@
-import { KeyNotFoundError, LocalStorageInterface } from "@/lib/interfaces/localstorage";
-import { TornAPI } from "@/lib/game/api";
-import { TornUser } from "@/lib/game/user";
-import { mydebug } from "../debug";
+import { KeyNotFoundError, LocalStorageInterface } from "@/lib/old/interfaces/localstorage";
+import { TornAPI } from "@/lib/old/game/api";
+import { TornUser } from "@/lib/old/game/user";
+import { mydebug } from "../../debug";
 
 // Cache data to reduce calls to LocalStorageInterface
 let user: TornUser | null = null;

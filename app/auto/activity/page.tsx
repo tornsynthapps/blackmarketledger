@@ -16,8 +16,8 @@ import { format } from "date-fns";
 import { useSearchParams, useRouter } from "next/navigation";
 import { TransactionSourceType } from "@/lib/parser";
 import { buildImportRecord, AutoPilotImportRecord } from "@/lib/torn-api";
-import { TornTrade } from "@/lib/game/trade";
-import { DBInterface } from "@/lib/interfaces/db";
+import { TornTrade } from "@/lib/old/game/trade";
+import { DBInterface } from "@/lib/old/interfaces/db";
 
 function ActivityPageContent() {
     const { isLoaded } = useJournal();

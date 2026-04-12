@@ -1,7 +1,7 @@
 "use client";
 
 import { useJournal } from "@/store/useJournal";
-import { InventoryItemStats } from "@/lib/interfaces/transactions";
+import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
 import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/parser";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -42,7 +42,7 @@ import {
     endOfYear,
 } from "date-fns";
 import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/chartUtils";
-import type { AnyTrackedTransaction } from "@/lib/interfaces/transactions";
+import type { AnyTrackedTransaction } from "@/lib/old/interfaces/transactions";
 
 const getTransactionTimestamp = (transaction: any) =>
     "date" in transaction ? transaction.date : transaction.timestamp;

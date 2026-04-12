@@ -9,8 +9,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useJournal } from "@/store/useJournal";
 import { createParsedLogsFromNewReceipt } from "@/lib/torn-api";
-import { TornTrade, Weav3rReceipt } from "@/lib/game/trade";
-import { DBInterface } from "@/lib/interfaces/db";
+import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
+import { DBInterface } from "@/lib/old/interfaces/db";
 
 export default function ReceiptReviewPage() {
     const { isLoaded, addLogs } = useJournal();

@@ -32,10 +32,10 @@ import {
 import { TransactionSourceType } from "@/lib/parser";
 import { TronWrapper } from "@/lib/torn-wrapper";
 import { needsItemSync } from "@/lib/cursor";
-import { T3BAPI, TornAPI } from "@/lib/game/api";
-import { TornTrade, Weav3rReceipt } from "@/lib/game/trade";
+import { T3BAPI, TornAPI } from "@/lib/old/game/api";
+import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
 import { mydebug } from "@/lib/debug";
-import { DBInterface } from "@/lib/interfaces/db";
+import { DBInterface } from "@/lib/old/interfaces/db";
 
 const MAX_RECENT_IMPORTS = 500;
 

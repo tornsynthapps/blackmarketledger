@@ -27,7 +27,7 @@ import {
     MugTransaction,
     Transaction as NewTransaction,
     WrapperTransaction,
-} from "@/lib/interfaces/transactions";
+} from "@/lib/old/interfaces/transactions";
 import { useHapticFeedback } from "@/lib/useHapticFeedback";
 
 type LegacyTransaction = import("@/lib/parser").Transaction;

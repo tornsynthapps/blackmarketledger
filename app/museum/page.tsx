@@ -1,7 +1,7 @@
 "use client";
 
 import { useJournal } from "@/store/useJournal";
-import { InventoryItemStats } from "@/lib/interfaces/transactions";
+import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
 import { CATEGORY_COLORS } from "@/lib/theme";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {

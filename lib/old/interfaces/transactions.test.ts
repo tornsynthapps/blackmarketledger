@@ -6,7 +6,7 @@ import {
     TransactionBuilder,
     migrateLegacyTransactions,
 } from "./transactions";
-import type { Transaction as LegacyTransaction } from "../parser";
+import type { Transaction as LegacyTransaction } from "../../parser";
 
 describe("TransactionBuilder", () => {
     it("adds simple transactions with self group ids", () => {

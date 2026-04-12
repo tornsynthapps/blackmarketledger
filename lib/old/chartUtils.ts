@@ -3,7 +3,7 @@ import type {
     AnyTrackedTransaction,
     MugTransaction,
     Transaction as NewTransaction,
-} from "@/lib/interfaces/transactions";
+} from "@/lib/old/interfaces/transactions";
 
 export type InventorySnapshot = {
     stock: number;

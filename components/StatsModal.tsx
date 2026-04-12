@@ -20,7 +20,7 @@ import {
     Line,
 } from "recharts";
 import { FLOWER_SET, PLUSHIE_SET, Transaction } from "@/lib/parser";
-import type { AnyTrackedTransaction } from "@/lib/interfaces/transactions";
+import type { AnyTrackedTransaction } from "@/lib/old/interfaces/transactions";
 import {
     format,
     startOfDay,

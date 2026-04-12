@@ -1,12 +1,12 @@
-import { mydebug } from "../debug";
+import { mydebug } from "../../debug";
 import { MetadataInterface } from "../interfaces/metadata";
-import { SetItemInfo } from "../parser";
+import { SetItemInfo } from "../../parser";
 import {
     calculateItemProportions,
     calculateSetTotalMarketValue,
     getItemNameById,
     getSetItems,
-} from "../market-prices";
+} from "../../market-prices";
 
 export class TornTradeItem {
     userID: number;
