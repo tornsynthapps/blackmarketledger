@@ -17,6 +17,7 @@ import {
     UserGroupIcon,
     File01Icon,
     Shield01Icon,
+    DatabaseIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
@@ -60,6 +61,12 @@ export default function LinksPage() {
             href: "/auto",
             icon: Radar03Icon,
             desc: "Automated data synchronization",
+        },
+        {
+            name: "Blackbox",
+            href: "/blackbox",
+            icon: DatabaseIcon,
+            desc: "Detailed diagnostic logs and sync tracking",
         },
         {
             name: "BML Connect",
