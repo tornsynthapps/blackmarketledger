@@ -1,0 +1,19 @@
+name = "ledger"
+main = "src/index.ts"
+compatibility_date = "2026-03-16"
+compatibility_flags = [ "nodejs_compat" ]
+
+[vars]
+DEBUG = "true"
+SUPABASE_URL = "https://yxjmnkaollkpcvymiicd.supabase.co"
+# SUPABASE_SERVICE_ROLE_KEY and TORN_API_KEY should be set via wrangler secret
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
