@@ -1,18 +1,46 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Banners } from "@/components/Banners";
 import { VisitorCounter } from "@/components/VisitorCounter";
 import { ServiceRail } from "@/components/ServiceRail";
 import Link from "next/link";
 import { PromoBannersDesktop } from "@/components/SideBanners";
+import { getStoredAuth, isSubscriptionValid } from "@/lib/old/token-auth";
+
+const PUBLIC_ROUTES = [
+    "/links",
+    "/public",
+    "/docs",
+    "/changelog",
+    "/terms",
+    "/privacy",
+    "/log-formats",
+    "/account",
+];
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
-    const isDocs = pathname?.startsWith("/docs");
-    const isPublic = pathname?.startsWith("/public");
+    const pathname = usePathname() || "";
+    const router = useRouter();
+    const isDocs = pathname.startsWith("/docs");
+    const isPublic = pathname.startsWith("/public");
     const hasGlobalUI = !isDocs && !isPublic;
+
+    useEffect(() => {
+        const isPublicRoute = PUBLIC_ROUTES.some(
+            (route) => pathname === route || pathname.startsWith(route + "/")
+        );
+
+        if (!isPublicRoute) {
+            const auth = getStoredAuth();
+            if (!auth) {
+                router.replace("/account?redirect=" + encodeURIComponent(pathname));
+                return;
+            }
+        }
+    }, [pathname, router]);
 
     if (isDocs) {
         return <>{children}</>;

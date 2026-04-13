@@ -1,6 +1,6 @@
 import { Context } from 'hono';
 import { Env } from '../types';
-import { getSupabaseClient } from '../services/supabase';
+import { selectMaybeSingle, updateRows } from '../services/supabase';
 import { hashToken } from '../utils/crypto';
 import { Logger } from '../utils/logger';
 
@@ -12,7 +12,6 @@ import { Logger } from '../utils/logger';
  */
 export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
   const logger = new Logger(c.env.DEBUG === 'true');
-  const supabase = getSupabaseClient(c.env);
 
   try {
     const { userId, secretToken } = await c.req.json();
@@ -33,11 +32,17 @@ export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
       tokenHash,
     });
 
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('user_tokens')
-      .select('*')
-      .eq('torn_user_id', numericUserId)
-      .maybeSingle();
+    const { data: existingUser, error: fetchError } = await selectMaybeSingle<{
+      username: string;
+      is_blocked: boolean;
+      secret_token_hash: string;
+      failed_attempts: number | null;
+    }>(
+      c.env,
+      'user_tokens',
+      'username, is_blocked, secret_token_hash, failed_attempts',
+      { torn_user_id: numericUserId }
+    );
     logger.debug('Existing user', existingUser);
 
     if (fetchError) {
@@ -57,14 +62,16 @@ export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
       const newFailedAttempts = (existingUser.failed_attempts || 0) + 1;
       const shouldBlock = newFailedAttempts >= 5;
 
-      await supabase
-        .from('user_tokens')
-        .update({
+      await updateRows(
+        c.env,
+        'user_tokens',
+        {
           failed_attempts: newFailedAttempts,
           is_blocked: shouldBlock,
           updated_at: new Date().toISOString(),
-        })
-        .eq('torn_user_id', numericUserId);
+        },
+        { torn_user_id: numericUserId }
+      );
 
       if (shouldBlock) {
         return c.json({ error: 'Account blocked due to too many failed attempts.' }, 403);
@@ -75,19 +82,22 @@ export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
     }
 
     // Success: Reset failed attempts
-    await supabase
-      .from('user_tokens')
-      .update({
+    await updateRows(
+      c.env,
+      'user_tokens',
+      {
         failed_attempts: 0,
         updated_at: new Date().toISOString(),
-      })
-      .eq('torn_user_id', numericUserId);
+      },
+      { torn_user_id: numericUserId }
+    );
 
-    const { data: subData } = await supabase
-      .from('extension_subscriptions')
-      .select('valid_until')
-      .eq('torn_user_id', numericUserId)
-      .maybeSingle();
+    const { data: subData } = await selectMaybeSingle<{ valid_until: string | null }>(
+      c.env,
+      'extension_subscriptions',
+      'valid_until',
+      { torn_user_id: numericUserId }
+    );
 
     const validUntil = subData?.valid_until ?? null;
     const subscriptionValid = Boolean(

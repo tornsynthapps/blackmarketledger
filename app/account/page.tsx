@@ -12,14 +12,17 @@ import {
     Copy01Icon,
     EyeIcon,
     ViewIcon,
+    Shield01Icon,
+    InformationCircleIcon,
+    AlertIcon,
 } from "@hugeicons/core-free-icons";
 import {
-    signIn,
-    initiateDepositSignup,
-    initiateMessageSignup,
-    verifySignup,
-    AuthResponse,
-} from "@/lib/old/token-api";
+    login,
+    signupInitiate,
+    signupVerify,
+    resetTokenInitiate,
+    resetTokenVerify,
+} from "@/lib/ledger-api";
 import {
     saveAuth,
     clearAuth,
@@ -31,8 +34,41 @@ import {
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import { clsx } from "clsx";
 
-type AuthMode = "signin" | "signup";
+type AuthMode = "signin" | "signup" | "forgot";
 type SignupMethod = "deposit" | "message";
+
+function SecurityWarning() {
+    return (
+        <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500 rounded-lg">
+            <div className="flex items-start gap-3">
+                <HugeiconsIcon
+                    icon={InformationCircleIcon}
+                    size={24}
+                    className="text-blue-500 flex-shrink-0 mt-0.5"
+                />
+                <div className="space-y-2">
+                    <h3 className="font-bold text-blue-500 text-sm uppercase tracking-widest">
+                        Store Your Token Securely
+                    </h3>
+                    <ul className="text-xs text-muted space-y-1">
+                        <li className="flex items-center gap-2">
+                            <HugeiconsIcon icon={Shield01Icon} size={14} />
+                            Your secret token is like a password - never share it
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <HugeiconsIcon icon={AlertIcon} size={14} />
+                            BML staff will NEVER ask for your token
+                        </li>
+                        <li className="flex items-center gap-2">
+                            <HugeiconsIcon icon={InformationCircleIcon} size={14} />
+                            If you lose your token, use &quot;Forgot Token&quot; to reset it
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function AccountPage() {
     const { vibrate } = useHapticFeedback();
@@ -54,6 +90,15 @@ export default function AccountPage() {
         token: string;
     } | null>(null);
     const [verifying, setVerifying] = useState(false);
+    const [copiedMessage, setCopiedMessage] = useState(false);
+
+    const handleCopyMessage = () => {
+        if (verificationData?.message) {
+            copyToClipboard(verificationData.message);
+            setCopiedMessage(true);
+            setTimeout(() => setCopiedMessage(false), 2000);
+        }
+    };
 
     useEffect(() => {
         const stored = getStoredAuth();
@@ -72,7 +117,7 @@ export default function AccountPage() {
         setError(null);
 
         try {
-            const response = await signIn(userIdInput.trim(), secretTokenInput.trim());
+            const response = await login(userIdInput.trim(), secretTokenInput.trim());
 
             if (response.error) {
                 setError(response.error);
@@ -108,7 +153,7 @@ export default function AccountPage() {
         setError(null);
 
         try {
-            const response = await initiateDepositSignup(userIdInput.trim());
+            const response = await signupInitiate(userIdInput.trim(), "initiate-money");
 
             if (response.error) {
                 setError(response.error);
@@ -136,7 +181,7 @@ export default function AccountPage() {
         setError(null);
 
         try {
-            const response = await initiateMessageSignup(userIdInput.trim());
+            const response = await signupInitiate(userIdInput.trim(), "initiate-message");
 
             if (response.error) {
                 setError(response.error);
@@ -161,7 +206,7 @@ export default function AccountPage() {
         setError(null);
 
         try {
-            const response = await verifySignup(verificationData.token);
+            const response = await signupVerify(verificationData.token);
 
             if (response.error) {
                 setError(response.error);
@@ -174,6 +219,67 @@ export default function AccountPage() {
                     username: response.username,
                     secretToken: response.secretToken,
                     validUntil: response.validUntil,
+                };
+                saveAuth(storedAuth);
+                setAuth(storedAuth);
+                setVerificationData(null);
+                setUserIdInput("");
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Verification failed");
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const handleInitiateResetToken = async () => {
+        if (!userIdInput.trim()) {
+            setError("Please enter your Torn User ID");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await resetTokenInitiate(userIdInput.trim());
+
+            if (response.error) {
+                setError(response.error);
+                return;
+            }
+
+            setVerificationData({
+                message: response.message,
+                token: response.verificationToken,
+            });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to initiate token reset");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyResetToken = async () => {
+        if (!verificationData) return;
+
+        setVerifying(true);
+        setError(null);
+
+        try {
+            const response = await resetTokenVerify(verificationData.token);
+
+            if (response.error) {
+                setError(response.error);
+                return;
+            }
+
+            if (response.success) {
+                const storedAuth: StoredAuth = {
+                    userId: String(response.userId),
+                    username: "",
+                    secretToken: response.secretToken,
+                    validUntil: null,
                 };
                 saveAuth(storedAuth);
                 setAuth(storedAuth);
@@ -200,6 +306,12 @@ export default function AccountPage() {
         vibrate("utility");
     };
 
+    const resetMode = (newMode: AuthMode) => {
+        setMode(newMode);
+        setError(null);
+        setVerificationData(null);
+    };
+
     if (auth) {
         const validUntil = getValidUntil();
         const isValid = isSubscriptionValid();
@@ -207,6 +319,8 @@ export default function AccountPage() {
         return (
             <div className="py-8">
                 <div className="bg-card border-2 border-primary p-6">
+                    <SecurityWarning />
+
                     <div className="flex items-center gap-3 mb-6">
                         <div className="bg-primary p-2">
                             <HugeiconsIcon
@@ -304,6 +418,8 @@ export default function AccountPage() {
     return (
         <div className="max-w-lg mx-auto py-8">
             <div className="bg-card border-2 border-primary p-6">
+                <SecurityWarning />
+
                 <div className="flex items-center gap-3 mb-6">
                     <div className="bg-primary p-2">
                         <HugeiconsIcon
@@ -319,11 +435,7 @@ export default function AccountPage() {
 
                 <div className="flex gap-2 mb-6">
                     <button
-                        onClick={() => {
-                            setMode("signin");
-                            setError(null);
-                            setVerificationData(null);
-                        }}
+                        onClick={() => resetMode("signin")}
                         className={clsx(
                             "flex-1 py-2 px-4 font-bold text-xs uppercase tracking-widest transition-all",
                             mode === "signin"
@@ -334,11 +446,7 @@ export default function AccountPage() {
                         Sign In
                     </button>
                     <button
-                        onClick={() => {
-                            setMode("signup");
-                            setError(null);
-                            setVerificationData(null);
-                        }}
+                        onClick={() => resetMode("signup")}
                         className={clsx(
                             "flex-1 py-2 px-4 font-bold text-xs uppercase tracking-widest transition-all",
                             mode === "signup"
@@ -347,6 +455,17 @@ export default function AccountPage() {
                         )}
                     >
                         Sign Up
+                    </button>
+                    <button
+                        onClick={() => resetMode("forgot")}
+                        className={clsx(
+                            "flex-1 py-2 px-4 font-bold text-xs uppercase tracking-widest transition-all",
+                            mode === "forgot"
+                                ? "bg-blue-500 text-white"
+                                : "bg-foreground/5 text-muted hover:bg-foreground/10"
+                        )}
+                    >
+                        Forgot Token
                     </button>
                 </div>
 
@@ -399,6 +518,102 @@ export default function AccountPage() {
                             )}
                         </button>
                     </div>
+                ) : mode === "forgot" ? (
+                    verificationData ? (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-blue-500/10 border border-blue-500">
+                                <h3 className="font-bold text-blue-500 text-xs uppercase tracking-widest mb-3">
+                                    Verification Required
+                                </h3>
+                                <div className="space-y-2">
+                                    <p className="text-sm">
+                                        Send <span className="font-bold text-primary">$1</span> to{" "}
+                                        <a
+                                            href="https://www.torn.com/profiles.php?XID=3165209"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline font-bold"
+                                        >
+                                            PixelGhost [3165209]
+                                        </a>{" "}
+                                        with the message:
+                                    </p>
+                                    <div className="relative">
+                                        <code className="block bg-background px-3 py-2 pr-10 font-mono text-sm">
+                                            {verificationData.message}
+                                        </code>
+                                        <button
+                                            onClick={handleCopyMessage}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-foreground"
+                                            title={copiedMessage ? "Copied!" : "Copy to clipboard"}
+                                        >
+                                            <HugeiconsIcon
+                                                icon={
+                                                    copiedMessage
+                                                        ? CheckmarkCircle01Icon
+                                                        : Copy01Icon
+                                                }
+                                                size={16}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-border">
+                                    <p className="text-xs text-muted">
+                                        Verification Token:{" "}
+                                        <code className="font-mono">{verificationData.token}</code>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleVerifyResetToken}
+                                disabled={verifying}
+                                className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white px-4 py-3 font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
+                            >
+                                {verifying ? (
+                                    <span className="animate-pulse">Verifying...</span>
+                                ) : (
+                                    <>
+                                        <HugeiconsIcon icon={RefreshIcon} size={18} />
+                                        I&apos;ve Sent the Message - Get New Token
+                                    </>
+                                )}
+                            </button>
+
+                            <button
+                                onClick={() => setVerificationData(null)}
+                                className="w-full text-center text-muted text-xs hover:text-foreground"
+                            >
+                                Cancel and start over
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-foreground/5 border border-border">
+                                <h3 className="font-bold text-xs uppercase tracking-widest mb-2">
+                                    Reset Your Token
+                                </h3>
+                                <p className="text-sm text-muted">
+                                    Enter your Torn User ID to initiate a token reset. You will need
+                                    to verify ownership by sending a message with a specific code.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-muted font-bold text-xs uppercase tracking-widest mb-2">
+                                    Torn User ID
+                                </label>
+                                <input
+                                    type="text"
+                                    value={userIdInput}
+                                    onChange={(e) => setUserIdInput(e.target.value)}
+                                    placeholder="Enter your Torn User ID"
+                                    className="w-full px-3 py-2 bg-background border border-border focus:border-blue-500 outline-none font-mono"
+                                />
+                            </div>
+                        </div>
+                    )
                 ) : verificationData ? (
                     <div className="space-y-4">
                         <div className="p-4 bg-foreground/5 border border-border">
@@ -413,7 +628,16 @@ export default function AccountPage() {
                                         <span className="font-bold text-primary">
                                             ${verificationData.amount}
                                         </span>{" "}
-                                        to the BML account using Torn.
+                                        to{" "}
+                                        <a
+                                            href="https://www.torn.com/profiles.php?XID=3165209"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline font-bold"
+                                        >
+                                            PixelGhost [3165209]
+                                        </a>{" "}
+                                        using Torn.
                                     </p>
                                     <p className="text-xs text-muted">
                                         Use the reference:{" "}
@@ -425,12 +649,36 @@ export default function AccountPage() {
                             ) : verificationData.message ? (
                                 <div className="space-y-2">
                                     <p className="text-sm">
-                                        Send <span className="font-bold text-primary">$1</span> to
-                                        the BML account with the message:
+                                        Send <span className="font-bold text-primary">$1</span> to{" "}
+                                        <a
+                                            href="https://www.torn.com/profiles.php?XID=3165209"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline font-bold"
+                                        >
+                                            PixelGhost [3165209]
+                                        </a>{" "}
+                                        with the message:
                                     </p>
-                                    <code className="block bg-background px-3 py-2 font-mono text-sm">
-                                        {verificationData.message}
-                                    </code>
+                                    <div className="relative">
+                                        <code className="block bg-background px-3 py-2 pr-10 font-mono text-sm">
+                                            {verificationData.message}
+                                        </code>
+                                        <button
+                                            onClick={handleCopyMessage}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-foreground"
+                                            title={copiedMessage ? "Copied!" : "Copy to clipboard"}
+                                        >
+                                            <HugeiconsIcon
+                                                icon={
+                                                    copiedMessage
+                                                        ? CheckmarkCircle01Icon
+                                                        : Copy01Icon
+                                                }
+                                                size={16}
+                                            />
+                                        </button>
+                                    </div>
                                 </div>
                             ) : null}
 
@@ -452,7 +700,7 @@ export default function AccountPage() {
                             ) : (
                                 <>
                                     <HugeiconsIcon icon={RefreshIcon} size={18} />
-                                    I've Completed Payment - Verify
+                                    I&apos;ve Completed Payment - Verify
                                 </>
                             )}
                         </button>

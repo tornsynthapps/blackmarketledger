@@ -1,6 +1,6 @@
 import { Context } from 'hono';
 import { Env } from '../types';
-import { getSupabaseClient } from '../services/supabase';
+import { deleteRows, insertRow, selectMaybeSingle, updateRows } from '../services/supabase';
 import { generateSecretToken, generateVerificationToken, getRandomWord } from '../utils/random';
 import { hashToken } from '../utils/crypto';
 import { Logger } from '../utils/logger';
@@ -9,7 +9,6 @@ const VERIFICATION_EXPIRY_MINUTES = 30;
 
 export const resetTokenHandler = async (c: Context<{ Bindings: Env }>) => {
   const logger = new Logger(c.env.DEBUG === 'true');
-  const supabase = getSupabaseClient(c.env);
 
   try {
     const { mode, userId, verificationToken } = await c.req.json();
@@ -18,11 +17,12 @@ export const resetTokenHandler = async (c: Context<{ Bindings: Env }>) => {
       if (!userId) return c.json({ error: 'Missing userId' }, 400);
       const numericUserId = parseInt(userId, 10);
       
-      const { data: existingUser } = await supabase
-        .from('user_tokens')
-        .select('id')
-        .eq('torn_user_id', numericUserId)
-        .maybeSingle();
+      const { data: existingUser } = await selectMaybeSingle<{ id: number }>(
+        c.env,
+        'user_tokens',
+        'id',
+        { torn_user_id: numericUserId }
+      );
 
       if (!existingUser) return c.json({ error: 'Account not found. Please sign up.' }, 404);
 
@@ -30,7 +30,7 @@ export const resetTokenHandler = async (c: Context<{ Bindings: Env }>) => {
       const token = generateVerificationToken();
       const expiresAt = new Date(Date.now() + VERIFICATION_EXPIRY_MINUTES * 60 * 1000).toISOString();
 
-      await supabase.from('token_verification_temp').insert({
+      await insertRow(c.env, 'token_verification_temp', {
         torn_user_id: numericUserId,
         verification_token: token,
         verification_type: 'message',
@@ -44,11 +44,15 @@ export const resetTokenHandler = async (c: Context<{ Bindings: Env }>) => {
     if (mode === 'verify') {
       if (!verificationToken) return c.json({ error: 'Missing verificationToken' }, 400);
 
-      const { data: tempRecord, error: tempError } = await supabase
-        .from('token_verification_temp')
-        .select('*')
-        .eq('verification_token', verificationToken)
-        .maybeSingle();
+      const { data: tempRecord, error: tempError } = await selectMaybeSingle<{
+        torn_user_id: number;
+        message_required: string;
+      }>(
+        c.env,
+        'token_verification_temp',
+        'torn_user_id, message_required',
+        { verification_token: verificationToken }
+      );
 
       if (tempError || !tempRecord) {
         return c.json({ error: 'Invalid or expired verification token.' }, 400);
@@ -79,20 +83,22 @@ export const resetTokenHandler = async (c: Context<{ Bindings: Env }>) => {
       }
 
       // Cleanup
-      await supabase.from('token_verification_temp').delete().eq('verification_token', verificationToken);
+      await deleteRows(c.env, 'token_verification_temp', { verification_token: verificationToken });
 
       const newSecretToken = generateSecretToken();
       const newTokenHash = hashToken(newSecretToken);
 
-      await supabase
-        .from('user_tokens')
-        .update({
+      await updateRows(
+        c.env,
+        'user_tokens',
+        {
           secret_token_hash: newTokenHash,
           failed_attempts: 0,
           is_blocked: false,
           updated_at: new Date().toISOString(),
-        })
-        .eq('torn_user_id', userId);
+        },
+        { torn_user_id: userId }
+      );
 
       return c.json({
         success: true,

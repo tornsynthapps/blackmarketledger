@@ -23,6 +23,8 @@ export function saveAuth(auth: StoredAuth): void {
         } else {
             localStorage.removeItem(VALID_UNTIL_KEY);
         }
+        document.cookie = `bml_token=${auth.secretToken}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `bml_user_id=${auth.userId}; path=/; max-age=2592000; SameSite=Lax`;
     } catch (error) {
         console.error("Failed to save auth:", error);
     }
@@ -73,6 +75,8 @@ export function clearAuth(): void {
         localStorage.removeItem(USER_ID_KEY);
         localStorage.removeItem(USERNAME_KEY);
         localStorage.removeItem(VALID_UNTIL_KEY);
+        document.cookie = "bml_token=; path=/; max-age=0; SameSite=Lax";
+        document.cookie = "bml_user_id=; path=/; max-age=0; SameSite=Lax";
     } catch (error) {
         console.error("Failed to clear auth:", error);
     }
@@ -93,4 +97,12 @@ export function isSubscriptionValid(): boolean {
     const validUntil = getValidUntil();
     if (!validUntil) return false;
     return new Date(validUntil).getTime() > Date.now();
+}
+
+export function getLedgerApiUrl(): string {
+    const url = process.env.NEXT_PUBLIC_LEDGER_API_URL;
+    if (!url) {
+        throw new Error("NEXT_PUBLIC_LEDGER_API_URL is not configured.");
+    }
+    return url.startsWith("http") ? url : `https://${url}`;
 }

@@ -5,6 +5,10 @@ export class Logger {
     this.isDebug = isDebug;
   }
 
+  get enabled() {
+    return this.isDebug;
+  }
+
   debug(message: string, data?: any) {
     if (this.isDebug) {
       console.log(`[DEBUG] ${message}`, data ? JSON.stringify(data, null, 2) : '');
@@ -12,7 +16,9 @@ export class Logger {
   }
 
   info(message: string, data?: any) {
-    console.log(`[INFO] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+    if (this.isDebug) {
+      console.log(`[INFO] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+    }
   }
 
   error(message: string, error?: any) {
