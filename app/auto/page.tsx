@@ -29,7 +29,10 @@ import {
     SyncCursor,
     AutoPilotImportRecord,
 } from "@/lib/old/torn-api";
-import { calculateInventoryFromTransactions, InventoryItemStats } from "@/lib/old/interfaces/transactions";
+import {
+    calculateInventoryFromTransactions,
+    InventoryItemStats,
+} from "@/lib/old/interfaces/transactions";
 import { TransactionSourceType } from "@/lib/old/parser";
 import { TronWrapper } from "@/lib/old/torn-wrapper";
 import { needsItemSync } from "@/lib/old/cursor";
@@ -38,6 +41,7 @@ import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
 import { mydebug } from "@/lib/old/debug";
 import { DBInterface } from "@/lib/old/interfaces/db";
 import { Blackbox } from "@/lib/blackbox";
+import { syncLogs, syncTrades } from "./sync";
 
 const MAX_RECENT_IMPORTS = 500;
 
@@ -494,252 +498,84 @@ export default function AutoPilotPage() {
 
             if (tradeCursor.lastTimestamp > itemCursor.lastTimestamp) {
                 syncType = "item";
-                setStatusMessage(
-                    `Fetching item logs up to trade cursor (${new Date(tradeCursor.lastTimestamp * 1000).toLocaleString()})...`
-                );
-
-                await logToBlackbox("item_sync_start", {
+                await syncLogs({
+                    wrapper,
                     itemCursor,
                     tradeCursor,
-                    targetTimestamp: tradeCursor.lastTimestamp,
+                    batchRecords,
+                    onTrace: logToBlackbox,
+                    addLogs,
+                    saveAutoPilotState,
+                    setStatusMessage,
                 });
 
-                const itemResult = await wrapper.getNewLogs(
-                    {
-                        lastTimestamp: itemCursor.lastTimestamp,
-                        lastLogId: itemCursor.lastLogId,
-                    },
-                    tradeCursor.lastTimestamp
-                );
-
-                const {
-                    logs: itemLogs,
-                    parsedLogs: itemParsedLogs,
-                    nextCursor: newItemCursor,
-                } = itemResult;
-
-                await logToBlackbox("item_fetch_result", {
-                    itemCount: itemLogs.length,
-                    parsedCount: itemParsedLogs.length,
-                    newItemCursor,
-                });
-
-                for (const log of itemLogs) {
-                    await logToBlackbox("log_detail", log);
-                    batchRecords.push(
-                        buildImportRecord({
-                            id: `log:${log.id}`,
-                            timestamp: log.timestamp,
-                            title: log.title || log.category || "Torn log",
-                            status: "imported",
-                            sourceType: getImportSourceType(log),
-                            tornLogId: String(log.id),
-                        })
-                    );
-                }
-
-                for (const parsedLog of itemParsedLogs) {
-                    await logToBlackbox("item_added", {
-                        import_type: "item_log",
-                        ...parsedLog,
-                    });
-                }
-
-                allNewParsedLogs.push(...itemParsedLogs);
-                nextItemCursor = newItemCursor;
-
-                if (itemParsedLogs.length) {
-                    setStatusMessage(
-                        `Importing ${itemParsedLogs.length} item logs into your ledger...`
-                    );
-                    await addLogs(itemParsedLogs, { skipNegativeStock: false, onTrace: logToBlackbox });
-                    await logToBlackbox("item_import_result", {
-                        count: itemParsedLogs.length,
-                        success: true,
-                    });
-                } else {
-                    await logToBlackbox("item_import_result", {
-                        count: 0,
-                        success: true,
-                    });
-                }
-
+                nextItemCursor = itemCursor;
                 nextTradeCursor = { ...nextItemCursor };
-
-                await saveAutoPilotState({
-                    autoPilotCursor: nextItemCursor,
-                    autoPilotTradeCursor: nextTradeCursor,
-                    autoPilotItemCursor: nextItemCursor,
-                    autoPilotLastSyncAt: Date.now(),
-                });
-
-                setStatusMessage("Item sync completed.");
-                await logToBlackbox("item_sync_complete", {
-                    nextItemCursor,
-                    nextTradeCursor,
-                });
             } else {
                 syncType = "trade";
-                const tradeStart = tradeCursor.lastTimestamp;
-                const now = Math.floor(Date.now() / 1000);
-                const toTimestamp = now - 1;
 
-                setStatusMessage(`${statusMessage}\nFetching completed trades...`);
-
-                await logToBlackbox("trade_fetch_request", {
-                    startTimestamp: tradeStart,
-                    toTimestamp,
+                const tradeResult = await syncTrades({
+                    wrapper,
+                    tradeCursor,
+                    itemCursor,
+                    weav3rUserId,
+                    batchRecords,
+                    onTrace: logToBlackbox,
+                    addLogs,
+                    setStatusMessage,
+                    setTrades,
+                    setReceipts,
+                    saveAutoPilotState,
                 });
 
-                const newtornTrades: TornTrade[] = await TornAPI.getTornTrades(
-                    tradeStart,
-                    toTimestamp
-                );
-                mydebug(newtornTrades, "AutoPilot: Fetched trades");
-                await logToBlackbox("trade_fetch_result", {
-                    count: newtornTrades.length,
-                    tradeIds: newtornTrades.map((t) => t.id),
-                });
-
-                for (const trade of newtornTrades) {
-                    await logToBlackbox("trade_detail", trade.toInterface());
-                }
-
-                setStatusMessage(`${statusMessage}\nFetching receipts...`);
-
-                await logToBlackbox("receipt_fetch_request", {
-                    startTimestamp: tradeStart - 10 * 60 * 60,
-                    toTimestamp,
-                });
-
-                const neweav3rReceipts: Weav3rReceipt[] = await T3BAPI.getReceipts(
-                    tradeStart - 10 * 60 * 60,
-                    toTimestamp
-                );
-                mydebug(neweav3rReceipts, "AutoPilot: Fetched receipts");
-                await logToBlackbox("receipt_fetch_result", {
-                    count: neweav3rReceipts.length,
-                    receiptIds: neweav3rReceipts.map((r) => r.id),
-                });
-
-                for (const receipt of neweav3rReceipts) {
-                    await logToBlackbox("receipt_detail", receipt.toInterface());
-                }
-
-                const newAllNewParsedLogs: any[] = [];
-                const linkedTrades: any[] = [];
-
-                setStatusMessage(`${statusMessage}\nLinking trades...`);
-
-                await logToBlackbox("linking_start", {
-                    tradesCount: newtornTrades.length,
-                    receiptsCount: neweav3rReceipts.length,
-                });
-
-                for (const trade of newtornTrades) {
-                    for (const receipt of neweav3rReceipts) {
-                        if (trade.compareAndLinkReceipt(receipt, weav3rUserId, logToBlackbox)) {
-                            mydebug([trade, receipt], "AutoPilot: linked trade");
-                            mydebug(trade, "AutoPilot: linked trade");
-
-                            const parsedLogs = createParsedLogsFromNewReceipt(
-                                trade,
-                                receipt,
-                                weav3rUserId
-                            );
-
-                            for (const parsedLog of parsedLogs) {
-                                await logToBlackbox("item_added", {
-                                    import_type: "trade_linked",
-                                    tradeId: trade.id,
-                                    receiptId: receipt.id,
-                                    ...parsedLog,
-                                });
-                            }
-
-                            newAllNewParsedLogs.push(...parsedLogs);
-                            linkedTrades.push({
-                                tradeId: trade.id,
-                                receiptId: receipt.id,
-                                logCount: parsedLogs.length,
-                                tradeDetails: trade.toInterface(),
-                                receiptDetails: receipt.toInterface(),
-                            });
-                            break;
-                        }
-                    }
-                }
-
-                await logToBlackbox("linking_result", {
-                    linkedCount: linkedTrades.length,
-                    linkedTrades,
-                });
-
-                DBInterface.migrationAddTrades(newtornTrades);
-                DBInterface.migrationAddReceipts(neweav3rReceipts);
-
-                const newUnlinkedTrades = newtornTrades.filter((trade) => !trade.isLinked());
-                const newUnlinkedReceipts = neweav3rReceipts.filter(
-                    (receipt) => !receipt.linkedTradeId
-                );
-
-                await logToBlackbox("unlinked_summary", {
-                    unlinkedTradesCount: newUnlinkedTrades.length,
-                    unlinkedTradesIds: newUnlinkedTrades.map((t) => t.id),
-                    unlinkedReceiptsCount: newUnlinkedReceipts.length,
-                    unlinkedReceiptsIds: newUnlinkedReceipts.map((r) => r.id),
-                });
-
-                setStatusMessage(
-                    `Found ${newUnlinkedTrades.length} unlinked trades ` +
-                        `and ${newUnlinkedReceipts.length} unlinked receipts.`
-                );
-                setStatusMessage(`Found ${newAllNewParsedLogs.length} logs.`);
-
-                if (newAllNewParsedLogs.length) {
-                    setStatusMessage(
-                        `Importing ${newAllNewParsedLogs.length} linked trades into your ledger...`
-                    );
-                    await addLogs(newAllNewParsedLogs, {
-                        skipNegativeStock: false,
-                        onTrace: logToBlackbox,
-                    });
-                    await logToBlackbox("trade_import_result", {
-                        count: newAllNewParsedLogs.length,
-                        success: true,
-                    });
-                } else {
-                    await logToBlackbox("trade_import_result", {
-                        count: 0,
-                        success: true,
-                    });
-                }
-
-                setTrades(DBInterface.migrationGetTrades());
-                setReceipts(DBInterface.migrationGetReceipts());
-
-                nextTradeCursor = { lastTimestamp: toTimestamp, lastLogId: "" };
-                if (nextTradeCursor) {
-                    await saveAutoPilotState({
-                        autoPilotCursor: nextTradeCursor,
-                        autoPilotTradeCursor: nextTradeCursor,
-                        autoPilotItemCursor: nextItemCursor,
-                        autoPilotLastSyncAt: Date.now(),
-                    });
-                }
+                nextTradeCursor = tradeResult.nextTradeCursor;
+                const { newUnlinkedTrades, newUnlinkedReceipts } = tradeResult;
 
                 const unlinkedCount = unlinkedTrades.length + newUnlinkedReceipts.length;
-                const syncCompletedMessage =
-                    unlinkedCount > 0
-                        ? `Auto-Pilot sync completed. ${unlinkedTrades.length} unlinked trades and ${newUnlinkedReceipts.length} unlinked receipts need review.`
-                        : "Auto-Pilot sync completed.";
+
+                if (unlinkedTrades.length > 0) {
+                    const syncCompletedMessage = `Auto-Pilot sync completed. ${unlinkedTrades.length} unlinked trades and ${newUnlinkedReceipts.length} unlinked receipts need review.`;
+                    setStatusMessage(syncCompletedMessage);
+
+                    await logToBlackbox("sync_complete", {
+                        tradeCursor: nextTradeCursor,
+                        itemCursor: itemCursor,
+                        unlinkedCount,
+                        syncType: "trade",
+                        skippedItemImport: true,
+                        reason: "conflicts_exist",
+                    });
+
+                    const inventoryAfter = getInventorySnapshot();
+                    await logToBlackbox("inventory_after", { inventory: inventoryAfter });
+                    return;
+                }
+
+                setStatusMessage("No conflicts detected. Proceeding to import item logs...");
+
+                syncType = "item";
+                const logsResult = await syncLogs({
+                    wrapper,
+                    itemCursor,
+                    tradeCursor: nextTradeCursor,
+                    batchRecords,
+                    onTrace: logToBlackbox,
+                    addLogs,
+                    saveAutoPilotState,
+                    setStatusMessage,
+                });
+
+                nextItemCursor = logsResult.nextItemCursor;
+                nextTradeCursor = { ...nextItemCursor };
+
+                const syncCompletedMessage = "Auto-Pilot sync completed.";
                 setStatusMessage(syncCompletedMessage);
 
                 await logToBlackbox("sync_complete", {
                     tradeCursor: nextTradeCursor,
                     itemCursor: nextItemCursor,
-                    unlinkedCount,
-                    syncType: "trade",
+                    unlinkedCount: 0,
+                    syncType: "trade_then_item",
                 });
             }
             const inventoryAfter = getInventorySnapshot();
