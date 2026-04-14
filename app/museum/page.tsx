@@ -21,7 +21,7 @@ import {
     Loading03Icon,
     CheckmarkCircle01Icon,
     SettingsIcon,
-    PencilEdit02Icon
+    PencilEdit02Icon,
 } from "@hugeicons/core-free-icons";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import {
@@ -34,6 +34,7 @@ import {
     PLUSHIE_SET_ITEMS,
 } from "@/lib/old/parser";
 import { ProfitChart } from "@/components/ProfitChart";
+import { ItemGridCard } from "@/components/ItemGridCard";
 import {
     format,
     subDays,
@@ -180,8 +181,8 @@ export default function MuseumDashboard() {
                 const exchangesReady =
                     items.length > 0
                         ? Math.min(
-                            ...items.map((item) => Math.floor(item.stats.stock / item.quantity))
-                        )
+                              ...items.map((item) => Math.floor(item.stats.stock / item.quantity))
+                          )
                         : 0;
 
                 return {
@@ -343,9 +344,18 @@ export default function MuseumDashboard() {
 
             // Legacy support
             localStorage.setItem("museum-show-flower-buy-plan", (flowerMode === "buy").toString());
-            localStorage.setItem("museum-show-flower-pricelist", (flowerMode === "price").toString());
-            localStorage.setItem("museum-show-plushie-buy-plan", (plushieMode === "buy").toString());
-            localStorage.setItem("museum-show-plushie-pricelist", (plushieMode === "price").toString());
+            localStorage.setItem(
+                "museum-show-flower-pricelist",
+                (flowerMode === "price").toString()
+            );
+            localStorage.setItem(
+                "museum-show-plushie-buy-plan",
+                (plushieMode === "buy").toString()
+            );
+            localStorage.setItem(
+                "museum-show-plushie-pricelist",
+                (plushieMode === "price").toString()
+            );
         }
     }, [
         timeRange,
@@ -722,13 +732,12 @@ export default function MuseumDashboard() {
                         </div>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() =>
-                                    setFlowerMode(flowerMode === "buy" ? "view" : "buy")
-                                }
-                                className={`p-2 rounded-lg transition-all ${flowerMode === "buy"
-                                    ? "bg-success text-success-foreground shadow-sm"
-                                    : "bg-success/10 text-success hover:bg-success/20"
-                                    }`}
+                                onClick={() => setFlowerMode(flowerMode === "buy" ? "view" : "buy")}
+                                className={`p-2 rounded-lg transition-all ${
+                                    flowerMode === "buy"
+                                        ? "bg-success text-success-foreground shadow-sm"
+                                        : "bg-success/10 text-success hover:bg-success/20"
+                                }`}
                                 title="Buy Mode"
                             >
                                 <HugeiconsIcon icon={ShoppingBasket03Icon} size={20} />
@@ -737,10 +746,11 @@ export default function MuseumDashboard() {
                                 onClick={() =>
                                     setFlowerMode(flowerMode === "price" ? "view" : "price")
                                 }
-                                className={`p-2 rounded-lg transition-all ${flowerMode === "price"
-                                    ? "bg-blue-500 text-white shadow-sm"
-                                    : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
-                                    }`}
+                                className={`p-2 rounded-lg transition-all ${
+                                    flowerMode === "price"
+                                        ? "bg-blue-500 text-white shadow-sm"
+                                        : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                                }`}
                                 title="Set Pricelist"
                             >
                                 <HugeiconsIcon icon={PencilEdit02Icon} size={20} />
@@ -874,10 +884,11 @@ export default function MuseumDashboard() {
                                             onClick={() =>
                                                 setShowThresholdSettings(!showThresholdSettings)
                                             }
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${showThresholdSettings
-                                                ? "bg-primary text-primary-foreground shadow-sm"
-                                                : "bg-primary/10 text-primary hover:bg-primary/20"
-                                                }`}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                                showThresholdSettings
+                                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                                            }`}
                                         >
                                             <HugeiconsIcon icon={SettingsIcon} size={14} />
                                             Settings
@@ -1027,14 +1038,18 @@ export default function MuseumDashboard() {
                                             <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
                                                 <tr>
                                                     <th className="px-4 py-3 text-left">Item</th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        Stock
+                                                    </th>
                                                     <th className="px-4 py-3 text-right whitespace-nowrap">
                                                         Market Price
                                                     </th>
                                                     <th className="px-4 py-3 text-right whitespace-nowrap">
                                                         Current %
                                                     </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        New %
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border">
@@ -1052,8 +1067,8 @@ export default function MuseumDashboard() {
                                                     const currentPercentage =
                                                         marketPrice > 0
                                                             ? Math.round(
-                                                                (currentPrice / marketPrice) * 100
-                                                            )
+                                                                  (currentPrice / marketPrice) * 100
+                                                              )
                                                             : 0;
                                                     const newPercentage =
                                                         flowerPricelistEdits[item.name] ??
@@ -1126,11 +1141,16 @@ export default function MuseumDashboard() {
                             )}
                         </div>
                     )}
-                    <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-xl transition-colors ${flowerMode === "buy" ? "bg-success/[0.03] border border-success/20" : flowerMode === "price" ? "bg-blue-500/[0.03] border border-blue-500/20" : ""}`}>
+                    <div
+                        className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-0 rounded-xl transition-colors`}
+                    >
                         {flowersData.map((item) => {
-                            const buyInfo = flowerMode === "buy"
-                                ? flowerBuyPlan.purchases.find((p) => p.name === item.name)
-                                : undefined;
+                            const maxFlowerStock = Math.max(...flowersData.map(f => f.stats.stock), 1);
+                            const buyInfo =
+                                flowerMode === "buy"
+                                    ? flowerBuyPlan.purchases.find((p) => p.name === item.name)
+                                    : undefined;
+                            const setItem = FLOWER_SET_ITEMS.find((si) => si.name === item.name);
                             return (
                                 <ItemGridCard
                                     key={item.name}
@@ -1138,6 +1158,8 @@ export default function MuseumDashboard() {
                                     stats={item.stats}
                                     buyInfo={buyInfo}
                                     mode={flowerMode}
+                                    itemId={setItem?.id}
+                                    maxStock={maxFlowerStock}
                                 />
                             );
                         })}
@@ -1168,10 +1190,11 @@ export default function MuseumDashboard() {
                                 onClick={() =>
                                     setPlushieMode(plushieMode === "buy" ? "view" : "buy")
                                 }
-                                className={`p-2 rounded-lg transition-all ${plushieMode === "buy"
-                                    ? "bg-success text-success-foreground shadow-sm"
-                                    : "bg-success/10 text-success hover:bg-success/20"
-                                    }`}
+                                className={`p-2 rounded-lg transition-all ${
+                                    plushieMode === "buy"
+                                        ? "bg-success text-success-foreground shadow-sm"
+                                        : "bg-success/10 text-success hover:bg-success/20"
+                                }`}
                                 title="Buy Mode"
                             >
                                 <HugeiconsIcon icon={ShoppingBasket03Icon} size={20} />
@@ -1180,10 +1203,11 @@ export default function MuseumDashboard() {
                                 onClick={() =>
                                     setPlushieMode(plushieMode === "price" ? "view" : "price")
                                 }
-                                className={`p-2 rounded-lg transition-all ${plushieMode === "price"
-                                    ? "bg-blue-500 text-white shadow-sm"
-                                    : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
-                                    }`}
+                                className={`p-2 rounded-lg transition-all ${
+                                    plushieMode === "price"
+                                        ? "bg-blue-500 text-white shadow-sm"
+                                        : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                                }`}
                                 title="Set Pricelist"
                             >
                                 <HugeiconsIcon icon={PencilEdit02Icon} size={20} />
@@ -1317,10 +1341,11 @@ export default function MuseumDashboard() {
                                             onClick={() =>
                                                 setShowThresholdSettings(!showThresholdSettings)
                                             }
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${showThresholdSettings
-                                                ? "bg-primary text-primary-foreground shadow-sm"
-                                                : "bg-primary/10 text-primary hover:bg-primary/20"
-                                                }`}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                                showThresholdSettings
+                                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                                            }`}
                                         >
                                             <HugeiconsIcon icon={SettingsIcon} size={14} />
                                             Settings
@@ -1470,14 +1495,18 @@ export default function MuseumDashboard() {
                                             <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
                                                 <tr>
                                                     <th className="px-4 py-3 text-left">Item</th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">Stock</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        Stock
+                                                    </th>
                                                     <th className="px-4 py-3 text-right whitespace-nowrap">
                                                         Market Price
                                                     </th>
                                                     <th className="px-4 py-3 text-right whitespace-nowrap">
                                                         Current %
                                                     </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">New %</th>
+                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
+                                                        New %
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-border">
@@ -1495,8 +1524,8 @@ export default function MuseumDashboard() {
                                                     const currentPercentage =
                                                         marketPrice > 0
                                                             ? Math.round(
-                                                                (currentPrice / marketPrice) * 100
-                                                            )
+                                                                  (currentPrice / marketPrice) * 100
+                                                              )
                                                             : 0;
                                                     const newPercentage =
                                                         plushiePricelistEdits[item.name] ??
@@ -1569,11 +1598,16 @@ export default function MuseumDashboard() {
                             )}
                         </div>
                     )}
-                    <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 rounded-xl transition-colors ${plushieMode === "buy" ? "bg-success/[0.03] border border-success/20" : plushieMode === "price" ? "bg-blue-500/[0.03] border border-blue-500/20" : ""}`}>
+                    <div
+                        className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-0 rounded-xl transition-colors`}
+                    >
                         {plushiesData.map((item) => {
-                            const buyInfo = plushieMode === "buy"
-                                ? plushieBuyPlan.purchases.find((p) => p.name === item.name)
-                                : undefined;
+                            const maxPlushieStock = Math.max(...plushiesData.map(p => p.stats.stock), 1);
+                            const buyInfo =
+                                plushieMode === "buy"
+                                    ? plushieBuyPlan.purchases.find((p) => p.name === item.name)
+                                    : undefined;
+                            const setItem = PLUSHIE_SET_ITEMS.find((si) => si.name === item.name);
                             return (
                                 <ItemGridCard
                                     key={item.name}
@@ -1581,6 +1615,8 @@ export default function MuseumDashboard() {
                                     stats={item.stats}
                                     buyInfo={buyInfo}
                                     mode={plushieMode}
+                                    itemId={setItem?.id}
+                                    maxStock={maxPlushieStock}
                                 />
                             );
                         })}
@@ -1710,68 +1746,7 @@ function OverviewItem({
     );
 }
 
-function ItemGridCard({
-    name,
-    stats,
-    buyInfo,
-    mode,
-}: {
-    name: string;
-    stats: InventoryItemStats;
-    buyInfo?: { current: number; buy: number };
-    mode?: "buy" | "price" | "view";
-}) {
-    const avgCost = stats.stock > 0 ? stats.totalCost / stats.stock : 0;
-    const needsBuy = buyInfo && buyInfo.buy > 0;
-    const isBuyMode = mode === "buy";
-    const isPriceMode = mode === "price";
 
-    return (
-        <div
-            className={`p-4 rounded-lg border transition-all ${isBuyMode
-                    ? needsBuy
-                        ? "border-success/50 bg-success/10 shadow-md ring-1 ring-success/20"
-                        : "border-success/20 bg-success/[0.02]"
-                    : isPriceMode
-                        ? "border-blue-500/40 bg-blue-500/[0.08] shadow-sm"
-                        : needsBuy
-                            ? "border-success/30 bg-success/5"
-                            : stats.stock > 0
-                                ? "border-primary/30 bg-primary/5"
-                                : "border-border/50 bg-background/50"
-                }`}
-        >
-            <h4 className="font-semibold text-sm truncate" title={formatItemName(name)}>
-                {formatItemName(name)}
-            </h4>
-            <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-xs text-foreground/60">
-                    {buyInfo ? "Current:" : "Stock:"}
-                </span>
-                <span
-                    className={`font-bold ${needsBuy ? "text-success" : stats.stock > 0 ? "text-primary" : "text-foreground/50"}`}
-                >
-                    {buyInfo ? buyInfo.current : stats.stock}
-                </span>
-            </div>
-            {buyInfo ? (
-                <div className="mt-1 flex items-baseline justify-between">
-                    <span className="text-xs text-foreground/60">Buy:</span>
-                    <span
-                        className={`font-bold ${needsBuy ? "text-success" : "text-foreground/40"}`}
-                    >
-                        {needsBuy ? `+${buyInfo.buy}` : "—"}
-                    </span>
-                </div>
-            ) : (
-                <div className="mt-1 flex items-baseline justify-between">
-                    <span className="text-xs text-foreground/60">Avg Cost:</span>
-                    <span className="text-xs font-medium">{formatMoney(avgCost)}</span>
-                </div>
-            )}
-        </div>
-    );
-}
 
 /**
  * Displays a buy plan section for a set type (flowers or plushies).
