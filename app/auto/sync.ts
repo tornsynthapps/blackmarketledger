@@ -10,6 +10,7 @@ import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
 import { T3BAPI, TornAPI } from "@/lib/old/game/api";
 import { DBInterface } from "@/lib/old/interfaces/db";
 import { getImportSourceType } from "./getImportSourceType";
+import { runMuseumPricelistSyncCheck } from "@/lib/museum-sync";
 
 interface SyncLogsParams {
     wrapper: TronWrapper;
@@ -95,6 +96,7 @@ export async function syncLogs(params: SyncLogsParams): Promise<SyncLogsResult> 
     if (sortedItemParsedLogs.length) {
         setStatusMessage(`Importing ${sortedItemParsedLogs.length} item logs into your ledger...`);
         await addLogs(sortedItemParsedLogs, { skipNegativeStock: false, onTrace });
+        runMuseumPricelistSyncCheck();
         await onTrace("item_import_result", {
             count: sortedItemParsedLogs.length,
             success: true,
@@ -276,6 +278,7 @@ export async function syncTrades(params: SyncTradesParams): Promise<SyncTradesRe
             `Importing ${newAllNewParsedLogs.length} linked trades into your ledger...`
         );
         await addLogs(newAllNewParsedLogs, { skipNegativeStock: false, onTrace });
+        runMuseumPricelistSyncCheck();
         await onTrace("trade_import_result", {
             count: newAllNewParsedLogs.length,
             success: true,

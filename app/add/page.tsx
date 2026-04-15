@@ -11,6 +11,7 @@ import {
     getMuseumExchangeDefinition,
 } from "@/lib/old/parser";
 import { calculateInventory, getLogBreakdown } from "@/lib/old/transactionBuilder";
+import { runMuseumPricelistSyncCheck } from "@/lib/museum-sync";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     CheckmarkCircle01Icon,
@@ -163,6 +164,7 @@ export default function AddLogs() {
         if (filteredLogs.length > 0) {
             try {
                 await addLogs(filteredLogs);
+                runMuseumPricelistSyncCheck();
                 vibrate("success");
                 setInput("");
                 setShowToast(true);

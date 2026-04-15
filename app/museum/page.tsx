@@ -277,24 +277,46 @@ export default function MuseumDashboard() {
         }
         return 1;
     });
-    const [flowerMode, setFlowerMode] = useState<"view" | "buy" | "price">(() => {
-        if (typeof window !== "undefined") {
-            const buy = localStorage.getItem("museum-show-flower-buy-plan") === "true";
-            const price = localStorage.getItem("museum-show-flower-pricelist") === "true";
-            if (price) return "price";
-            if (buy) return "buy";
+    const [flowerMode, setFlowerMode] = useState<"view" | "buy" | "price">("view");
+    const [plushieMode, setPlushieMode] = useState<"view" | "buy" | "price">("view");
+    const [flowerDrift, setFlowerDrift] = useState(false);
+    const [plushieDrift, setPlushieDrift] = useState(false);
+
+    useEffect(() => {
+        const saved = localStorage.getItem("museum-drift-status");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                setFlowerDrift(parsed.flowers);
+                setPlushieDrift(parsed.plushies);
+            } catch {}
         }
-        return "view";
-    });
-    const [plushieMode, setPlushieMode] = useState<"view" | "buy" | "price">(() => {
-        if (typeof window !== "undefined") {
-            const buy = localStorage.getItem("museum-show-plushie-buy-plan") === "true";
-            const price = localStorage.getItem("museum-show-plushie-pricelist") === "true";
-            if (price) return "price";
-            if (buy) return "buy";
+        
+        const handleSync = (e: any) => {
+            if (e.detail) {
+                setFlowerDrift(e.detail.flowers);
+                setPlushieDrift(e.detail.plushies);
+            }
+        };
+
+        window.addEventListener("museum-sync-updated", handleSync);
+        return () => window.removeEventListener("museum-sync-updated", handleSync);
+    }, []);
+
+    const clearDriftStatus = useCallback((setType: "flower" | "plushie") => {
+        if (setType === "flower") setFlowerDrift(false);
+        else setPlushieDrift(false);
+        
+        const saved = localStorage.getItem("museum-drift-status");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                const val = { ...parsed, ...(setType === "flower" ? { flowers: false } : { plushies: false }) };
+                localStorage.setItem("museum-drift-status", JSON.stringify(val));
+                window.dispatchEvent(new CustomEvent("museum-sync-updated", { detail: val }));
+            } catch {}
         }
-        return "view";
-    });
+    }, []);
 
     const defaultThresholds = {
         threshold1: 500,
@@ -338,24 +360,7 @@ export default function MuseumDashboard() {
             localStorage.setItem("museum-mode", mode);
             localStorage.setItem("museum-flower-num-items", flowerNumItems.toString());
             localStorage.setItem("museum-plushie-num-items", plushieNumItems.toString());
-            localStorage.setItem("museum-flower-mode", flowerMode);
-            localStorage.setItem("museum-plushie-mode", plushieMode);
             localStorage.setItem("museum-pricelist-thresholds", JSON.stringify(thresholdSettings));
-
-            // Legacy support
-            localStorage.setItem("museum-show-flower-buy-plan", (flowerMode === "buy").toString());
-            localStorage.setItem(
-                "museum-show-flower-pricelist",
-                (flowerMode === "price").toString()
-            );
-            localStorage.setItem(
-                "museum-show-plushie-buy-plan",
-                (plushieMode === "buy").toString()
-            );
-            localStorage.setItem(
-                "museum-show-plushie-pricelist",
-                (plushieMode === "price").toString()
-            );
         }
     }, [
         timeRange,
@@ -529,15 +534,24 @@ export default function MuseumDashboard() {
             const data = setType === "flower" ? flowersData : plushiesData;
             const setEdits =
                 setType === "flower" ? setFlowerPricelistEdits : setPlushiePricelistEdits;
+            const setItems = setType === "flower" ? FLOWER_SET_ITEMS : PLUSHIE_SET_ITEMS;
 
             const newEdits: Record<string, number> = {};
             data.forEach((item) => {
                 const percentage = calculateOfferPercentage(item.stats.stock, thresholdSettings);
-                newEdits[item.name] = percentage;
+                const setItem = setItems.find((si) => si.name === item.name);
+                const itemId = setItem?.id || 0;
+                const marketPrice = marketPrices[itemId] || setItem?.marketValue || 0;
+                const currentPrice = userPricelist[item.name.toLowerCase()] || 0;
+                const currentPercentage = marketPrice > 0 ? Number(((currentPrice / marketPrice) * 100).toFixed(1)) : 0;
+                
+                if (percentage !== currentPercentage) {
+                    newEdits[item.name] = percentage;
+                }
             });
             setEdits(newEdits);
         },
-        [flowersData, plushiesData, calculateOfferPercentage, thresholdSettings]
+        [flowersData, plushiesData, calculateOfferPercentage, thresholdSettings, marketPrices, userPricelist]
     );
 
     const savePricelist = useCallback(
@@ -550,16 +564,25 @@ export default function MuseumDashboard() {
             const edits = setType === "flower" ? flowerPricelistEdits : plushiePricelistEdits;
             const setItems = setType === "flower" ? FLOWER_SET_ITEMS : PLUSHIE_SET_ITEMS;
 
-            const itemsToUpdate = Object.entries(edits).map(([itemName, percentage]) => {
-                const setItem = setItems.find((si) => si.name === itemName);
-                return {
-                    itemID: setItem?.id || 0,
-                    pricingType: "market_percentage" as const,
-                    pricingValue: percentage,
-                    inflationProtectionEnabled: false,
-                    roundToPlace: 0,
-                };
-            });
+            const itemsToUpdate = Object.entries(edits)
+                .filter(([itemName, percentage]) => {
+                    const setItem = setItems.find((si) => si.name === itemName);
+                    const itemId = setItem?.id || 0;
+                    const marketPrice = marketPrices[itemId] || setItem?.marketValue || 0;
+                    const currentPrice = userPricelist[itemName.toLowerCase()] || 0;
+                    const currentPercentage = marketPrice > 0 ? Number(((currentPrice / marketPrice) * 100).toFixed(1)) : 0;
+                    return percentage !== currentPercentage;
+                })
+                .map(([itemName, percentage]) => {
+                    const setItem = setItems.find((si) => si.name === itemName);
+                    return {
+                        itemID: setItem?.id || 0,
+                        pricingType: "market_percentage" as const,
+                        pricingValue: percentage,
+                        inflationProtectionEnabled: false,
+                        roundToPlace: 0,
+                    };
+                });
 
             if (itemsToUpdate.length === 0) {
                 setPricelistError("No changes to save");
@@ -583,6 +606,14 @@ export default function MuseumDashboard() {
                 const result = await response.json();
                 if (result.error) throw new Error(result.error);
 
+                await fetchPricelistData();
+                if (setType === "flower") {
+                    setFlowerPricelistEdits({});
+                } else {
+                    setPlushiePricelistEdits({});
+                }
+                clearDriftStatus(setType);
+
                 setPricelistSuccess(`Successfully updated ${setType} pricelist!`);
                 setTimeout(() => setPricelistSuccess(null), 3000);
             } catch (err: any) {
@@ -592,7 +623,7 @@ export default function MuseumDashboard() {
                 setIsUpdatingPricelist(false);
             }
         },
-        [weav3rApiKey, weav3rUserId, flowerPricelistEdits, plushiePricelistEdits]
+        [weav3rApiKey, weav3rUserId, flowerPricelistEdits, plushiePricelistEdits, fetchPricelistData]
     );
 
     if (!isLoaded)
@@ -743,10 +774,16 @@ export default function MuseumDashboard() {
                                 <HugeiconsIcon icon={ShoppingBasket03Icon} size={20} />
                             </button>
                             <button
-                                onClick={() =>
-                                    setFlowerMode(flowerMode === "price" ? "view" : "price")
-                                }
-                                className={`p-2 rounded-lg transition-all ${
+                                onClick={() => {
+                                    if (flowerMode === "price") {
+                                        setFlowerMode("view");
+                                    } else {
+                                        setFlowerMode("price");
+                                        applyAutoPricing("flower");
+                                        clearDriftStatus("flower");
+                                    }
+                                }}
+                                className={`relative p-2 rounded-lg transition-all ${
                                     flowerMode === "price"
                                         ? "bg-blue-500 text-white shadow-sm"
                                         : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
@@ -754,6 +791,9 @@ export default function MuseumDashboard() {
                                 title="Set Pricelist"
                             >
                                 <HugeiconsIcon icon={PencilEdit02Icon} size={20} />
+                                {flowerDrift && (
+                                    <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-warning rounded-full border border-background shadow-sm pointer-events-none" />
+                                )}
                             </button>
                         </div>
                     </div>
@@ -1033,124 +1073,31 @@ export default function MuseumDashboard() {
                                             </div>
                                         </div>
                                     )}
-                                    <div className="overflow-x-auto rounded-lg border border-blue-500/30 bg-blue-500/[0.02]">
-                                        <table className="w-full text-sm">
-                                            <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left">Item</th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        Stock
-                                                    </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        Market Price
-                                                    </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        Current %
-                                                    </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        New %
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-border">
-                                                {flowersData.map((item) => {
-                                                    const setItem = FLOWER_SET_ITEMS.find(
-                                                        (si) => si.name === item.name
-                                                    );
-                                                    const itemId = setItem?.id || 0;
-                                                    const marketPrice =
-                                                        marketPrices[itemId] ||
-                                                        setItem?.marketValue ||
-                                                        0;
-                                                    const currentPrice =
-                                                        userPricelist[item.name.toLowerCase()] || 0;
-                                                    const currentPercentage =
-                                                        marketPrice > 0
-                                                            ? Math.round(
-                                                                  (currentPrice / marketPrice) * 100
-                                                              )
-                                                            : 0;
-                                                    const newPercentage =
-                                                        flowerPricelistEdits[item.name] ??
-                                                        currentPercentage;
-
-                                                    return (
-                                                        <tr
-                                                            key={item.name}
-                                                            className="hover:bg-foreground/[0.01]"
-                                                        >
-                                                            <td className="px-4 py-3 font-medium">
-                                                                {formatItemName(item.name)}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right font-mono">
-                                                                {item.stats.stock.toLocaleString()}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right font-mono">
-                                                                ${marketPrice.toLocaleString()}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right">
-                                                                <span
-                                                                    className={
-                                                                        currentPercentage > 0
-                                                                            ? "text-success"
-                                                                            : "text-foreground/40"
-                                                                    }
-                                                                >
-                                                                    {currentPercentage > 0
-                                                                        ? `${currentPercentage}%`
-                                                                        : "—"}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right">
-                                                                <input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    max={200}
-                                                                    value={newPercentage}
-                                                                    onChange={(e) => {
-                                                                        const val = parseInt(
-                                                                            e.target.value,
-                                                                            10
-                                                                        );
-                                                                        if (
-                                                                            !isNaN(val) &&
-                                                                            val >= 0
-                                                                        ) {
-                                                                            setFlowerPricelistEdits(
-                                                                                (prev) => ({
-                                                                                    ...prev,
-                                                                                    [item.name]:
-                                                                                        val,
-                                                                                })
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                    className="w-20 px-2 py-1 text-sm font-bold text-center bg-background border border-blue-500/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
-                                                                />
-                                                                <span className="ml-1 text-xs">
-                                                                    %
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    {/* Removed table to use ItemGridCard natively */}
                                 </>
                             )}
                         </div>
                     )}
                     <div
-                        className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-0 rounded-xl transition-colors`}
+                        className={`grid gap-2 p-0 rounded-xl transition-colors ${
+                            flowerMode === "price"
+                                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                                : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+                        }`}
                     >
                         {flowersData.map((item) => {
-                            const maxFlowerStock = Math.max(...flowersData.map(f => f.stats.stock), 1);
+                            const maxFlowerStock = Math.max(...flowersData.map((f) => f.stats.stock), 1);
                             const buyInfo =
                                 flowerMode === "buy"
                                     ? flowerBuyPlan.purchases.find((p) => p.name === item.name)
                                     : undefined;
                             const setItem = FLOWER_SET_ITEMS.find((si) => si.name === item.name);
+                            const itemId = setItem?.id || 0;
+                            const marketPrice = marketPrices[itemId] || setItem?.marketValue || 0;
+                            const currentPrice = userPricelist[item.name.toLowerCase()] || 0;
+                            const currentPercentage = marketPrice > 0 ? Number(((currentPrice / marketPrice) * 100).toFixed(1)) : 0;
+                            const newPercentage = flowerPricelistEdits[item.name] ?? currentPercentage;
+
                             return (
                                 <ItemGridCard
                                     key={item.name}
@@ -1158,8 +1105,31 @@ export default function MuseumDashboard() {
                                     stats={item.stats}
                                     buyInfo={buyInfo}
                                     mode={flowerMode}
-                                    itemId={setItem?.id}
+                                    itemId={itemId}
                                     maxStock={maxFlowerStock}
+                                    priceInfo={
+                                        flowerMode === "price"
+                                            ? {
+                                                  marketPrice,
+                                                  currentPercentage,
+                                                  newPercentage,
+                                                  onPercentageChange: (val) => {
+                                                      const num = parseFloat(val as string);
+                                                      if (!isNaN(num) && num >= 0) {
+                                                          setFlowerPricelistEdits((prev) => ({
+                                                              ...prev,
+                                                              [item.name]: num,
+                                                          }));
+                                                      } else if (val === "") {
+                                                          setFlowerPricelistEdits((prev) => ({
+                                                              ...prev,
+                                                              [item.name]: "" as any,
+                                                          }));
+                                                      }
+                                                  },
+                                              }
+                                            : undefined
+                                    }
                                 />
                             );
                         })}
@@ -1200,10 +1170,16 @@ export default function MuseumDashboard() {
                                 <HugeiconsIcon icon={ShoppingBasket03Icon} size={20} />
                             </button>
                             <button
-                                onClick={() =>
-                                    setPlushieMode(plushieMode === "price" ? "view" : "price")
-                                }
-                                className={`p-2 rounded-lg transition-all ${
+                                onClick={() => {
+                                    if (plushieMode === "price") {
+                                        setPlushieMode("view");
+                                    } else {
+                                        setPlushieMode("price");
+                                        applyAutoPricing("plushie");
+                                        clearDriftStatus("plushie");
+                                    }
+                                }}
+                                className={`relative p-2 rounded-lg transition-all ${
                                     plushieMode === "price"
                                         ? "bg-blue-500 text-white shadow-sm"
                                         : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
@@ -1211,6 +1187,9 @@ export default function MuseumDashboard() {
                                 title="Set Pricelist"
                             >
                                 <HugeiconsIcon icon={PencilEdit02Icon} size={20} />
+                                {plushieDrift && (
+                                    <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-warning rounded-full border border-background shadow-sm pointer-events-none" />
+                                )}
                             </button>
                         </div>
                     </div>
@@ -1490,124 +1469,31 @@ export default function MuseumDashboard() {
                                             </div>
                                         </div>
                                     )}
-                                    <div className="overflow-x-auto rounded-lg border border-blue-500/30 bg-blue-500/[0.02]">
-                                        <table className="w-full text-sm">
-                                            <thead className="text-xs uppercase bg-blue-500/10 text-blue-500">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left">Item</th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        Stock
-                                                    </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        Market Price
-                                                    </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        Current %
-                                                    </th>
-                                                    <th className="px-4 py-3 text-right whitespace-nowrap">
-                                                        New %
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-border">
-                                                {plushiesData.map((item) => {
-                                                    const setItem = PLUSHIE_SET_ITEMS.find(
-                                                        (si) => si.name === item.name
-                                                    );
-                                                    const itemId = setItem?.id || 0;
-                                                    const marketPrice =
-                                                        marketPrices[itemId] ||
-                                                        setItem?.marketValue ||
-                                                        0;
-                                                    const currentPrice =
-                                                        userPricelist[item.name.toLowerCase()] || 0;
-                                                    const currentPercentage =
-                                                        marketPrice > 0
-                                                            ? Math.round(
-                                                                  (currentPrice / marketPrice) * 100
-                                                              )
-                                                            : 0;
-                                                    const newPercentage =
-                                                        plushiePricelistEdits[item.name] ??
-                                                        currentPercentage;
-
-                                                    return (
-                                                        <tr
-                                                            key={item.name}
-                                                            className="hover:bg-foreground/[0.01]"
-                                                        >
-                                                            <td className="px-4 py-3 font-medium">
-                                                                {formatItemName(item.name)}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right font-mono">
-                                                                {item.stats.stock.toLocaleString()}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right font-mono">
-                                                                ${marketPrice.toLocaleString()}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right">
-                                                                <span
-                                                                    className={
-                                                                        currentPercentage > 0
-                                                                            ? "text-success"
-                                                                            : "text-foreground/40"
-                                                                    }
-                                                                >
-                                                                    {currentPercentage > 0
-                                                                        ? `${currentPercentage}%`
-                                                                        : "—"}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-right">
-                                                                <input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    max={200}
-                                                                    value={newPercentage}
-                                                                    onChange={(e) => {
-                                                                        const val = parseInt(
-                                                                            e.target.value,
-                                                                            10
-                                                                        );
-                                                                        if (
-                                                                            !isNaN(val) &&
-                                                                            val >= 0
-                                                                        ) {
-                                                                            setPlushiePricelistEdits(
-                                                                                (prev) => ({
-                                                                                    ...prev,
-                                                                                    [item.name]:
-                                                                                        val,
-                                                                                })
-                                                                            );
-                                                                        }
-                                                                    }}
-                                                                    className="w-20 px-2 py-1 text-sm font-bold text-center bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-                                                                />
-                                                                <span className="ml-1 text-xs">
-                                                                    %
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    {/* Removed plushie table to use ItemGridCard natively */}
                                 </>
                             )}
                         </div>
                     )}
                     <div
-                        className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 p-0 rounded-xl transition-colors`}
+                        className={`grid gap-2 p-0 rounded-xl transition-colors ${
+                            plushieMode === "price"
+                                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                                : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+                        }`}
                     >
                         {plushiesData.map((item) => {
-                            const maxPlushieStock = Math.max(...plushiesData.map(p => p.stats.stock), 1);
+                            const maxPlushieStock = Math.max(...plushiesData.map((p) => p.stats.stock), 1);
                             const buyInfo =
                                 plushieMode === "buy"
                                     ? plushieBuyPlan.purchases.find((p) => p.name === item.name)
                                     : undefined;
                             const setItem = PLUSHIE_SET_ITEMS.find((si) => si.name === item.name);
+                            const itemId = setItem?.id || 0;
+                            const marketPrice = marketPrices[itemId] || setItem?.marketValue || 0;
+                            const currentPrice = userPricelist[item.name.toLowerCase()] || 0;
+                            const currentPercentage = marketPrice > 0 ? Number(((currentPrice / marketPrice) * 100).toFixed(1)) : 0;
+                            const newPercentage = plushiePricelistEdits[item.name] ?? currentPercentage;
+
                             return (
                                 <ItemGridCard
                                     key={item.name}
@@ -1615,8 +1501,31 @@ export default function MuseumDashboard() {
                                     stats={item.stats}
                                     buyInfo={buyInfo}
                                     mode={plushieMode}
-                                    itemId={setItem?.id}
+                                    itemId={itemId}
                                     maxStock={maxPlushieStock}
+                                    priceInfo={
+                                        plushieMode === "price"
+                                            ? {
+                                                  marketPrice,
+                                                  currentPercentage,
+                                                  newPercentage,
+                                                  onPercentageChange: (val) => {
+                                                      const num = parseFloat(val as string);
+                                                      if (!isNaN(num) && num >= 0) {
+                                                          setPlushiePricelistEdits((prev) => ({
+                                                              ...prev,
+                                                              [item.name]: num,
+                                                          }));
+                                                      } else if (val === "") {
+                                                          setPlushiePricelistEdits((prev) => ({
+                                                              ...prev,
+                                                              [item.name]: "" as any,
+                                                          }));
+                                                      }
+                                                  },
+                                              }
+                                            : undefined
+                                    }
                                 />
                             );
                         })}

@@ -50,7 +50,27 @@ export function Navigation() {
     const pathname = usePathname();
     const [isDark, setIsDark] = useState(false);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [museumDrift, setMuseumDrift] = useState(false);
     const { vibrate } = useHapticFeedback();
+
+    useEffect(() => {
+        const saved = localStorage.getItem("museum-drift-status");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                setMuseumDrift(parsed.flowers || parsed.plushies);
+            } catch {}
+        }
+        
+        const handleSync = (e: any) => {
+            if (e.detail) {
+                setMuseumDrift(e.detail.flowers || e.detail.plushies);
+            }
+        };
+
+        window.addEventListener("museum-sync-updated", handleSync);
+        return () => window.removeEventListener("museum-sync-updated", handleSync);
+    }, []);
 
     useEffect(() => {
         setIsDark(
@@ -123,13 +143,18 @@ export function Navigation() {
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 hover:border-border"
                                     )}
                                 >
-                                    <HugeiconsIcon
-                                        icon={Icon}
-                                        size={14}
-                                        color={
-                                            isActive ? "var(--primary-foreground)" : "currentColor"
-                                        }
-                                    />
+                                    <div className="relative flex items-center justify-center">
+                                        <HugeiconsIcon
+                                            icon={Icon}
+                                            size={14}
+                                            color={
+                                                isActive ? "var(--primary-foreground)" : "currentColor"
+                                            }
+                                        />
+                                        {item.name === "Museum" && museumDrift && (
+                                            <div className="absolute -top-[1px] -right-[1px] w-1.5 h-1.5 bg-warning rounded-full shadow-sm" />
+                                        )}
+                                    </div>
                                     <span className="max-w-0 overflow-hidden group-hover:max-w-32 transition-all duration-300 whitespace-nowrap">
                                         {item.name}
                                     </span>
@@ -216,11 +241,16 @@ export function Navigation() {
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 border-transparent"
                                     )}
                                 >
-                                    <HugeiconsIcon
-                                        icon={Icon}
-                                        size={16}
-                                        color={isActive ? "var(--primary)" : "currentColor"}
-                                    />
+                                    <div className="relative flex items-center justify-center">
+                                        <HugeiconsIcon
+                                            icon={Icon}
+                                            size={16}
+                                            color={isActive ? "var(--primary)" : "currentColor"}
+                                        />
+                                        {item.name === "Museum" && museumDrift && (
+                                            <div className="absolute -top-[1px] -right-[1px] w-1.5 h-1.5 bg-warning rounded-full shadow-sm" />
+                                        )}
+                                    </div>
                                     <span>{item.name}</span>
                                 </Link>
                             );
@@ -301,15 +331,20 @@ export function Navigation() {
                                                 : "text-muted hover:text-foreground hover:bg-foreground/5"
                                         )}
                                     >
-                                        <HugeiconsIcon
-                                            icon={Icon}
-                                            size={18}
-                                            color={
-                                                isActive
-                                                    ? "var(--primary-foreground)"
-                                                    : "currentColor"
-                                            }
-                                        />
+                                        <div className="relative flex items-center justify-center">
+                                            <HugeiconsIcon
+                                                icon={Icon}
+                                                size={18}
+                                                color={
+                                                    isActive
+                                                        ? "var(--primary-foreground)"
+                                                        : "currentColor"
+                                                }
+                                            />
+                                            {item.name === "Museum" && museumDrift && (
+                                                <div className="absolute -top-[1px] -right-[1px] w-1.5 h-1.5 bg-warning rounded-full shadow-sm" />
+                                            )}
+                                        </div>
                                         <span>{item.name}</span>
                                     </Link>
                                 );
