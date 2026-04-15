@@ -64,7 +64,13 @@ export function ProfitChart({
     accentColor = "var(--primary)",
     formatValue = (val) => `${val.toLocaleString()}`,
     stackedMode = false,
-    visibleLines = { mugLoss: true, museumProfit: true, abroadProfit: true, netProfit: true, realizedProfit: true },
+    visibleLines = {
+        mugLoss: true,
+        museumProfit: true,
+        abroadProfit: true,
+        netProfit: true,
+        realizedProfit: true,
+    },
 }: ProfitChartProps) {
     const [chartType, setChartType] = useState<"line" | "area" | "bar">(
         stackedMode ? "area" : "area"
@@ -149,32 +155,238 @@ export function ProfitChart({
                         ))}
                     </div>
 
-                    {!stackedMode && (
-                        <div className="flex border border-border p-1 bg-background/50">
-                            <ChartControlBtn
-                                active={chartType === "line"}
-                                onClick={() => handleChartTypeChange("line")}
-                                icon={<HugeiconsIcon icon={Activity01Icon} size={16} />}
-                            />
-                            <ChartControlBtn
-                                active={chartType === "area"}
-                                onClick={() => handleChartTypeChange("area")}
-                                icon={<HugeiconsIcon icon={Layers01Icon} size={16} />}
-                            />
-                            <ChartControlBtn
-                                active={chartType === "bar"}
-                                onClick={() => handleChartTypeChange("bar")}
-                                icon={<HugeiconsIcon icon={BarChartIcon} size={16} />}
-                            />
-                        </div>
-                    )}
+                    <div className="flex border border-border p-1 bg-background/50">
+                        <ChartControlBtn
+                            active={chartType === "line"}
+                            onClick={() => handleChartTypeChange("line")}
+                            icon={<HugeiconsIcon icon={Activity01Icon} size={16} />}
+                        />
+                        <ChartControlBtn
+                            active={chartType === "area"}
+                            onClick={() => handleChartTypeChange("area")}
+                            icon={<HugeiconsIcon icon={Layers01Icon} size={16} />}
+                        />
+                        <ChartControlBtn
+                            active={chartType === "bar"}
+                            onClick={() => handleChartTypeChange("bar")}
+                            icon={<HugeiconsIcon icon={BarChartIcon} size={16} />}
+                        />
+                    </div>
                 </div>
             </div>
 
             {/* Chart Container */}
             <div className="h-[320px] w-full flex-grow">
                 <ResponsiveContainer width="100%" height="100%">
-                    {stackedMode ? (
+                    {stackedMode && chartType === "bar" ? (
+                        <RechartsBarChart data={data} stackOffset="sign">
+                            <CartesianGrid
+                                strokeDasharray="2 4"
+                                vertical={false}
+                                stroke="var(--border)"
+                                opacity={0.5}
+                            />
+                            <XAxis
+                                dataKey="date"
+                                axisLine={{ stroke: "var(--border)" }}
+                                tickLine={false}
+                                tick={{
+                                    fill: "var(--foreground)",
+                                    opacity: 0.5,
+                                    fontSize: 10,
+                                    fontFamily: "monospace",
+                                }}
+                                dy={10}
+                            />
+                            <YAxis
+                                axisLine={{ stroke: "var(--border)" }}
+                                tickLine={false}
+                                tick={{
+                                    fill: "var(--foreground)",
+                                    opacity: 0.5,
+                                    fontSize: 10,
+                                    fontFamily: "monospace",
+                                }}
+                                tickFormatter={(val) => `${formatLargeNumber(val)}`}
+                            />
+                            <Tooltip
+                                contentStyle={tooltipStyle}
+                                labelStyle={{
+                                    color: "var(--foreground)",
+                                    opacity: 0.7,
+                                    marginBottom: "8px",
+                                    fontSize: "10px",
+                                    fontWeight: "bold",
+                                    fontFamily: "monospace",
+                                }}
+                                itemStyle={{
+                                    fontFamily: "monospace",
+                                    fontSize: "10px",
+                                    textTransform: "uppercase",
+                                }}
+                                formatter={(value: any, name) => [
+                                    formatValue(value),
+                                    name === "netProfit"
+                                        ? "Net"
+                                        : name === "realizedProfit"
+                                          ? "Trading"
+                                          : name === "museumProfit"
+                                            ? "Museum"
+                                            : name === "abroadProfit"
+                                              ? "Abroad"
+                                              : "Mug",
+                                ]}
+                            />
+                            {visibleLines.realizedProfit && (
+                                <Bar
+                                    dataKey="realizedProfit"
+                                    fill={CATEGORY_COLORS.trading.hex}
+                                    stackId="1"
+                                />
+                            )}
+                            {visibleLines.museumProfit && (
+                                <Bar
+                                    dataKey="museumProfit"
+                                    fill={CATEGORY_COLORS.museum.hex}
+                                    stackId="1"
+                                />
+                            )}
+                            {visibleLines.abroadProfit && (
+                                <Bar
+                                    dataKey="abroadProfit"
+                                    fill={CATEGORY_COLORS.abroad.hex}
+                                    stackId="1"
+                                />
+                            )}
+                            {visibleLines.mugLoss && (
+                                <Bar dataKey="mugLoss" fill={CATEGORY_COLORS.mug.hex} stackId="1" />
+                            )}
+                            {visibleLines.netProfit && (
+                                <Line
+                                    type="stepAfter"
+                                    dataKey="netProfit"
+                                    stroke="var(--foreground)"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={{
+                                        r: 4,
+                                        strokeWidth: 0,
+                                        fill: CATEGORY_COLORS.net.hex,
+                                    }}
+                                />
+                            )}
+                        </RechartsBarChart>
+                    ) : stackedMode && chartType === "line" ? (
+                        <LineChart data={data}>
+                            <CartesianGrid
+                                strokeDasharray="2 4"
+                                vertical={false}
+                                stroke="var(--border)"
+                                opacity={0.5}
+                            />
+                            <XAxis
+                                dataKey="date"
+                                axisLine={{ stroke: "var(--border)" }}
+                                tickLine={false}
+                                tick={{
+                                    fill: "var(--foreground)",
+                                    opacity: 0.5,
+                                    fontSize: 10,
+                                    fontFamily: "monospace",
+                                }}
+                                dy={10}
+                            />
+                            <YAxis
+                                axisLine={{ stroke: "var(--border)" }}
+                                tickLine={false}
+                                tick={{
+                                    fill: "var(--foreground)",
+                                    opacity: 0.5,
+                                    fontSize: 10,
+                                    fontFamily: "monospace",
+                                }}
+                                tickFormatter={(val) => `${formatLargeNumber(val)}`}
+                            />
+                            <Tooltip
+                                contentStyle={tooltipStyle}
+                                labelStyle={{
+                                    color: "var(--foreground)",
+                                    opacity: 0.7,
+                                    marginBottom: "8px",
+                                    fontSize: "10px",
+                                    fontWeight: "bold",
+                                    fontFamily: "monospace",
+                                }}
+                                itemStyle={{
+                                    fontFamily: "monospace",
+                                    fontSize: "10px",
+                                    textTransform: "uppercase",
+                                }}
+                                formatter={(value: any, name) => [
+                                    formatValue(value),
+                                    name === "netProfit"
+                                        ? "Net"
+                                        : name === "realizedProfit"
+                                          ? "Trading"
+                                          : name === "museumProfit"
+                                            ? "Museum"
+                                            : name === "abroadProfit"
+                                              ? "Abroad"
+                                              : "Mug",
+                                ]}
+                            />
+                            {visibleLines.realizedProfit && (
+                                <Line
+                                    type="stepAfter"
+                                    dataKey="realizedProfit"
+                                    stroke={CATEGORY_COLORS.trading.hex}
+                                    strokeWidth={1.5}
+                                    dot={false}
+                                />
+                            )}
+                            {visibleLines.museumProfit && (
+                                <Line
+                                    type="stepAfter"
+                                    dataKey="museumProfit"
+                                    stroke={CATEGORY_COLORS.museum.hex}
+                                    strokeWidth={1.5}
+                                    dot={false}
+                                />
+                            )}
+                            {visibleLines.abroadProfit && (
+                                <Line
+                                    type="stepAfter"
+                                    dataKey="abroadProfit"
+                                    stroke={CATEGORY_COLORS.abroad.hex}
+                                    strokeWidth={1.5}
+                                    dot={false}
+                                />
+                            )}
+                            {visibleLines.mugLoss && (
+                                <Line
+                                    type="stepAfter"
+                                    dataKey="mugLoss"
+                                    stroke={CATEGORY_COLORS.mug.hex}
+                                    strokeWidth={1.5}
+                                    dot={false}
+                                />
+                            )}
+                            {visibleLines.netProfit && (
+                                <Line
+                                    type="stepAfter"
+                                    dataKey="netProfit"
+                                    stroke="var(--foreground)"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={{
+                                        r: 4,
+                                        strokeWidth: 0,
+                                        fill: CATEGORY_COLORS.net.hex,
+                                    }}
+                                />
+                            )}
+                        </LineChart>
+                    ) : stackedMode ? (
                         <AreaChart data={data} stackOffset="sign">
                             <CartesianGrid
                                 strokeDasharray="2 4"
@@ -233,7 +445,6 @@ export function ProfitChart({
                                               : "Mug",
                                 ]}
                             />
-                            {/* Realized Profit Area - shown as positive (purple) - Base Stack */}
                             {visibleLines.realizedProfit && (
                                 <Area
                                     type="stepAfter"
@@ -245,7 +456,6 @@ export function ProfitChart({
                                     stackId="1"
                                 />
                             )}
-                            {/* Stacked Museum Area */}
                             {visibleLines.museumProfit && (
                                 <Area
                                     type="stepAfter"
@@ -257,7 +467,6 @@ export function ProfitChart({
                                     stackId="1"
                                 />
                             )}
-                            {/* Stacked Abroad Area */}
                             {visibleLines.abroadProfit && (
                                 <Area
                                     type="stepAfter"
@@ -269,7 +478,6 @@ export function ProfitChart({
                                     stackId="1"
                                 />
                             )}
-                            {/* Mug Loss Area - shown as negative (red) */}
                             {visibleLines.mugLoss && (
                                 <Area
                                     type="stepAfter"
@@ -281,7 +489,6 @@ export function ProfitChart({
                                     stackId="1"
                                 />
                             )}
-                            {/* Net Profit Line - theme adaptive */}
                             {visibleLines.netProfit && (
                                 <Line
                                     type="stepAfter"
@@ -289,7 +496,11 @@ export function ProfitChart({
                                     stroke="var(--foreground)"
                                     strokeWidth={2}
                                     dot={false}
-                                    activeDot={{ r: 4, strokeWidth: 0, fill: CATEGORY_COLORS.net.hex }}
+                                    activeDot={{
+                                        r: 4,
+                                        strokeWidth: 0,
+                                        fill: CATEGORY_COLORS.net.hex,
+                                    }}
                                 />
                             )}
                         </AreaChart>
