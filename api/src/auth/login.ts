@@ -5,10 +5,11 @@ import { hashToken } from '../utils/crypto';
 import { Logger } from '../utils/logger';
 
 /**
- * Handle user login requests.
+ * Handle user login requests with protection against brute-force attacks.
+ * 
  * @param c (Context): Hono context containing request data and environment bindings.
  * @returns (Promise<Response>): JSON response with authentication results or error.
- * @side_effects: Reads and updates user_tokens table in Supabase.
+ * @side_effects: Reads and updates 'user_tokens' and 'extension_subscriptions' tables.
  */
 export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
   const logger = new Logger(c.env.DEBUG === 'true');
@@ -59,6 +60,7 @@ export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
     }
 
     if (existingUser.secret_token_hash !== tokenHash) {
+      // Record failed attempt and potentially block account
       const newFailedAttempts = (existingUser.failed_attempts || 0) + 1;
       const shouldBlock = newFailedAttempts >= 5;
 

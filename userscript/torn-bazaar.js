@@ -1,3 +1,9 @@
+/**
+ * Processes a single bazaar item row, injecting cost basis information if available.
+ * 
+ * @param {HTMLElement} row - The bazaar list item element to process.
+ * @returns {void}
+ */
 function processRow(row) {
     if (!row || row.classList.contains("tt-row")) return;
 
@@ -60,6 +66,11 @@ function processRow(row) {
     row.dataset.bmlProcessed = "true";
 }
 
+/**
+ * Triggers a full refresh of all bazaar rows, clearing existing BML markers and reprocessing.
+ * 
+ * @returns {void}
+ */
 function triggerRefresh() {
     debugLog.log("Triggering data refresh for all rows...");
     const rows = document.querySelectorAll("li.clearfix:not(.tt-row)");
@@ -71,6 +82,12 @@ function triggerRefresh() {
     });
 }
 
+/**
+ * Initializes a MutationObserver to catch dynamically loaded bazaar items.
+ * Also sets up a safety interval to re-scan for missed rows.
+ * 
+ * @returns {void}
+ */
 function initTornBazaarObserver() {
     debugLog.log("Initializing Torn Bazaar observer...");
 
@@ -109,6 +126,11 @@ function initTornBazaarObserver() {
     }, 3000);
 }
 
+/**
+ * Creates and injects the BML Settings interface into the Torn header.
+ * 
+ * @returns {void}
+ */
 function createSettingsUI() {
     if (document.getElementById("bml-settings-ui")) return;
 
@@ -154,6 +176,11 @@ function createSettingsUI() {
     debugLog.log("Settings UI injected");
 }
 
+/**
+ * Bootstrap function to initialize all bazaar-related features.
+ * 
+ * @returns {void}
+ */
 function initTornBazaar() {
     console.log("[BML] initTornBazaar called");
     injectStyles();

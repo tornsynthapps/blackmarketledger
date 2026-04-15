@@ -7,6 +7,14 @@ import { Logger } from '../utils/logger';
 
 const VERIFICATION_EXPIRY_MINUTES = 30;
 
+/**
+ * Handle secret token reset requests.
+ * Supports 'initiate' (request verification message) and 'verify' (check message and issue new token) modes.
+ * 
+ * @param c (Context): Hono context with request data and env bindings.
+ * @returns (Promise<Response>): Verification requirements or success status with new token.
+ * @side_effects: Reads/writes 'user_tokens' and 'token_verification_temp'.
+ */
 export const resetTokenHandler = async (c: Context<{ Bindings: Env }>) => {
   const logger = new Logger(c.env.DEBUG === 'true');
 
@@ -14,6 +22,7 @@ export const resetTokenHandler = async (c: Context<{ Bindings: Env }>) => {
     const { mode, userId, verificationToken } = await c.req.json();
 
     if (mode === 'initiate') {
+      // Create a temporary verification requirement (message sender verification)
       if (!userId) return c.json({ error: 'Missing userId' }, 400);
       const numericUserId = parseInt(userId, 10);
       

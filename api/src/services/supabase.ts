@@ -57,6 +57,15 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
+/**
+ * Fetches at most one row from a Supabase table based on equality filters.
+ * 
+ * @param env (Env): Environment bindings.
+ * @param table (string): Table name to query.
+ * @param select (string): Comma-separated list of columns to select.
+ * @param filters (Record<string, FilterValue>): Equality filters to apply.
+ * @returns (Promise<SupabaseResponse<T>>): The row data or error.
+ */
 export async function selectMaybeSingle<T>(
   env: Env,
   table: string,
@@ -76,6 +85,14 @@ export async function selectMaybeSingle<T>(
   return { data: rows[0] ?? null, error: null };
 }
 
+/**
+ * Inserts a new row into a Supabase table.
+ * 
+ * @param env (Env): Environment bindings.
+ * @param table (string): Table name to insert into.
+ * @param row (Record<string, unknown>): The row data to insert.
+ * @returns (Promise<SupabaseResponse<null>>): Success or error status.
+ */
 export async function insertRow(
   env: Env,
   table: string,
@@ -94,6 +111,15 @@ export async function insertRow(
   return { data: null, error: null };
 }
 
+/**
+ * Upserts a row into a Supabase table.
+ * 
+ * @param env (Env): Environment bindings.
+ * @param table (string): Table name.
+ * @param row (Record<string, unknown>): The row data.
+ * @param onConflict (string): Column(s) to check for conflicts.
+ * @returns (Promise<SupabaseResponse<null>>): Success or error status.
+ */
 export async function upsertRow(
   env: Env,
   table: string,
@@ -118,6 +144,15 @@ export async function upsertRow(
   return { data: null, error: null };
 }
 
+/**
+ * Updates matching rows in a Supabase table.
+ * 
+ * @param env (Env): Environment bindings.
+ * @param table (string): Table name to update.
+ * @param row (Record<string, unknown>): The updated values.
+ * @param filters (Record<string, FilterValue>): Equality filters to match rows.
+ * @returns (Promise<SupabaseResponse<null>>): Success or error status.
+ */
 export async function updateRows(
   env: Env,
   table: string,
@@ -137,6 +172,14 @@ export async function updateRows(
   return { data: null, error: null };
 }
 
+/**
+ * Deletes matching rows from a Supabase table.
+ * 
+ * @param env (Env): Environment bindings.
+ * @param table (string): Table name to delete from.
+ * @param filters (Record<string, FilterValue>): Equality filters to match rows.
+ * @returns (Promise<SupabaseResponse<null>>): Success or error status.
+ */
 export async function deleteRows(
   env: Env,
   table: string,

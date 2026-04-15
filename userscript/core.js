@@ -13,22 +13,55 @@ const debugLog = {
     error: (...args) => console.error("[BML]", ...args),
 };
 
+/**
+ * Retrieves the synced cost basis data from Tampermonkey's storage.
+ * 
+ * @returns {Object} Mapping of item names to cost basis values.
+ */
 function getSyncedCostBasis() {
     return GM_getValue(SYNCED_DATA_KEY, {});
 }
 
+/**
+ * Saves the synced cost basis data to Tampermonkey's storage.
+ * 
+ * @param {Object} data - Mapping of item names to cost basis values.
+ * @returns {void}
+ */
 function setSyncedCostBasis(data) {
     GM_setValue(SYNCED_DATA_KEY, data);
 }
 
+/**
+ * Retrieves a persistent setting value.
+ * 
+ * @param {string} key - The setting key.
+ * @param {any} defaultValue - Value to return if the setting is not found.
+ * @returns {any} The stored value or default.
+ */
 function getSetting(key, defaultValue) {
     return GM_getValue(key, defaultValue);
 }
 
+/**
+ * Saves a persistent setting value.
+ * 
+ * @param {string} key - The setting key.
+ * @param {any} value - The value to store.
+ * @returns {void}
+ */
 function setSetting(key, value) {
     GM_setValue(key, value);
 }
 
+/**
+ * Formats a numeric value as currency (USD).
+ * Supports compact formatting (e.g., $1.2M, $500K).
+ * 
+ * @param {number} value - The numeric value to format.
+ * @param {boolean} [compact=false] - Whether to use compact representation.
+ * @returns {string} The formatted currency string.
+ */
 function formatCurrency(value, compact = false) {
     if (value === undefined || value === null || value === 0) return "N/A";
 
@@ -44,6 +77,12 @@ function formatCurrency(value, compact = false) {
     return "$" + Math.ceil(value).toLocaleString();
 }
 
+/**
+ * Displays a temporary toast notification on the screen.
+ * 
+ * @param {string} message - The message to display.
+ * @returns {void}
+ */
 function showNotification(message) {
     debugLog.log("Notification:", message);
     const toast = document.createElement("div");
@@ -63,6 +102,7 @@ function showNotification(message) {
         animation: bmlFadeIn 0.3s ease, bmlFadeOut 0.3s ease 2.7s forwards;
     `;
 
+    // Inject styles for toast animations if not already present
     if (!document.getElementById("bml-toast-style")) {
         const style = document.createElement("style");
         style.id = "bml-toast-style";

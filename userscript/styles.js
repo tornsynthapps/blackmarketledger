@@ -171,6 +171,12 @@ input:checked + .bml-slider:before {
 }
 `;
 
+/**
+ * Injects the predefined CSS styles into the document head.
+ * Also loads the 'Space Grotesk' font from Google Fonts.
+ * 
+ * @returns {void}
+ */
 function injectStyles() {
     GM_addStyle(styles);
     const fontLink = document.createElement("link");

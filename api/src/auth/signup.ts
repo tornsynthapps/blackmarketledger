@@ -13,6 +13,14 @@ const DEPOSIT_MAX = 500;
 const getRandomMessage = () => `${getRandomWord()}-${getRandomWord()}-${getRandomWord()}`;
 const getRandomAmount = () => Math.floor(Math.random() * (DEPOSIT_MAX - DEPOSIT_MIN + 1)) + DEPOSIT_MIN;
 
+/**
+ * Handle user signup requests with Torn identity verification.
+ * Supports 'initiate-message', 'initiate-money', and 'verify' modes.
+ * 
+ * @param c (Context): Hono context with request data and env bindings.
+ * @returns (Promise<Response>): Verification details or successful account creation results.
+ * @side_effects: Reads/writes 'user_tokens', 'extension_subscriptions', and 'token_verification_temp'.
+ */
 export const signupHandler = async (c: Context<{ Bindings: Env }>) => {
   const logger = new Logger(c.env.DEBUG === 'true');
 
@@ -127,12 +135,14 @@ export const signupHandler = async (c: Context<{ Bindings: Env }>) => {
 
         logger.debug('Account Log', { sender, money, message });
 
+        // Ensure the log was created by the user being verified
         if (sender !== userId) {
           logger.debug('Sender does not match', { sender, userId });
           continue;
         }
 
         if (tempRecord.verification_type === 'deposit') {
+          // Verify exact money deposit amount
           logger.debug('Deposit verification', { money, amount_required: tempRecord.amount_required });
           if (money === tempRecord.amount_required) {
             verified = true;
@@ -140,6 +150,7 @@ export const signupHandler = async (c: Context<{ Bindings: Env }>) => {
             break;
           }
         } else if (tempRecord.verification_type === 'message') {
+          // Verify exact message content
           logger.debug('Message verification', { message, message_required: tempRecord.message_required });
           if (message === tempRecord.message_required) {
             verified = true;

@@ -4,9 +4,16 @@ import { Logger } from "./utils/logger";
 import { authRouter } from "./auth";
 import { Env } from "./types";
 
+/**
+ * Main Hono application for the Ledger API.
+ * Configured with environment bindings for Cloudflare Workers.
+ */
 const app = new Hono<{ Bindings: Env }>();
 
-// CORS middleware
+/**
+ * Global middleware for CORS and debug logging.
+ * Captures request details and status codes when DEBUG is enabled.
+ */
 app.use(
     "*",
     cors({
@@ -16,14 +23,12 @@ app.use(
     })
 );
 
-// Debug logging middleware
 app.use("*", async (c, next) => {
     const logger = new Logger(c.env.DEBUG === "true");
     if (logger.enabled) {
         logger.info(`${c.req.method} ${c.req.url}`);
         logger.debug("Request headers", c.req.header());
 
-        // Avoid clone + JSON parse overhead outside debug mode.
         if (c.req.method === "POST" || c.req.method === "PUT") {
             try {
                 const clone = c.req.raw.clone();
