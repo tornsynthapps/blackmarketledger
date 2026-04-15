@@ -10,18 +10,18 @@ The Ledger API provides a modular and secure way to handle user authentication, 
 
 - **`src/`**: Main source code for the worker.
   - **`auth/`**: Authentication route handlers.
-    - `index.ts`: Auth router configuration.
-    - `login.ts`: User login logic with attack protection.
-    - `signup.ts`: Multi-mode signup flow (message/money).
-    - `reset-token.ts`: Secure token rotation.
+    - [`index.ts`](src/auth/index.ts): Auth router configuration.
+    - [`login.ts`](src/auth/login.ts): User login logic with attack protection.
+    - [`signup.ts`](src/auth/signup.ts): Multi-mode signup flow (message/money).
+    - [`reset-token.ts`](src/auth/reset-token.ts): Secure token rotation.
   - **`services/`**: External service integrations.
-    - `supabase.ts`: Supabase client initialization.
+    - [`supabase.ts`](src/services/supabase.ts): Supabase client initialization.
   - **`utils/`**: Shared utilities.
-    - `crypto.ts`: Token hashing functions.
-    - `logger.ts`: Conditional debug logging.
-    - `random.ts`: Random word and token generation.
+    - [`crypto.ts`](src/utils/crypto.ts): Token hashing functions.
+    - [`logger.ts`](src/utils/logger.ts): Conditional debug logging.
+    - [`random.ts`](src/utils/random.ts): Random word and token generation.
   - **`types/`**: TypeScript interface and type definitions.
-  - `index.ts`: Application entry point and logging middleware.
+  - [`index.ts`](src/index.ts): Application entry point and logging middleware.
 - **`tests/`**: Semi-manual test scripts for developers.
   - `login.sh`: Script to test the login endpoint.
   - `signup.sh`: Script to test the signup flow.
