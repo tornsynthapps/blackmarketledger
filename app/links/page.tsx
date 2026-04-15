@@ -18,6 +18,7 @@ import {
     File01Icon,
     Shield01Icon,
     PackageProcessIcon,
+    FlashIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
@@ -73,6 +74,12 @@ export default function LinksPage() {
             href: "/bmlconnect",
             icon: Exchange01Icon,
             desc: "Synchronize data with BML services",
+        },
+        {
+            name: "Script Connect",
+            href: "/scriptconnect",
+            icon: FlashIcon,
+            desc: "Connect to userscript for cost-basis sync",
         },
         {
             name: "Account",

@@ -17,7 +17,8 @@ export type BMLExtensionMessageType =
     | "DRIVE_LOAD_DATA"
     | "DRIVE_WRITE_DATA"
     | "DRIVE_DELETE_DATA"
-    | "DRIVE_DISCONNECT";
+    | "DRIVE_DISCONNECT"
+    | "COST_BASIS_UPDATE";
 
 export interface BMLExtensionRequest<TPayload = unknown> {
     type: BMLExtensionMessageType;
@@ -28,6 +29,10 @@ export interface BMLExtensionResponse<TData = unknown> {
     success: boolean;
     data?: TData;
     error?: string;
+}
+
+export interface CostBasisPayload {
+    inventory: Record<string, number>;
 }
 
 type LegacyRequest = {

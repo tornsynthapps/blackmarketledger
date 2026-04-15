@@ -54,3 +54,10 @@ next-env.d.ts
 
 # MCPs
 .playwright-mcp
+
+# Caveman Skills
+agents/skills/caveman*
+skills-lock.json
+
+# Kilo Code
+.kilo/package-lock.json

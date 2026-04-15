@@ -10,7 +10,7 @@ import {
     isMugTransaction,
     migrateLegacyTransactions,
 } from "@/lib/old/interfaces/transactions";
-import { sendToExtension } from "@/lib/old/bmlconnect";
+import { sendToExtension, CostBasisPayload } from "@/lib/old/bmlconnect";
 import * as idb from "@/lib/old/idb";
 import { setGlobalSyncStatus } from "@/lib/old/syncStatus";
 import { loadGoogleDriveData, writeGoogleDriveData } from "@/lib/old/drive-api";
@@ -50,6 +50,93 @@ const DRIVE_SYNC_MAX_AGE_MS = 10 * 60 * 1000;
 const AUTO_PILOT_DRIVE_FILE = "blackmarket-ledger-autopilot.json";
 const TORN_BASIC_USER_URL = "https://api.torn.com/v2/user/?selections=basic&key=";
 const JOURNAL_CONFIG_UPDATED_EVENT = "bml:journal-config-updated";
+const BML_EXTENSION_REQUEST_EVENT = "BML_EXTENSION_REQUEST";
+const BML_EXTENSION_RESPONSE_EVENT = "BML_EXTENSION_RESPONSE";
+
+/**
+ * Sends data to userscript directly (no health check).
+ * @param data (object): Data to send to userscript
+ * @returns Promise<boolean>: True if successful, false otherwise
+ */
+async function sendToUserscript(data: { inventory?: Record<string, number> }): Promise<boolean> {
+    const messageId = crypto.randomUUID();
+
+    return new Promise((resolve) => {
+        const timeoutMs = 5000;
+        let resolved = false;
+
+        const cleanup = () => {
+            window.removeEventListener("message", handler);
+            window.clearTimeout(timeoutId);
+        };
+
+        const handler = (event: MessageEvent) => {
+            if (event.data?.type !== BML_EXTENSION_RESPONSE_EVENT) return;
+            if (event.data?.id !== messageId) return;
+
+            const response = event.data.response;
+            if (response?.success && response?.data?.saved) {
+                resolved = true;
+                cleanup();
+                resolve(true);
+            } else {
+                resolved = true;
+                cleanup();
+                resolve(false);
+            }
+        };
+
+        const timeoutId = window.setTimeout(() => {
+            if (!resolved) {
+                cleanup();
+                resolve(false);
+            }
+        }, timeoutMs);
+
+        window.addEventListener("message", handler);
+
+        window.postMessage(
+            {
+                type: BML_EXTENSION_REQUEST_EVENT,
+                id: messageId,
+                message: {
+                    type: "SAVE_DATA",
+                    payload: { data },
+                },
+            },
+            "*"
+        );
+    });
+}
+
+/**
+ * Broadcasts cost-basis inventory to listeners (userscript).
+ * @param inventory (InventoryItemStats[]): Calculated inventory from transactions
+ */
+function broadcastCostBasisUpdate(inventory: InventoryItemStats[]) {
+    const inventoryMap: Record<string, number> = {};
+    inventory.forEach((stats) => {
+        if (!stats.itemName) return;
+        const totalStock = stats.stock + stats.abroadStock;
+        if (totalStock > 0) {
+            const avgCost = (stats.totalCost + stats.abroadTotalCost) / totalStock;
+            if (avgCost > 0) {
+                inventoryMap[stats.itemName.toLowerCase()] = Math.ceil(avgCost);
+            }
+        }
+    });
+
+    window.postMessage(
+        {
+            type: BML_EXTENSION_REQUEST_EVENT,
+            message: {
+                type: "COST_BASIS_UPDATE",
+                payload: { inventory: inventoryMap } as CostBasisPayload,
+            },
+        },
+        "*"
+    );
+}
 
 declare global {
     interface Window {
@@ -147,7 +234,9 @@ function isLegacyTransactionRecord(transaction: unknown) {
     );
 }
 
-function isLegacyTransactionArray(value: unknown): value is import("@/lib/old/parser").Transaction[] {
+function isLegacyTransactionArray(
+    value: unknown
+): value is import("@/lib/old/parser").Transaction[] {
     return Array.isArray(value) && value.some((entry) => isLegacyTransactionRecord(entry));
 }
 
@@ -703,6 +792,23 @@ export function useJournal() {
             } else {
                 persistTransactionsCache("LogsDB", newLogs).catch(console.error);
             }
+
+            const inventory = calculateInventoryFromTransactions(newLogs);
+            const inventoryMap: Record<string, number> = {};
+            inventory.forEach((stats) => {
+                if (!stats.itemName) return;
+                const totalStock = stats.stock + stats.abroadStock;
+                if (totalStock > 0) {
+                    const avgCost = (stats.totalCost + stats.abroadTotalCost) / totalStock;
+                    if (avgCost > 0) {
+                        inventoryMap[stats.itemName.toLowerCase()] = Math.ceil(avgCost);
+                    }
+                }
+            });
+
+            sendToUserscript({ inventory: inventoryMap }).catch((err) => {
+                console.warn("Failed to sync to userscript:", err);
+            });
         },
         [driveApiKey, markDriveSyncComplete, persistTransactionsCache, runSyncTask]
     );

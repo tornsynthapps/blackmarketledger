@@ -60,7 +60,7 @@ function mergeRecentImports(current: AutoPilotImportRecord[], incoming: AutoPilo
 
 function getImportSourceType(log: NormalizedLog): TransactionSourceType | undefined {
     const { typeId, title, category } = log;
-    const haystack = `${title} ${category}`.toLowerCase();
+    const haystack = `${title || ""} ${category || ""}`.toLowerCase();
 
     if ([1112, 1113].includes(typeId) || haystack.includes("item market")) return "item-market";
     if ([1225, 1226].includes(typeId) || haystack.includes("bazaar")) return "bazaar";
@@ -956,17 +956,21 @@ export default function AutoPilotPage() {
                                     <span className="text-[10px] bg-foreground/5 py-0.5 px-2 rounded font-bold text-foreground/50 uppercase tracking-widest">
                                         {(
                                             record.sourceType ||
-                                            (record.title.toLowerCase().includes("bazaar")
+                                            ((record.title || "").toLowerCase().includes("bazaar")
                                                 ? "bazaar"
-                                                : record.title.toLowerCase().includes("item market")
+                                                : (record.title || "")
+                                                        .toLowerCase()
+                                                        .includes("item market")
                                                   ? "item-market"
-                                                  : record.title.toLowerCase().includes("trade")
+                                                  : (record.title || "")
+                                                          .toLowerCase()
+                                                          .includes("trade")
                                                     ? "trade"
-                                                    : record.title
+                                                    : (record.title || "")
                                                             .toLowerCase()
                                                             .includes("points market")
                                                       ? "points-market"
-                                                      : record.title
+                                                      : (record.title || "")
                                                               .toLowerCase()
                                                               .includes("museum")
                                                         ? "museum"
