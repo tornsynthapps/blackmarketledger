@@ -11,7 +11,7 @@ import {
     toDriveStatus,
     verifyUserFromApiKey,
     writeDriveData,
-} from "../_shared/drive.ts";
+} from "../_shared/drive.js";
 
 Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
