@@ -8,11 +8,12 @@ import { VisitorCounter } from "@/components/VisitorCounter";
 import { ServiceRail } from "@/components/ServiceRail";
 import Link from "next/link";
 import { PromoBannersDesktop } from "@/components/SideBanners";
-import { getStoredAuth, isSubscriptionValid } from "@/lib/old/token-auth";
+import { getStoredAuth } from "@/lib/old/token-auth";
 
 const PUBLIC_ROUTES = [
     "/links",
     "/public",
+    "/pricelist",
     "/docs",
     "/changelog",
     "/terms",
@@ -25,8 +26,9 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     const pathname = usePathname() || "";
     const router = useRouter();
     const isDocs = pathname.startsWith("/docs");
+    const isPricelist = pathname.startsWith("/pricelist");
     const isPublic = pathname.startsWith("/public");
-    const hasGlobalUI = !isDocs && !isPublic;
+    const hasGlobalUI = !isDocs && !isPublic && !isPricelist;
 
     useEffect(() => {
         const isPublicRoute = PUBLIC_ROUTES.some(
