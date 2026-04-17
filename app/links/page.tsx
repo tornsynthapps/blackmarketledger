@@ -19,14 +19,23 @@ import {
     Shield01Icon,
     PackageProcessIcon,
     FlashIcon,
+    ApiIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 
+type PageInfo = {
+    name: string;
+    href: string;
+    icon: any;
+    desc: string;
+    newPage?: boolean;
+};
+
 export default function LinksPage() {
     const { vibrate } = useHapticFeedback();
 
-    const ledgerPages = [
+    const ledgerPages: PageInfo[] = [
         {
             name: "Dashboard",
             href: "/",
@@ -64,22 +73,16 @@ export default function LinksPage() {
             desc: "Automated data synchronization",
         },
         {
-            name: "Blackbox",
-            href: "/blackbox",
-            icon: PackageProcessIcon,
-            desc: "Detailed diagnostic logs and sync tracking",
-        },
-        {
-            name: "BML Connect",
-            href: "/bmlconnect",
-            icon: Exchange01Icon,
-            desc: "Synchronize data with BML services",
-        },
-        {
             name: "Script Connect",
             href: "/scriptconnect",
             icon: FlashIcon,
             desc: "Connect to userscript for cost-basis sync",
+        },
+        {
+            name: "Treasure Chests",
+            href: "/treasurechest",
+            icon: PackageIcon,
+            desc: "Open and manage looted chests",
         },
         {
             name: "Account",
@@ -88,10 +91,10 @@ export default function LinksPage() {
             desc: "Manage your API keys and profile",
         },
         {
-            name: "Treasure Chest",
-            href: "/treasurechest",
-            icon: PackageIcon,
-            desc: "Open and manage looted chests",
+            name: "Blackbox",
+            href: "/blackbox",
+            icon: PackageProcessIcon,
+            desc: "Detailed diagnostic logs and sync tracking",
         },
         {
             name: "Migration",
@@ -99,9 +102,15 @@ export default function LinksPage() {
             icon: AccountSetting01Icon,
             desc: "Migrate legacy data to the new system",
         },
+        {
+            name: "BML Connect",
+            href: "/bmlconnect",
+            icon: Exchange01Icon,
+            desc: "Synchronize data with BML services",
+        },
     ];
 
-    const publicPages = [
+    const publicPages: PageInfo[] = [
         {
             name: "Poo Board",
             href: "/public/mugs",
@@ -113,6 +122,13 @@ export default function LinksPage() {
             href: "/docs",
             icon: BookOpenTextIcon,
             desc: "Technical guides and API reference",
+        },
+        {
+            name: "API Docs",
+            href: "https://ledger.tornsynthapps.workers.dev/docs/scalarui",
+            icon: ApiIcon,
+            desc: "Interactive API reference and documentation",
+            newPage: true,
         },
         {
             name: "Changelog",
@@ -160,6 +176,7 @@ export default function LinksPage() {
                             href={page.href}
                             onClick={() => vibrate("nav")}
                             className="group flex flex-col gap-1 p-2 bg-panel border border-transparent hover:border-blue-500 transition-all"
+                            target={page.newPage ? "_blank" : "_self"}
                         >
                             <div className="flex items-center gap-2">
                                 <HugeiconsIcon
@@ -194,6 +211,7 @@ export default function LinksPage() {
                             href={page.href}
                             onClick={() => vibrate("nav")}
                             className="group flex flex-col gap-1 p-2 bg-panel border border-transparent hover:border-danger transition-all"
+                            target={page.newPage ? "_blank" : "_self"}
                         >
                             <div className="flex items-center gap-2">
                                 <HugeiconsIcon

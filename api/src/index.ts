@@ -3,6 +3,8 @@ import { cors } from "hono/cors";
 import { Logger } from "./utils/logger";
 import { authRouter } from "./auth";
 import { Env } from "./types";
+import { apiReference } from "@scalar/hono-api-reference";
+import { openApiHandler, openApiSpec } from "./utils/openapi";
 
 /**
  * Main Hono application for the Ledger API.
@@ -46,6 +48,9 @@ app.use("*", async (c, next) => {
 });
 
 app.route("/auth", authRouter);
+
+app.get("/docs", openApiHandler);
+app.get("/docs/scalarui", apiReference({ spec: { content: openApiSpec } }));
 
 app.onError((err, c) => {
     const logger = new Logger(c.env.DEBUG === "true");

@@ -20,6 +20,7 @@ The Ledger API provides a modular and secure way to handle user authentication, 
     - **`utils/`**: Shared utilities.
         - `crypto.ts`: Token hashing functions.
         - `logger.ts`: Conditional debug logging.
+        - `openapi.ts`: OpenAPI 3.0 specification for Swagger.
         - `random.ts`: Random word and token generation.
     - **`types/`**: TypeScript interface and type definitions.
     - `index.ts`: Application entry point and logging middleware.
@@ -32,6 +33,8 @@ The Ledger API provides a modular and secure way to handle user authentication, 
 
 ## Key Endpoints
 
+- **GET `/docs`**: OpenAPI 3.0 specification (JSON)
+- **GET `/docs/scalarui`**: Scalar API reference
 - **POST `/auth/login`**: Authenticate an existing user.
 - **POST `/auth/signup`**: Initiate or verify account creation.
 - **POST `/auth/reset-token`**: Initiate or verify secret token reset.
