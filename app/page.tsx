@@ -19,12 +19,17 @@ import {
     Book01Icon,
     ArrowRight01Icon,
     ArrowLeft01Icon,
+    StarIcon,
 } from "@hugeicons/core-free-icons";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
+import { PointsIcon } from "@/components/PointsIcon";
+import { ItemSetIcon } from "@/components/ItemSetIcon";
 import { CATEGORY_COLORS } from "@/lib/old/theme";
 import {
     format,
@@ -99,6 +104,11 @@ export default function Home() {
     const [includeMug, setIncludeMug] = useState(true);
     const [includeNetProfit, setIncludeNetProfit] = useState(true);
 
+    // Grouping state
+    const [isGrouped, setIsGrouped] = useState(true);
+    const [itemTypeMap, setItemTypeMap] = useState<Record<string, { type: string }>>({});
+    const [favoriteGroups, setFavoriteGroups] = useState<Set<string>>(new Set());
+
     // Load prefs
     useEffect(() => {
         const prefs = localStorage.getItem("bml-main-chart-prefs");
@@ -121,6 +131,26 @@ export default function Home() {
                 setSortConfig(JSON.parse(sortPref));
             } catch (e) {}
         }
+
+        const groupedPref = localStorage.getItem("bml-dashboard-grouped-pref");
+        if (groupedPref) {
+            try {
+                setIsGrouped(JSON.parse(groupedPref));
+            } catch (e) {}
+        }
+
+        const savedGroups = localStorage.getItem("bml-dashboard-favorite-groups");
+        if (savedGroups) {
+            try {
+                setFavoriteGroups(new Set(JSON.parse(savedGroups)));
+            } catch (e) {}
+        }
+
+        // Load item types for grouping
+        fetch("/items.json")
+            .then((res) => res.json())
+            .then((data) => setItemTypeMap(data))
+            .catch((err) => console.error("Failed to load item types", err));
     }, []);
 
     // Save prefs
@@ -156,6 +186,42 @@ export default function Home() {
         }
     }, [sortConfig, isLoaded]);
 
+    useEffect(() => {
+        localStorage.setItem("bml-dashboard-grouped-pref", JSON.stringify(isGrouped));
+    }, [isGrouped]);
+
+    const toggleGroupFavorites = (groupName: string) => {
+        setFavoriteGroups((current) => {
+            const next = new Set(current);
+            if (next.has(groupName)) {
+                next.delete(groupName);
+            } else {
+                next.add(groupName);
+            }
+            localStorage.setItem("bml-dashboard-favorite-groups", JSON.stringify(Array.from(next)));
+            return next;
+        });
+    };
+
+    const itemIdByName = useMemo(() => {
+        const map = new Map<string, number>();
+        transactions.forEach((transaction) => {
+            if (
+                transaction &&
+                typeof transaction === "object" &&
+                "isWrapper" in transaction &&
+                transaction.isWrapper === false &&
+                "itemName" in transaction &&
+                "itemID" in transaction &&
+                typeof transaction.itemName === "string" &&
+                typeof transaction.itemID === "number"
+            ) {
+                map.set(transaction.itemName, transaction.itemID);
+            }
+        });
+        return map;
+    }, [transactions]);
+
     const { stats, sortedItems } = useMemo(() => {
         let tradingProfit = 0;
         let totalInvValue = 0;
@@ -165,65 +231,56 @@ export default function Home() {
 
         inventory.forEach((stat, name) => {
             const isMuseum = name.toLowerCase() === "points";
-
             abroadProfit += stat.abroadRealizedProfit;
+
+            let itemProfit = stat.realizedProfit;
+            let itemValue = Math.max(0, stat.totalCost);
+            let itemStock = stat.stock;
+
+            if (includeAbroad) {
+                itemProfit += stat.abroadRealizedProfit;
+                itemValue += Math.max(0, stat.abroadTotalCost);
+                itemStock += stat.abroadStock;
+            }
 
             if (isMuseum) {
                 museumProfit += stat.realizedProfit;
-
-                let itemProfit = stat.realizedProfit;
-                let itemValue = Math.max(0, stat.totalCost);
-                let itemStock = stat.stock;
-
-                if (includeAbroad) {
-                    itemProfit += stat.abroadRealizedProfit;
-                    itemValue += Math.max(0, stat.abroadTotalCost);
-                    itemStock += stat.abroadStock;
-                }
-
                 if (includeMuseum) {
                     items.push({
                         name,
-                        stats: {
-                            ...stat,
-                            realizedProfit: itemProfit,
-                            totalCost: itemValue,
-                            stock: itemStock,
-                        },
+                        stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
                     });
                     totalInvValue += itemValue;
                 }
             } else {
                 tradingProfit += stat.realizedProfit;
-
-                let itemProfit = stat.realizedProfit;
-                let itemValue = Math.max(0, stat.totalCost);
-                let itemStock = stat.stock;
-
-                if (includeAbroad) {
-                    itemProfit += stat.abroadRealizedProfit;
-                    itemValue += Math.max(0, stat.abroadTotalCost);
-                    itemStock += stat.abroadStock;
-                }
-
                 if (includeTrading) {
                     items.push({
                         name,
-                        stats: {
-                            ...stat,
-                            realizedProfit: itemProfit,
-                            totalCost: itemValue,
-                            stock: itemStock,
-                        },
+                        stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
                     });
                     totalInvValue += itemValue;
                 }
             }
         });
 
-        const filtered = items.filter((item) =>
-            item.name.toLowerCase().includes(search.toLowerCase())
-        );
+        const filtered = items.filter((item) => {
+            const query = search.toLowerCase();
+            const itemNameMatch = item.name.toLowerCase().includes(query);
+            
+            const itemID = itemIdByName.get(item.name);
+            let itemType = item.name.toLowerCase() === "points" 
+                ? "Points" 
+                : (itemID ? itemTypeMap[String(itemID)] : undefined)?.type || "Other";
+            
+            // Museum set overrides
+            if (item.name.toLowerCase() === "flower set") itemType = "Flower";
+            if (item.name.toLowerCase() === "plushie set") itemType = "Plushie";
+            
+            const itemTypeMatch = itemType.toLowerCase().includes(query);
+            
+            return itemNameMatch || itemTypeMatch;
+        });
 
         const sorted = filtered.sort((a, b) => {
             let aVal: number | string;
@@ -246,15 +303,76 @@ export default function Home() {
         });
 
         return {
-            stats: {
-                profit: tradingProfit,
-                inventory: totalInvValue,
-                museumProfit,
-                abroadProfit,
-            },
+            stats: { profit: tradingProfit, inventory: totalInvValue, museumProfit, abroadProfit },
             sortedItems: sorted,
         };
-    }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad]);
+    }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad, itemIdByName, itemTypeMap]);
+
+    const enrichedItems = useMemo(() => {
+        return sortedItems.map(({ name, stats }) => {
+            const itemID = itemIdByName.get(name);
+            let itemType = name.toLowerCase() === "points" 
+                ? "Points" 
+                : (itemID ? itemTypeMap[String(itemID)] : undefined)?.type || "Other";
+            
+            // Museum set overrides
+            if (name.toLowerCase() === "flower set") itemType = "Flower";
+            if (name.toLowerCase() === "plushie set") itemType = "Plushie";
+
+            return {
+                name,
+                stats,
+                itemType,
+                itemID,
+            };
+        });
+    }, [sortedItems, itemTypeMap, itemIdByName]);
+
+    const groupedItems = useMemo(() => {
+        if (!isGrouped) return null;
+        const groups: Record<string, typeof enrichedItems> = {};
+
+        for (const item of enrichedItems) {
+            const type = item.itemType;
+
+            if (!groups[type]) groups[type] = [];
+            groups[type].push(item);
+        }
+
+        const getGroupValue = (items: typeof enrichedItems) => {
+            switch (sortConfig.key) {
+                case "stock":
+                    return items.reduce((sum, item) => sum + item.stats.stock, 0);
+                case "totalCost":
+                    return items.reduce((sum, item) => sum + item.stats.totalCost, 0);
+                case "realizedProfit":
+                    return items.reduce((sum, item) => sum + item.stats.realizedProfit, 0);
+                case "avgCost": {
+                    const totalStock = items.reduce((sum, item) => sum + item.stats.stock, 0);
+                    const totalCost = items.reduce((sum, item) => sum + item.stats.totalCost, 0);
+                    return totalStock > 0 ? totalCost / totalStock : 0;
+                }
+                default:
+                    return 0;
+            }
+        };
+
+        return Object.entries(groups).sort(([a, aItems], [b, bItems]) => {
+            const aFav = favoriteGroups.has(a);
+            const bFav = favoriteGroups.has(b);
+            if (aFav !== bFav) return aFav ? -1 : 1;
+
+            if (sortConfig.key !== "name") {
+                const aVal = getGroupValue(aItems);
+                const bVal = getGroupValue(bItems);
+                if (aVal !== bVal) {
+                    return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+                }
+            }
+
+            return a.localeCompare(b);
+        });
+    }, [isGrouped, enrichedItems, favoriteGroups, sortConfig]);
 
     const totalPages = Math.ceil(sortedItems.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -290,24 +408,6 @@ export default function Home() {
 
     const netTotal = stats.profit + stats.museumProfit + stats.abroadProfit - totalMugLoss;
 
-    const itemIdByName = useMemo(() => {
-        const map = new Map<string, number>();
-        transactions.forEach((transaction) => {
-            if (
-                transaction &&
-                typeof transaction === "object" &&
-                "isWrapper" in transaction &&
-                transaction.isWrapper === false &&
-                "itemName" in transaction &&
-                "itemID" in transaction &&
-                typeof transaction.itemName === "string" &&
-                typeof transaction.itemID === "number"
-            ) {
-                map.set(transaction.itemName, transaction.itemID);
-            }
-        });
-        return map;
-    }, [transactions]);
 
     // Chart data generation
     const chartData = useMemo(() => {
@@ -539,8 +639,8 @@ export default function Home() {
                 </div>
             </div>
 
-            <div className="bg-panel border-2 border-border overflow-hidden">
-                <div className="p-4 bg-foreground/[0.03] border-b-2 border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="bg-panel border-2 border-border overflow-hidden p-4 bg-foreground/[0.03]">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-6 bg-primary" />
                         <h2 className="font-black text-xl uppercase tracking-[0.3em]">Inventory</h2>
@@ -565,10 +665,105 @@ export default function Home() {
                             className="w-full pl-12 pr-4 py-2 border-2 border-border bg-background focus:border-primary focus:outline-none font-mono text-[11px] uppercase placeholder:opacity-30 transition-all"
                         />
                     </div>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 border-2 border-border-strong px-3 py-1 bg-panel h-[36px]">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">Sort:</span>
+                            <select
+                                value={`${sortConfig.key}-${sortConfig.direction}`}
+                                onChange={(e) => {
+                                    const [k, d] = e.target.value.split("-");
+                                    setSortConfig({ key: k as SortKey, direction: d as "asc" | "desc" });
+                                }}
+                                className="bg-transparent font-mono text-[10px] font-bold text-foreground/80 outline-none focus:text-primary transition-colors pr-2 uppercase tracking-[0.05em] cursor-pointer"
+                            >
+                                <option value="name-asc" className="bg-panel">Name (A-Z)</option>
+                                <option value="name-desc" className="bg-panel">Name (Z-A)</option>
+                                <option value="stock-desc" className="bg-panel">Stock (H-L)</option>
+                                <option value="stock-asc" className="bg-panel">Stock (L-H)</option>
+                                <option value="realizedProfit-desc" className="bg-panel">Profit (H-L)</option>
+                                <option value="realizedProfit-asc" className="bg-panel">Profit (L-H)</option>
+                                <option value="totalCost-desc" className="bg-panel">Value (H-L)</option>
+                                <option value="totalCost-asc" className="bg-panel">Value (L-H)</option>
+                                <option value="avgCost-desc" className="bg-panel">Avg Cost (H-L)</option>
+                                <option value="avgCost-asc" className="bg-panel">Avg Cost (L-H)</option>
+                            </select>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsGrouped((current) => !current)}
+                            aria-pressed={isGrouped}
+                            className={`flex items-center gap-2 border-2 px-3 py-1.5 h-[36px] text-[10px] font-bold uppercase tracking-[0.05em] transition-colors ${
+                                isGrouped
+                                    ? "border-info/40 bg-info/10 text-info"
+                                    : "border-border-strong text-foreground/70 bg-panel hover:text-primary"
+                            }`}
+                        >
+                            <HugeiconsIcon
+                                icon={PackageSearchIcon}
+                                size={12}
+                                className={isGrouped ? "opacity-100" : "opacity-40"}
+                            />
+                            <span className={isGrouped ? "opacity-100" : "opacity-40"}>Grouped</span>
+                        </button>
+                    </div>
                 </div>
+            </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm border-collapse table-fixed">
+            {isGrouped && groupedItems ? (
+                <div className="flex flex-col gap-8">
+                        {groupedItems.map(([type, items]) => (
+                            <div key={type} className="flex flex-col gap-3">
+                                <div className="flex items-center gap-4">
+                                    <button 
+                                        type="button"
+                                        onClick={() => toggleGroupFavorites(type)}
+                                        className={`flex-shrink-0 transition-colors ${
+                                            favoriteGroups.has(type) 
+                                                ? "text-warning hover:text-warning/80" 
+                                                : "text-muted hover:text-primary"
+                                        }`}
+                                        title={favoriteGroups.has(type) ? "Unfavorite group" : "Favorite group"}
+                                    >
+                                        <HugeiconsIcon 
+                                            icon={StarIcon} 
+                                            size={20} 
+                                            className={favoriteGroups.has(type) ? "text-warning" : "text-muted"}
+                                        />
+                                    </button>
+                                    <h3 className="text-xl font-vt323 tracking-widest text-primary">
+                                        {type}
+                                    </h3>
+                                    <div className="h-px flex-1 bg-border-strong" />
+                                    <span className="font-mono text-[10px] text-muted uppercase">
+                                        {items.length} Items
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 gap-px bg-border border border-border md:grid-cols-2 xl:grid-cols-3 overflow-hidden">
+                                    {items.map((item) => (
+                                        <DashboardItemCard
+                                            key={item.name}
+                                            name={item.name}
+                                            stats={item.stats}
+                                            itemID={item.itemID}
+                                            onClick={() => {
+                                                vibrate("nav");
+                                                const itemID = item.itemID;
+                                                router.push(
+                                                    itemID !== undefined
+                                                        ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
+                                                        : `/logs?item=${encodeURIComponent(item.name)}`
+                                                );
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+            ) : (
+                <div className="bg-panel border-2 border-border overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm border-collapse table-fixed">
                         <thead className="bg-foreground/[0.02]">
                             <tr>
                                 <th
@@ -693,12 +888,12 @@ export default function Home() {
                                 paginatedItems.map(({ name, stats }) => {
                                     const avgCost =
                                         stats.stock > 0 ? stats.totalCost / stats.stock : 0;
+                                    const itemID = itemIdByName.get(name);
                                     return (
                                         <tr
                                             key={name}
                                             onClick={() => {
                                                 vibrate("nav");
-                                                const itemID = itemIdByName.get(name);
                                                 router.push(
                                                     itemID !== undefined
                                                         ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
@@ -708,7 +903,25 @@ export default function Home() {
                                             className="hover:bg-primary/5 transition-colors cursor-pointer group"
                                         >
                                             <td className="px-6 py-4 font-bold group-hover:text-primary transition-colors uppercase">
-                                                {formatItemName(name)}
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-foreground/[0.03] rounded-sm">
+                                                       {name.toLowerCase() === "points" ? (
+                                                           <PointsIcon className="w-8 h-8 object-contain drop-shadow-sm transition-transform group-hover:scale-110" />
+                                                       ) : name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
+                                                           <ItemSetIcon name={name} className="w-8 h-8" />
+                                                       ) : itemID ? (
+                                                           <img
+                                                               src={`https://www.torn.com/images/items/${itemID}/large.png`}
+                                                               alt=""
+                                                               className="w-8 h-8 object-contain drop-shadow-sm transition-transform group-hover:scale-110"
+                                                               loading="lazy"
+                                                           />
+                                                       ) : (
+                                                           <div className="w-2 h-2 rounded-full bg-border" />
+                                                       )}
+                                                    </div>
+                                                    <span className="truncate">{formatItemName(name)}</span>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <span className="bg-primary/10 text-primary px-2 py-1 font-bold font-mono whitespace-nowrap">
@@ -816,8 +1029,9 @@ export default function Home() {
                             </button>
                         </div>
                     </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
 
             <StatsModal
                 isOpen={modalState.isOpen}
@@ -871,5 +1085,72 @@ function OverviewItem({
                 </div>
             )}
         </div>
+    );
+}
+function DashboardItemCard({
+    name,
+    stats,
+    itemID,
+    onClick,
+}: {
+    name: string;
+    stats: any;
+    itemID?: number;
+    onClick: () => void;
+}) {
+    const avgCost = stats.stock > 0 ? stats.totalCost / stats.stock : 0;
+    const profitColor = stats.realizedProfit >= 0 ? "text-success" : "text-danger";
+
+    return (
+        <article
+            onClick={onClick}
+            className="group relative flex items-center justify-between bg-panel/70 px-4 py-3 hover:bg-panel-elevated transition-colors cursor-pointer border-b border-border/50 last:border-b-0"
+        >
+            <div className="flex items-center gap-4 min-w-0 flex-1 relative">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center">
+                    {name.toLowerCase() === "points" ? (
+                        <PointsIcon className="h-10 w-10 object-contain drop-shadow-sm transition-transform group-hover:scale-110" />
+                    ) : name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
+                        <ItemSetIcon name={name} className="h-10 w-10" />
+                    ) : itemID && itemID > 0 ? (
+                        <img
+                            src={`https://www.torn.com/images/items/${itemID}/large.png`}
+                            alt={formatItemName(name)}
+                            width={48}
+                            height={48}
+                            className="h-10 w-10 object-contain drop-shadow-sm transition-transform group-hover:scale-110"
+                            loading="lazy"
+                        />
+                    ) : (
+                        <div className="h-10 w-10 rounded-full bg-foreground/5 flex items-center justify-center">
+                            <HugeiconsIcon icon={StarIcon} size={16} className="text-muted/20" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                    <h2 className="line-clamp-1 text-base font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">
+                        {formatItemName(name)}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-mono text-muted uppercase">
+                            {stats.stock.toLocaleString()} UNITS
+                        </span>
+                        <span className="text-[10px] font-mono text-muted/40 whitespace-nowrap">
+                            AVG: {formatMoney(avgCost)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex shrink-0 flex-col items-end gap-0.5 ml-4 font-mono">
+                <p className="text-sm font-bold text-foreground">
+                    {formatMoney(stats.totalCost)}
+                </p>
+                <div className={`text-[11px] font-black ${profitColor}`}>
+                    {stats.realizedProfit >= 0 ? "+" : ""}{formatMoney(stats.realizedProfit)}
+                </div>
+            </div>
+        </article>
     );
 }

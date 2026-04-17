@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { formatItemName } from "@/lib/old/parser";
+import { ItemSetIcon } from "@/components/ItemSetIcon";
 import { Cascadia_Code } from "next/font/google";
 
 const cascadia = Cascadia_Code({
@@ -98,7 +99,9 @@ export function PublicPricelistCard({
 
             <div className="flex items-center gap-4 min-w-0 flex-1 relative">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center">
-                    {itemId > 0 ? (
+                    {name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
+                        <ItemSetIcon name={name} className="h-12 w-12" />
+                    ) : itemId > 0 ? (
                         <Image
                             src={`https://www.torn.com/images/items/${itemId}/large.png`}
                             alt={formatItemName(name)}

@@ -399,7 +399,11 @@ export default function PricelistClientPage() {
         const groups: Record<string, typeof visibleItems> = {};
         
         for (const item of visibleItems) {
-            const type = itemTypeMap[String(item.itemId)]?.type || "Other";
+            let type = itemTypeMap[String(item.itemId)]?.type || "Other";
+            
+            // Overrides for museum sets
+            if (item.name.toLowerCase() === "flower set") type = "Flower";
+            if (item.name.toLowerCase() === "plushie set") type = "Plushie";
             
             // If in favorites view, and group isn't favorited but item is, move to special group
             let groupKey = type;
