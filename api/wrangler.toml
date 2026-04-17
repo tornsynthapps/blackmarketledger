@@ -16,3 +16,8 @@ invocation_logs = true
 
 [observability.traces]
 enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_id = "15c0cbef-fcb5-4b41-944d-6808574ecb03"
+database_name = "ledger"
