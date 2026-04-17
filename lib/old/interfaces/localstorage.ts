@@ -20,6 +20,8 @@ export class LocalStorageInterface {
     private static FULL_ACCESS_API_KEY = "torn_api_key_full";
     private static TORN_API_RATE_LIMIT = "torn_api_rate_limit";
     private static WEAV3R_API_RATE_LIMIT = "weav3r_api_rate_limit";
+    private static TE_API_KEY = "te_api_key";
+    private static TE_API_RATE_LIMIT = "te_api_rate_limit";
 
     // Generic localStorage access
     static getItem(key: string): string | null {
@@ -134,5 +136,23 @@ export class LocalStorageInterface {
 
     static setWeav3rApiRateLimit(value: number | null): void {
         this.setItem(this.WEAV3R_API_RATE_LIMIT, value !== null ? value.toString() : null);
+    }
+
+    // Torn Exchange API
+    static getTEApiKey(): string {
+        return this.getItem(this.TE_API_KEY) || "";
+    }
+
+    static setTEApiKey(value: string | null): void {
+        this.setItem(this.TE_API_KEY, value);
+    }
+
+    static getTEApiRateLimit(): number {
+        const limit = this.getItem(this.TE_API_RATE_LIMIT);
+        return limit ? parseInt(limit, 10) : 5;
+    }
+
+    static setTEApiRateLimit(value: number | null): void {
+        this.setItem(this.TE_API_RATE_LIMIT, value !== null ? value.toString() : null);
     }
 }

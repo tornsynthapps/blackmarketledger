@@ -30,6 +30,12 @@ export function refreshApiKeysFromStorage(): void {
             if (config.weav3rApiRateLimit !== undefined) {
                 LocalStorageInterface.setWeav3rApiRateLimit(config.weav3rApiRateLimit);
             }
+            if (config.teApiKey && !LocalStorageInterface.getTEApiKey()) {
+                LocalStorageInterface.setTEApiKey(config.teApiKey);
+            }
+            if (config.teApiRateLimit !== undefined) {
+                LocalStorageInterface.setTEApiRateLimit(config.teApiRateLimit);
+            }
         }
     } catch (e) {
         console.warn("Failed to parse config from localStorage:", e);
@@ -78,6 +84,14 @@ export function getWeav3rApiRateLimit(): number {
     return LocalStorageInterface.getWeav3rApiRateLimit();
 }
 
+export function getTEApiKey(): string {
+    return LocalStorageInterface.getTEApiKey();
+}
+
+export function getTERateLimit(): number {
+    return LocalStorageInterface.getTEApiRateLimit();
+}
+
 export function getConnectionToken(): string {
     if (typeof window === "undefined") return "";
     return localStorage.getItem(CONNECTION_TOKEN_KEY) || "";
@@ -110,6 +124,16 @@ export function setTornApiRateLimit(value: number): void {
 
 export function setWeav3rApiRateLimit(value: number): void {
     LocalStorageInterface.setWeav3rApiRateLimit(value);
+    dispatchApiKeysUpdate();
+}
+
+export function setTEApiKey(value: string): void {
+    LocalStorageInterface.setTEApiKey(value);
+    dispatchApiKeysUpdate();
+}
+
+export function setTERateLimit(value: number): void {
+    LocalStorageInterface.setTEApiRateLimit(value);
     dispatchApiKeysUpdate();
 }
 
