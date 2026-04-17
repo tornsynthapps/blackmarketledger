@@ -60,4 +60,8 @@ agents/skills/caveman*
 skills-lock.json
 
 # Kilo Code
-.kilo/package-lock.json
+.kilo
+.kilocode
+
+# Cloudflare
+.wrangler
