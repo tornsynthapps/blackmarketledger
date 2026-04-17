@@ -9,6 +9,7 @@ The Ledger API provides a modular and secure way to handle user authentication, 
 ## Folder Structure
 
 - **`db/schemas/`**: Cloudflare D1 database table schemas.
+- **`db/migrations/`**: Database migration scripts.
 - **`src/`**: Main source code for the worker.
     - **`auth/`**: Authentication route handlers.
         - `index.ts`: Auth router configuration.

@@ -37,6 +37,16 @@ User subscription tracking.
 | tokens_available | INTEGER | DEFAULT 0   | Available token count                 |
 | full_sub         | INTEGER |             | Full subscription expiry (Unix epoch) |
 
+### pricelist
+
+User price list configuration.
+
+| Column          | Type    | Constraints | Description           |
+| --------------- | ------- | ----------- | --------------------- |
+| user_id         | INTEGER | PRIMARY KEY | User identifier       |
+| forum_thread_id | INTEGER | NOT NULL    | Torn forum thread ID  |
+| likes           | INTEGER | DEFAULT 0   | Thread rating (likes) |
+
 ## Deployment
 
 Apply schemas to D1:
@@ -44,4 +54,5 @@ Apply schemas to D1:
 ```bash
 wrangler d1 execute ledger --file=db/schemas/auth.sql
 wrangler d1 execute ledger --file=db/schemas/subscriptions.sql
+wrangler d1 execute ledger --file=db/schemas/pricelist.sql
 ```
