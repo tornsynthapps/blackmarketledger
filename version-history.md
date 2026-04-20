@@ -1,5 +1,15 @@
 # BlackMarket Ledger Version History
 
+## beta-6.2 (2026-04-20)
+
+- **Changelog**: Fixed parsing of beta-v versions with correct prefix.
+- **Database**: Added pricelist schema with migration.
+- **Build**: Introduced pnpm as package manager and refactored plans.
+- **TornExchange API**: New API client with rate limiting and core methods.
+- **Pricelist Management**: New dedicated pricelist management page with TornExchange integration.
+- **Museum**: Enhanced museum page with pricelist integration.
+- **Account**: Updated account page with integration.
+
 ## beta-6.1 (2026-04-17)
 
 - **Dashboard**: Added grouped inventory view and line/bar chart modes to stacked profit chart.
@@ -206,6 +216,7 @@
 - **Firebase Hosting**: Migrated deployment from GitHub Pages to Firebase Hosting.
 
 ## beta-2.4 (2026-03-07)
+
 v4.3.1
 v4.3.2
 v4.4.0
