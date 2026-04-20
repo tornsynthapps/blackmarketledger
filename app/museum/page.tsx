@@ -25,6 +25,11 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import {
+    getApiKey as getWeav3rApiKey,
+    getUserId as getWeav3rUserId,
+    getTEApiKey,
+} from "@/lib/old/api-keys";
+import {
     formatItemName,
     FLOWER_SET,
     MUSEUM_EXCHANGE_DEFINITIONS,
@@ -35,6 +40,7 @@ import {
 } from "@/lib/old/parser";
 import { ProfitChart } from "@/components/ProfitChart";
 import { ItemGridCard } from "@/components/ItemGridCard";
+import { TornExchange } from "@/lib/tornexchange";
 import {
     format,
     subDays,
@@ -281,6 +287,8 @@ export default function MuseumDashboard() {
     const [plushieMode, setPlushieMode] = useState<"view" | "buy" | "price">("view");
     const [flowerDrift, setFlowerDrift] = useState(false);
     const [plushieDrift, setPlushieDrift] = useState(false);
+    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["weav3r"]);
+    const [tePricelist, setTePricelist] = useState<any[]>([]);
 
     useEffect(() => {
         const saved = localStorage.getItem("museum-drift-status");
@@ -465,8 +473,8 @@ export default function MuseumDashboard() {
     );
 
     const fetchPricelistData = useCallback(async () => {
-        if (!weav3rApiKey || !weav3rUserId) {
-            setPricelistError("Weav3r API key not configured. Please set it up in Terminal.");
+        if (!weav3rUserId) {
+            setPricelistError("Weav3r User ID not configured. Please set it up in Terminal.");
             return;
         }
 
@@ -474,13 +482,18 @@ export default function MuseumDashboard() {
         setPricelistError(null);
 
         try {
-            const [marketRes, pricelistRes] = await Promise.all([
-                fetch("https://weav3r.dev/api/marketplace"),
-                fetch(`https://weav3r.dev/api/pricelist/${weav3rUserId}?apiKey=${weav3rApiKey}`),
-            ]);
+            const teKey = getTEApiKey();
+            const promises = [
+                fetch("https://weav3r.dev/api/marketplace").then(res => res.json()),
+                fetch(`https://weav3r.dev/api/pricelist/${weav3rUserId}`).then(res => res.json())
+            ];
 
-            const marketData = await marketRes.json();
-            const pricelistData = await pricelistRes.json();
+            if (teKey) {
+                const teClient = TornExchange.getInstance();
+                promises.push(teClient.getPricelist(weav3rUserId).catch(err => ({ error: err.message, items: [] })));
+            }
+
+            const [marketData, pricelistData, teData] = await Promise.all(promises);
 
             if (marketData.error) throw new Error(marketData.error);
             if (pricelistData.error) throw new Error(pricelistData.error);
@@ -505,13 +518,17 @@ export default function MuseumDashboard() {
                 });
             }
             setUserPricelist(userPriceMap);
+
+            if (teData && teData.items) {
+                setTePricelist(teData.items);
+            }
         } catch (err: any) {
             console.error("Failed to fetch pricelist data", err);
             setPricelistError(err.message || "Failed to load pricelist data");
         } finally {
             setIsFetchingPricelist(false);
         }
-    }, [weav3rApiKey, weav3rUserId]);
+    }, [weav3rUserId]);
 
     useEffect(() => {
         if ((flowerMode === "price" || plushieMode === "price") && isLoaded) {
@@ -555,75 +572,93 @@ export default function MuseumDashboard() {
     );
 
     const savePricelist = useCallback(
-        async (setType: "flower" | "plushie") => {
-            if (!weav3rApiKey || !weav3rUserId) {
-                setPricelistError("Weav3r API key not configured");
-                return;
-            }
-
-            const edits = setType === "flower" ? flowerPricelistEdits : plushiePricelistEdits;
-            const setItems = setType === "flower" ? FLOWER_SET_ITEMS : PLUSHIE_SET_ITEMS;
-
-            const itemsToUpdate = Object.entries(edits)
-                .filter(([itemName, percentage]) => {
-                    const setItem = setItems.find((si) => si.name === itemName);
-                    const itemId = setItem?.id || 0;
-                    const marketPrice = marketPrices[itemId] || setItem?.marketValue || 0;
-                    const currentPrice = userPricelist[itemName.toLowerCase()] || 0;
-                    const currentPercentage = marketPrice > 0 ? Number(((currentPrice / marketPrice) * 100).toFixed(1)) : 0;
-                    return percentage !== currentPercentage;
-                })
-                .map(([itemName, percentage]) => {
-                    const setItem = setItems.find((si) => si.name === itemName);
-                    return {
-                        itemID: setItem?.id || 0,
-                        pricingType: "market_percentage" as const,
-                        pricingValue: percentage,
-                        inflationProtectionEnabled: false,
-                        roundToPlace: 0,
-                    };
-                });
-
-            if (itemsToUpdate.length === 0) {
-                setPricelistError("No changes to save");
-                return;
-            }
-
+        async (type: "flower" | "plushie") => {
             setIsUpdatingPricelist(true);
             setPricelistError(null);
             setPricelistSuccess(null);
 
             try {
-                const response = await fetch(
-                    `https://weav3r.dev/api/pricelist/${weav3rUserId}?apiKey=${weav3rApiKey}`,
-                    {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ items: itemsToUpdate }),
-                    }
-                );
+                const edits = type === "flower" ? flowerPricelistEdits : plushiePricelistEdits;
+                const setItems = type === "flower" ? FLOWER_SET_ITEMS : PLUSHIE_SET_ITEMS;
+                
+                const updates = Object.entries(edits).map(([name, percentage]) => {
+                    const item = setItems.find((si) => si.name === name);
+                    return {
+                        itemId: item?.id || 0,
+                        percentage: Number(percentage),
+                    };
+                }).filter(u => u.itemId > 0);
 
-                const result = await response.json();
-                if (result.error) throw new Error(result.error);
-
-                await fetchPricelistData();
-                if (setType === "flower") {
-                    setFlowerPricelistEdits({});
-                } else {
-                    setPlushiePricelistEdits({});
+                if (updates.length === 0) {
+                    throw new Error("No items to update.");
                 }
-                clearDriftStatus(setType);
 
-                setPricelistSuccess(`Successfully updated ${setType} pricelist!`);
+                const promises = [];
+
+                // Weav3r Update
+                if (selectedPlatforms.includes("weav3r")) {
+                    const userId = getWeav3rUserId();
+                    const apiKey = getWeav3rApiKey();
+                    if (!userId || !apiKey) throw new Error("Weav3r config missing");
+
+                    promises.push(
+                        fetch(`https://weav3r.dev/api/pricelist/${userId}?apiKey=${apiKey}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ 
+                                items: updates.map(u => ({
+                                    itemID: u.itemId,
+                                    pricingType: "market_percentage" as const,
+                                    pricingValue: u.percentage,
+                                    inflationProtectionEnabled: false,
+                                    roundToPlace: 0,
+                                }))
+                            }),
+                        }).then(async res => {
+                            if (!res.ok) {
+                                const err = await res.json();
+                                throw new Error(`W3B Error: ${err.message || res.statusText}`);
+                            }
+                        })
+                    );
+                }
+
+                // TornExchange Update
+                if (selectedPlatforms.includes("tornexchange")) {
+                    const teKey = getTEApiKey();
+                    if (!teKey) throw new Error("TornExchange API key missing");
+
+                    const teClient = TornExchange.getInstance();
+                    promises.push(
+                        teClient.updateItemPricesByPercentage(updates)
+                        .catch(err => {
+                            throw new Error(`TE Error: ${err.message || "Failed to update TE"}`);
+                        })
+                    );
+                }
+
+                if (promises.length === 0) {
+                    throw new Error("No platforms selected for update.");
+                }
+
+                await Promise.all(promises);
+
+                setPricelistSuccess(`Pricelist updated successfully on ${selectedPlatforms.join(" & ")}!`);
+                if (type === "flower") setFlowerPricelistEdits({});
+                else setPlushiePricelistEdits({});
+                
+                // Refresh data
+                fetchPricelistData();
+                clearDriftStatus(type);
                 setTimeout(() => setPricelistSuccess(null), 3000);
-            } catch (err: any) {
-                console.error("Failed to update pricelist", err);
-                setPricelistError(err.message || "Failed to update pricelist");
+            } catch (error: any) {
+                console.error("Failed to save pricelist:", error);
+                setPricelistError(error.message || "Failed to update pricelist.");
             } finally {
                 setIsUpdatingPricelist(false);
             }
         },
-        [weav3rApiKey, weav3rUserId, flowerPricelistEdits, plushiePricelistEdits, fetchPricelistData]
+        [weav3rApiKey, weav3rUserId, flowerPricelistEdits, plushiePricelistEdits, selectedPlatforms, fetchPricelistData, clearDriftStatus]
     );
 
     if (!isLoaded)
@@ -884,6 +919,51 @@ export default function MuseumDashboard() {
                                             {pricelistSuccess}
                                         </div>
                                     )}
+                                    <div className="flex items-center gap-6 mb-4 pb-4 border-b border-border/50 flex-wrap">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/30">Target Platforms</span>
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex items-center gap-2 cursor-pointer group">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedPlatforms.includes("weav3r")}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) setSelectedPlatforms([...selectedPlatforms, "weav3r"]);
+                                                            else setSelectedPlatforms(selectedPlatforms.filter(p => p !== "weav3r"));
+                                                        }}
+                                                        className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/50 bg-background transition-all"
+                                                    />
+                                                    <span className={`text-[11px] font-bold uppercase tracking-tight transition-colors ${selectedPlatforms.includes("weav3r") ? "text-primary" : "text-foreground/40 group-hover:text-foreground/60"}`}>TornW3B</span>
+                                                </label>
+                                                <label className="flex items-center gap-2 cursor-pointer group">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedPlatforms.includes("tornexchange")}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) setSelectedPlatforms([...selectedPlatforms, "tornexchange"]);
+                                                            else setSelectedPlatforms(selectedPlatforms.filter(p => p !== "tornexchange"));
+                                                        }}
+                                                        className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/50 bg-background transition-all"
+                                                    />
+                                                    <span className={`text-[11px] font-bold uppercase tracking-tight transition-colors ${selectedPlatforms.includes("tornexchange") ? "text-primary" : "text-foreground/40 group-hover:text-foreground/60"}`}>TornExchange</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {selectedPlatforms.includes("weav3r") && (!weav3rApiKey || !weav3rUserId) && (
+                                            <div className="flex items-center gap-2 px-3 py-1 bg-warning/10 border border-warning/20 rounded-full">
+                                                <HugeiconsIcon icon={AlertCircleIcon} size={12} className="text-warning" />
+                                                <span className="text-[10px] font-bold text-warning uppercase">TornW3B Config Missing</span>
+                                            </div>
+                                        )}
+                                        {selectedPlatforms.includes("tornexchange") && !getTEApiKey() && (
+                                            <div className="flex items-center gap-2 px-3 py-1 bg-warning/10 border border-warning/20 rounded-full">
+                                                <HugeiconsIcon icon={AlertCircleIcon} size={12} className="text-warning" />
+                                                <span className="text-[10px] font-bold text-warning uppercase">TE Config Missing</span>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="flex items-center gap-2 mb-4 flex-wrap">
                                         <button
                                             onClick={() => applyAutoPricing("flower")}

@@ -23,6 +23,7 @@ import {
     resetTokenInitiate,
     resetTokenVerify,
 } from "@/lib/ledger-api";
+import { getTEApiKey, setTEApiKey } from "@/lib/old/api-keys";
 import {
     saveAuth,
     clearAuth,
@@ -83,6 +84,8 @@ export default function AccountPage() {
 
     const [auth, setAuth] = useState<StoredAuth | null>(null);
     const [showSecretToken, setShowSecretToken] = useState(false);
+    const [teKey, setTeKey] = useState("");
+    const [showTeKey, setShowTeKey] = useState(false);
 
     const [verificationData, setVerificationData] = useState<{
         amount?: number;
@@ -105,7 +108,14 @@ export default function AccountPage() {
         if (stored) {
             setAuth(stored);
         }
+        setTeKey(getTEApiKey());
     }, []);
+
+    const handleSaveTEKey = () => {
+        setTEApiKey(teKey);
+        vibrate("success");
+        alert("TornExchange API Key saved!");
+    };
 
     const handleSignIn = async () => {
         if (!userIdInput.trim() || !secretTokenInput.trim()) {
@@ -400,6 +410,48 @@ export default function AccountPage() {
                             >
                                 <HugeiconsIcon icon={Copy01Icon} size={20} />
                             </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 pt-6 border-t border-border">
+                        <div className="flex items-center gap-2 mb-4">
+                            <HugeiconsIcon icon={RefreshIcon} size={18} className="text-primary" />
+                            <h2 className="font-bold text-sm uppercase tracking-widest leading-none">External Integrations</h2>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div className="p-4 bg-foreground/[0.02] border border-border/50 rounded-xl">
+                                <label className="block text-muted font-bold text-[10px] uppercase tracking-[0.2em] mb-3">
+                                    TornExchange API Key
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type={showTeKey ? "text" : "password"}
+                                            value={teKey}
+                                            onChange={(e) => setTeKey(e.target.value)}
+                                            placeholder="Enter your TornExchange API Key"
+                                            className="w-full bg-background pl-4 pr-12 py-3 font-mono text-sm border border-border focus:border-primary outline-none transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowTeKey(!showTeKey)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground transition-colors"
+                                        >
+                                            <HugeiconsIcon icon={showTeKey ? ViewIcon : EyeIcon} size={18} />
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={handleSaveTEKey}
+                                        className="px-6 py-3 bg-primary text-primary-foreground font-bold text-[11px] uppercase tracking-widest hover:opacity-90 shadow-lg shadow-primary/20 transition-all active:scale-95 whitespace-nowrap"
+                                    >
+                                        Save Key
+                                    </button>
+                                </div>
+                                <p className="mt-2.5 text-[10px] text-muted flex items-center gap-1.5">
+                                    <HugeiconsIcon icon={InformationCircleIcon} size={12} />
+                                    <span>Find your key at <a href="https://tornexchange.com/profile" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-bold">tornexchange.com/profile</a></span>
+                                </p>
+                            </div>
                         </div>
                     </div>
 

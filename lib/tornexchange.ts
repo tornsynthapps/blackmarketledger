@@ -58,7 +58,7 @@ export interface TornExchangeMarketPrice {
 export class TornExchange {
     private static instance: TornExchange;
     private limiter: NewRateLimiter;
-    private baseUrl = "https://tornexchange.com/api";
+    private baseUrl = "https://www.tornexchange.com/api";
 
     private constructor() {
         const limit = getTERateLimit() || 5;
