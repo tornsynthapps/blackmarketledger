@@ -32,8 +32,10 @@ import {
 import {
     calculateInventoryFromTransactions,
     InventoryItemStats,
+    TransactionBuilder,
 } from "@/lib/old/interfaces/transactions";
 import { TransactionSourceType } from "@/lib/old/parser";
+import { TornAPIClient } from "@/lib/tornAPI";
 import { TronWrapper } from "@/lib/old/torn-wrapper";
 import { needsItemSync } from "@/lib/old/cursor";
 import { T3BAPI, TornAPI } from "@/lib/old/game/api";
@@ -124,6 +126,7 @@ export default function AutoPilotPage() {
         syncState,
         driveApiKey,
         refreshDriveCache,
+        saveTransactions,
     } = useJournal();
 
     const [trades, setTrades] = useState<TornTrade[]>([]);
@@ -392,6 +395,49 @@ export default function AutoPilotPage() {
             autoPilotTradeCursor: newCursor,
             autoPilotItemCursor: newCursor,
         });
+
+        if (tornApiKeyFull) {
+            try {
+                setStatusMessage("Fetching current Torn inventory & market prices...");
+                const [inventoryMap, marketPrices, itemNames] = await Promise.all([
+                    TornAPIClient.fetchInventory(),
+                    TornAPIClient.getMarketPrices(),
+                    TornAPIClient.getItemNames()
+                ]);
+                
+                const inventoryIds = Object.keys(inventoryMap);
+
+                if (inventoryIds.length > 0) {
+                    const builder = new TransactionBuilder(transactions);
+                    for (const strId of inventoryIds) {
+                        const id = parseInt(strId, 10);
+                        const quantity = inventoryMap[id];
+                        const name = itemNames[id] || `Item ${id}`;
+                        const price = marketPrices[id] || 0;
+                        
+                        if (id > 0 && quantity > 0) {
+                            builder.addTransaction({
+                                timestamp: now,
+                                itemID: id,
+                                itemName: name,
+                                amount: quantity,
+                                price: price,
+                                source: "inventory" as any,
+                                description: "Auto-Pilot Initial Snapshot"
+                            });
+                        }
+                    }
+                    
+                    const newTransactions = builder.getTransactions();
+                    saveTransactions(newTransactions);
+                    setStatusMessage(`Inventory snapshot synchronized items to Market Price.`);
+                }
+            } catch (error) {
+                console.error(error);
+                setStatusMessage(`Warning: failed to fetch inventory: ${error instanceof Error ? error.message : "Unknown error"}`);
+            }
+        }
+
         setStatusMessage(
             `Auto-Pilot initialized at ${new Date(now * 1000).toLocaleString()}. Future syncs will start from this cursor.`
         );
@@ -471,16 +517,8 @@ export default function AutoPilotPage() {
                     });
                     setStatusMessage(`Migrated from legacy cursor. Starting sync...`);
                 } else {
-                    const now = Math.floor(Date.now() / 1000);
-                    const newCursor = { lastTimestamp: now, lastLogId: "" };
-                    tradeCursor = newCursor;
-                    itemCursor = newCursor;
-                    await saveAutoPilotState({
-                        autoPilotCursor: newCursor,
-                        autoPilotTradeCursor: newCursor,
-                        autoPilotItemCursor: newCursor,
-                    });
-                    setStatusMessage(`Auto-Pilot initialized. Starting sync...`);
+                    await initializeCursorNow();
+                    return;
                 }
             }
 

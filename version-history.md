@@ -1,5 +1,11 @@
 # BlackMarket Ledger Version History
 
+## beta-6.3 (2026-04-26)
+
+- **Auto-Pilot**: Enhanced Torn API integration with new TornAPIClient for inventory, market prices, and item names
+- **Agents**: Added helper modules for agent operations (check_categories, read_torn_api, search_torn_api)
+- **Core**: Improved Auto-Pilot sync logic and state management in useJournal hook
+
 ## beta-6.2 (2026-04-20)
 
 - **Changelog**: Fixed parsing of beta-v versions with correct prefix.

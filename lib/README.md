@@ -18,6 +18,11 @@ Core library utilities and API integrations.
     - Receipt management (`getReceipt`, `getReceipts`)
     - Pricelist management (`getPricelist`, `getMyPricelist`, `delistItems`, `updateItemPricesByPercentage`, `updateItemPricesByFixed`)
     - Global market data (`getAllPrices`)
+- `tornAPI.ts` - Internal Torn API client utilities
+    - `TornAPIClient.fetchInventory()` - Fetch user's safe inventory directly from Torn API
+    - `TornAPIClient.getMarketPrices()` - Fetch current global market prices for all Torn items
+    - `TornAPIClient.getItemNames()` - Fetch canonical names for all Torn items
+    - `TORN_INVENTORY_CATEGORIES` - Complete list of valid Torn inventory categories
 
 ## Subdirectories
 

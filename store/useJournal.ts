@@ -1142,5 +1142,6 @@ export function useJournal() {
         readCachedTransactions,
         driveCacheSyncedAt:
             typeof window !== "undefined" ? localStorage.getItem(DRIVE_CACHE_SYNCED_AT_KEY) : null,
+        saveTransactions,
     };
 }
