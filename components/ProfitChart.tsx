@@ -18,6 +18,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Activity01Icon, Layers01Icon, BarChartIcon } from "@hugeicons/core-free-icons";
 import { CATEGORY_COLORS } from "@/lib/old/theme";
+import { useSettings } from "@/lib/old/useSettings";
 
 interface ChartDataPoint {
     date: string;
@@ -72,6 +73,7 @@ export function ProfitChart({
         realizedProfit: true,
     },
 }: ProfitChartProps) {
+    const { settings } = useSettings();
     const [chartType, setChartType] = useState<"line" | "area" | "bar">(
         stackedMode ? "area" : "area"
     );
@@ -242,6 +244,7 @@ export function ProfitChart({
                                     dataKey="realizedProfit"
                                     fill={CATEGORY_COLORS.trading.hex}
                                     stackId="1"
+                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
                                 />
                             )}
                             {visibleLines.museumProfit && (
@@ -249,6 +252,7 @@ export function ProfitChart({
                                     dataKey="museumProfit"
                                     fill={CATEGORY_COLORS.museum.hex}
                                     stackId="1"
+                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
                                 />
                             )}
                             {visibleLines.abroadProfit && (
@@ -256,14 +260,20 @@ export function ProfitChart({
                                     dataKey="abroadProfit"
                                     fill={CATEGORY_COLORS.abroad.hex}
                                     stackId="1"
+                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
                                 />
                             )}
                             {visibleLines.mugLoss && (
-                                <Bar dataKey="mugLoss" fill={CATEGORY_COLORS.mug.hex} stackId="1" />
+                                <Bar 
+                                    dataKey="mugLoss" 
+                                    fill={CATEGORY_COLORS.mug.hex} 
+                                    stackId="1" 
+                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
+                                />
                             )}
                             {visibleLines.netProfit && (
                                 <Line
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}
@@ -337,7 +347,7 @@ export function ProfitChart({
                             />
                             {visibleLines.realizedProfit && (
                                 <Line
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="realizedProfit"
                                     stroke={CATEGORY_COLORS.trading.hex}
                                     strokeWidth={1.5}
@@ -346,7 +356,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.museumProfit && (
                                 <Line
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="museumProfit"
                                     stroke={CATEGORY_COLORS.museum.hex}
                                     strokeWidth={1.5}
@@ -355,7 +365,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.abroadProfit && (
                                 <Line
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="abroadProfit"
                                     stroke={CATEGORY_COLORS.abroad.hex}
                                     strokeWidth={1.5}
@@ -364,7 +374,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.mugLoss && (
                                 <Line
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="mugLoss"
                                     stroke={CATEGORY_COLORS.mug.hex}
                                     strokeWidth={1.5}
@@ -373,7 +383,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.netProfit && (
                                 <Line
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}
@@ -447,7 +457,7 @@ export function ProfitChart({
                             />
                             {visibleLines.realizedProfit && (
                                 <Area
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="realizedProfit"
                                     stroke={CATEGORY_COLORS.trading.hex}
                                     strokeWidth={1.5}
@@ -458,7 +468,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.museumProfit && (
                                 <Area
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="museumProfit"
                                     stroke={CATEGORY_COLORS.museum.hex}
                                     strokeWidth={1.5}
@@ -469,7 +479,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.abroadProfit && (
                                 <Area
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="abroadProfit"
                                     stroke={CATEGORY_COLORS.abroad.hex}
                                     strokeWidth={1.5}
@@ -480,7 +490,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.mugLoss && (
                                 <Area
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="mugLoss"
                                     stroke={CATEGORY_COLORS.mug.hex}
                                     strokeWidth={1.5}
@@ -491,7 +501,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.netProfit && (
                                 <Line
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}
@@ -555,7 +565,12 @@ export function ProfitChart({
                                     viewType === "total" ? "CUMULATIVE" : "INCREMENTAL",
                                 ]}
                             />
-                            <Bar dataKey="profit" fill="var(--primary)" opacity={0.8} />
+                            <Bar 
+                                dataKey="profit" 
+                                fill="var(--primary)" 
+                                opacity={0.8} 
+                                radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
+                            />
                             <ReferenceLine
                                 y={referenceValue}
                                 stroke="var(--primary)"
@@ -624,7 +639,7 @@ export function ProfitChart({
                                 ]}
                             />
                             <Line
-                                type="stepAfter"
+                                type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                 dataKey="profit"
                                 stroke="var(--primary)"
                                 strokeWidth={2}
@@ -699,7 +714,7 @@ export function ProfitChart({
                                 ]}
                             />
                             <Area
-                                type="stepAfter"
+                                type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                 dataKey="profit"
                                 stroke="var(--primary)"
                                 strokeWidth={2}

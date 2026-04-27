@@ -34,6 +34,7 @@ import {
     subMonths,
 } from "date-fns";
 import { InventorySnapshot, LedgerTotals, applyTransaction, getTotals } from "@/lib/old/chartUtils";
+import { useSettings } from "@/lib/old/useSettings";
 
 interface StatsModalProps {
     isOpen: boolean;
@@ -59,6 +60,7 @@ export default function StatsModal({
     excludedItems = [],
     inventoryScope = "normal",
 }: StatsModalProps) {
+    const { settings } = useSettings();
     const [timeRange, setTimeRange] = useState<TimeRange>("daily");
     const [viewType, setViewType] = useState<"cumulative" | "incremental">("cumulative");
 
@@ -350,7 +352,7 @@ export default function StatsModal({
                                     ]}
                                 />
                                 <Area
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="mugLoss"
                                     stackId="1"
                                     stroke="var(--danger)"
@@ -359,7 +361,7 @@ export default function StatsModal({
                                     fillOpacity={0.2}
                                 />
                                 <Area
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="realizedProfit"
                                     stackId="1"
                                     stroke="var(--success)"
@@ -368,7 +370,7 @@ export default function StatsModal({
                                     fillOpacity={0.2}
                                 />
                                 <Area
-                                    type="stepAfter"
+                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}

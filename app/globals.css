@@ -293,3 +293,19 @@ tr:hover td {
         display: none !important;
     }
 }
+
+/* Playful Theme Font Overrides */
+.theme-playful, 
+.theme-playful * {
+    font-family: var(--font-sour-gummy), cursive !important;
+}
+
+.theme-playful h1,
+.theme-playful h2,
+.theme-playful h3,
+.theme-playful h4,
+.theme-playful h5,
+.theme-playful h6,
+.theme-playful th {
+    text-transform: none !important;
+}

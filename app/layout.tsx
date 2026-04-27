@@ -6,6 +6,12 @@ import { VisitorCounter } from "@/components/VisitorCounter";
 import { ServiceRail } from "@/components/ServiceRail";
 import Link from "next/link";
 import { PromoBannersDesktop } from "@/components/SideBanners";
+import { Sour_Gummy } from "next/font/google";
+
+const sourGummy = Sour_Gummy({
+    subsets: ["latin"],
+    variable: "--font-sour-gummy",
+});
 
 export const metadata: Metadata = {
     title: "BlackMarket Ledger",
@@ -24,7 +30,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang="en" className={sourGummy.variable} suppressHydrationWarning>
             <head>
                 <script
                     dangerouslySetInnerHTML={{
@@ -43,6 +49,13 @@ export default function RootLayout({
                 if (localStorage.getItem('theme_nav_left') === 'true') {
                   document.documentElement.classList.add('layout-nav-left');
                 }
+
+                try {
+                  const settings = JSON.parse(localStorage.getItem('ledger-settings') || '{}');
+                  if (settings.themeStyle === 'playful') {
+                    document.documentElement.classList.add('theme-playful');
+                  }
+                } catch (_) {}
               } catch (_) {}
             `,
                     }}
