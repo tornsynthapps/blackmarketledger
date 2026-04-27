@@ -37,7 +37,6 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 const navItems = [
     { name: "Dashboard", href: "/", icon: ChartRadarIcon, color: "var(--info)" },
     { name: "Museum", href: "/museum", icon: BankIcon, color: "var(--warning)" },
-    { name: "Pricelist", href: "/pricelist/manage", icon: TableIcon, color: "var(--primary)" },
     { name: "Abroad", href: "/abroad", icon: Airplane02Icon, color: "var(--success)" },
     { name: "Logs", href: "/logs", icon: ReceiptTextIcon, color: "var(--secondary)" },
     { name: "Terminal", href: "/add", icon: ComputerTerminal01Icon, color: "var(--muted)" },

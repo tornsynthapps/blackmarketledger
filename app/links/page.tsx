@@ -91,6 +91,12 @@ export default function LinksPage() {
             desc: "Manage your API keys and profile",
         },
         {
+            name: "Pricelist",
+            href: "/pricelist",
+            icon: Exchange01Icon,
+            desc: "Manage and compare your custom pricelists",
+        },
+        {
             name: "Blackbox",
             href: "/blackbox",
             icon: PackageProcessIcon,
@@ -116,6 +122,12 @@ export default function LinksPage() {
             href: "/public/mugs",
             icon: UserGroupIcon,
             desc: "Public mugging and yoink leaderboards",
+        },
+        {
+            name: "Public Pricelist",
+            href: "/pricelist/view",
+            icon: File01Icon,
+            desc: "Public viewer for your configured pricelist",
         },
         {
             name: "Documentation",

@@ -89,7 +89,9 @@ const parseFavoriteEntries = (raw: string | null): FavoriteEntry[] => {
 
 export default function PricelistClientPage() {
     const searchParams = useSearchParams();
-    const userID = searchParams.get("userID") ?? "";
+    const xidParam = searchParams.get("XID");
+    // Fall back to old userID param temporarily if needed, but prefer XID
+    const userID = xidParam ?? searchParams.get("userID") ?? "";
     const numericUserId = Number(userID);
     const isValidUserId = Number.isInteger(numericUserId) && numericUserId > 0;
 
@@ -657,7 +659,7 @@ export default function PricelistClientPage() {
             {!userID ? (
                 <section className="mt-6 border border-border bg-panel px-5 py-6">
                     <p className="font-mono text-xs uppercase tracking-[0.25em] text-muted">
-                        Open with `?userID=3165209`.
+                        Open with `?XID=3165209`.
                     </p>
                 </section>
             ) : null}
