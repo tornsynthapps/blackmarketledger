@@ -1,5 +1,11 @@
 # BlackMarket Ledger Version History
 
+## beta-6.4 (2026-04-27)
+
+- **Settings**: New settings page with theme controls and global tokens
+- **UI**: Dark/light logo sets replacing single favicon; dual-theme asset pipeline
+- **Pricelist**: User-specific dynamic routes (`[userID]/page.tsx`), migrated from manage page; consolidated view layer
+
 ## beta-6.3 (2026-04-26)
 
 - **Auto-Pilot**: Enhanced Torn API integration with new TornAPIClient for inventory, market prices, and item names

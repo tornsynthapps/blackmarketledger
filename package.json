@@ -1,6 +1,6 @@
 {
     "name": "blackmarket-ledger",
-    "version": "0.6.3",
+    "version": "0.6.4",
     "private": true,
     "scripts": {
         "dev": "next dev",
