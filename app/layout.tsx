@@ -10,6 +10,10 @@ import { PromoBannersDesktop } from "@/components/SideBanners";
 export const metadata: Metadata = {
     title: "BlackMarket Ledger",
     description: "Track inventory, profits, and flushie conversions securely in your browser.",
+    icons: [
+        { rel: "icon", url: "/logos/light/favicon.ico", media: "(prefers-color-scheme: light)" },
+        { rel: "icon", url: "/logos/dark/favicon.ico", media: "(prefers-color-scheme: dark)" },
+    ],
 };
 
 import { LayoutWrapper } from "@/components/LayoutWrapper";

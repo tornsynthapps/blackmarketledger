@@ -102,28 +102,14 @@ export function Navigation() {
                     <Link
                         href="/"
                         onClick={() => vibrate("nav")}
-                        className="flex items-center gap-3"
+                        className="flex items-center justify-center p-2"
                     >
-                        <div className="bg-primary p-1.5 border border-primary">
-                            <HugeiconsIcon
-                                icon={DatabaseIcon}
-                                size={20}
-                                color="var(--primary-foreground)"
-                            />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="font-bold text-lg tracking-tight hidden sm:block leading-none uppercase font-vt323">
-                                BlackMarket Ledger
-                            </span>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] font-mono font-bold text-primary px-1 border border-primary/20">
-                                    V{pkg.version}
-                                </span>
-                                <span className="text-[9px] font-bold text-muted uppercase tracking-wider hidden sm:block">
-                                    Industrial Engine
-                                </span>
-                            </div>
-                        </div>
+                        {/* New logo replacing text and old database icon */}
+                        {isDark ? (
+                            <img src="/logos/dark/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-8 h-8 object-contain" />
+                        ) : (
+                            <img src="/logos/light/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-8 h-8 object-contain" />
+                        )}
                     </Link>
 
                     <div className="hidden sm:flex items-center gap-1">
@@ -203,24 +189,20 @@ export function Navigation() {
                     <Link
                         href="/"
                         onClick={() => vibrate("nav")}
-                        className="flex items-center gap-3 px-2"
+                        className="flex flex-row items-center gap-3 px-1"
                     >
-                        <div className="bg-primary p-2">
-                            <HugeiconsIcon
-                                icon={DatabaseIcon}
-                                size={24}
-                                color="var(--primary-foreground)"
-                            />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-lg tracking-tighter leading-none uppercase font-vt323">
-                                BLACKMARKET LEDGER
+                        {isDark ? (
+                            <img src="/logos/dark/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
+                        ) : (
+                            <img src="/logos/light/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
+                        )}
+                        <div className="flex flex-col min-w-0 justify-center leading-none mt-1">
+                            <span className="font-bold text-[22px] tracking-wider font-vt323 leading-[0.9]">
+                                BlackMarket
                             </span>
-                            <div className="flex items-center gap-1 mt-1">
-                                <span className="text-[10px] font-mono font-bold text-muted">
-                                    V{pkg.version}
-                                </span>
-                            </div>
+                            <span className="font-bold text-[22px] tracking-wider font-vt323 leading-[0.9]">
+                                Ledger
+                            </span>
                         </div>
                     </Link>
 
