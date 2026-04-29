@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Navigation } from "@/components/Navigation";
-import { Banners } from "@/components/Banners";
-import { VisitorCounter } from "@/components/VisitorCounter";
-import { ServiceRail } from "@/components/ServiceRail";
-import Link from "next/link";
-import { PromoBannersDesktop } from "@/components/SideBanners";
-import { Sour_Gummy } from "next/font/google";
+import { Sour_Gummy, Space_Mono, Cascadia_Code } from "next/font/google";
 
 const sourGummy = Sour_Gummy({
     subsets: ["latin"],
     variable: "--font-sour-gummy",
+});
+
+const spaceMono = Space_Mono({
+    subsets: ["latin"],
+    weight: ["400", "700"],
+    variable: "--font-space-mono-google",
+});
+
+const cascadiaCode = Cascadia_Code({
+    subsets: ["latin"],
+    variable: "--font-cascadia-code",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +35,11 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className={sourGummy.variable} suppressHydrationWarning>
+        <html
+            lang="en"
+            className={`${sourGummy.variable} ${spaceMono.variable} ${cascadiaCode.variable}`}
+            suppressHydrationWarning
+        >
             <head>
                 <script
                     dangerouslySetInnerHTML={{
@@ -54,6 +63,9 @@ export default function RootLayout({
                   const settings = JSON.parse(localStorage.getItem('ledger-settings') || '{}');
                   if (settings.themeStyle === 'playful') {
                     document.documentElement.classList.add('theme-playful');
+                  }
+                  if (settings.monospaceFont === 'cascadia') {
+                    document.documentElement.classList.add('font-cascadia');
                   }
                 } catch (_) {}
               } catch (_) {}

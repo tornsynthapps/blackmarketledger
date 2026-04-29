@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 export interface LedgerSettings {
     boxyGraph: boolean;
     themeStyle: "classic" | "playful";
+    monospaceFont: "space" | "cascadia";
 }
 
 const STORAGE_KEY = "ledger-settings";
@@ -12,6 +13,7 @@ const STORAGE_KEY = "ledger-settings";
 const DEFAULT_SETTINGS: LedgerSettings = {
     boxyGraph: true,
     themeStyle: "classic",
+    monospaceFont: "space",
 };
 
 export function useSettings() {
@@ -51,11 +53,12 @@ export function useSettings() {
         return () => window.removeEventListener("ledger-settings-updated", handler);
     }, []);
 
-    // Apply theme class globally
+    // Apply global classes
     useEffect(() => {
         if (!isLoaded) return;
         document.documentElement.classList.toggle("theme-playful", settings.themeStyle === "playful");
-    }, [settings.themeStyle, isLoaded]);
+        document.documentElement.classList.toggle("font-cascadia", settings.monospaceFont === "cascadia");
+    }, [settings.themeStyle, settings.monospaceFont, isLoaded]);
 
     return { settings, updateSetting, isLoaded };
 }

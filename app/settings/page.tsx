@@ -77,7 +77,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* App Theme */}
-                    <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors">
+                    <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
                         <div className="space-y-0.5">
                             <h4 className="font-bold text-sm uppercase tracking-tight">App Theme</h4>
                             <p className="text-[10px] text-muted max-w-sm italic opacity-80">Select between Classic industrial or Playful visual style.</p>
@@ -103,6 +103,36 @@ export default function SettingsPage() {
                                             UNDER CONSTRUCTION
                                         </span>
                                     )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Monospace Font */}
+                    <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors">
+                        <div className="space-y-0.5">
+                            <h4 className="font-bold text-sm uppercase tracking-tight">Monospace Font</h4>
+                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Choose your preferred font for data and code views.</p>
+                        </div>
+                        
+                        <div className="flex border-2 border-border-strong p-1 bg-muted/20">
+                            {[
+                                { label: "Space Mono", value: "space" },
+                                { label: "Cascadia Code", value: "cascadia" },
+                            ].map((opt) => (
+                                <button
+                                    key={opt.label}
+                                    onClick={() => {
+                                        vibrate("utility");
+                                        updateSetting("monospaceFont", opt.value as any);
+                                    }}
+                                    className={`px-4 py-1 text-[10px] font-black uppercase transition-all ${
+                                        settings.monospaceFont === opt.value
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted hover:text-foreground"
+                                    }`}
+                                >
+                                    {opt.label}
                                 </button>
                             ))}
                         </div>

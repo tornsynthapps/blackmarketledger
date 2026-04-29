@@ -84,9 +84,15 @@
     --font-space-grotesk: "Space Grotesk", sans-serif;
     --font-space-mono: "Space Mono", monospace;
 
+    --font-monospace-active: var(--font-space-mono);
+
     /* Snappy Transitions */
     --transition-speed: 150ms;
     --transition-timing: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root.font-cascadia {
+    --font-monospace-active: var(--font-cascadia-code), "Cascadia Code", "Consolas", monospace;
 }
 
 :root.light {
@@ -126,7 +132,7 @@
 
     --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
     --font-mono:
-        var(--font-space-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        var(--font-monospace-active), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --font-vt323: "VT323", monospace;
 
     --animate-snappy: cubic-bezier(0.2, 0, 0, 1);
