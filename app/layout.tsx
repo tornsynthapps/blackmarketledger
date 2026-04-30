@@ -67,6 +67,9 @@ export default function RootLayout({
                   if (settings.monospaceFont === 'cascadia') {
                     document.documentElement.classList.add('font-cascadia');
                   }
+                  if (settings.backgroundStyle === 'grid') {
+                    document.documentElement.classList.add('bg-grid');
+                  }
                 } catch (_) {}
               } catch (_) {}
             `,

@@ -108,6 +108,36 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
+                    {/* Background Style */}
+                    <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
+                        <div className="space-y-0.5">
+                            <h4 className="font-bold text-sm uppercase tracking-tight">Background Style</h4>
+                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Choose between the classic industrial Dots or technical Gridlines.</p>
+                        </div>
+                        
+                        <div className="flex border-2 border-border-strong p-1 bg-muted/20">
+                            {[
+                                { label: "Dots", value: "dots" },
+                                { label: "Grid", value: "grid" },
+                            ].map((opt) => (
+                                <button
+                                    key={opt.label}
+                                    onClick={() => {
+                                        vibrate("utility");
+                                        updateSetting("backgroundStyle", opt.value as any);
+                                    }}
+                                    className={`px-4 py-1 text-[10px] font-black uppercase transition-all ${
+                                        settings.backgroundStyle === opt.value
+                                            ? "bg-primary text-primary-foreground"
+                                            : "text-muted hover:text-foreground"
+                                    }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Monospace Font */}
                     <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors">
                         <div className="space-y-0.5">
