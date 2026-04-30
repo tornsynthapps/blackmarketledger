@@ -8,10 +8,13 @@ import {
 } from "./BaseObject";
 
 export type ItemLogWrapperType =
-    | "auto-convert"
-    | "manual-convert"
-    | "museum-exchange"
-    | "trade-split";
+    // "auto-split": Splits the item log into multiple logs across categories
+    // when selling more quantity than the amount available in the current
+    // category.
+    | "auto-split"
+    // "manual-transfer": Transfers the item from one category to another.
+    // Used to convert abroad and city-finds into normal.
+    | "manual-transfer";
 
 export interface ItemLogWrapperCreateFields {
     timestamp: number;

@@ -184,6 +184,18 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
     }
 
     /**
+     * Fetches all item logs associated with a specific wrapper.
+     * @param wrapperId (number): Unique identifier of the wrapper
+     * @returns (Promise<ItemLog[]>): Array of item logs linked to the wrapper
+     * @sideEffects Reads from IndexedDB through Dexie
+     */
+    public async getLogsByWrapperId(wrapperId: number): Promise<ItemLog[]> {
+        const records = await this.tableRef.where("wrapper_id").equals(wrapperId).toArray();
+
+        return records.map((record) => ItemLog.fromDatabase(record));
+    }
+
+    /**
      * Retrieves the latest running totals for each category before a given timestamp.
      * @param itemId (number): Unique identifier of the item
      * @param timestamp (number): The threshold timestamp
