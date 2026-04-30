@@ -14,24 +14,45 @@ export type ItemLogWrapperType =
     | "auto-split"
     // "manual-transfer": Transfers the item from one category to another.
     // Used to convert abroad and city-finds into normal.
-    | "manual-transfer";
+    | "manual-transfer"
+    // "museum-exchange": Exchanges one or more items for points in the museum.
+    // Has sub-type to indicate set of items to exchange.
+    | "museum-exchange";
+
+export type ItemLogWrapperSubType =
+    // Museum Exchange
+    | "plushie-set"
+    | "exotic-flower-set"
+    | "meteorite-fragment"
+    | "patagonian-fossil"
+    | "arrowhead-set"
+    | "medieval-coin-set"
+    | "vairocana-buddha"
+    | "ganesha-sculpture"
+    | "shabti-sculpture"
+    | "companion-scripts"
+    | "senet-game-set"
+    | "egyptian-amulet";
 
 export interface ItemLogWrapperCreateFields {
     timestamp: number;
     type: ItemLogWrapperType;
     description: string;
+    sub_type?: ItemLogWrapperSubType | null;
 }
 
 export interface ItemLogWrapperDatabaseRecord extends BaseObjectDatabaseRecord {
     type: ItemLogWrapperType;
     description: string;
+    sub_type?: ItemLogWrapperSubType | null;
 }
 
 export class ItemLogWrapper extends BaseObject {
-    private static readonly CURRENT_VERSION = 1;
+    private static readonly CURRENT_VERSION = 2;
 
     public readonly type: ItemLogWrapperType;
     public readonly description: string;
+    public readonly sub_type: ItemLogWrapperSubType | null;
 
     /**
      * Creates an item log wrapper with optional persisted metadata.
@@ -48,6 +69,7 @@ export class ItemLogWrapper extends BaseObject {
 
         this.type = fields.type;
         this.description = fields.description;
+        this.sub_type = fields.sub_type ?? null;
     }
 
     /**
@@ -75,6 +97,7 @@ export class ItemLogWrapper extends BaseObject {
                 timestamp: record.timestamp,
                 type: record.type,
                 description: record.description,
+                sub_type: (record.sub_type as ItemLogWrapperSubType) ?? null,
             },
             databaseFields
         );
@@ -90,6 +113,7 @@ export class ItemLogWrapper extends BaseObject {
             ...this.toBaseDatabaseRecord(),
             type: this.type,
             description: this.description,
+            sub_type: this.sub_type,
         };
     }
 }

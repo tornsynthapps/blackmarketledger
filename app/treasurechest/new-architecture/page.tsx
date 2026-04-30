@@ -201,7 +201,8 @@ export default function NewArchitecturePage() {
     };
 
     const handleAddWrapper = async () => {
-        const type = prompt("Enter Wrapper Type (auto-split | manual-transfer):", "manual-transfer") as any;
+        const type = prompt("Enter Wrapper Type (auto-split | manual-transfer | museum-exchange):", "manual-transfer") as any;
+        const subType = prompt("Enter Sub-Type (plushie-set | flower-set | leave empty for none):", "");
         const description = prompt("Enter Description:", "Manual transfer");
         const timestamp = prompt("Enter Timestamp (ms):", Date.now().toString());
 
@@ -209,6 +210,7 @@ export default function NewArchitecturePage() {
             try {
                 const wrapper = ItemLogWrapper.create({
                     type,
+                    sub_type: (subType as any) || null,
                     description,
                     timestamp: parseInt(timestamp),
                 });
@@ -547,6 +549,7 @@ export default function NewArchitecturePage() {
                                             <tr className="bg-panel/50 border-b border-border-strong text-[9px] font-black uppercase tracking-[0.3em] text-muted whitespace-nowrap">
                                                 <th className="p-2 border-r border-border-strong/50">ID</th>
                                                 <th className="p-2 border-r border-border-strong/50">Type</th>
+                                                <th className="p-2 border-r border-border-strong/50">Subtype</th>
                                                 <th className="p-2 border-r border-border-strong/50">Desc</th>
                                                 <th className="p-2 border-r border-border-strong/50">Time</th>
                                                 <th className="p-2 border-r border-border-strong/50">Updated</th>
@@ -565,6 +568,15 @@ export default function NewArchitecturePage() {
                                                         <span className="px-2 py-0.5 border border-border-strong bg-panel text-[8px] font-black uppercase tracking-wider">
                                                             {wrapper.type}
                                                         </span>
+                                                    </td>
+                                                    <td className="p-2 border-r border-border-strong/30">
+                                                        {wrapper.sub_type ? (
+                                                            <span className="px-2 py-0.5 border border-border-strong bg-info/10 text-info text-[8px] font-black uppercase tracking-wider">
+                                                                {wrapper.sub_type}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted/40 italic">-</span>
+                                                        )}
                                                     </td>
                                                     <td className="p-2 border-r border-border-strong/30">{wrapper.description}</td>
                                                     <td className="p-2 border-r border-border-strong/30 text-muted/60">
