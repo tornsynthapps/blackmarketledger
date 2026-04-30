@@ -6,7 +6,7 @@ export interface LedgerSettings {
     boxyGraph: boolean;
     themeStyle: "classic" | "playful";
     monospaceFont: "space" | "cascadia";
-    backgroundStyle: "dots" | "grid";
+    backgroundStyle: "dots" | "grid" | "crosses" | "scanlines" | "diagonal" | "solid" | "blueprint" | "noise" | "big-grid";
 }
 
 const STORAGE_KEY = "ledger-settings";
@@ -60,7 +60,13 @@ export function useSettings() {
         if (!isLoaded) return;
         document.documentElement.classList.toggle("theme-playful", settings.themeStyle === "playful");
         document.documentElement.classList.toggle("font-cascadia", settings.monospaceFont === "cascadia");
-        document.documentElement.classList.toggle("bg-grid", settings.backgroundStyle === "grid");
+
+        // Background Style
+        const bgClasses = ["bg-grid", "bg-crosses", "bg-scanlines", "bg-diagonal", "bg-solid", "bg-blueprint", "bg-noise", "bg-big-grid"];
+        bgClasses.forEach((cls) => document.documentElement.classList.remove(cls));
+        if (settings.backgroundStyle !== "dots") {
+            document.documentElement.classList.add(`bg-${settings.backgroundStyle}`);
+        }
     }, [settings.themeStyle, settings.monospaceFont, settings.backgroundStyle, isLoaded]);
 
     return { settings, updateSetting, isLoaded };
