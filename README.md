@@ -77,10 +77,6 @@ Explore our full documentation suite in the [`docs/`](./docs/) directory:
 
 We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING) for details on our code of conduct and the process for submitting pull requests.
 
-## ⚖️ License
-
-This project is licensed under the [MIT License](./LICENSE) (if applicable) or as specified in the repository.
-
 ---
 
 _Built with ❤️ for the Torn community by [TornSynthApps](https://github.com/tornsynthapps)._
