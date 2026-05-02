@@ -66,3 +66,6 @@ skills-lock.json
 
 # Cloudflare
 .wrangler
+
+# Local Orgainzation
+private
