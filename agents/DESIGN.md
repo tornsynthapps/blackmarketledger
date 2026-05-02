@@ -65,6 +65,12 @@ A brutally precise, engineered interface that feels _manufactured_, not decorate
 
 - Animations feel like toggles, not fluid morphs
 
+### 2.6 Zero Fluff (Utility First)
+
+- Every UI element must be 100% useful.
+- Never add unrequested data, such as long subtitles or descriptions, unless explicitly asked.
+- If a piece of information doesn't serve a direct functional purpose, remove it.
+
 ---
 
 ## 3. Visual Language

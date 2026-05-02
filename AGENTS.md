@@ -1,19 +1,11 @@
 # Agent Context & Logs
 
-This repository maintains an `.agent-logs/` folder to track autonomous AI AI development tasks, implementation plans, and feature walkthroughs.
+## Core Mandates
 
-Whenever active development is ongoing, the following artifacts will be updated inside `.agent-logs/`:
+AI agents MUST strictly adhere to the following guidelines for all development and design tasks:
 
-- **task.md**: A live checklist of the agent's current objective.
-- **implementation_plan.md**: Technical summaries of feature architectures before execution.
-- **walkthrough.md**: Reviews and validation test results following task execution.
+- **Engineering Standards:** Follow [agents/INSTRUCTIONS.md](agents/INSTRUCTIONS.md) for all code documentation, modular design, naming conventions, and quality standards.
+- **Design System:** Follow [agents/DESIGN.md](agents/DESIGN.md) (the "Hardline Interface" system) when designing or modifying any user interface or page.
+- **Codebase Navigation:** Utilize the `README.md` files located in every subdirectory (except the root) to understand the folder structure, purpose, and contents. Do NOT rely on the root `README.md` for technical navigation as it is user-facing.
 
-These logs act as persistent tracking context between coding sessions.
-
-## Versioning & Changelog Workflow
-
-Whenever new features are implemented and ready to be committed, the agent MUST follow these steps before committing:
-
-1. **Bump Version:** Increment the version number in `package.json` appropriately (major, minor, or patch depending on the scope of changes).
-2. **Update Changelog UI:** Modify `app/changelog/page.tsx` to include the newest version block at the top, describe the changes, and shift older versions down.
-3. **Commit & Tag:** Formally commit the codebase and tag the latest release using `git tag v[VERSION]` (e.g., `git tag v0.1.1`).
+This repository maintains an `.agent-logs/` folder to track autonomous AI development tasks, implementation plans, and feature walkthroughs.
