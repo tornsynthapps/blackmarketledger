@@ -35,6 +35,8 @@ import { refreshApiRateLimiters } from "@/lib/old/torn-api";
 import { sendToExtension } from "@/lib/old/bmlconnect";
 import { getGoogleDriveStatus } from "@/lib/old/drive-api";
 
+import { PageHeader } from "@/components/PageHeader";
+
 type ServiceItem = {
     name: string;
     active: boolean;
@@ -43,6 +45,7 @@ type ServiceItem = {
 export default function SettingsPage() {
     const { settings, updateSetting, isLoaded } = useSettings();
     const { vibrate } = useHapticFeedback();
+// ... (rest of imports and logic remains, but wait I need to be careful with replace)
 
     // Migrated from ServiceRail
     const {
@@ -183,17 +186,11 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="bg-panel border-2 border-primary p-4 relative overflow-hidden flex items-center justify-between">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 -mr-12 -mt-12 rotate-45 pointer-events-none" />
-                <div className="flex items-center gap-4">
-                    <HugeiconsIcon icon={Settings01Icon} size={24} className="text-primary" />
-                    <div>
-                        <h1 className="text-xl font-black uppercase tracking-tighter leading-none">Settings</h1>
-                        <p className="font-mono text-[9px] text-muted uppercase tracking-widest mt-1">System Configuration</p>
-                    </div>
-                </div>
-            </div>
+            <PageHeader 
+                title="Settings" 
+                description="System Configuration" 
+                icon={Settings01Icon} 
+            />
 
             {/* UI/UX Group */}
             <div className="space-y-3">

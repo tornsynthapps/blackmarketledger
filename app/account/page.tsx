@@ -34,6 +34,7 @@ import {
 } from "@/lib/old/token-auth";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import { clsx } from "clsx";
+import { PageHeader } from "@/components/PageHeader";
 
 type AuthMode = "signin" | "signup" | "forgot";
 type SignupMethod = "deposit" | "message";
@@ -331,18 +332,11 @@ export default function AccountPage() {
                 <div className="bg-card border-2 border-primary p-6">
                     <SecurityWarning />
 
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="bg-primary p-2">
-                            <HugeiconsIcon
-                                icon={UserIcon}
-                                size={24}
-                                color="var(--primary-foreground)"
-                            />
-                        </div>
-                        <h1 className="text-2xl font-bold font-vt323 uppercase tracking-wide">
-                            Account
-                        </h1>
-                    </div>
+                    <PageHeader 
+                        title="Account" 
+                        description="User Profile & Subscription" 
+                        icon={UserIcon} 
+                    />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="py-3 border-b border-border md:border md:rounded-lg md:p-4">
@@ -472,18 +466,11 @@ export default function AccountPage() {
             <div className="bg-card border-2 border-primary p-6">
                 <SecurityWarning />
 
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="bg-primary p-2">
-                        <HugeiconsIcon
-                            icon={UserIcon}
-                            size={24}
-                            color="var(--primary-foreground)"
-                        />
-                    </div>
-                    <h1 className="text-2xl font-bold font-vt323 uppercase tracking-wide">
-                        Account
-                    </h1>
-                </div>
+                <PageHeader 
+                    title="Account" 
+                    description="User Profile & Subscription" 
+                    icon={UserIcon} 
+                />
 
                 <div className="flex gap-2 mb-6">
                     <button

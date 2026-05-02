@@ -19,7 +19,7 @@ export type ItemLogWrapperType =
     // Has sub-type to indicate set of items to exchange.
     | "museum-exchange";
 
-export type ItemLogWrapperSubType =
+export type ItemLogWrapperMuseumSubType =
     // Museum Exchange
     | "plushie-set"
     | "exotic-flower-set"
@@ -33,6 +33,8 @@ export type ItemLogWrapperSubType =
     | "companion-scripts"
     | "senet-game-set"
     | "egyptian-amulet";
+
+export type ItemLogWrapperSubType = ItemLogWrapperMuseumSubType | null;
 
 export interface ItemLogWrapperCreateFields {
     timestamp: number;

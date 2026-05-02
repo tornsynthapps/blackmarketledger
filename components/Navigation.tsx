@@ -64,7 +64,7 @@ export function Navigation() {
                 setMuseumDrift(parsed.flowers || parsed.plushies);
             } catch {}
         }
-        
+
         const handleSync = (e: any) => {
             if (e.detail) {
                 setMuseumDrift(e.detail.flowers || e.detail.plushies);
@@ -137,7 +137,9 @@ export function Navigation() {
                                             icon={Icon}
                                             size={14}
                                             color={
-                                                isActive ? "var(--primary-foreground)" : "currentColor"
+                                                isActive
+                                                    ? "var(--primary-foreground)"
+                                                    : "currentColor"
                                             }
                                         />
                                         {item.name === "Museum" && museumDrift && (
