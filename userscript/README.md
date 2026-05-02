@@ -10,6 +10,7 @@ This folder contains the BlackMarket Ledger (BML) Userscript, which integrates w
 - **[core.js](core.js)**: Contains core utility functions, constants, and settings management (getting/setting values via Tampermonkey's API).
 - **[styles.js](styles.js)**: Defines and injects CSS styles for the BML UI components (cost basis cells, settings card, etc.).
 - **[torn-bazaar.js](torn-bazaar.js)**: The main logic for interacting with the Torn Bazaar UI, including observing DOM changes, processing item rows, and injecting BML price data.
+- **[legacy.user.js](legacy.user.js)**: A legacy version of the userscript that is not supported but kept for reference.
 
 ## Build Instructions
 
