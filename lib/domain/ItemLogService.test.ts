@@ -100,7 +100,7 @@ describe("ItemLogService", () => {
             const inputWrappers = parseWrappersCsv(path.join(testDataDir, `case${caseNum}_input_wrappers.csv`));
             const expectedOutputLogs = parseLogsCsv(path.join(testDataDir, `case${caseNum}_output_logs.csv`));
 
-            mockRegistry.getLogsByItemId.mockResolvedValue(inputLogs);
+            mockRegistry.getAll.mockResolvedValue(inputLogs);
             mockRegistry.getLatestTotalsPerCategoryBefore.mockResolvedValue(
                 new Map([
                     ["normal", { stock: 0, cost: 0 }],
@@ -128,7 +128,7 @@ describe("ItemLogService", () => {
             let nextLogId = Math.max(0, ...inputLogs.map(l => l.id ?? 0)) + 1;
             mockRegistry.put.mockImplementation(() => Promise.resolve(nextLogId++));
 
-            await service.updateCostBasis(1, startTimestamp);
+            await service.updateCostBasis(startTimestamp);
 
             // Verify the results
             // 1. Logs in bulkPut

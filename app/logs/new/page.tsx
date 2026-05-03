@@ -108,13 +108,13 @@ export default function NewLogsPage() {
                                         </td>
                                         <td className="p-4 text-right font-mono text-xs">
                                             <span className="text-muted mr-1">$</span>
-                                            {log.unit_price.toLocaleString()}
+                                            {Math.round(log.unit_price).toLocaleString()}
                                         </td>
                                         <td className="p-4 text-right font-mono text-xs font-bold text-info">
-                                            {log.total_stock.toLocaleString()}
+                                            {Math.round(log.total_stock).toLocaleString()}
                                         </td>
                                         <td className={`p-4 text-right font-mono text-xs ${log.realized_profit > 0 ? 'text-success font-bold' : log.realized_profit < 0 ? 'text-danger font-bold' : 'text-muted-foreground'}`}>
-                                            {log.realized_profit > 0 ? `+$${log.realized_profit.toLocaleString()}` : log.realized_profit < 0 ? `-$${Math.abs(log.realized_profit).toLocaleString()}` : '—'}
+                                            {log.realized_profit > 0 ? `+$${Math.round(log.realized_profit).toLocaleString()}` : log.realized_profit < 0 ? `-$${Math.round(Math.abs(log.realized_profit)).toLocaleString()}` : '—'}
                                         </td>
                                     </tr>
                                 ))

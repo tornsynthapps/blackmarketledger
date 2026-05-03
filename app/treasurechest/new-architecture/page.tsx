@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { ItemLogService } from "@/lib/domain/ItemLogService";
+import { MuseumService } from "@/lib/domain/MuseumService";
 import { ItemLog } from "@/lib/objects/ItemLog";
 import { ItemLogWrapper } from "@/lib/objects/ItemLogWrapper";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -169,6 +170,7 @@ export default function NewArchitecturePage() {
     const [editType, setEditType] = useState<"log" | "wrapper">("log");
 
     const service = useMemo(() => new ItemLogService(), []);
+    const museumService = useMemo(() => new MuseumService(), []);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -224,14 +226,13 @@ export default function NewArchitecturePage() {
     };
 
     const handleUpdateCostBasis = async () => {
-        const itemId = prompt("Enter Item ID:", "1");
         const minTimestamp = logs.length > 0 ? Math.min(...logs.map((l) => l.timestamp)) : Date.now();
-        const timestamp = prompt("Enter Start Timestamp (ms):", minTimestamp.toString());
-        if (itemId && timestamp) {
+        const timestamp = prompt("Enter Start Timestamp (ms) for global recalculation:", minTimestamp.toString());
+        if (timestamp) {
             setIsLoading(true);
             try {
-                await service.updateCostBasis(parseInt(itemId), parseInt(timestamp));
-                alert("Cost basis updated successfully.");
+                await service.updateCostBasis(parseInt(timestamp));
+                alert("Global cost basis recalculation completed successfully.");
                 await fetchData();
             } catch (error) {
                 alert("Error updating cost basis: " + (error as Error).message);
@@ -262,6 +263,28 @@ export default function NewArchitecturePage() {
                 await fetchData();
             } catch (error) {
                 alert("Error during transfer: " + (error as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    const handleMuseumExchange = async () => {
+        const setType = prompt("Enter Set Type (plushie-set | exotic-flower-set):", "plushie-set") as any;
+        const quantity = prompt("Enter Number of Sets:", "1");
+
+        if (setType && quantity) {
+            setIsLoading(true);
+            try {
+                await museumService.exchangeSet(
+                    setType,
+                    parseInt(quantity),
+                    service
+                );
+                alert("Museum exchange completed successfully.");
+                await fetchData();
+            } catch (error) {
+                alert("Error during museum exchange: " + (error as Error).message);
             } finally {
                 setIsLoading(false);
             }
@@ -663,6 +686,29 @@ export default function NewArchitecturePage() {
                                         className="w-full py-4 border-2 border-foreground font-black uppercase text-[10px] tracking-[0.3em] hover:bg-foreground hover:text-background transition-all active:translate-y-1 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-none"
                                     >
                                         EXECUTE_SERVICE_002
+                                    </button>
+                                </div>
+
+                                <div className="p-8 border-2 border-border-strong space-y-6 bg-panel/20 hover:border-foreground transition-all group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-foreground group-hover:bg-foreground group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Settings01Icon} size={28} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black uppercase tracking-wider">
+                                                MUSEUM_EXCHANGE
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Gamma</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Exchanges sets of items for Points at the Museum. Validates sufficient stock in the 'museum' category and converts cost-basis into points.
+                                    </p>
+                                    <button
+                                        onClick={handleMuseumExchange}
+                                        className="w-full py-4 border-2 border-foreground font-black uppercase text-[10px] tracking-[0.3em] hover:bg-foreground hover:text-background transition-all active:translate-y-1 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-none"
+                                    >
+                                        EXECUTE_SERVICE_003
                                     </button>
                                 </div>
                             </div>
