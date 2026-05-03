@@ -75,13 +75,14 @@ export class MuseumService extends BaseService {
 
             itemStats.set(itemId, { mStock, mAvgCost, nStock, nAvgCost });
 
+            this.logger.debug(` Item ${itemId}: museum=${mStock} (avg ${mAvgCost}), normal=${nStock} (avg ${nAvgCost})`);
+
             if (mStock + nStock < finalExchangeQuantity) {
                 finalExchangeQuantity = Math.max(0, mStock + nStock);
             }
         }
 
-        new Logger("MuseumService").info(`Exchanged ${finalExchangeQuantity} ${set}(s)`);
-        new Logger("MuseumService").info(itemStats.toString());
+        this.logger.info(`Final exchange quantity determined: ${finalExchangeQuantity} sets (requested ${quantity})`);
 
         if (finalExchangeQuantity <= 0) {
             throw new Error(`Insufficient stock in 'museum' and 'normal' categories to exchange any '${set}'.`);

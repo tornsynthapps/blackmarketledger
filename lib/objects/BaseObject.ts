@@ -152,6 +152,34 @@ export function requireBaseObjectDatabaseFields(
     };
 }
 
+// Global registry of all Dexie schemas to prevent dynamic overwrites and data wipes.
+// Dexie requires all tables to be defined in a single .stores() call before opening.
+export const SCHEMA_REGISTRY: Record<string, Record<string, string>> = {
+    "BlackMarketLedgerObjectsDB": {
+        "item_logs": "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,[item_id+category+timestamp]",
+        "item_log_wrappers": "++id,type,timestamp,logged_at,updated_at",
+        "system_logs": "++id,timestamp,level,context"
+    }
+};
+
+const DB_INSTANCES = new Map<string, Dexie>();
+
+/**
+ * Singleton database fetcher to ensure a unified schema and connection pool.
+ * @param databaseName (string): The name of the browser IndexedDB
+ * @returns (Dexie): The initialized Dexie instance for this database
+ */
+export function getDatabase(databaseName: string): Dexie {
+    let db = DB_INSTANCES.get(databaseName);
+    if (!db) {
+        db = new Dexie(databaseName);
+        const schemas = SCHEMA_REGISTRY[databaseName] || {};
+        db.version(1).stores(schemas);
+        DB_INSTANCES.set(databaseName, db);
+    }
+    return db;
+}
+
 export class BaseObjectRegistry<
     TObject extends BaseObject,
     TRecord extends BaseObjectDatabaseRecord,
@@ -165,11 +193,11 @@ export class BaseObjectRegistry<
      * Creates a Dexie registry for a single object table.
      * @param databaseName (string): Browser IndexedDB database name
      * @param tableName (string): Dexie table name
-     * @param schema (string): Dexie schema definition for the table
+     * @param schema (string): Dexie schema definition for the table (kept for interface compatibility)
      * @param serializeObject (BaseObjectSerializer<TObject, TRecord>): Converts an object into a persisted record
      * @param hydrateRecord (BaseObjectHydrator<TObject, TRecord>): Converts a persisted record into a domain object
      * @returns (BaseObjectRegistry<TObject, TRecord>): Configured Dexie registry
-     * @sideEffects Creates or upgrades an IndexedDB schema definition in Dexie
+     * @sideEffects Fetches or creates the shared IndexedDB database instance
      */
     constructor(
         databaseName: string,
@@ -178,28 +206,10 @@ export class BaseObjectRegistry<
         serializeObject: BaseObjectSerializer<TObject, TRecord>,
         hydrateRecord: BaseObjectHydrator<TObject, TRecord>
     ) {
-        this.database = new Dexie(databaseName);
-        this.tableRef = this.createTableReference(tableName, schema);
+        this.database = getDatabase(databaseName);
+        this.tableRef = this.database.table(tableName);
         this.serializeObject = serializeObject;
         this.hydrateRecord = hydrateRecord;
-    }
-
-    /**
-     * Creates the Dexie table reference used by the registry.
-     * @param tableName (string): Dexie table name
-     * @param schema (string): Dexie schema definition for the table
-     * @returns (Table<TRecord, number, BaseObjectWriteRecord<TRecord>>): Typed table reference for the registry
-     * @sideEffects Configures the Dexie database schema
-     */
-    private createTableReference(
-        tableName: string,
-        schema: string
-    ): Table<TRecord, number, BaseObjectWriteRecord<TRecord>> {
-        this.database.version(1).stores({
-            [tableName]: schema,
-        });
-
-        return this.database.table(tableName);
     }
 
     /**

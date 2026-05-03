@@ -19,7 +19,6 @@ const LOG_LEVEL_CONFIG: Record<SystemLogLevel, { icon: any; color: string; bgCol
     warn: { icon: Alert01Icon, color: "text-warning", bgColor: "bg-warning/5" },
     error: { icon: AlertCircleIcon, color: "text-danger", bgColor: "bg-danger/5" },
     debug: { icon: Settings01Icon, color: "text-muted", bgColor: "bg-muted/5" },
-    log: { icon: Activity01Icon, color: "text-primary", bgColor: "bg-primary/5" },
 };
 
 export default function LoggerPage() {

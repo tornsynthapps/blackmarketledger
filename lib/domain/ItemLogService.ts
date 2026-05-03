@@ -1,5 +1,6 @@
 import { BaseService } from "./BaseService";
 import { Logger } from "./Logger";
+import { ItemList } from "../objects/Item";
 import {
     ItemLog,
     ItemLogCategories,
@@ -183,6 +184,7 @@ export class ItemLogService extends BaseService {
         // Initialize category-specific running totals per affected item using the last known state before fromTimestamp
         const runningTotalsByItem = new Map<number, Map<string, { stock: number; cost: number }>>();
         for (const itemId of affectedItemIds) {
+            this.logger.debug(`Initializing totals for item: ${itemId}`);
             const totals = await this.registry.getLatestTotalsPerCategoryBefore(itemId, fromTimestamp);
             runningTotalsByItem.set(itemId, totals);
         }
@@ -198,6 +200,9 @@ export class ItemLogService extends BaseService {
 
             // Skip logs before the starting timestamp or logs for items that haven't had activity since fromTimestamp
             if (log.timestamp < fromTimestamp || !affectedItemIds.has(log.item_id)) {
+                if (log.timestamp >= fromTimestamp) {
+                    this.logger.debug(`Skipping unaffected item log: ${log.id} (item ${log.item_id})`);
+                }
                 continue;
             }
 
@@ -576,6 +581,18 @@ export class ItemLogService extends BaseService {
         return { updatedLogs: [activeLog], newIndex };
     }
 
+    /**
+     * Re-calculates and updates all logs associated with a museum-exchange wrapper.
+     * Dynamically resizes the exchange based on currently available stock in museum and normal categories.
+     * @param wid (number): The unique identifier of the museum-exchange wrapper
+     * @param log (ItemLog): The specific log that triggered this wrapper processing
+     * @param allLogs (ItemLog[]): The full array of item logs in the current sweep
+     * @param currentIndex (number): The current iteration index in the sweep
+     * @param runningTotalsByItem (Map): Current stock/cost totals for all items in the sweep
+     * @param processedWrappers (Set): Set of wrappers already handled in this sweep
+     * @returns (Promise): Updated logs and the new iteration index
+     * @sideEffects Writes to IndexedDB via ItemLogRegistry
+     */
     private async handleMuseumExchangeWrapper(
         wid: number,
         log: ItemLog,
@@ -590,13 +607,13 @@ export class ItemLogService extends BaseService {
         const wrapper = await this.wrapperRegistry.getById(wid);
 
         // 1. Identify involved items and the target requested sets
-        const pointsLog = logsWithWrapper.find(l => l.item_id === 0);
+        const pointsLog = logsWithWrapper.find(l => l.item_id === ItemList.POINTS);
         if (!pointsLog) {
             this.logger.error(`Museum exchange #${wid} is missing Points log. Skipping.`);
             return { updatedLogs: [], newIndex: currentIndex };
         }
 
-        const nonPointsLogs = logsWithWrapper.filter(l => l.item_id !== 0);
+        const nonPointsLogs = logsWithWrapper.filter(l => l.item_id !== ItemList.POINTS);
         const itemIds = Array.from(new Set(nonPointsLogs.map(l => l.item_id)));
         
         if (itemIds.length === 0) {
@@ -629,12 +646,11 @@ export class ItemLogService extends BaseService {
         const itemStats = new Map<number, { mStock: number; mAvg: number; nStock: number; nAvg: number }>();
 
         for (const itemId of itemIds) {
-            const totals = runningTotalsByItem.get(itemId);
+            let totals = runningTotalsByItem.get(itemId);
             if (!totals) {
-                this.logger.warn(` Item ${itemId} in exchange #${wid} has no totals initialized. Assuming 0.`);
-                itemStats.set(itemId, { mStock: 0, mAvg: 0, nStock: 0, nAvg: 0 });
-                finalDoableSets = 0;
-                continue;
+                this.logger.warn(` Item ${itemId} in exchange #${wid} has no totals initialized in current sweep. Fetching latest state.`);
+                totals = await this.registry.getLatestTotalsPerCategoryBefore(itemId, pointsLog.timestamp);
+                runningTotalsByItem.set(itemId, totals);
             }
             const m = totals.get("museum") || { stock: 0, cost: 0 };
             const n = totals.get("normal") || { stock: 0, cost: 0 };
@@ -647,8 +663,11 @@ export class ItemLogService extends BaseService {
             };
             itemStats.set(itemId, stats);
             
+            this.logger.debug(` Item ${itemId}: museum=${stats.mStock} (avg ${stats.mAvg}), normal=${stats.nStock} (avg ${stats.nAvg})`);
+            
             if (stats.mStock + stats.nStock < finalDoableSets) {
                 finalDoableSets = Math.max(0, stats.mStock + stats.nStock);
+                this.logger.info(` Exchange #${wid}: Final doable sets reduced to ${finalDoableSets} due to item ${itemId} constraints.`);
             }
         }
         const skippedSets = requestedSets - finalDoableSets;
@@ -732,8 +751,9 @@ export class ItemLogService extends BaseService {
         // 4. Process Points log
         const totalPoints = finalDoableSets * pointsExchangeRate;
         const costBasisPerPoint = totalPoints > 0 ? totalCostOfExchange / totalPoints : 0;
+        this.logger.info(` exchange #${wid}: generating ${totalPoints} points at cost-basis ${costBasisPerPoint} (total cost ${totalCostOfExchange})`);
         
-        const pTotalsMap = runningTotalsByItem.get(0);
+        const pTotalsMap = runningTotalsByItem.get(ItemList.POINTS);
         if (!pTotalsMap) {
             this.logger.warn(`Points totals map not initialized in exchange #${wid}.`);
         } else {

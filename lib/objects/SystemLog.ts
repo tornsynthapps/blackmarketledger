@@ -7,7 +7,7 @@ import {
     requireBaseObjectDatabaseFields,
 } from "./BaseObject";
 
-export type SystemLogLevel = "info" | "warn" | "error" | "debug" | "log";
+export type SystemLogLevel = "info" | "warn" | "error" | "debug";
 
 export interface SystemLogCreateFields {
     timestamp: number;

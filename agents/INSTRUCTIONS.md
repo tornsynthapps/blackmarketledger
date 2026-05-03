@@ -181,7 +181,23 @@ if (!user) {
 
 ---
 
-## 9. Additional Commands
+## 9. Logging & Observability
+
+### 9.1 Mandate for Domain Services
+AI agents **must** use the `Logger` utility (available via `BaseService` or as a standalone import) in all `@lib/domain/**` files. 
+
+### 9.2 Log Levels
+- **info**: Standard execution milestones (e.g., "Starting cost-basis update", "Transaction processed").
+- **debug**: Granular progress details within loops or complex logic (e.g., "Processing log #123 for item #1").
+- **warn**: Recoverable anomalies or unexpected states that don't halt execution (e.g., "Missing metadata, using default rate").
+- **error**: Critical failures or data inconsistencies that require attention.
+
+### 9.3 Quality of Logs
+Logs should include enough context (IDs, quantities, category names) to allow a developer to reconstruct the state and debug issues without access to a debugger.
+
+---
+
+## 10. Additional Commands
 - Commands can start with command:, command, command/, /command, etc.
 
 ### 9.1 Update version history

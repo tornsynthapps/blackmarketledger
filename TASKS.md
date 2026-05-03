@@ -15,3 +15,9 @@
 - costBasis for multiple items in once.
 - create "museum-exchange" log
 - update "museum-exchange" log
+
+## MuseumService
+- Updating the cost of past transactions, doesn't update the cost-basis in museum-exchange wrapper and thus the points.
+
+## BaseService
+- Update the BaseService in @lib/domain/BaseService.ts automatically init logger. The other services inheriting the BaseService should only override the service name constant
