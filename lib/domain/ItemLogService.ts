@@ -380,13 +380,15 @@ export class ItemLogService extends BaseService {
         // Delete the wrapper
         await this.wrapperRegistry.delete(wid);
 
-        // Prepare the merged log for re-evaluation
-        const mergedLog = targetLog.withTotals(targetLog.total_stock, targetLog.total_cost, {
+        // Determine merged log totals from current running totals (not stale DB values)
+        const mergedCategoryTotals = runningTotals.get(targetLog.category) || { stock: 0, cost: 0 };
+        const mergedLog = targetLog.withTotals(mergedCategoryTotals.stock, mergedCategoryTotals.cost, {
             quantity: totalQuantity,
             wrapper_id: null,
         });
 
         // Update in database and in iteration array
+        // NOTE: This DB write is a safety checkpoint; handleNoWrapperLog will overwrite with correct totals
         await this.updateLog(mergedLog);
         const targetIdxInAll = allLogs.findIndex((l) => l.id === targetLog.id);
         if (targetIdxInAll !== -1) {
@@ -549,9 +551,10 @@ export class ItemLogService extends BaseService {
                 allLogs.push(n);
             }
 
-            // Re-sort and find new index for activeLog
-            allLogs.sort((a, b) => a.timestamp - b.timestamp || (a.id ?? 0) - (b.id ?? 0));
-            newIndex = allLogs.findIndex((l) => l.id === activeLog.id);
+            // New logs have the same timestamp and larger IDs than existing logs,
+            // so they naturally sort after the current position. No re-sort needed.
+            // activeLog's position hasn't changed (no splices in this path).
+            // newIndex stays as currentIndex (unchanged from the top of this handler).
         } else {
             // Delete unused extra logs
             for (const sLog of skippedLogs) {
@@ -605,6 +608,7 @@ export class ItemLogService extends BaseService {
         this.logger.info(`Processing museum-exchange wrapper: ${wid}`);
         const logsWithWrapper = await this.registry.getLogsByWrapperId(wid);
         const wrapper = await this.wrapperRegistry.getById(wid);
+        let newIndex = currentIndex;
 
         // 1. Identify involved items and the target requested sets
         const pointsLog = logsWithWrapper.find(l => l.item_id === ItemList.POINTS);
@@ -743,7 +747,10 @@ export class ItemLogService extends BaseService {
                 } else if (existing) {
                     if (existing.id) await this.registry.delete(existing.id);
                     const idx = allLogs.findIndex(l => l.id === existing.id);
-                    if (idx !== -1) allLogs.splice(idx, 1);
+                    if (idx !== -1) {
+                        allLogs.splice(idx, 1);
+                        if (idx <= newIndex) newIndex--;
+                    }
                 }
             }
         }
@@ -777,11 +784,10 @@ export class ItemLogService extends BaseService {
             await this.registry.put(u);
         }
 
-        // Re-sort allLogs for safety
-        allLogs.sort((a, b) => a.timestamp - b.timestamp || (a.id ?? 0) - (b.id ?? 0));
-
+        // New logs have the same timestamp and larger IDs, so they sort after current position.
+        // activeLog (log.id) tracking preserves iteration continuity without a full re-sort.
         let activeLog = allLogs.find(l => l.id === log.id) || log;
-        return { updatedLogs: [activeLog], newIndex: allLogs.findIndex(l => l.id === activeLog.id) };
+        return { updatedLogs: [activeLog], newIndex };
     }
 
     private async handleNoWrapperLog(
