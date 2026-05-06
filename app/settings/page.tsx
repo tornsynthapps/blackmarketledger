@@ -248,6 +248,7 @@ export default function SettingsPage() {
                             >
                                 <option value="classic" className="bg-panel text-foreground">Classic (Industrial)</option>
                                 <option value="playful" className="bg-panel text-foreground">Playful (Experimental)</option>
+                                <option value="modern" className="bg-panel text-foreground">Modern (Geist)</option>
                             </select>
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
                                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">

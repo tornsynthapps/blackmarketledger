@@ -86,6 +86,7 @@
     --font-space-mono: "Space Mono", monospace;
 
     --font-monospace-active: var(--font-space-mono);
+    --font-vt323-active: "VT323";
 
     /* Snappy Transitions */
     --transition-speed: 150ms;
@@ -94,6 +95,12 @@
 
 :root.font-cascadia {
     --font-monospace-active: var(--font-cascadia-code), "Cascadia Code", "Consolas", monospace;
+}
+
+:root.theme-modern {
+    --font-space-grotesk: var(--font-geist-sans), sans-serif;
+    --font-space-mono: var(--font-geist-mono), monospace;
+    --font-vt323-active: var(--font-geist-pixel), monospace;
 }
 
 :root.light {
@@ -135,7 +142,7 @@
     --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
     --font-mono:
         var(--font-monospace-active), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-vt323: "VT323", monospace;
+    --font-vt323: var(--font-vt323-active, "VT323"), monospace;
 
     --animate-snappy: cubic-bezier(0.2, 0, 0, 1);
 }

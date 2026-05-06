@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Sour_Gummy, Space_Mono, Cascadia_Code } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
+import { GeistPixelSquare } from "geist/font/pixel";
 
 const sourGummy = Sour_Gummy({
     subsets: ["latin"],
@@ -37,7 +40,13 @@ export default function RootLayout({
     return (
         <html
             lang="en"
-            className={`${sourGummy.variable} ${spaceMono.variable} ${cascadiaCode.variable}`}
+            className={`${sourGummy.variable} ${spaceMono.variable} ${cascadiaCode.variable} ${GeistSans.variable} ${GeistMono.variable} ${GeistPixelSquare.variable}`}
+            style={{
+                // @ts-ignore
+                "--font-geist-sans": GeistSans.style.fontFamily,
+                "--font-geist-mono": GeistMono.style.fontFamily,
+                "--font-geist-pixel": GeistPixelSquare.style.fontFamily,
+            }}
             suppressHydrationWarning
         >
             <head>
@@ -63,6 +72,9 @@ export default function RootLayout({
                   const settings = JSON.parse(localStorage.getItem('ledger-settings') || '{}');
                   if (settings.themeStyle === 'playful') {
                     document.documentElement.classList.add('theme-playful');
+                  }
+                  if (settings.themeStyle === 'modern') {
+                    document.documentElement.classList.add('theme-modern');
                   }
                   if (settings.monospaceFont === 'cascadia') {
                     document.documentElement.classList.add('font-cascadia');

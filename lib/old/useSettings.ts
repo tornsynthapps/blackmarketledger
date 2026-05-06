@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 export interface LedgerSettings {
     boxyGraph: boolean;
-    themeStyle: "classic" | "playful";
+    themeStyle: "classic" | "playful" | "modern";
     monospaceFont: "space" | "cascadia";
     backgroundStyle: "dots" | "grid" | "crosses" | "scanlines" | "diagonal" | "solid" | "blueprint" | "noise" | "big-grid";
 }
@@ -59,6 +59,7 @@ export function useSettings() {
     useEffect(() => {
         if (!isLoaded) return;
         document.documentElement.classList.toggle("theme-playful", settings.themeStyle === "playful");
+        document.documentElement.classList.toggle("theme-modern", settings.themeStyle === "modern");
         document.documentElement.classList.toggle("font-cascadia", settings.monospaceFont === "cascadia");
 
         // Background Style
