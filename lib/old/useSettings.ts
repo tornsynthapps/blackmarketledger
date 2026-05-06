@@ -7,6 +7,9 @@ export interface LedgerSettings {
     themeStyle: "classic" | "playful" | "modern";
     monospaceFont: "space" | "cascadia";
     backgroundStyle: "dots" | "grid" | "crosses" | "scanlines" | "diagonal" | "solid" | "blueprint" | "noise" | "big-grid";
+    compactTable: boolean;
+    showVerticalLines: boolean;
+    alternatingRowColors: boolean;
 }
 
 const STORAGE_KEY = "ledger-settings";
@@ -16,6 +19,9 @@ const DEFAULT_SETTINGS: LedgerSettings = {
     themeStyle: "classic",
     monospaceFont: "space",
     backgroundStyle: "dots",
+    compactTable: false,
+    showVerticalLines: false,
+    alternatingRowColors: false,
 };
 
 export function useSettings() {

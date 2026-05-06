@@ -325,6 +325,87 @@ export default function SettingsPage() {
                         </div>
                     </div>
 
+                    {/* Compact Table */}
+                    <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
+                        <div className="space-y-0.5">
+                            <h4 className="font-bold text-sm uppercase tracking-tight">Compact Table</h4>
+                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Reduce padding in data tables for a spreadsheet-dense view.</p>
+                        </div>
+                        
+                        <div className="relative w-48">
+                            <select
+                                value={String(settings.compactTable)}
+                                onChange={(e) => {
+                                    vibrate("utility");
+                                    updateSetting("compactTable", e.target.value === "true");
+                                }}
+                                className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
+                            >
+                                <option value="false" className="bg-panel text-foreground">Standard (Comfortable)</option>
+                                <option value="true" className="bg-panel text-foreground">Compact (Spreadsheet)</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
+                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Show Vertical Lines */}
+                    <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
+                        <div className="space-y-0.5">
+                            <h4 className="font-bold text-sm uppercase tracking-tight">Show Vertical Lines</h4>
+                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Display grid lines between table columns.</p>
+                        </div>
+                        
+                        <div className="relative w-48">
+                            <select
+                                value={String(settings.showVerticalLines)}
+                                onChange={(e) => {
+                                    vibrate("utility");
+                                    updateSetting("showVerticalLines", e.target.value === "true");
+                                }}
+                                className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
+                            >
+                                <option value="false" className="bg-panel text-foreground">Hidden (Modern)</option>
+                                <option value="true" className="bg-panel text-foreground">Visible (Grid)</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
+                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Alternating Row Colors */}
+                    <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
+                        <div className="space-y-0.5">
+                            <h4 className="font-bold text-sm uppercase tracking-tight">Alternating Row Colors</h4>
+                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Enable zebra-striping for better data readability.</p>
+                        </div>
+                        
+                        <div className="relative w-48">
+                            <select
+                                value={String(settings.alternatingRowColors)}
+                                onChange={(e) => {
+                                    vibrate("utility");
+                                    updateSetting("alternatingRowColors", e.target.value === "true");
+                                }}
+                                className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
+                            >
+                                <option value="false" className="bg-panel text-foreground">Single Color</option>
+                                <option value="true" className="bg-panel text-foreground">Zebra Striping</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
+                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Anchor Left */}
                     <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors">
                         <div className="space-y-0.5">

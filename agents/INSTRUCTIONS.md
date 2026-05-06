@@ -125,6 +125,13 @@ Every function **must** include a structured comment that clearly specifies:
 
 - Extract repeated logic into reusable functions
 
+### 4.4 React Components
+
+- If an element is used more than once, it should be a component.
+- Components should be as small as possible, and should not contain any logic.
+- Components should be reusable and composable.
+- Components should be stored in the `components` folder.
+
 ---
 
 ## 5. Error Handling
