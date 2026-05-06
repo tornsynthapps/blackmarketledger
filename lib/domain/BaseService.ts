@@ -22,7 +22,7 @@ export abstract class BaseService {
      * @returns (BaseService): Base service instance
      * @sideEffects Initializes the service logger
      */
-    protected constructor() {
+    public constructor() {
         // Initialize logger using the SERVICE_NAME getter
         this.logger = new Logger(this.SERVICE_NAME);
     }

@@ -194,6 +194,7 @@ export class ItemLogService extends BaseService {
 
         const updatedLogs: ItemLog[] = [];
         const processedWrappers = new Set<number>();
+        const processedTradeReceiptItems = new Set<string>();
 
         for (let i = 0; i < allLogs.length; i++) {
             let log = allLogs[i];
@@ -235,7 +236,12 @@ export class ItemLogService extends BaseService {
                     i = result.newIndex;
                     updatedLogs.push(...result.updatedLogs);
                     continue;
-                } else if (processedWrappers.has(wid)) {
+                } else if (wrapper.type === "trade-receipt" && !processedTradeReceiptItems.has(`${wid}_${log.item_id}`)) {
+                    const result = await this.handleTradeReceiptWrapper(wid, log, allLogs, i, runningTotals, processedTradeReceiptItems);
+                    i = result.newIndex;
+                    updatedLogs.push(...result.updatedLogs);
+                    continue;
+                } else if (processedWrappers.has(wid) || (wrapper.type === "trade-receipt" && processedTradeReceiptItems.has(`${wid}_${log.item_id}`))) {
                     // Already processed as part of a multi-log wrapper (e.g. manual-transfer)
                     // Its totals in allLogs[i] are already correct and runningTotals already reflects it.
                     updatedLogs.push(log);
@@ -245,7 +251,7 @@ export class ItemLogService extends BaseService {
 
             // Case: Log is standalone (no wrapper)
             if (log.wrapper_id === null) {
-                const result = await this.handleNoWrapperLog(log, runningTotals);
+                const result = await this.processStandardLog(log, runningTotals);
                 updatedLogs.push(...result.updatedLogs);
                 continue;
             }
@@ -396,6 +402,68 @@ export class ItemLogService extends BaseService {
         }
 
         return { updatedLogs: [mergedLog], newIndex };
+    }
+
+    private async handleTradeReceiptWrapper(
+        wid: number,
+        log: ItemLog,
+        allLogs: ItemLog[],
+        currentIndex: number,
+        runningTotals: Map<string, { stock: number; cost: number }>,
+        processedTradeReceiptItems: Set<string>
+    ): Promise<{ updatedLogs: ItemLog[]; newIndex: number }> {
+        const itemKey = `${wid}_${log.item_id}`;
+        processedTradeReceiptItems.add(itemKey);
+        
+        this.logger.info(`Processing trade-receipt re-evaluation: ${wid} for item ${log.item_id}`);
+        const logsWithWrapper = await this.registry.getLogsByWrapperId(wid);
+        
+        // Filter logs specifically for this item
+        const itemLogs = logsWithWrapper.filter(l => l.item_id === log.item_id);
+        
+        // Merge split logs back into one and re-evaluate
+        const totalQuantity = itemLogs.reduce((sum, l) => sum + l.quantity, 0);
+
+        // Sort to find the canonical log
+        itemLogs.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+        const targetLog = itemLogs[0];
+        const others = itemLogs.slice(1);
+
+        let newIndex = currentIndex;
+
+        // Delete redundant split logs for this item
+        for (const other of others) {
+            if (other.id) {
+                await this.registry.delete(other.id);
+                // Remove from current iteration array
+                const removeIdx = allLogs.findIndex((l) => l.id === other.id);
+                if (removeIdx !== -1) {
+                    allLogs.splice(removeIdx, 1);
+                    if (removeIdx <= newIndex) newIndex--;
+                }
+            }
+        }
+
+        // Determine merged log totals from current running totals (not stale DB values)
+        // For trades, we always reset to 'normal' to re-evaluate potential splits
+        const normalTotals = runningTotals.get("normal") || { stock: 0, cost: 0 };
+        const mergedLog = targetLog.withTotals(normalTotals.stock, normalTotals.cost, {
+            quantity: totalQuantity,
+            category: "normal", // Reset to normal for split re-evaluation
+            realized_profit: 0
+        });
+
+        // Update in database and in iteration array
+        await this.updateLog(mergedLog);
+        const targetIdxInAll = allLogs.findIndex((l) => l.id === targetLog.id);
+        if (targetIdxInAll !== -1) {
+            allLogs[targetIdxInAll] = mergedLog;
+        }
+
+        // Now re-evaluate this merged log using standard split/skip logic
+        const result = await this.processStandardLog(mergedLog, runningTotals);
+        
+        return { updatedLogs: result.updatedLogs, newIndex };
     }
 
     private async handleManualTransferWrapper(
@@ -790,7 +858,7 @@ export class ItemLogService extends BaseService {
         return { updatedLogs: [activeLog], newIndex };
     }
 
-    private async handleNoWrapperLog(
+    private async processStandardLog(
         log: ItemLog,
         runningTotals: Map<string, { stock: number; cost: number }>
     ): Promise<{ updatedLogs: ItemLog[] }> {
@@ -821,14 +889,17 @@ export class ItemLogService extends BaseService {
                 // Over-Sell: Part of the sell exceeds current stock in this category.
                 // We split the log into multiple logs across categories.
 
-                const subType = log.category === "museum" ? "auto-split-museum" : "auto-split-default";
-                const wrapper = ItemLogWrapper.create({
-                    timestamp: log.timestamp,
-                    type: "auto-split",
-                    sub_type: subType,
-                    description: `Automatic split: ${absQuantity} total from ${log.category} overflow.`,
-                });
-                const wrapperId = await this.wrapperRegistry.put(wrapper);
+                let wrapperId = log.wrapper_id;
+                if (wrapperId === null) {
+                    const subType = log.category === "museum" ? "auto-split-museum" : "auto-split-default";
+                    const wrapper = ItemLogWrapper.create({
+                        timestamp: log.timestamp,
+                        type: "auto-split",
+                        sub_type: subType,
+                        description: `Automatic split: ${absQuantity} total from ${log.category} overflow.`,
+                    });
+                    wrapperId = await this.wrapperRegistry.put(wrapper);
+                }
 
                 let remainingToSell = absQuantity;
 

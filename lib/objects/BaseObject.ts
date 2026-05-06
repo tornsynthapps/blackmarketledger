@@ -158,7 +158,11 @@ export const SCHEMA_REGISTRY: Record<string, Record<string, string>> = {
     "BlackMarketLedgerObjectsDB": {
         "item_logs": "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,[item_id+category+timestamp]",
         "item_log_wrappers": "++id,type,timestamp,logged_at,updated_at",
-        "system_logs": "++id,timestamp,level,context"
+        "system_logs": "++id,timestamp,level,context",
+        "trades": "++id,timestamp,type,wrapper_id,receipt_id,torn_id,user_id",
+        "trade_items": "++id,trade_db_id,item_id,type",
+        "receipts": "++id,receipt_id_string,source,created_at,seller_id",
+        "receipt_items": "++id,receipt_db_id,item_id"
     }
 };
 
@@ -174,7 +178,7 @@ export function getDatabase(databaseName: string): Dexie {
     if (!db) {
         db = new Dexie(databaseName);
         const schemas = SCHEMA_REGISTRY[databaseName] || {};
-        db.version(1).stores(schemas);
+        db.version(2).stores(schemas);
         DB_INSTANCES.set(databaseName, db);
     }
     return db;

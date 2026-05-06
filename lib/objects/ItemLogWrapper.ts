@@ -17,7 +17,9 @@ export type ItemLogWrapperType =
     | "manual-transfer"
     // "museum-exchange": Exchanges one or more items for points in the museum.
     // Has sub-type to indicate set of items to exchange.
-    | "museum-exchange";
+    | "museum-exchange"
+    // "trade-receipt": Associates multiple trade items and a receipt.
+    | "trade-receipt";
 
 export type ItemLogWrapperAutoSplitSubType = "auto-split-default" | "auto-split-museum";
 
