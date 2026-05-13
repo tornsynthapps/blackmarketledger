@@ -200,10 +200,10 @@ export function Navigation() {
                             <img src="/logos/light/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
                         )}
                         <div className="flex flex-col min-w-0 justify-center leading-none mt-1">
-                            <span className="font-bold text-[22px] tracking-wider font-vt323 leading-[0.9]">
+                            <span className="font-bold text-[22px] tracking-wider font-departure leading-[0.9]">
                                 BlackMarket
                             </span>
-                            <span className="font-bold text-[22px] tracking-wider font-vt323 leading-[0.9]">
+                            <span className="font-bold text-[22px] tracking-wider font-departure leading-[0.9]">
                                 Ledger
                             </span>
                         </div>

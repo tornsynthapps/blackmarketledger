@@ -3,8 +3,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @font-face {
-    font-family: "VT323";
-    src: url("/fonts/VT323/VT323-Regular.ttf") format("truetype");
+    font-family: "Departure Mono";
+    src: url("/fonts/departure_mono/DepartureMono-Regular.woff2") format("woff2"),
+         url("/fonts/departure_mono/DepartureMono-Regular.woff") format("woff"),
+         url("/fonts/departure_mono/DepartureMono-Regular.otf") format("opentype");
     font-weight: normal;
     font-style: normal;
     font-display: swap;
@@ -86,7 +88,7 @@
     --font-space-mono: "Space Mono", monospace;
 
     --font-monospace-active: var(--font-space-mono);
-    --font-vt323-active: "VT323";
+    --font-departure-active: "Departure Mono";
 
     /* Snappy Transitions */
     --transition-speed: 150ms;
@@ -100,7 +102,7 @@
 :root.theme-modern {
     --font-space-grotesk: var(--font-geist-sans), sans-serif;
     --font-space-mono: var(--font-geist-mono), monospace;
-    --font-vt323-active: var(--font-geist-pixel), monospace;
+    --font-departure-active: var(--font-geist-pixel), monospace;
 }
 
 :root.light {
@@ -142,7 +144,7 @@
     --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
     --font-mono:
         var(--font-monospace-active), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-vt323: var(--font-vt323-active, "VT323"), monospace;
+    --font-departure: var(--font-departure-active, "Departure Mono"), monospace;
 
     --animate-snappy: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -220,7 +222,7 @@ h3,
 h4,
 h5,
 h6 {
-    font-family: var(--font-vt323);
+    font-family: var(--font-departure);
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -314,7 +316,7 @@ table {
 }
 
 th {
-    font-family: var(--font-vt323);
+    font-family: var(--font-departure);
     text-transform: uppercase;
     font-size: 1.1rem;
     letter-spacing: 0.05em;

@@ -437,7 +437,7 @@ export default function PricelistClientPage() {
                         href="/"
                         className="group bg-panel/40 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border min-w-[240px] transition-colors hover:bg-panel-elevated/60"
                     >
-                        <p className="font-vt323 text-3xl text-foreground leading-none">BlackMarket Ledger</p>
+                        <p className="font-departure text-3xl text-foreground leading-none">BlackMarket Ledger</p>
                         <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em]">
                             <p className="text-muted group-hover:hidden">
                                 Public Pricelist Viewer
@@ -702,7 +702,7 @@ export default function PricelistClientPage() {
                                             className={favoriteGroups.has(type) ? "text-warning" : "text-muted"}
                                         />
                                     </button>
-                                    <h3 className="text-xl font-vt323 tracking-widest text-primary">
+                                    <h3 className="text-xl font-departure tracking-widest text-primary">
                                         {type}
                                     </h3>
                                     <div className="h-px flex-1 bg-border-strong" />

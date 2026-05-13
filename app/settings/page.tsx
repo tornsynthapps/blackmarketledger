@@ -196,7 +196,7 @@ export default function SettingsPage() {
             <div className="space-y-3">
                 <div className="flex items-center gap-3 px-1">
                     <HugeiconsIcon icon={PaintBoardIcon} size={16} className="text-primary" />
-                    <h3 className="text-lg font-vt323 tracking-widest text-primary uppercase">
+                    <h3 className="text-lg font-departure tracking-widest text-primary uppercase">
                         UI/UX
                     </h3>
                     <div className="h-px flex-1 bg-border-strong" />
@@ -436,7 +436,7 @@ export default function SettingsPage() {
             <div className="space-y-3">
                 <div className="flex items-center gap-3 px-1">
                     <HugeiconsIcon icon={Key01Icon} size={16} className="text-primary" />
-                    <h3 className="text-lg font-vt323 tracking-widest text-primary uppercase">
+                    <h3 className="text-lg font-departure tracking-widest text-primary uppercase">
                         Authentication
                     </h3>
                     <div className="h-px flex-1 bg-border-strong" />
@@ -593,7 +593,7 @@ export default function SettingsPage() {
             <div className="space-y-3">
                 <div className="flex items-center gap-3 px-1">
                     <HugeiconsIcon icon={FlashIcon} size={16} className="text-primary" />
-                    <h3 className="text-lg font-vt323 tracking-widest text-primary uppercase">
+                    <h3 className="text-lg font-departure tracking-widest text-primary uppercase">
                         Flow Control
                     </h3>
                     <div className="h-px flex-1 bg-border-strong" />

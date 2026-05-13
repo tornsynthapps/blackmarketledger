@@ -730,7 +730,7 @@ export default function Home() {
                                             className={favoriteGroups.has(type) ? "text-warning" : "text-muted"}
                                         />
                                     </button>
-                                    <h3 className="text-xl font-vt323 tracking-widest text-primary">
+                                    <h3 className="text-xl font-departure tracking-widest text-primary">
                                         {type}
                                     </h3>
                                     <div className="h-px flex-1 bg-border-strong" />

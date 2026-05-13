@@ -17,7 +17,7 @@ export function BoardHeader({ title, subtitle, icon: Icon }: BoardHeaderProps) {
                     <div className="bg-primary p-2 text-primary-foreground">
                         <HugeiconsIcon icon={Icon} size={32} />
                     </div>
-                    <h1 className="text-5xl font-black tracking-tighter uppercase font-vt323 leading-none">
+                    <h1 className="text-5xl font-black tracking-tighter uppercase font-departure leading-none">
                         {title}
                     </h1>
                 </div>

@@ -149,7 +149,7 @@ export default async function ChangelogPage() {
                                             <p className="text-sm text-foreground/55 leading-relaxed">
                                                 {item.title && (
                                                     <span
-                                                        className={`font-vt323 text-base mr-1 ${isCurrent ? "text-foreground/90" : "text-foreground/70"}`}
+                                                        className={`font-departure text-base mr-1 ${isCurrent ? "text-foreground/90" : "text-foreground/70"}`}
                                                     >
                                                         {item.title}:
                                                     </span>
