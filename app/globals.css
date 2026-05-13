@@ -87,8 +87,13 @@
     --font-space-grotesk: "Space Grotesk", sans-serif;
     --font-space-mono: "Space Mono", monospace;
 
-    --font-monospace-active: var(--font-space-mono);
-    --font-departure-active: "Departure Mono";
+    --font-brand: var(--font-vt323), "VT323", monospace;
+    --font-heading: "Departure Mono", monospace;
+    --font-sans: "Departure Mono", sans-serif;
+    --font-mono: "Departure Mono", monospace;
+
+    --font-monospace-active: var(--font-mono);
+    --font-departure-active: var(--font-heading);
 
     /* Snappy Transitions */
     --transition-speed: 150ms;
@@ -96,13 +101,14 @@
 }
 
 :root.font-cascadia {
-    --font-monospace-active: var(--font-cascadia-code), "Cascadia Code", "Consolas", monospace;
+    --font-mono: var(--font-cascadia-code), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 :root.theme-modern {
-    --font-space-grotesk: var(--font-geist-sans), sans-serif;
-    --font-space-mono: var(--font-geist-mono), monospace;
-    --font-departure-active: var(--font-geist-pixel), monospace;
+    --font-brand: var(--font-geist-pixel), monospace;
+    --font-heading: var(--font-geist-pixel), monospace;
+    --font-sans: var(--font-geist-sans), sans-serif;
+    --font-mono: var(--font-geist-mono), monospace;
 }
 
 :root.light {
@@ -141,10 +147,10 @@
     --color-warning: var(--warning);
     --color-info: var(--info);
 
-    --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-    --font-mono:
-        var(--font-monospace-active), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-departure: var(--font-departure-active, "Departure Mono"), monospace;
+    --font-brand: var(--font-brand);
+    --font-heading: var(--font-heading);
+    --font-sans: var(--font-sans);
+    --font-mono: var(--font-mono);
 
     --animate-snappy: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -161,7 +167,7 @@ body {
     background-image: radial-gradient(var(--dots) 1px, transparent 1px);
     background-size: 20px 20px;
     color: var(--foreground);
-    font-family: var(--font-sans); /* Space Grotesk as primary UI font */
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
 }
@@ -222,7 +228,7 @@ h3,
 h4,
 h5,
 h6 {
-    font-family: var(--font-departure);
+    font-family: var(--font-heading);
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -230,7 +236,7 @@ h6 {
 
 /* Typography Helpers */
 .text-industrial {
-    font-family: var(--font-sans);
+    font-family: var(--font-brand);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -244,7 +250,7 @@ h6 {
     border: 2px solid var(--primary);
     background: var(--primary);
     color: var(--primary-foreground);
-    font-family: var(--font-sans);
+    font-family: var(--font-heading);
     font-weight: 700;
     text-transform: uppercase;
     font-size: 0.875rem;
@@ -316,7 +322,7 @@ table {
 }
 
 th {
-    font-family: var(--font-departure);
+    font-family: var(--font-heading);
     text-transform: uppercase;
     font-size: 1.1rem;
     letter-spacing: 0.05em;
@@ -374,6 +380,13 @@ tr:hover td {
 .theme-playful, 
 .theme-playful * {
     font-family: var(--font-sour-gummy), cursive !important;
+}
+
+:root.theme-playful {
+    --font-brand: var(--font-sour-gummy), cursive;
+    --font-heading: var(--font-sour-gummy), cursive;
+    --font-sans: var(--font-sour-gummy), cursive;
+    --font-mono: var(--font-sour-gummy), cursive;
 }
 
 .theme-playful h1,

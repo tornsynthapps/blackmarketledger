@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Sour_Gummy, Space_Mono, Cascadia_Code } from "next/font/google";
+import { Sour_Gummy, Space_Mono, Cascadia_Code, VT323 } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { GeistPixelSquare } from "geist/font/pixel";
@@ -19,6 +19,12 @@ const spaceMono = Space_Mono({
 const cascadiaCode = Cascadia_Code({
     subsets: ["latin"],
     variable: "--font-cascadia-code",
+});
+
+const vt323 = VT323({
+    subsets: ["latin"],
+    weight: "400",
+    variable: "--font-vt323",
 });
 
 export const metadata: Metadata = {
@@ -40,7 +46,7 @@ export default function RootLayout({
     return (
         <html
             lang="en"
-            className={`${sourGummy.variable} ${spaceMono.variable} ${cascadiaCode.variable} ${GeistSans.variable} ${GeistMono.variable} ${GeistPixelSquare.variable}`}
+            className={`${sourGummy.variable} ${spaceMono.variable} ${cascadiaCode.variable} ${vt323.variable} ${GeistSans.variable} ${GeistMono.variable} ${GeistPixelSquare.variable}`}
             style={{
                 // @ts-ignore
                 "--font-geist-sans": GeistSans.style.fontFamily,
