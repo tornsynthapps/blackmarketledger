@@ -156,13 +156,14 @@ export function requireBaseObjectDatabaseFields(
 // Dexie requires all tables to be defined in a single .stores() call before opening.
 export const SCHEMA_REGISTRY: Record<string, Record<string, string>> = {
     "BlackMarketLedgerObjectsDB": {
-        "item_logs": "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,[item_id+category+timestamp]",
+        "item_logs": "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+category+timestamp]",
         "item_log_wrappers": "++id,type,timestamp,logged_at,updated_at",
         "system_logs": "++id,timestamp,level,context",
-        "trades": "++id,timestamp,type,wrapper_id,receipt_id,torn_id,user_id",
+        "trades": "++id,timestamp,type,wrapper_id,receipt_id,torn_id,user_id,sync_status",
         "trade_items": "++id,trade_db_id,item_id,type",
-        "receipts": "++id,receipt_id_string,source,created_at,seller_id",
-        "receipt_items": "++id,receipt_db_id,item_id"
+        "receipts": "++id,receipt_id_string,source,created_at,seller_id,sync_status",
+        "receipt_items": "++id,receipt_db_id,item_id",
+        "system_configs": "key"
     }
 };
 
@@ -178,7 +179,7 @@ export function getDatabase(databaseName: string): Dexie {
     if (!db) {
         db = new Dexie(databaseName);
         const schemas = SCHEMA_REGISTRY[databaseName] || {};
-        db.version(2).stores(schemas);
+        db.version(5).stores(schemas);
         DB_INSTANCES.set(databaseName, db);
     }
     return db;
@@ -262,12 +263,28 @@ export class BaseObjectRegistry<
     }
 
     /**
-     * Fetches every record in the table and hydrates them into domain objects.
+     * Fetches Every record in the table and hydrates them into domain objects.
      * @returns (Promise<TObject[]>): All stored objects for the registry table
      * @sideEffects Reads from IndexedDB through Dexie
      */
     public async getAll(): Promise<TObject[]> {
         const records = await this.tableRef.toArray();
+        return records.map((record) => this.hydrateRecord(record));
+    }
+
+    /**
+     * Fetches a slice of records from the table, ordered by timestamp descending.
+     * @param offset (number): The number of records to skip
+     * @param limit (number): The maximum number of records to return
+     * @returns (Promise<TObject[]>): A page of hydrated domain objects
+     */
+    public async getPaginated(offset: number, limit: number): Promise<TObject[]> {
+        const records = await this.tableRef
+            .orderBy("timestamp")
+            .reverse()
+            .offset(offset)
+            .limit(limit)
+            .toArray();
         return records.map((record) => this.hydrateRecord(record));
     }
 

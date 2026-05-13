@@ -1,70 +1,29 @@
-interface RateLimiter {
+import { NewRateLimiter } from "../api";
+import { getTornApiRateLimit, getWeav3rApiRateLimit } from "./api-keys";
+
+export interface RateLimiter {
     acquire: () => Promise<void>;
     tryAcquire: () => boolean;
     getWaitTime: () => number;
+    reset: () => void;
+    pauseGlobal: (ms: number) => void;
 }
 
 export function createRateLimiter(requestsPerMinute: number): RateLimiter {
-    const windowMs = 60 * 1000;
-    const maxRequests = Math.max(1, Math.min(requestsPerMinute, 1000));
-
-    const timestamps: number[] = [];
+    const limiter = new NewRateLimiter(requestsPerMinute);
 
     return {
-        async acquire() {
-            while (true) {
-                const now = Date.now();
-                const windowStart = now - windowMs;
-
-                // First, remove all expired timestamps (outside the window)
-                while (timestamps.length > 0 && timestamps[0] <= windowStart) {
-                    timestamps.shift();
-                }
-
-                // If under limit, add current timestamp and proceed
-                if (timestamps.length < maxRequests) {
-                    timestamps.push(now);
-                    return;
-                }
-
-                // At/over limit - wait for oldest to expire, then loop
-                const oldest = timestamps[0];
-                const waitTime = oldest - windowStart + 10;
-                await new Promise((resolve) => setTimeout(resolve, waitTime));
-            }
-        },
-
-        tryAcquire() {
-            const now = Date.now();
-            const windowStart = now - windowMs;
-
-            const validTimestamps = timestamps.filter((t) => t > windowStart);
-
-            if (validTimestamps.length < maxRequests) {
-                validTimestamps.push(now);
-                timestamps.length = 0;
-                timestamps.push(...validTimestamps);
-                return true;
-            }
-
-            return false;
-        },
-
-        getWaitTime() {
-            const now = Date.now();
-            const windowStart = now - windowMs;
-
-            const validTimestamps = timestamps.filter((t) => t > windowStart);
-
-            if (validTimestamps.length < maxRequests) {
-                return 0;
-            }
-
-            const oldest = Math.min(...validTimestamps);
-            return oldest - windowStart + 10;
-        },
+        acquire: () => limiter.acquire(),
+        tryAcquire: () => limiter.tryAcquire(),
+        getWaitTime: () => limiter.getWaitTime(),
+        reset: () => limiter.reset(),
+        pauseGlobal: (ms: number) => limiter.pauseGlobal(ms),
     };
 }
+
+// Singletons for shared rate limiting
+export const tornRateLimiter = createRateLimiter(getTornApiRateLimit());
+export const weav3rRateLimiter = createRateLimiter(getWeav3rApiRateLimit());
 
 export function updateRateLimiter(limiter: RateLimiter, requestsPerMinute: number): RateLimiter {
     return createRateLimiter(requestsPerMinute);

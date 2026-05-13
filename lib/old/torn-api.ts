@@ -5,7 +5,7 @@ import {
     normalizeItemName,
     resolveMuseumExchangeType,
 } from "./parser";
-import { createRateLimiter } from "./rate-limiter";
+import { tornRateLimiter, weav3rRateLimiter } from "./rate-limiter";
 import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "./api-keys";
 import {
     TornTrade,
@@ -18,21 +18,10 @@ import { getSetItems } from "./market-prices";
 export const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
 
-function getStoredRateLimits(): { torn: number; weav3r: number } {
-    return {
-        torn: getTornApiRateLimit(),
-        weav3r: getWeav3rApiRateLimit(),
-    };
-}
-
-let tornRateLimiter = createRateLimiter(getStoredRateLimits().torn);
-let weav3rRateLimiter = createRateLimiter(getStoredRateLimits().weav3r);
-
 export function refreshApiRateLimiters() {
     refreshApiKeysFromStorage();
-    const limits = getStoredRateLimits();
-    tornRateLimiter = createRateLimiter(limits.torn);
-    weav3rRateLimiter = createRateLimiter(limits.weav3r);
+    tornRateLimiter.reset();
+    weav3rRateLimiter.reset();
 }
 const AUTO_PILOT_LOG_CATEGORIES = [
     11, // Market
@@ -239,14 +228,38 @@ async function parseJson(response: Response) {
     return data;
 }
 
-async function fetchWithTornRateLimit(url: string, options?: RequestInit): Promise<Response> {
+async function fetchWithTornRateLimit(url: string, options?: RequestInit, retryCount = 0): Promise<Response> {
     await tornRateLimiter.acquire();
-    return fetch(url, options);
+    const response = await fetch(url, options);
+    
+    // Torn V2 can return 200 with code 5 for rate limits
+    const data = await response.clone().json().catch(() => ({}));
+    if (data?.error?.code === 5 || response.status === 429) {
+        if (retryCount === 0) {
+            console.warn("Torn API Rate Limit hit in fetchWithTornRateLimit. Pausing 10s and retrying...");
+            tornRateLimiter.pauseGlobal(10000);
+            await new Promise(r => setTimeout(r, 10000));
+            return fetchWithTornRateLimit(url, options, 1);
+        }
+        throw new Error("Torn API rate limit exceeded.");
+    }
+    return response;
 }
 
-async function fetchWithWeav3rRateLimit(url: string, options?: RequestInit): Promise<Response> {
+async function fetchWithWeav3rRateLimit(url: string, options?: RequestInit, retryCount = 0): Promise<Response> {
     await weav3rRateLimiter.acquire();
-    return fetch(url, options);
+    const response = await fetch(url, options);
+    
+    if (response.status === 429) {
+        if (retryCount === 0) {
+            console.warn("Weav3r API Rate Limit hit. Pausing 10s and retrying...");
+            weav3rRateLimiter.pauseGlobal(10000);
+            await new Promise(r => setTimeout(r, 10000));
+            return fetchWithWeav3rRateLimit(url, options, 1);
+        }
+        throw new Error("Weav3r API rate limit exceeded.");
+    }
+    return response;
 }
 
 export function buildUrl(

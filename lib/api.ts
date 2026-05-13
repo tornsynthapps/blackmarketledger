@@ -1,22 +1,36 @@
 /**
- * Token bucket rate limiter implementation.
- * @param requestsPerMinute (number): Maximum requests allowed per minute (1-80)
+ * Paced Token Bucket rate limiter implementation.
+ * Capacity = X (requests per minute).
+ * Refill = X/10 tokens every 6 seconds.
+ * Allows initial burst of X, then paces at X/10 per 6s.
  */
 export class NewRateLimiter {
     static readonly MIN_REQUESTS_PER_MINUTE = 1;
     static readonly MAX_REQUESTS_PER_MINUTE = 80;
     static readonly DEFAULT_REQUESTS_PER_MINUTE = 60;
 
-    private readonly windowMs: number;
     private readonly maxRequests: number;
-    private timestamps: number[] = [];
+    private tokens: number;
+    private lastRefill: number;
+    private globalPauseUntil: number = 0;
 
     constructor(requestsPerMinute: number) {
-        this.windowMs = 60 * 1000;
         this.maxRequests = Math.max(
             NewRateLimiter.MIN_REQUESTS_PER_MINUTE,
             Math.min(requestsPerMinute, NewRateLimiter.MAX_REQUESTS_PER_MINUTE)
         );
+        this.tokens = this.maxRequests;
+        this.lastRefill = Date.now();
+    }
+
+    /**
+     * Pauses all requests globally across this limiter for a given number of milliseconds.
+     */
+    public pauseGlobal(ms: number): void {
+        const target = Date.now() + ms;
+        if (target > this.globalPauseUntil) {
+            this.globalPauseUntil = target;
+        }
     }
 
     /**
@@ -25,10 +39,16 @@ export class NewRateLimiter {
      */
     async acquire(): Promise<void> {
         while (true) {
-            this.cleanupExpiredTimestamps();
+            const now = Date.now();
+            if (now < this.globalPauseUntil) {
+                await new Promise((resolve) => setTimeout(resolve, this.globalPauseUntil - now));
+                continue;
+            }
 
-            if (this.timestamps.length < this.maxRequests) {
-                this.timestamps.push(Date.now());
+            this.refill();
+
+            if (this.tokens >= 1) {
+                this.tokens -= 1;
                 return;
             }
 
@@ -42,10 +62,15 @@ export class NewRateLimiter {
      * @returns (boolean): True if slot acquired, false otherwise
      */
     tryAcquire(): boolean {
-        this.cleanupExpiredTimestamps();
+        const now = Date.now();
+        if (now < this.globalPauseUntil) {
+            return false;
+        }
 
-        if (this.timestamps.length < this.maxRequests) {
-            this.timestamps.push(Date.now());
+        this.refill();
+
+        if (this.tokens >= 1) {
+            this.tokens -= 1;
             return true;
         }
 
@@ -57,22 +82,28 @@ export class NewRateLimiter {
      * @returns (number): Milliseconds to wait (0 if slot available)
      */
     getWaitTime(): number {
-        const validTimestamps = this.getValidTimestamps();
+        const now = Date.now();
+        if (now < this.globalPauseUntil) {
+            return this.globalPauseUntil - now;
+        }
 
-        if (validTimestamps.length < this.maxRequests) {
+        this.refill();
+
+        if (this.tokens >= 1) {
             return 0;
         }
 
-        const oldest = Math.min(...validTimestamps);
-        const windowStart = Date.now() - this.windowMs;
-        return oldest - windowStart + 10;
+        // We need 1 token. Next refill happens every 6 seconds (6000ms).
+        const nextRefillIn = 6000 - (Date.now() - this.lastRefill);
+        return Math.max(0, nextRefillIn + 10);
     }
 
     /**
-     * Clears all timestamps, resetting the limiter.
+     * Clears all tokens, forcing a wait for refill.
      */
     reset(): void {
-        this.timestamps = [];
+        this.tokens = 0;
+        this.lastRefill = Date.now();
     }
 
     /**
@@ -88,28 +119,24 @@ export class NewRateLimiter {
      * @returns (number): Available slots (0 or positive)
      */
     getAvailableSlots(): number {
-        this.cleanupExpiredTimestamps();
-        return Math.max(0, this.maxRequests - this.timestamps.length);
+        this.refill();
+        return Math.floor(this.tokens);
     }
 
     /**
-     * Gets timestamps within the current window.
-     * @returns (number[]): Array of valid timestamps
+     * Refills tokens based on elapsed time.
+     * Refill rate: maxRequests / 10 tokens per 6 seconds.
      */
-    private getValidTimestamps(): number[] {
+    private refill(): void {
         const now = Date.now();
-        const windowStart = now - this.windowMs;
-        return this.timestamps.filter((t) => t > windowStart);
-    }
-
-    /**
-     * Removes all timestamps outside the current window.
-     */
-    private cleanupExpiredTimestamps(): void {
-        const now = Date.now();
-        const windowStart = now - this.windowMs;
-        while (this.timestamps.length > 0 && this.timestamps[0] <= windowStart) {
-            this.timestamps.shift();
+        const elapsed = now - this.lastRefill;
+        
+        if (elapsed >= 6000) {
+            const refillIntervals = Math.floor(elapsed / 6000);
+            const tokensToAdd = refillIntervals * (this.maxRequests / 10);
+            
+            this.tokens = Math.min(this.maxRequests, this.tokens + tokensToAdd);
+            this.lastRefill = now - (elapsed % 6000);
         }
     }
 }

@@ -41,7 +41,8 @@ export class TronWrapper {
             }
 
             const prevLink = response._metadata?.links?.prev;
-            if (!prevLink || response.log.length < 100) {
+            const logLength = Array.isArray(response.log) ? response.log.length : 0;
+            if (!prevLink || logLength < 100) {
                 break;
             }
 
@@ -96,25 +97,22 @@ export class TronWrapper {
             this.itemNameMap = await getTornItems(this.apiKey);
         }
 
-        const allPages = await Promise.all(
-            categories.map(async (params) => {
-                try {
-                    const logs = await this.getTornLogs({
-                        ...params,
-                        from: cursor.lastTimestamp,
-                        sort: "desc",
-                        limit: 100,
-                        to: toTimeStamp,
-                    });
-                    console.log(params);
-                    console.log(logs);
-                    return logs;
-                } catch (err) {
-                    console.error(`Failed to fetch logs for category ${params.cat}:`, err);
-                    return [] as TornLogEntry[];
-                }
-            })
-        );
+        const allPages: TornLogEntry[][] = [];
+        for (const params of categories) {
+            try {
+                const page = await this.getTornLogs({
+                    ...params,
+                    from: cursor.lastTimestamp,
+                    sort: "desc",
+                    limit: 100,
+                    to: toTimeStamp,
+                });
+                allPages.push(page);
+            } catch (err) {
+                console.error(`Failed to fetch logs for category ${params.cat}:`, err);
+                // Continue to next category
+            }
+        }
 
         const seenLogIds = new Set<string>();
         const logs = allPages

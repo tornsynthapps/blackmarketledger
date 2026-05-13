@@ -5,6 +5,7 @@ import { ItemLogService } from "@/lib/domain/ItemLogService";
 import { MuseumService } from "@/lib/domain/MuseumService";
 import { TradeService } from "@/lib/domain/TradeService";
 import { ReceiptService } from "@/lib/domain/ReceiptService";
+import { SyncService } from "@/lib/domain/SyncService";
 import { ItemLog } from "@/lib/objects/ItemLog";
 import { ItemLogWrapper } from "@/lib/objects/ItemLogWrapper";
 import { Trade } from "@/lib/objects/Trade";
@@ -23,7 +24,7 @@ import {
     Cancel01Icon,
     Tick01Icon,
     Link01Icon,
-    TradeUpIcon,
+    ArrowUpDownIcon,
 } from "@hugeicons/core-free-icons";
 
 /**
@@ -169,6 +170,11 @@ export default function NewArchitecturePage() {
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [activeTab, setActiveTab] = useState<"logs" | "wrappers" | "trades-receipts" | "services">("logs");
     const [isLoading, setIsLoading] = useState(true);
+    const [statusMessage, setStatusMessage] = useState("");
+
+    // Date Picker State
+    const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16));
+    const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 16));
 
     // Modal state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -179,6 +185,7 @@ export default function NewArchitecturePage() {
     const museumService = useMemo(() => new MuseumService(), []);
     const tradeService = useMemo(() => new TradeService(), []);
     const receiptService = useMemo(() => new ReceiptService(), []);
+    const syncService = useMemo(() => new SyncService(), []);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -238,19 +245,18 @@ export default function NewArchitecturePage() {
     };
 
     const handleUpdateCostBasis = async () => {
-        const minTimestamp = logs.length > 0 ? Math.min(...logs.map((l) => l.timestamp)) : Date.now();
-        const timestamp = prompt("Enter Start Timestamp (ms) for global recalculation:", minTimestamp.toString());
-        if (timestamp) {
-            setIsLoading(true);
-            try {
-                await service.updateCostBasis(parseInt(timestamp));
-                alert("Global cost basis recalculation completed successfully.");
-                await fetchData();
-            } catch (error) {
-                alert("Error updating cost basis: " + (error as Error).message);
-            } finally {
-                setIsLoading(false);
-            }
+        const timestamp = new Date(startDate).getTime();
+        setIsLoading(true);
+        setStatusMessage(`Recalculating cost basis from ${new Date(timestamp).toLocaleString()}...`);
+        try {
+            await service.updateCostBasis(timestamp);
+            alert("Global cost basis recalculation completed successfully.");
+            await fetchData();
+        } catch (error) {
+            alert("Error updating cost basis: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
         }
     };
 
@@ -347,6 +353,55 @@ export default function NewArchitecturePage() {
             } finally {
                 setIsLoading(false);
             }
+        }
+    };
+
+    const handleBulkFetchIDs = async () => {
+        setIsLoading(true);
+        setStatusMessage("Fetching bulk IDs...");
+        try {
+            await syncService.fetchBulkTradesAndReceipts(
+                new Date(startDate).getTime(),
+                new Date(endDate).getTime(),
+                (msg) => setStatusMessage(msg)
+            );
+            alert("Bulk ID fetch completed.");
+            await fetchData();
+        } catch (error) {
+            alert("Error during bulk fetch: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
+        }
+    };
+
+    const handlePopulateDetails = async () => {
+        setIsLoading(true);
+        setStatusMessage("Populating details in background...");
+        try {
+            await syncService.runBackgroundSync((msg) => setStatusMessage(msg));
+            alert("Detail population completed.");
+            await fetchData();
+        } catch (error) {
+            alert("Error during population: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
+        }
+    };
+
+    const handleAutoLink = async () => {
+        setIsLoading(true);
+        setStatusMessage("Auto-linking trades and receipts...");
+        try {
+            await syncService.autoLinkTradesAndReceipts((msg) => setStatusMessage(msg));
+            alert("Auto-linking completed.");
+            await fetchData();
+        } catch (error) {
+            alert("Error during auto-linking: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
         }
     };
 
@@ -692,7 +747,7 @@ export default function NewArchitecturePage() {
                         <div className="space-y-0">
                             <div className="p-4 border-b border-primary/20 flex flex-wrap gap-4 justify-between items-center bg-muted/5">
                                 <div className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                                    <HugeiconsIcon icon={TradeUpIcon} size={14} />
+                                    <HugeiconsIcon icon={ArrowUpDownIcon} size={14} />
                                     TRADES_AND_RECEIPTS_REGISTRY
                                 </div>
                                 <div className="flex gap-2">
@@ -815,74 +870,188 @@ export default function NewArchitecturePage() {
                     )}
 
                     {activeTab === "services" && (
-                        <div className="p-12 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                            <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
-                                        <HugeiconsIcon icon={Settings01Icon} size={24} />
+                        <div className="p-8 space-y-12 max-w-5xl mx-auto">
+                            {/* DATE RANGE SELECTOR */}
+                            <div className="p-6 border-2 border-primary/20 bg-muted/5 space-y-4 shadow-sm shadow-primary/5 animate-in slide-in-from-top-4 duration-500">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                    <HugeiconsIcon icon={Settings01Icon} size={14} />
+                                    SERVICE_PARAMETERS_CONFIG
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2 group">
+                                        <label className="text-[9px] font-bold text-muted uppercase tracking-widest group-focus-within:text-primary transition-colors">Temporal_Start</label>
+                                        <input 
+                                            type="datetime-local" 
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="w-full bg-background border-2 border-border-strong p-3 font-mono text-[10px] uppercase outline-none focus:border-primary transition-all focus:bg-primary/5"
+                                        />
                                     </div>
-                                    <div>
-                                        <h3 className="text-lg font-black uppercase tracking-wider">
-                                            RECALCULATE_COST_BASIS
-                                        </h3>
-                                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Alpha</p>
+                                    <div className="space-y-2 group">
+                                        <label className="text-[9px] font-bold text-muted uppercase tracking-widest group-focus-within:text-primary transition-colors">Temporal_End</label>
+                                        <input 
+                                            type="datetime-local" 
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="w-full bg-background border-2 border-border-strong p-3 font-mono text-[10px] uppercase outline-none focus:border-primary transition-all focus:bg-primary/5"
+                                        />
                                     </div>
                                 </div>
-                                <p className="text-xs text-muted leading-relaxed font-mono">
-                                    Triggers full recalculation of cost-basis and running totals for specific inventory ID from defined temporal origin.
-                                </p>
-                                <button
-                                    onClick={handleUpdateCostBasis}
-                                    className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
-                                >
-                                    EXECUTE_SERVICE_001
-                                </button>
+                                {statusMessage && (
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-primary animate-pulse mt-4 flex items-center gap-2">
+                                        <HugeiconsIcon icon={RefreshIcon} size={12} className="animate-spin" />
+                                        {statusMessage}
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
-                                        <HugeiconsIcon icon={Settings01Icon} size={24} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">04</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={RefreshIcon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                BULK_ID_FETCH
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Delta</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="text-lg font-black uppercase tracking-wider">
-                                            TRANSFER_INVENTORY
-                                        </h3>
-                                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Beta</p>
-                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Fetches all distinct Trade and Receipt IDs within the configured time frame. Created as partial records.
+                                    </p>
+                                    <button
+                                        onClick={handleBulkFetchIDs}
+                                        disabled={isLoading}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5 disabled:opacity-50"
+                                    >
+                                        EXECUTE_SERVICE_004
+                                    </button>
                                 </div>
-                                <p className="text-xs text-muted leading-relaxed font-mono">
-                                    Executes a manual transfer of inventory units between categories. Creates a wrapper and linked logs.
-                                </p>
-                                <button
-                                    onClick={handleTransferItem}
-                                    className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
-                                >
-                                    EXECUTE_SERVICE_002
-                                </button>
-                            </div>
 
-                            <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
-                                        <HugeiconsIcon icon={Settings01Icon} size={24} />
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">05</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={DatabaseIcon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                POPULATE_DETAILS
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Epsilon</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="text-lg font-black uppercase tracking-wider">
-                                            MUSEUM_EXCHANGE
-                                        </h3>
-                                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Gamma</p>
-                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Sequentially fetches full details (items, prices, participants) for all records marked as pending.
+                                    </p>
+                                    <button
+                                        onClick={handlePopulateDetails}
+                                        disabled={isLoading}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5 disabled:opacity-50"
+                                    >
+                                        EXECUTE_SERVICE_005
+                                    </button>
                                 </div>
-                                <p className="text-xs text-muted leading-relaxed font-mono">
-                                    Exchanges sets of items for Points at the Museum. Validates sufficient stock in the 'museum' category.
-                                </p>
-                                <button
-                                    onClick={handleMuseumExchange}
-                                    className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
-                                >
-                                    EXECUTE_SERVICE_003
-                                </button>
+
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">06</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Link01Icon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                AUTO_LINK_REGISTRY
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Zeta</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Iteratively attempts to match unlinked Trades with unlinked Receipts based on value and temporal proximity.
+                                    </p>
+                                    <button
+                                        onClick={handleAutoLink}
+                                        disabled={isLoading}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5 disabled:opacity-50"
+                                    >
+                                        EXECUTE_SERVICE_006
+                                    </button>
+                                </div>
+
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">01</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Settings01Icon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                RECALCULATE_COST_BASIS
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Alpha</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Triggers full recalculation of cost-basis and running totals for all items from defined temporal origin.
+                                    </p>
+                                    <button
+                                        onClick={handleUpdateCostBasis}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
+                                    >
+                                        EXECUTE_SERVICE_001
+                                    </button>
+                                </div>
+
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">02</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Settings01Icon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                TRANSFER_INVENTORY
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Beta</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Executes a manual transfer of inventory units between categories. Creates a wrapper and linked logs.
+                                    </p>
+                                    <button
+                                        onClick={handleTransferItem}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
+                                    >
+                                        EXECUTE_SERVICE_002
+                                    </button>
+                                </div>
+
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">03</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Settings01Icon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                MUSEUM_EXCHANGE
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Gamma</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Exchanges sets of items for Points at the Museum. Validates sufficient stock in the 'museum' category.
+                                    </p>
+                                    <button
+                                        onClick={handleMuseumExchange}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
+                                    >
+                                        EXECUTE_SERVICE_003
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}

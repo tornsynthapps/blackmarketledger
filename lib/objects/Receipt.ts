@@ -8,6 +8,7 @@ import {
 } from "./BaseObject";
 
 export type ReceiptSource = "weav3r" | "tornexchange";
+export type ReceiptSyncStatus = "pending_details" | "complete";
 
 export interface ReceiptCreateFields {
     receipt_id_string: string;
@@ -15,6 +16,7 @@ export interface ReceiptCreateFields {
     total_value: number;
     seller_id: number;
     created_at: number;
+    sync_status?: ReceiptSyncStatus;
 }
 
 export interface ReceiptDatabaseRecord extends BaseObjectDatabaseRecord {
@@ -23,16 +25,18 @@ export interface ReceiptDatabaseRecord extends BaseObjectDatabaseRecord {
     total_value: number;
     seller_id: number;
     created_at: number;
+    sync_status: ReceiptSyncStatus;
 }
 
 export class Receipt extends BaseObject {
-    private static readonly CURRENT_VERSION = 1;
+    private static readonly CURRENT_VERSION = 2;
 
     public readonly receipt_id_string: string;
     public readonly source: ReceiptSource;
     public readonly total_value: number;
     public readonly seller_id: number;
     public readonly created_at: number;
+    public readonly sync_status: ReceiptSyncStatus;
 
     /**
      * Creates a receipt with optional persisted metadata.
@@ -50,6 +54,7 @@ export class Receipt extends BaseObject {
         this.total_value = fields.total_value;
         this.seller_id = fields.seller_id;
         this.created_at = fields.created_at;
+        this.sync_status = fields.sync_status ?? "complete";
     }
 
     /**
@@ -76,6 +81,7 @@ export class Receipt extends BaseObject {
                 total_value: record.total_value,
                 seller_id: record.seller_id,
                 created_at: record.created_at,
+                sync_status: record.sync_status,
             },
             databaseFields
         );
@@ -93,6 +99,7 @@ export class Receipt extends BaseObject {
             total_value: this.total_value,
             seller_id: this.seller_id,
             created_at: this.created_at,
+            sync_status: this.sync_status,
         };
     }
 }
@@ -106,7 +113,7 @@ export class ReceiptRegistry extends BaseObjectRegistry<Receipt, ReceiptDatabase
         super(
             "BlackMarketLedgerObjectsDB",
             "receipts",
-            "++id,receipt_id_string,source,created_at,seller_id",
+            "++id,receipt_id_string,source,created_at,seller_id,sync_status",
             (receipt) => receipt.toDatabaseRecord(),
             (record) => Receipt.fromDatabase(record)
         );

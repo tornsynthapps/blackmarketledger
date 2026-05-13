@@ -69,41 +69,69 @@ export class TradeService extends BaseService {
     }
 
     /**
-     * Fetches a trade from Torn API, creates a wrapper, and persists the trade and its items.
-     * For buy trades, it calculates proportional cost-basis and logs items automatically.
-     * @param tornId (string): The Torn API identifier for the trade
-     * @returns (Promise<Trade>): The persisted trade
+     * Creates a partial trade record with no items, marked as pending_details.
+     * @param tornId (number): The Torn API trade identifier
+     * @param timestamp (number): The trade timestamp in seconds
+     * @returns (Promise<number>): The database ID of the created trade
      */
-    public async fetchAndCreateTrade(tornId: string): Promise<Trade> {
-        this.logger.info(`Fetching trade ${tornId} from Torn API`);
-        const tornTrade = await TornAPI.getTornTrade(tornId);
-        
-        // Convert timestamp to milliseconds if it is in seconds (Torn API uses seconds)
-        const timestampMs = tornTrade.timestamp * 1000;
+    public async createPartialTrade(tornId: number, timestamp: number): Promise<number> {
+        const existing = await this.tradeRegistry.getByTornId(tornId);
+        if (existing) return existing.id!;
 
-        // Use the current user's ID to determine trade direction
+        const ourId = await MetadataInterface.getUserID();
+        const trade = Trade.create({
+            timestamp: timestamp * 1000,
+            type: "others", // Default until details fetched
+            torn_id: tornId,
+            user_id: ourId,
+            sync_status: "pending_details"
+        });
+
+        return await this.tradeRegistry.put(trade);
+    }
+
+    /**
+     * Fetches details for a partial trade and populates items and logs.
+     * @param tradeDbId (number): The database ID of the trade to populate
+     */
+    public async populateTradeDetails(tradeDbId: number): Promise<void> {
+        const trade = await this.tradeRegistry.getById(tradeDbId);
+        if (!trade || trade.sync_status === "complete") return;
+
+        this.logger.info(`Populating details for trade ${trade.torn_id} (DB: ${tradeDbId})`);
+        
+        let tornTrade;
+        try {
+            tornTrade = await TornAPI.getTornTrade(String(trade.torn_id));
+        } catch (error: any) {
+            if (error.message?.includes("Rate limit")) {
+                this.logger.warn(`Rate limit hit during trade population. Pausing 10s.`);
+                await new Promise(r => setTimeout(r, 10000));
+                throw error; // Re-throw to let caller handle retry
+            }
+            throw error;
+        }
+
+        const timestampMs = tornTrade.timestamp * 1000;
         const ourId = await MetadataInterface.getUserID();
         const tradeType = this.determineTradeType(tornTrade, ourId);
 
         // 1. Create Wrapper
         const wrapper = ItemLogWrapper.create({
-            type: "trade-receipt", // Correct type for trade ingestion
-            description: `Trade ${tornId}: ${tradeType} trade`,
+            type: "trade-receipt",
+            description: `Trade ${trade.torn_id}: ${tradeType} trade`,
             timestamp: timestampMs,
         });
         const wrapperId = await this.wrapperRegistry.put(wrapper);
-        this.logger.info(`Created wrapper ${wrapperId} for trade ${tornId}`);
 
-        // 2. Create Trade
-        const trade = Trade.create({
-            timestamp: timestampMs,
-            type: tradeType,
-            wrapper_id: wrapperId,
-            torn_id: parseInt(tornId, 10),
-            user_id: ourId,
-        });
-        const tradeDbId = await this.tradeRegistry.put(trade);
-        this.logger.info(`Created trade record ${tradeDbId} in database`);
+        // 2. Update Trade Record
+        // @ts-ignore - bypassing readonly
+        trade.type = tradeType;
+        // @ts-ignore
+        trade.wrapper_id = wrapperId;
+        // @ts-ignore
+        trade.sync_status = "complete";
+        await this.tradeRegistry.put(trade);
 
         let totalMoneyPaid = 0;
         let totalMoneyReceived = 0;
@@ -135,7 +163,6 @@ export class TradeService extends BaseService {
                 }
             }
 
-            // Tracking for cost-basis (Buy logic)
             if (userId === ourId) {
                 if (type === "Money") totalMoneyPaid += quantity;
                 else if (type === "Item" && itemId !== null) sentItemsMap[itemId] = (sentItemsMap[itemId] || 0) + quantity;
@@ -154,11 +181,9 @@ export class TradeService extends BaseService {
         });
 
         await this.tradeItemRegistry.bulkPut(tradeItems);
-        this.logger.info(`Persisted ${tradeItems.length} trade items for trade ${tornId}`);
 
         // 4. Ingest items into logs
         if (tradeType === "buy") {
-            this.logger.info(`Processing buy-trade ingestion for ${tornId}. Total money paid: ${totalMoneyPaid}`);
             const marketPrices = await TornAPIClient.getMarketPrices();
             let totalMarketValue = 0;
 
@@ -169,13 +194,9 @@ export class TradeService extends BaseService {
                 return { id, qty, mp };
             });
 
-            this.logger.info(`Total market value of received items: ${totalMarketValue}`);
-
             const proportionPaid = totalMarketValue > 0 ? totalMoneyPaid / totalMarketValue : 0;
-            this.logger.info(`Trade ${tornId}: Proportional basis = ${proportionPaid.toFixed(4)} (Paid ${totalMoneyPaid} for ${totalMarketValue} MP)`);
 
             for (const item of itemsToLog) {
-                this.logger.info(`Adding log for item ${item.id}: qty=${item.qty}, unit_price=${item.mp * proportionPaid}`);
                 await this.itemLogService.addItemLog({
                     timestamp: timestampMs,
                     item_id: item.id,
@@ -185,11 +206,7 @@ export class TradeService extends BaseService {
                     wrapper_id: wrapperId,
                 });
             }
-
-            this.logger.info(`Triggering cost-basis update from timestamp ${timestampMs}`);
-            await this.itemLogService.updateCostBasis(timestampMs);
         } else if (tradeType === "sell") {
-            this.logger.info(`Processing sell-trade ingestion for ${tornId}. Total money received: ${totalMoneyReceived}`);
             const marketPrices = await TornAPIClient.getMarketPrices();
             let totalMarketValue = 0;
 
@@ -200,13 +217,9 @@ export class TradeService extends BaseService {
                 return { id, qty, mp };
             });
 
-            this.logger.info(`Total market value of sent items: ${totalMarketValue}`);
-
             const proportionReceived = totalMarketValue > 0 ? totalMoneyReceived / totalMarketValue : 0;
-            this.logger.info(`Trade ${tornId}: Proportional revenue = ${proportionReceived.toFixed(4)} (Received ${totalMoneyReceived} for ${totalMarketValue} MP)`);
 
             for (const item of itemsToLog) {
-                this.logger.info(`Adding log for item ${item.id}: qty=${-item.qty}, unit_price=${item.mp * proportionReceived}`);
                 await this.itemLogService.addItemLog({
                     timestamp: timestampMs,
                     item_id: item.id,
@@ -216,15 +229,25 @@ export class TradeService extends BaseService {
                     wrapper_id: wrapperId,
                 });
             }
-
-            this.logger.info(`Triggering cost-basis update from timestamp ${timestampMs}`);
-            await this.itemLogService.updateCostBasis(timestampMs);
-        } else {
-            this.logger.info(`Skipping log ingestion for non-standard trade type: ${tradeType}`);
         }
+    }
 
-        this.logger.info(`Successfully finished fetchAndCreateTrade for ${tornId}`);
-        return trade;
+    /**
+     * Fetches a trade from Torn API, creates a wrapper, and persists the trade and its items.
+     */
+    public async fetchAndCreateTrade(tornId: string): Promise<Trade> {
+        const timestamp = Math.floor(Date.now() / 1000); // Temporary timestamp
+        const dbId = await this.createPartialTrade(parseInt(tornId, 10), timestamp);
+        await this.populateTradeDetails(dbId);
+        return (await this.tradeRegistry.getById(dbId))!;
+    }
+
+    /**
+     * Retrieves all trades that are pending detailed ingestion.
+     */
+    public async getPendingTrades(): Promise<Trade[]> {
+        const records = await this.tradeRegistry.getAll();
+        return records.filter(t => t.sync_status === "pending_details");
     }
 
     /**

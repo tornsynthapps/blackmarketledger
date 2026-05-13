@@ -320,7 +320,7 @@ export class TornTrade {
         );
 
         // Check if it's simple buy trade.
-        if (trade.hasOnlyOneMoneyItem() && trade.getTotalValue() !== expandedTotalValue) {
+        if (trade.hasOnlyOneMoneyItem() && Math.abs(trade.getTotalValue() - expandedTotalValue) > 1) {
             mydebug(
                 [trade.getTotalValue(), expandedTotalValue],
                 "TornTrade.compareReceipt: Receipt total value mismatch"

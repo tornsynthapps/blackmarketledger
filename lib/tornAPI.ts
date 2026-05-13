@@ -74,46 +74,53 @@ export class TornAPIClient {
         return await response.json();
     }
 
+    private static catalogCache: any[] | null = null;
+
+    private static async getCatalog(): Promise<any[]> {
+        if (this.catalogCache) return this.catalogCache;
+        const catalogData = await this.sendV2Request("torn/items", { cat: "All" });
+        if (catalogData && Array.isArray(catalogData.items)) {
+            this.catalogCache = catalogData.items;
+            return this.catalogCache!;
+        }
+        return [];
+    }
+
     /**
      * Purpose: Fetch the current global catalog for Torn, extracting market prices exclusively.
      * 
      * @returns (Promise<Record<number, number>>): A dictionary mapping item ID to its market price.
      */
     public static async getMarketPrices(): Promise<Record<number, number>> {
-        const catalogData = await this.sendV2Request("torn/items", { cat: "All" });
+        const items = await this.getCatalog();
         const priceMap: Record<number, number> = {};
-        
-        if (catalogData && Array.isArray(catalogData.items)) {
-            for (const item of catalogData.items) {
-                if (item.id && item.value && typeof item.value.market_price === "number") {
-                    priceMap[item.id] = item.value.market_price;
-                }
+
+        for (const item of items) {
+            if (item.id && item.value && typeof item.value.market_price === "number") {
+                priceMap[item.id] = item.value.market_price;
             }
         }
-        
+
         return priceMap;
     }
 
     /**
-     * Purpose: Fetch the current global catalog for Torn items, extracting item names exclusively.
+     * Purpose: Fetch the names of all items in Torn's global catalog.
      * 
      * @returns (Promise<Record<number, string>>): A dictionary mapping item ID to its canonical name.
      */
     public static async getItemNames(): Promise<Record<number, string>> {
-        const catalogData = await this.sendV2Request("torn/items", { cat: "All" });
+        const items = await this.getCatalog();
         const nameMap: Record<number, string> = {};
-        
-        if (catalogData && Array.isArray(catalogData.items)) {
-            for (const item of catalogData.items) {
-                if (item.id && item.name) {
-                    nameMap[item.id] = item.name;
-                }
+
+        for (const item of items) {
+            if (item.id && item.name) {
+                nameMap[item.id] = item.name;
             }
         }
-        
+
         return nameMap;
     }
-
     /**
      * Purpose: Fetch the current user's inventory securely through Torn's API.
      * 

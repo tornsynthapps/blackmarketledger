@@ -8,6 +8,7 @@ import {
 } from "./BaseObject";
 
 export type TradeType = "buy" | "sell" | "others";
+export type TradeSyncStatus = "pending_details" | "complete";
 
 export interface TradeCreateFields {
     timestamp: number;
@@ -16,6 +17,7 @@ export interface TradeCreateFields {
     receipt_id?: number | null;
     torn_id: number;
     user_id: number;
+    sync_status?: TradeSyncStatus;
 }
 
 export interface TradeDatabaseRecord extends BaseObjectDatabaseRecord {
@@ -24,16 +26,18 @@ export interface TradeDatabaseRecord extends BaseObjectDatabaseRecord {
     receipt_id: number | null;
     torn_id: number;
     user_id: number;
+    sync_status: TradeSyncStatus;
 }
 
 export class Trade extends BaseObject {
-    private static readonly CURRENT_VERSION = 2;
+    private static readonly CURRENT_VERSION = 3;
 
     public readonly type: TradeType;
     public readonly wrapper_id: number | null;
     public readonly receipt_id: number | null;
     public readonly torn_id: number;
     public readonly user_id: number;
+    public readonly sync_status: TradeSyncStatus;
 
     /**
      * Creates a trade with optional persisted metadata.
@@ -50,6 +54,7 @@ export class Trade extends BaseObject {
         this.receipt_id = fields.receipt_id ?? null;
         this.torn_id = fields.torn_id;
         this.user_id = fields.user_id;
+        this.sync_status = fields.sync_status ?? "complete";
     }
 
     /**
@@ -77,6 +82,7 @@ export class Trade extends BaseObject {
                 receipt_id: record.receipt_id,
                 torn_id: record.torn_id,
                 user_id: record.user_id,
+                sync_status: record.sync_status,
             },
             databaseFields
         );
@@ -94,6 +100,7 @@ export class Trade extends BaseObject {
             receipt_id: this.receipt_id,
             torn_id: this.torn_id,
             user_id: this.user_id,
+            sync_status: this.sync_status,
         };
     }
 }
@@ -107,7 +114,7 @@ export class TradeRegistry extends BaseObjectRegistry<Trade, TradeDatabaseRecord
         super(
             "BlackMarketLedgerObjectsDB",
             "trades",
-            "++id,timestamp,type,wrapper_id,receipt_id,torn_id,user_id",
+            "++id,timestamp,type,wrapper_id,receipt_id,torn_id,user_id,sync_status",
             (trade) => trade.toDatabaseRecord(),
             (record) => Trade.fromDatabase(record)
         );

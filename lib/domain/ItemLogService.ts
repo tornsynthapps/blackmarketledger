@@ -64,6 +64,30 @@ export class ItemLogService extends BaseService {
     }
 
     /**
+     * Retrieves a paginated slice of logs with optional filtering.
+     */
+    public async getPaginatedLogs(
+        offset: number, 
+        limit: number, 
+        category: string | null = null, 
+        searchQuery: string | null = null,
+        itemMap: Record<number, string> = {}
+    ): Promise<ItemLog[]> {
+        return await this.registry.getPaginatedLogs(offset, limit, category, searchQuery, itemMap);
+    }
+
+    /**
+     * Returns the total count of logs matching filters.
+     */
+    public async countLogs(
+        category: string | null = null, 
+        searchQuery: string | null = null,
+        itemMap: Record<number, string> = {}
+    ): Promise<number> {
+        return await this.registry.countLogs(category, searchQuery, itemMap);
+    }
+
+    /**
      * Retrieves a specific item log by its ID.
      * @param id (number): The unique identifier of the item log
      * @returns (Promise<ItemLog | undefined>): The found ItemLog or undefined
@@ -71,6 +95,14 @@ export class ItemLogService extends BaseService {
      */
     public async getLogById(id: number): Promise<ItemLog | undefined> {
         return await this.registry.getById(id);
+    }
+    /**
+     * Retrieves a specific item log by its Torn API log ID.
+     * @param tornLogId (string): The unique identifier from Torn API
+     * @returns (Promise<ItemLog | undefined>): The found ItemLog or undefined
+     */
+    public async getLogByTornLogId(tornLogId: string): Promise<ItemLog | undefined> {
+        return await this.registry.getByTornLogId(tornLogId);
     }
 
     /**
@@ -196,8 +228,14 @@ export class ItemLogService extends BaseService {
         const processedWrappers = new Set<number>();
         const processedTradeReceiptItems = new Set<string>();
 
+        this.logger.info(`Starting iteration over ${allLogs.length} logs for cost-basis update...`);
+
         for (let i = 0; i < allLogs.length; i++) {
             let log = allLogs[i];
+
+            if (i > 0 && i % 100 === 0) {
+                this.logger.info(`Cost-basis progress: ${i}/${allLogs.length} logs processed...`);
+            }
 
             // Skip logs before the starting timestamp or logs for items that haven't had activity since fromTimestamp
             if (log.timestamp < fromTimestamp || !affectedItemIds.has(log.item_id)) {

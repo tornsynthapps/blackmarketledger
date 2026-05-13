@@ -18,6 +18,7 @@ export interface ItemLogCreateFields {
     total_stock?: number;
     total_cost?: number;
     realized_profit?: number;
+    torn_log_id?: string | null;
 }
 
 export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "skipped";
@@ -31,10 +32,11 @@ export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     total_stock: number;
     total_cost: number;
     realized_profit: number;
+    torn_log_id: string | null;
 }
 
 export class ItemLog extends BaseObject {
-    private static readonly CURRENT_VERSION = 5;
+    private static readonly CURRENT_VERSION = 6;
 
     public readonly item_id: number;
     public readonly quantity: number;
@@ -44,6 +46,7 @@ export class ItemLog extends BaseObject {
     public readonly total_stock: number;
     public readonly total_cost: number;
     public readonly realized_profit: number;
+    public readonly torn_log_id: string | null;
 
     /**
      * Creates an item log with optional persisted metadata.
@@ -63,6 +66,7 @@ export class ItemLog extends BaseObject {
         this.total_stock = fields.total_stock ?? 0;
         this.total_cost = fields.total_cost ?? 0;
         this.realized_profit = fields.realized_profit ?? 0;
+        this.torn_log_id = fields.torn_log_id ?? null;
     }
 
     /**
@@ -96,6 +100,7 @@ export class ItemLog extends BaseObject {
                 total_stock: record.total_stock,
                 total_cost: record.total_cost,
                 realized_profit: record.realized_profit,
+                torn_log_id: record.torn_log_id,
             },
             databaseFields
         );
@@ -117,6 +122,7 @@ export class ItemLog extends BaseObject {
             total_stock: this.total_stock,
             total_cost: this.total_cost,
             realized_profit: this.realized_profit,
+            torn_log_id: this.torn_log_id,
         };
     }
 
@@ -142,6 +148,7 @@ export class ItemLog extends BaseObject {
                 category: this.category,
                 wrapper_id: this.wrapper_id,
                 realized_profit: this.realized_profit,
+                torn_log_id: this.torn_log_id,
                 ...overrides,
                 total_stock: totalStock,
                 total_cost: totalCost,
@@ -165,10 +172,105 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
         super(
             "BlackMarketLedgerObjectsDB",
             "item_logs",
-            "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,[item_id+category+timestamp]",
+            "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+category+timestamp]",
             (itemLog) => itemLog.toDatabaseRecord(),
             (record) => ItemLog.fromDatabase(record)
         );
+    }
+
+    /**
+     * Fetches Every record in the table and hydrates them into domain objects.
+     * @returns (Promise<ItemLog[]>): All stored objects for the registry table
+     * @sideEffects Reads from IndexedDB through Dexie
+     */
+    public override async getAll(): Promise<ItemLog[]> {
+        const records = await this.tableRef.orderBy("timestamp").reverse().toArray();
+        return records.map((record) => ItemLog.fromDatabase(record));
+    }
+
+    /**
+     * Retrieves a paginated slice of logs, optionally filtered by category and item name.
+     * @param offset (number): Records to skip
+     * @param limit (number): Max records to return
+     * @param category (string | null): Optional category filter
+     * @param searchQuery (string | null): Optional item name search (partial)
+     * @param itemMap (Record<number, string>): Map of item ID to name for searching
+     * @returns (Promise<ItemLog[]>): Hydrated logs
+     */
+    public async getPaginatedLogs(
+        offset: number,
+        limit: number,
+        category: string | null = null,
+        searchQuery: string | null = null,
+        itemMap: Record<number, string> = {}
+    ): Promise<ItemLog[]> {
+        let collection = this.tableRef.orderBy("timestamp").reverse();
+
+        if (category && category !== "all") {
+            collection = this.tableRef.where("category").equals(category).reverse();
+        }
+
+        // Search is complex in indexedDB without full text search.
+        // If searching, we may still need to fetch some IDs.
+        // For simplicity and efficiency, if searching, we apply the filter on the collection.
+        
+        const filteredRecords: ItemLogDatabaseRecord[] = [];
+        let skipped = 0;
+
+        await collection.until(() => filteredRecords.length === limit).each(record => {
+            const matchesCategory = !category || category === "all" || record.category === category;
+            const matchesSearch = !searchQuery || (itemMap[record.item_id]?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+
+            if (matchesCategory && matchesSearch) {
+                if (skipped >= offset) {
+                    filteredRecords.push(record);
+                } else {
+                    skipped++;
+                }
+            }
+        });
+
+        return filteredRecords.map(r => ItemLog.fromDatabase(r));
+    }
+
+    /**
+     * Returns the total count of logs matching the filters.
+     */
+    public async countLogs(
+        category: string | null = null,
+        searchQuery: string | null = null,
+        itemMap: Record<number, string> = {}
+    ): Promise<number> {
+        if (!category || category === "all") {
+            if (!searchQuery) return await this.tableRef.count();
+        }
+
+        let collection = category && category !== "all" 
+            ? this.tableRef.where("category").equals(category)
+            : this.tableRef.toCollection();
+
+        if (searchQuery) {
+            let count = 0;
+            const query = searchQuery.toLowerCase();
+            await collection.each(record => {
+                if ((itemMap[record.item_id]?.toLowerCase() || "").includes(query)) {
+                    count++;
+                }
+            });
+            return count;
+        }
+
+        return await collection.count();
+    }
+
+    /**
+     * Fetches a log by its Torn API log ID.
+     * @param tornLogId (string): The Torn log ID
+     * @returns (Promise<ItemLog | undefined>): The found log or undefined
+     */
+    public async getByTornLogId(tornLogId: string): Promise<ItemLog | undefined> {
+        const record = await this.tableRef.where("torn_log_id").equals(tornLogId).first();
+        return record ? ItemLog.fromDatabase(record) : undefined;
     }
 
     /**
@@ -211,6 +313,12 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
 
         // Initialize with zeros
         categories.forEach((cat) => result.set(cat, { stock: 0, cost: 0 }));
+
+        // Safety: Ensure keys are valid for IndexedDB to prevent DataError
+        if (!Number.isFinite(itemId) || !Number.isFinite(timestamp)) {
+            console.error(`Invalid keys provided to getLatestTotalsPerCategoryBefore: itemId=${itemId}, timestamp=${timestamp}`);
+            return result;
+        }
 
         for (const category of categories) {
             const latestRecord = await this.tableRef

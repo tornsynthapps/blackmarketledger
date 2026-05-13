@@ -10,21 +10,62 @@ export class MuseumService extends BaseService {
 
     public readonly SETS: Record<ItemLogWrapperMuseumSubType, number[]> = {
         "plushie-set": [
+            ItemList.SHEEP_PLUSHIE,
             ItemList.TEDDY_BEAR_PLUSHIE,
             ItemList.KITTEN_PLUSHIE,
+            ItemList.JAGUAR_PLUSHIE,
+            ItemList.WOLVERINE_PLUSHIE,
+            ItemList.NESSIE_PLUSHIE,
+            ItemList.RED_FOX_PLUSHIE,
             ItemList.MONKEY_PLUSHIE,
+            ItemList.CHAMOIS_PLUSHIE,
+            ItemList.PANDA_PLUSHIE,
+            ItemList.LION_PLUSHIE,
+            ItemList.CAMEL_PLUSHIE,
+            ItemList.STINGRAY_PLUSHIE,
         ],
-        "exotic-flower-set": [ItemList.DAHLIA],
-        "meteorite-fragment": [],
-        "patagonian-fossil": [],
-        "arrowhead-set": [],
-        "medieval-coin-set": [],
-        "vairocana-buddha": [],
-        "ganesha-sculpture": [],
-        "shabti-sculpture": [],
-        "companion-scripts": [],
-        "senet-game-set": [],
-        "egyptian-amulet": [],
+        "exotic-flower-set": [
+            ItemList.AFRICAN_VIOLET,
+            ItemList.BANANA_ORCHID,
+            ItemList.CROCUS,
+            ItemList.DAHLIA,
+            ItemList.EDELWEISS,
+            ItemList.HEATHER,
+            ItemList.ORCHID,
+            ItemList.PEONY,
+            ItemList.CEIBO_FLOWER,
+            ItemList.CHERRY_BLOSSOM,
+            ItemList.TRIBULUS_OMANENSE,
+        ],
+        "meteorite-fragment": [ItemList.METEORITE_FRAGMENT],
+        "patagonian-fossil": [ItemList.PATAGONIAN_FOSSIL],
+        "arrowhead-set": [
+            ItemList.OBSIDIAN_POINT,
+            ItemList.QUARTZITE_POINT,
+            ItemList.CHERT_POINT,
+            ItemList.BASALT_POINT,
+            ItemList.CHALCEDONY_POINT,
+            ItemList.QUARTZ_POINT,
+        ],
+        "medieval-coin-set": [
+            ItemList.LEOPARD_COIN,
+            ItemList.FLORIN_COIN,
+            ItemList.GOLD_NOBLE_COIN,
+        ],
+        "vairocana-buddha": [ItemList.VAIROCANA_BUDDHA_SCULPTURE],
+        "ganesha-sculpture": [ItemList.GANESHA_SCULPTURE],
+        "shabti-sculpture": [ItemList.SHABTI_SCULPTURE],
+        "companion-scripts": [
+            ItemList.COMPANION_SCRIPT_ABDULLAH,
+            ItemList.COMPANION_SCRIPT_UBAY,
+            ItemList.COMPANION_SCRIPT_ALI,
+        ],
+        "senet-game-set": [
+            ItemList.WHITE_SENET_PAWN,
+            ItemList.BLACK_SENET_PAWN,
+            ItemList.SENET_BOARD,
+        ],
+        "egyptian-amulet": [ItemList.EGYPTIAN_AMULET],
     };
 
     /**
@@ -85,7 +126,7 @@ export class MuseumService extends BaseService {
         this.logger.info(`Final exchange quantity determined: ${finalExchangeQuantity} sets (requested ${quantity})`);
 
         if (finalExchangeQuantity <= 0) {
-            throw new Error(`Insufficient stock in 'museum' and 'normal' categories to exchange any '${set}'.`);
+            this.logger.warn(`Insufficient stock for '${set}'. Proceeding with skipped logs for re-evaluation.`);
         }
 
         // 2. Create the museum-exchange wrapper.
@@ -104,17 +145,17 @@ export class MuseumService extends BaseService {
         // 3. Process each item: perform direct removals and log skips for shortfalls.
         for (const itemId of itemsInSet) {
             const stats = itemStats.get(itemId)!;
-            const fromNormal = Math.max(0, finalExchangeQuantity - stats.mStock);
-            const fromMuseum = finalExchangeQuantity - fromNormal;
+            const takeFromMuseum = Math.min(finalExchangeQuantity, stats.mStock);
+            const takeFromNormal = finalExchangeQuantity - takeFromMuseum;
             const skippedAmount = quantity - finalExchangeQuantity;
 
-            if (fromNormal > 0) {
-                totalCostOfExchange += fromNormal * stats.nAvgCost;
+            if (takeFromNormal > 0) {
+                totalCostOfExchange += takeFromNormal * stats.nAvgCost;
                 logsToPersist.push(
                     ItemLog.create({
                         timestamp,
                         item_id: itemId,
-                        quantity: -fromNormal,
+                        quantity: -takeFromNormal,
                         unit_price: stats.nAvgCost,
                         category: "normal",
                         wrapper_id: exchangeWrapperId,
@@ -122,13 +163,13 @@ export class MuseumService extends BaseService {
                 );
             }
 
-            if (fromMuseum > 0) {
-                totalCostOfExchange += fromMuseum * stats.mAvgCost;
+            if (takeFromMuseum > 0) {
+                totalCostOfExchange += takeFromMuseum * stats.mAvgCost;
                 logsToPersist.push(
                     ItemLog.create({
                         timestamp,
                         item_id: itemId,
-                        quantity: -fromMuseum,
+                        quantity: -takeFromMuseum,
                         unit_price: stats.mAvgCost,
                         category: "museum",
                         wrapper_id: exchangeWrapperId,
@@ -164,8 +205,7 @@ export class MuseumService extends BaseService {
             })
         );
 
-        // 5. Persist and update cost-basis globally.
+        // 5. Persist logs.
         await itemLogService.bulkPutLogs(logsToPersist);
-        await itemLogService.updateCostBasis(timestamp);
     }
 }

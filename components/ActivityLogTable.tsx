@@ -14,6 +14,27 @@ interface ActivityLogTableProps {
 }
 
 /**
+ * Safely formats a timestamp into a string.
+ * Handles invalid numbers, NaN, and conversion from seconds to milliseconds if needed.
+ * 
+ * @param timestamp (number): The timestamp to format
+ * @returns (string): Formatted date or "INVALID_DATE"
+ */
+const safeFormatDate = (timestamp: number): string => {
+    if (!timestamp || isNaN(timestamp)) return "N/A";
+    
+    try {
+        // If timestamp is too small (e.g. seconds instead of ms), multiply by 1000
+        // Unix timestamps in seconds are typically < 10,000,000,000
+        const dateValue = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+        return format(dateValue, "yyyy.MM.dd HH:mm:ss");
+    } catch (err) {
+        console.error(`Failed to format timestamp: ${timestamp}`, err);
+        return "ERR_DATE";
+    }
+};
+
+/**
  * Reusable table component for displaying item logs.
  * Supports a compact mode, vertical lines, and alternating colors via settings.
  * 
@@ -72,7 +93,7 @@ export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableP
                             logs.map((log) => (
                                 <tr key={log.id} className={`${rowClass} hover:bg-primary/[0.05] transition-colors group leading-tight`}>
                                     <td className={`${cellPadding} ${verticalLineClass} font-mono ${fontSize} whitespace-nowrap text-muted-foreground`}>
-                                        {format(log.timestamp, "yyyy.MM.dd HH:mm:ss")}
+                                        {safeFormatDate(log.timestamp)}
                                     </td>
                                     <td className={`${cellPadding} ${verticalLineClass}`}>
                                         <span className={`${fontSize} font-black uppercase tracking-tight group-hover:text-primary transition-colors`}>
