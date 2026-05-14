@@ -432,12 +432,22 @@ export class SyncService extends BaseService {
         const trades = await this.tradeService.getAllTrades();
         const unlinkedTrades = trades.filter(t => t.receipt_id === null && t.sync_status === "complete");
         const receipts = await this.receiptService.getAllReceipts();
+        // Maintain a pool of unlinked receipts that can be removed once linked
         const unlinkedReceipts = receipts.filter(r => r.sync_status === "complete");
 
         const userId = getUserId() || "";
         let linkCount = 0;
 
+        const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+
         for (const trade of unlinkedTrades) {
+            // Filter receipts to only those within 6 hours of the trade
+            const potentialReceipts = unlinkedReceipts.filter(r => 
+                Math.abs(r.created_at - trade.timestamp) <= SIX_HOURS_MS
+            );
+
+            if (potentialReceipts.length === 0) continue;
+
             const tradeItems = await this.tradeService.getTradeItems(trade.id!);
             
             // Find the trader (the person we traded with)
@@ -458,7 +468,7 @@ export class SyncService extends BaseService {
                 }))
             );
 
-            for (const receipt of unlinkedReceipts) {
+            for (const receipt of potentialReceipts) {
                 const receiptItems = await this.receiptService.getReceiptItems(receipt.id!);
                 const mockReceipt = new Weav3rReceipt(
                     receipt.receipt_id_string,
@@ -478,6 +488,11 @@ export class SyncService extends BaseService {
                 if (mockTornTrade.compareAndLinkReceipt(mockReceipt, userId)) {
                     await this.tradeService.linkReceiptToTrade(trade.id!, receipt.id!);
                     linkCount++;
+
+                    // Remove the linked receipt from the unlinked pool to avoid redundant checks
+                    const idx = unlinkedReceipts.indexOf(receipt);
+                    if (idx !== -1) unlinkedReceipts.splice(idx, 1);
+
                     break;
                 }
             }
