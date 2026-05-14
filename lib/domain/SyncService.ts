@@ -46,6 +46,7 @@ export class SyncService extends BaseService {
     private readonly receiptService: ReceiptService;
     private readonly museumService: MuseumService;
     private readonly systemConfigRegistry: SystemConfigRegistry;
+    private abortSignal: boolean = false;
 
     constructor() {
         super();
@@ -54,6 +55,26 @@ export class SyncService extends BaseService {
         this.receiptService = new ReceiptService();
         this.museumService = new MuseumService();
         this.systemConfigRegistry = new SystemConfigRegistry();
+        this.abortSignal = false;
+    }
+
+    /**
+     * Requests a graceful stop of the sync loop.
+     */
+    public stopV2Sync(): void {
+        this.abortSignal = true;
+        this.logger.info("Graceful stop requested. Will halt after current step completes.");
+    }
+
+    /**
+     * Forcefully stops the sync process and resets signals.
+     */
+    public async forceStopV2Sync(): Promise<void> {
+        const state = await this.getSyncState();
+        state.isActive = false;
+        this.abortSignal = false;
+        await this.saveSyncState(state);
+        this.logger.info("Force stop executed. Sync state set to inactive.");
     }
 
     /**
@@ -213,6 +234,10 @@ export class SyncService extends BaseService {
         state.currentStepIndex++;
         if (state.currentStepIndex >= state.steps.length) {
             state.isActive = false;
+        } else if (this.abortSignal) {
+            state.isActive = false;
+            this.abortSignal = false;
+            this.logger.info("Sync halted gracefully. Remaining steps are pending.");
         }
 
         await this.saveSyncState(state);

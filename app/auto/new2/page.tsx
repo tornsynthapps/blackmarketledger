@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     Alert01Icon,
@@ -16,6 +16,7 @@ import {
     PlayIcon,
     Loading03Icon,
     Settings01Icon,
+    Delete02Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { SyncService, SyncState } from "@/lib/domain/SyncService";
@@ -30,6 +31,9 @@ export default function AutoPilotV2Page() {
     const [initDate, setInitDate] = useState<string>("");
     const [syncWindow, setSyncWindow] = useState<number>(7);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isStopping, setIsStopping] = useState(false);
+    const [showForceStop, setShowForceStop] = useState(false);
+    const forceStopTimerRef = useRef<NodeJS.Timeout | null>(null);
     const [activeSidebarTab, setActiveSidebarTab] = useState<"origin" | "settings">("origin");
 
     const refreshState = useCallback(async () => {
@@ -63,11 +67,24 @@ export default function AutoPilotV2Page() {
     useEffect(() => {
         refreshState();
         const interval = setInterval(refreshState, 2000);
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            if (forceStopTimerRef.current) clearTimeout(forceStopTimerRef.current);
+        };
     }, [refreshState]);
+
+    const clearForceStopTimer = () => {
+        if (forceStopTimerRef.current) {
+            clearTimeout(forceStopTimerRef.current);
+            forceStopTimerRef.current = null;
+        }
+        setShowForceStop(false);
+    };
 
     const handleStartSync = async () => {
         setIsProcessing(true);
+        setIsStopping(false);
+        clearForceStopTimer();
         logger.info("Initializing new sync cycle.");
         try {
             await syncService.startV2Sync();
@@ -81,6 +98,8 @@ export default function AutoPilotV2Page() {
 
     const handleContinueSync = async () => {
         setIsProcessing(true);
+        setIsStopping(false);
+        clearForceStopTimer();
         logger.info("Continuing previous sync cycle.");
         try {
             await syncService.resumeV2Sync();
@@ -90,6 +109,25 @@ export default function AutoPilotV2Page() {
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    const handleStopSync = () => {
+        syncService.stopV2Sync();
+        setIsStopping(true);
+        
+        if (forceStopTimerRef.current) clearTimeout(forceStopTimerRef.current);
+        forceStopTimerRef.current = setTimeout(() => {
+            setShowForceStop(true);
+        }, 10000);
+    };
+
+    const handleForceStop = async () => {
+        logger.warn("User initiated FORCE STOP.");
+        await syncService.forceStopV2Sync();
+        clearForceStopTimer();
+        setIsStopping(false);
+        setIsProcessing(false);
+        await refreshState();
     };
 
     const runSyncLoop = async () => {
@@ -110,6 +148,9 @@ export default function AutoPilotV2Page() {
             state.isActive = false;
             await syncService.saveSyncState(state);
             setSyncState(state);
+        } finally {
+            setIsStopping(false);
+            clearForceStopTimer();
         }
     };
 
@@ -163,9 +204,24 @@ export default function AutoPilotV2Page() {
 
                     <div className="flex flex-wrap gap-3">
                         {syncState?.isActive ? (
-                            <div className="px-8 py-3 border-2 border-warning text-warning text-[10px] font-black uppercase tracking-widest flex items-center gap-3">
-                                <HugeiconsIcon icon={Loading03Icon} size={16} className="animate-spin" />
-                                Sync_In_Progress
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={handleStopSync}
+                                    disabled={isStopping}
+                                    className="px-8 py-3 border-2 border-warning text-warning text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-warning hover:text-background transition-all disabled:opacity-50"
+                                >
+                                    <HugeiconsIcon icon={isStopping ? Loading03Icon : Cancel01Icon} size={16} className={isStopping ? "animate-spin" : ""} />
+                                    {isStopping ? "Stopping_Execution..." : "Stop_Sync_Execution"}
+                                </button>
+                                {showForceStop && (
+                                    <button 
+                                        onClick={handleForceStop}
+                                        className="px-8 py-3 bg-danger text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-in fade-in zoom-in duration-300"
+                                    >
+                                        <HugeiconsIcon icon={Delete02Icon} size={16} />
+                                        Force_Stop_Execution
+                                    </button>
+                                )}
                             </div>
                         ) : syncState && syncState.steps.some(s => s.status === "failed" || s.status === "pending" && syncState.currentStepIndex > 0) ? (
                             <button 
