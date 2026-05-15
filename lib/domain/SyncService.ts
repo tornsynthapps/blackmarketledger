@@ -142,21 +142,21 @@ export class SyncService extends BaseService {
 
     /**
      * Resets and starts a fresh 5-step sync cycle.
+     * @param forcedWindowDays (number): Optional forced sync window in days.
      */
-    public async startV2Sync(): Promise<SyncState> {
+    public async startV2Sync(forcedWindowDays?: number): Promise<SyncState> {
         const state = await this.getSyncState();
         
         const lastTimestamp = (await this.systemConfigRegistry.get("last_sync_timestamp")) || 0;
         const now = Math.floor(Date.now() / 1000);
 
-        // Safety: If no cursor is set, default to 7 days ago to avoid fetching years of data
-        // Actually, user explicitly asked to default to 0 earlier, but we still apply windowing.
-        
-        const windowDays = await this.getSyncWindowDays(lastTimestamp);
+        const windowDays = forcedWindowDays !== undefined ? forcedWindowDays : await this.getSyncWindowDays(lastTimestamp);
         const windowSeconds = windowDays * 24 * 60 * 60;
 
-        // Limit sync window to configured duration
-        const targetTimestamp = Math.min(now - 1, lastTimestamp + windowSeconds);
+        // Limit sync window to configured duration, or use 'now' if window is Infinity
+        const targetTimestamp = (windowDays === Infinity) 
+            ? now - 1 
+            : Math.min(now - 1, lastTimestamp + windowSeconds);
 
         state.isActive = true;
         state.currentStepIndex = 0;

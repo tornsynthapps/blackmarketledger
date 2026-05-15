@@ -13,7 +13,8 @@ import {
     PlayIcon,
     Loading03Icon,
     Delete02Icon,
-    Analytics01Icon
+    Analytics01Icon,
+    ArrowDown01Icon
 } from "@hugeicons/core-free-icons";
 import { SyncService, SyncState } from "@/lib/domain/SyncService";
 import { Logger } from "@/lib/domain/Logger";
@@ -64,6 +65,7 @@ export default function AutoPilotV2Page() {
 
     const [syncState, setSyncState] = useState<SyncState | null>(null);
     const [cursor, setCursor] = useState<{ lastTimestamp: number, lastLogId: string } | null>(null);
+    const [showSyncOptions, setShowSyncOptions] = useState(false);
     
     const [unlinkedTradesCount, setUnlinkedTradesCount] = useState(0);
     const [unlinkedReceiptsCount, setUnlinkedReceiptsCount] = useState(0);
@@ -109,12 +111,13 @@ export default function AutoPilotV2Page() {
         setShowForceStop(false);
     };
 
-    const handleStartSync = async () => {
+    const handleStartSync = async (windowDays?: number) => {
         setIsStopping(false);
+        setShowSyncOptions(false);
         clearForceStopTimer();
-        logger.info("Initializing new sync cycle.");
+        logger.info(`Initializing new sync cycle with window: ${windowDays ?? 'auto'}.`);
         try {
-            await syncService.startV2Sync();
+            await syncService.startV2Sync(windowDays);
             await runSyncLoop();
         } catch (error) {
             logger.error("Failed to start sync cycle", error);
@@ -327,13 +330,59 @@ export default function AutoPilotV2Page() {
                                         Initialize Auto-Pilot
                                     </button>
                                 ) : (
-                                    <button 
-                                        onClick={handleStartSync}
-                                        className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-95"
-                                    >
-                                        <HugeiconsIcon icon={RefreshIcon} size={16} />
-                                        Sync Now
-                                    </button>
+                                    <div className="relative flex">
+                                        <button 
+                                            onClick={() => handleStartSync()}
+                                            className="inline-flex items-center gap-2 rounded-l-xl bg-orange-500 pl-4 pr-3 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-95 border-r border-orange-600/30"
+                                        >
+                                            <HugeiconsIcon icon={RefreshIcon} size={16} />
+                                            Sync Now
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowSyncOptions(!showSyncOptions);
+                                            }}
+                                            className="inline-flex items-center justify-center rounded-r-xl bg-orange-500 px-2 py-2.5 text-white transition-opacity hover:opacity-90 active:scale-95"
+                                        >
+                                            <HugeiconsIcon icon={ArrowDown01Icon} size={16} />
+                                        </button>
+                                        
+                                        {showSyncOptions && (
+                                            <>
+                                                <div 
+                                                    className="fixed inset-0 z-40"
+                                                    onClick={() => setShowSyncOptions(false)}
+                                                />
+                                                <div className="absolute top-full right-0 mt-2 w-48 rounded-xl border border-border bg-panel p-1 shadow-xl z-50 animate-in fade-in zoom-in duration-200">
+                                                    <button
+                                                        onClick={() => handleStartSync(7)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 7 days)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartSync(30)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 30 days)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartSync(180)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 180 days)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartSync(Infinity)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync until now
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>
