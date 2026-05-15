@@ -21,6 +21,8 @@ export default function NewLogsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState("");
     const [categoryFilter, setCategoryFilter] = useState<string>("all");
+    const [startDate, setStartDate] = useState<string>("");
+    const [endDate, setEndDate] = useState<string>("");
     const [totalFilteredCount, setTotalFilteredCount] = useState(0);
     const [refreshDate, setRefreshDate] = useState("");
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -50,11 +52,13 @@ export default function NewLogsPage() {
         setIsLoading(true);
         try {
             const offset = (currentPage - 1) * logsPerPage;
+            const startTs = startDate ? new Date(startDate).getTime() : null;
+            const endTs = endDate ? new Date(endDate).getTime() : null;
             
             // Run count and fetch in parallel
             const [count, fetchedLogs] = await Promise.all([
-                service.countLogs(categoryFilter, searchQuery, itemMap),
-                service.getPaginatedLogs(offset, logsPerPage, categoryFilter, searchQuery, itemMap)
+                service.countLogs(categoryFilter, searchQuery, itemMap, startTs, endTs),
+                service.getPaginatedLogs(offset, logsPerPage, categoryFilter, searchQuery, itemMap, startTs, endTs)
             ]);
             
             setTotalFilteredCount(count);
@@ -64,7 +68,7 @@ export default function NewLogsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [service, currentPage, categoryFilter, searchQuery, itemMap]);
+    }, [service, currentPage, categoryFilter, searchQuery, itemMap, startDate, endDate]);
 
     useEffect(() => {
         // Only load if itemMap is ready (to ensure search works correctly)
@@ -78,7 +82,7 @@ export default function NewLogsPage() {
     // Reset to page 1 when filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, categoryFilter]);
+    }, [searchQuery, categoryFilter, startDate, endDate]);
 
     const handleRefreshCostBasis = async () => {
         if (!refreshDate) {
@@ -131,32 +135,56 @@ export default function NewLogsPage() {
                         <span className="w-2 h-2 bg-info animate-pulse" />
                         Log_Filters
                     </div>
-                    <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex-grow w-full">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">Search_Item</label>
-                            <input 
-                                type="text"
-                                placeholder="TYPE_ITEM_NAME..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-background border-b-2 border-border-strong px-3 py-2 text-[10px] font-mono uppercase focus:border-foreground outline-none transition-all"
-                            />
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col md:flex-row gap-4 items-end">
+                            <div className="flex-grow w-full">
+                                <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">Search_Item</label>
+                                <input 
+                                    type="text"
+                                    placeholder="TYPE_ITEM_NAME..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full bg-background border-b-2 border-border-strong px-3 py-2 text-[10px] font-mono uppercase focus:border-foreground outline-none transition-all"
+                                />
+                            </div>
+                            <div className="md:w-64 w-full">
+                                <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">Category_Filter</label>
+                                <select 
+                                    value={categoryFilter}
+                                    onChange={(e) => setCategoryFilter(e.target.value)}
+                                    className="w-full bg-background border-b-2 border-border-strong px-3 py-2 text-[10px] font-mono uppercase focus:border-foreground outline-none transition-all cursor-pointer"
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                        <div className="md:w-64 w-full">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">Category_Filter</label>
-                            <select 
-                                value={categoryFilter}
-                                onChange={(e) => setCategoryFilter(e.target.value)}
-                                className="w-full bg-background border-b-2 border-border-strong px-3 py-2 text-[10px] font-mono uppercase focus:border-foreground outline-none transition-all cursor-pointer"
-                            >
-                                {categories.map(cat => (
-                                    <option key={cat.id} value={cat.id}>{cat.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="md:w-32 w-full bg-background border-b-2 border-border-strong px-3 py-2">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">Results</label>
-                            <div className="text-[10px] font-mono font-black">{totalFilteredCount.toLocaleString()}</div>
+                        <div className="flex flex-col md:flex-row gap-4 items-end">
+                            <div className="flex-grow w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">Start_Date</label>
+                                    <input 
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="w-full bg-background border-b-2 border-border-strong px-3 py-2 text-[10px] font-mono uppercase focus:border-foreground outline-none transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">End_Date</label>
+                                    <input 
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="w-full bg-background border-b-2 border-border-strong px-3 py-2 text-[10px] font-mono uppercase focus:border-foreground outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+                            <div className="md:w-32 w-full bg-background border-b-2 border-border-strong px-3 py-2">
+                                <label className="text-[8px] font-black uppercase tracking-widest text-muted block mb-1">Results</label>
+                                <div className="text-[10px] font-mono font-black">{totalFilteredCount.toLocaleString()}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -203,11 +231,18 @@ export default function NewLogsPage() {
                         </div>
                         <div className="flex gap-2">
                             <button
+                                onClick={() => setCurrentPage(1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-2 border-2 border-foreground text-[10px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background transition-all disabled:opacity-20 disabled:grayscale"
+                            >
+                                First
+                            </button>
+                            <button
                                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                 disabled={currentPage === 1}
-                                className="px-4 py-2 border-2 border-foreground text-[10px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background transition-all disabled:opacity-20 disabled:grayscale"
+                                className="px-3 py-2 border-2 border-foreground text-[10px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background transition-all disabled:opacity-20 disabled:grayscale"
                             >
-                                Previous
+                                Prev
                             </button>
                             <div className="px-4 py-2 bg-panel/30 border border-border-strong text-[10px] font-mono flex items-center">
                                 PAGE {currentPage} / {totalPages}
@@ -215,9 +250,16 @@ export default function NewLogsPage() {
                             <button
                                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                 disabled={currentPage === totalPages}
-                                className="px-4 py-2 border-2 border-foreground text-[10px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background transition-all disabled:opacity-20 disabled:grayscale"
+                                className="px-3 py-2 border-2 border-foreground text-[10px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background transition-all disabled:opacity-20 disabled:grayscale"
                             >
                                 Next
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(totalPages)}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-2 border-2 border-foreground text-[10px] font-black uppercase tracking-widest hover:bg-foreground hover:text-background transition-all disabled:opacity-20 disabled:grayscale"
+                            >
+                                Last
                             </button>
                         </div>
                     </div>

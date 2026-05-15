@@ -73,9 +73,11 @@ export class ItemLogService extends BaseService {
         limit: number, 
         category: string | null = null, 
         searchQuery: string | null = null,
-        itemMap: Record<number, string> = {}
+        itemMap: Record<number, string> = {},
+        startDate: number | null = null,
+        endDate: number | null = null
     ): Promise<ItemLog[]> {
-        return await this.registry.getPaginatedLogs(offset, limit, category, searchQuery, itemMap);
+        return await this.registry.getPaginatedLogs(offset, limit, category, searchQuery, itemMap, startDate, endDate);
     }
 
     /**
@@ -84,9 +86,11 @@ export class ItemLogService extends BaseService {
     public async countLogs(
         category: string | null = null, 
         searchQuery: string | null = null,
-        itemMap: Record<number, string> = {}
+        itemMap: Record<number, string> = {},
+        startDate: number | null = null,
+        endDate: number | null = null
     ): Promise<number> {
-        return await this.registry.countLogs(category, searchQuery, itemMap);
+        return await this.registry.countLogs(category, searchQuery, itemMap, startDate, endDate);
     }
 
     /**
