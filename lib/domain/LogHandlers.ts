@@ -25,9 +25,9 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
     let category: ItemLogCategories = "normal";
     const logsToPersist: ItemLog[] = [];
 
-    if (typeId === 1112 || typeId === 1225 || typeId === 1103) {
+    if (typeId === 1112 || typeId === 1225 || typeId === 1103 || typeId === 1220) {
         type = "BUY";
-    } else if (typeId === 1113 || typeId === 1226) {
+    } else if (typeId === 1113 || typeId === 1226 || typeId === 1221) {
         type = "SELL";
     } else if (typeId === 4201) {
         type = "BUY";
@@ -36,27 +36,32 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
 
     if (!type) return;
 
-    if (typeId === 4201) {
+    const totalCost = Number(data.cost_total) || Number(data.cost);
+
+    // Structure 1: Single item (data.item is a number, data.quantity exists)
+    // Types: 4201 (abroad), 1220 (buy legacy), 1221 (sell legacy)
+    if (typeof data.item === "number" || (typeof data.item === "string" && !isNaN(Number(data.item)))) {
         const itemId = Number(data.item);
         const amount = Number(data.quantity);
-        const total = Number(data.cost_total) || Number(data.cost);
-        const unitPrice = total && amount ? total / amount : Number(data.cost_each) || 0;
+        const unitPrice = totalCost && amount ? totalCost / amount : Number(data.cost_each) || 0;
         
         if (itemId && amount) {
              logsToPersist.push(ItemLog.create({
                 timestamp: log.timestamp * 1000,
                 item_id: itemId,
-                quantity: amount,
+                quantity: type === "BUY" ? amount : -amount,
                 unit_price: unitPrice,
                 category,
                 torn_log_id: String(log.id),
             }));
         }
-    } else {
+    } 
+    // Structure 2: Multiple items (data.items or data.item is an array)
+    // Types: 1112, 1113, 1225, 1226, 1103
+    else {
         const items = data.items || data.item;
         if (!Array.isArray(items)) return;
 
-        const totalCost = Number(data.cost_total) || Number(data.cost);
         const totalQty = items.reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0);
         const unitPrice = totalCost && totalQty ? totalCost / totalQty : Number(data.cost_each) || 0;
         
@@ -199,11 +204,46 @@ export async function handleShopBuyLog(log: NormalizedLog, deps: HandlerDependen
     }
 }
 
+// --- Crime Handlers ---
+
+export async function handleCrimeLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    // Sample: { "items_gained": { "634": 1 }, ... }
+    const itemsGained = data.items_gained;
+
+    if (itemsGained && typeof itemsGained === "object") {
+        const logsToPersist: ItemLog[] = [];
+
+        Object.entries(itemsGained).forEach(([itemIdStr, quantity]) => {
+            const itemId = Number(itemIdStr);
+            const amount = Number(quantity);
+
+            if (itemId && amount) {
+                logsToPersist.push(ItemLog.create({
+                    timestamp: log.timestamp * 1000,
+                    item_id: itemId,
+                    quantity: amount,
+                    unit_price: 0,
+                    category: "crimes",
+                    torn_log_id: String(log.id),
+                }));
+            }
+        });
+
+        if (logsToPersist.length > 0) {
+            await deps.itemLogService.bulkPutLogs(logsToPersist);
+        }
+    }
+}
+
 // --- Initialization ---
 
 export function initializeDefaultHandlers() {
     // Register Market & Bazaar logs
-    defaultLogRegistry.register([1112, 1113, 1225, 1226, 4201, 1103], handleBazaarOrMarketLog);
+    defaultLogRegistry.register([1112, 1113, 1225, 1226, 4201, 1103, 1220, 1221], handleBazaarOrMarketLog);
 
     // Register Point Market logs
     defaultLogRegistry.register([5010, 5011], handlePointLog);
@@ -219,5 +259,8 @@ export function initializeDefaultHandlers() {
 
     // Register Shop Buys
     defaultLogRegistry.register(4200, handleShopBuyLog);
+
+    // Register Crime logs
+    defaultLogRegistry.register(9020, handleCrimeLog);
 }
 

@@ -21,7 +21,7 @@ export interface ItemLogCreateFields {
     torn_log_id?: string | null;
 }
 
-export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "skipped";
+export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "skipped";
 
 export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     item_id: number;
@@ -189,12 +189,14 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
     }
 
     /**
-     * Retrieves a paginated slice of logs, optionally filtered by category and item name.
+     * Retrieves a paginated slice of logs, optionally filtered by category, item name, and date range.
      * @param offset (number): Records to skip
      * @param limit (number): Max records to return
      * @param category (string | null): Optional category filter
      * @param searchQuery (string | null): Optional item name search (partial)
      * @param itemMap (Record<number, string>): Map of item ID to name for searching
+     * @param startDate (number | null): Optional starting timestamp (ms)
+     * @param endDate (number | null): Optional ending timestamp (ms)
      * @returns (Promise<ItemLog[]>): Hydrated logs
      */
     public async getPaginatedLogs(
@@ -202,7 +204,9 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
         limit: number,
         category: string | null = null,
         searchQuery: string | null = null,
-        itemMap: Record<number, string> = {}
+        itemMap: Record<number, string> = {},
+        startDate: number | null = null,
+        endDate: number | null = null
     ): Promise<ItemLog[]> {
         let collection = this.tableRef.orderBy("timestamp").reverse();
 
@@ -210,9 +214,15 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
             collection = this.tableRef.where("category").equals(category).reverse();
         }
 
-        // Search is complex in indexedDB without full text search.
-        // If searching, we may still need to fetch some IDs.
-        // For simplicity and efficiency, if searching, we apply the filter on the collection.
+        // Apply date range filters if present
+        if (startDate || endDate) {
+            const start = startDate ?? 0;
+            const end = endDate ? (endDate + 24 * 60 * 60 * 1000 - 1) : Date.now();
+            
+            // If we are already filtering by category, we must continue filtering the collection
+            // because IndexedDB doesn't support multiple where clauses easily without compound indexes
+            collection = collection.filter(r => r.timestamp >= start && r.timestamp <= end);
+        }
         
         const filteredRecords: ItemLogDatabaseRecord[] = [];
         let skipped = 0;
@@ -239,15 +249,19 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
     public async countLogs(
         category: string | null = null,
         searchQuery: string | null = null,
-        itemMap: Record<number, string> = {}
+        itemMap: Record<number, string> = {},
+        startDate: number | null = null,
+        endDate: number | null = null
     ): Promise<number> {
-        if (!category || category === "all") {
-            if (!searchQuery) return await this.tableRef.count();
-        }
-
         let collection = category && category !== "all" 
             ? this.tableRef.where("category").equals(category)
             : this.tableRef.toCollection();
+
+        if (startDate || endDate) {
+            const start = startDate ?? 0;
+            const end = endDate ? (endDate + 24 * 60 * 60 * 1000 - 1) : Date.now();
+            collection = collection.filter(r => r.timestamp >= start && r.timestamp <= end);
+        }
 
         if (searchQuery) {
             let count = 0;
@@ -308,7 +322,7 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
         itemId: number,
         timestamp: number
     ): Promise<Map<string, { stock: number; cost: number }>> {
-        const categories = ["normal", "abroad", "museum", "city-finds", "skipped"];
+        const categories = ["normal", "abroad", "museum", "city-finds", "city-shop", "crimes", "skipped"];
         const result = new Map<string, { stock: number; cost: number }>();
 
         // Initialize with zeros

@@ -15,6 +15,14 @@ import { MuseumService } from "./MuseumService";
 initializeDefaultHandlers();
 
 const SKIPPED_LOGS: number[] = [
+    // Skipped Logs
+    1100, // Item market add (old)
+    1200, // Bazaar name change
+    1210, // Bazaar add (legacy)
+    1212, // Bazaar edit (legacy)
+    // Future Money
+    9015, // Crime success money gain
+    9301, // Crime item add spray paint
     // Temporary
     6221, // Company Employee Pay
 ]
@@ -37,12 +45,12 @@ export class TornLogService extends BaseService {
      * Fetches new logs from Torn API across registered categories and ingests them directly into the database.
      * @param cursor (SyncCursor): Starting point for the sync
      * @param toTimestamp (number): Ending point for the sync
-     * @returns (Promise<SyncCursor>): The updated cursor after ingestion
+     * @returns (Promise<{ nextCursor: SyncCursor, earliestTimestamp: number | null }>): The updated cursor and the oldest log timestamp processed
      */
     public async fetchAndIngestNewLogs(
         cursor: SyncCursor,
         toTimestamp: number
-    ): Promise<SyncCursor> {
+    ): Promise<{ nextCursor: SyncCursor; earliestTimestamp: number | null }> {
         const apiKey = getTornApiKeyFull();
         if (!apiKey) throw new Error("Missing Torn API Key");
 
@@ -94,11 +102,18 @@ export class TornLogService extends BaseService {
 
         this.logger.info(`Ingesting ${normalizedLogs.length} logs...`);
 
+        let earliestTimestamp: number | null = null;
+
         for (const log of normalizedLogs) {
             // Only process if it's a type we care about
             if (registeredTypeIds.includes(log.typeId)) {
                 try {
                     await this.registry.process(log, deps);
+                    
+                    // Track earliest timestamp successfully processed
+                    if (earliestTimestamp === null || log.timestamp < earliestTimestamp) {
+                        earliestTimestamp = log.timestamp;
+                    }
                 } catch (error) {
                     this.logger.error(`Error processing log ID ${log.id}`, error);
                 }
@@ -117,7 +132,7 @@ export class TornLogService extends BaseService {
 
         this.logger.info(`Ingestion complete. Next cursor: ${nextCursor.lastTimestamp}`);
 
-        return nextCursor;
+        return { nextCursor, earliestTimestamp };
     }
 
     private async fetchCategoryLogs(

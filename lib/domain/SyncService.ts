@@ -272,21 +272,17 @@ export class SyncService extends BaseService {
         const lastLogId = (await this.systemConfigRegistry.get("last_log_id")) || "";
         const cursor: SyncCursor = { lastTimestamp, lastLogId };
 
-        const nextCursor = await this.tornLogService.fetchAndIngestNewLogs(cursor, state.targetTimestamp);
+        const { nextCursor, earliestTimestamp } = await this.tornLogService.fetchAndIngestNewLogs(cursor, state.targetTimestamp);
         
-        // Track earliest timestamp
-        if (nextCursor.lastTimestamp > 0) {
-            const earliest = Math.min(state.originTimestamp, nextCursor.lastTimestamp);
+        // Track earliest activity for Step 6 recalculation
+        if (earliestTimestamp !== null) {
             state.earliestActivityTimestamp = state.earliestActivityTimestamp === null 
-                ? earliest 
-                : Math.min(state.earliestActivityTimestamp, earliest);
+                ? earliestTimestamp 
+                : Math.min(state.earliestActivityTimestamp, earliestTimestamp);
         }
 
         await this.systemConfigRegistry.set("last_sync_timestamp", nextCursor.lastTimestamp);
         await this.systemConfigRegistry.set("last_log_id", nextCursor.lastLogId);
-        
-        // Recalculate cost basis
-        await this.itemLogService.updateCostBasis(lastTimestamp * 1000);
         
         state.steps[0].progress = `Ingestion complete up to ${new Date(nextCursor.lastTimestamp * 1000).toLocaleString()}.`;
     }

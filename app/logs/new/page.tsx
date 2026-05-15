@@ -104,7 +104,9 @@ export default function NewLogsPage() {
         { id: "normal", label: "NORMAL" },
         { id: "abroad", label: "ABROAD" },
         { id: "museum", label: "MUSEUM" },
-        { id: "city-finds", label: "CITY_FINDS" },
+        { id: "city-finds", label: "CITY FINDS" },
+        { id: "city-shop", label: "CITY SHOP" },
+        { id: "crimes", label: "CRIMES" },
         { id: "skipped", label: "SKIPPED" },
     ];
 
