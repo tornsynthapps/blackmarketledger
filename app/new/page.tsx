@@ -490,12 +490,54 @@ export default function NewDashboard() {
         let logIndex = 0;
         const currentTotalsByCategory = new Map<string, Map<number, { profit: number }>>();
 
+        // Calculate baseline totals for data before the first period
+        if (periods.length > 0) {
+            let firstPeriodStart: Date;
+            if (timeRange === "daily") firstPeriodStart = startOfDay(periods[0]);
+            else if (timeRange === "weekly") firstPeriodStart = startOfWeek(periods[0]);
+            else if (timeRange === "monthly") firstPeriodStart = startOfMonth(periods[0]);
+            else firstPeriodStart = startOfYear(periods[0]);
+
+            while (
+                logIndex < sortedLogs.length &&
+                sortedLogs[logIndex].timestamp < firstPeriodStart.getTime()
+            ) {
+                const log = sortedLogs[logIndex];
+                if (!currentTotalsByCategory.has(log.category)) {
+                    currentTotalsByCategory.set(log.category, new Map());
+                }
+                currentTotalsByCategory.get(log.category)!.set(log.item_id, { profit: log.realized_profit });
+                logIndex++;
+            }
+        }
+
+        let baselineRealized = 0;
+        let baselineMuseum = 0;
+        let baselineAbroad = 0;
+
+        currentTotalsByCategory.forEach((itemMap, category) => {
+            let categoryProfit = 0;
+            itemMap.forEach(itemStats => {
+                categoryProfit += itemStats.profit;
+            });
+
+            if (category === "abroad") baselineAbroad += categoryProfit;
+            else if (category === "museum") baselineMuseum += categoryProfit;
+            else if (category !== "skipped") baselineRealized += categoryProfit;
+        });
+
+        let baselineNetProfit = 0;
+        if (includeTrading) baselineNetProfit += baselineRealized;
+        if (includeMuseum) baselineNetProfit += baselineMuseum;
+        if (includeAbroad) baselineNetProfit += baselineAbroad;
+        baselineNetProfit -= (includeMug ? totalMugLoss : 0);
+
         // Track previous totals for incremental view
         let previousTotals = {
-            profit: 0,
-            museumProfit: 0,
-            abroadProfit: 0,
-            netProfit: 0
+            profit: baselineRealized,
+            museumProfit: baselineMuseum,
+            abroadProfit: baselineAbroad,
+            netProfit: baselineNetProfit
         };
 
         return periods.map((period) => {

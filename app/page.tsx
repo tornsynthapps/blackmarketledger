@@ -452,14 +452,34 @@ export default function Home() {
         const mugState = { total: 0 };
         let transactionIndex = 0;
 
+        // Calculate baseline totals for data before the first period
+        if (periods.length > 0) {
+            let firstPeriodStart: Date;
+            if (timeRange === "daily") firstPeriodStart = startOfDay(periods[0]);
+            else if (timeRange === "weekly") firstPeriodStart = startOfWeek(periods[0]);
+            else if (timeRange === "monthly") firstPeriodStart = startOfMonth(periods[0]);
+            else firstPeriodStart = startOfYear(periods[0]);
+
+            while (
+                transactionIndex < sortedTransactions.length &&
+                getTransactionTimestamp(sortedTransactions[transactionIndex]) < firstPeriodStart.getTime()
+            ) {
+                applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState, () => true);
+                transactionIndex++;
+            }
+        }
+
+        const baselineTotals = getTotals(tempInventory, mugState.total);
+        let baseNetProfit = 0;
+        if (includeTrading) baseNetProfit += baselineTotals.profit;
+        if (includeMuseum) baseNetProfit += baselineTotals.museumProfit;
+        if (includeAbroad) baseNetProfit += baselineTotals.abroadProfit;
+        const baselineNetProfit = baseNetProfit - (includeMug ? baselineTotals.mugLoss : 0);
+
         // Track previous totals for incremental view
         let previousTotals: any = {
-            profit: 0,
-            inventory: 0,
-            mugLoss: 0,
-            netProfit: 0,
-            museumProfit: 0,
-            abroadProfit: 0,
+            ...baselineTotals,
+            netProfit: baselineNetProfit,
         };
 
         return periods.map((period) => {
