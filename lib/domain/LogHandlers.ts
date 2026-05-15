@@ -152,6 +152,53 @@ export async function handleMugLog(log: NormalizedLog, deps: HandlerDependencies
     return Promise.resolve();
 }
 
+// --- City Find Handlers ---
+
+export async function handleCityFindLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    // Sample: { "item": 528 }
+    const itemId = Number(data.item);
+
+    if (itemId) {
+        await deps.itemLogService.addItemLog({
+            timestamp: log.timestamp * 1000,
+            item_id: itemId,
+            quantity: 1, // Usually 1 for city finds
+            unit_price: 0,
+            category: "city-finds",
+            torn_log_id: String(log.id),
+        });
+    }
+}
+
+// --- Shop Handlers ---
+
+export async function handleShopBuyLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    // Sample: { "item": 97, "quantity": 100, "cost_total": 500, ... }
+    const itemId = Number(data.item);
+    const amount = Number(data.quantity);
+    const total = Number(data.cost_total);
+    const unitPrice = total && amount ? total / amount : Number(data.cost_each) || 0;
+
+    if (itemId && amount) {
+        await deps.itemLogService.addItemLog({
+            timestamp: log.timestamp * 1000,
+            item_id: itemId,
+            quantity: amount,
+            unit_price: unitPrice,
+            category: "city-shop",
+            torn_log_id: String(log.id),
+        });
+    }
+}
+
 // --- Initialization ---
 
 export function initializeDefaultHandlers() {
@@ -166,4 +213,11 @@ export function initializeDefaultHandlers() {
 
     // Register Mug logs
     defaultLogRegistry.register(8156, handleMugLog);
+
+    // Register City Finds
+    defaultLogRegistry.register(7011, handleCityFindLog);
+
+    // Register Shop Buys
+    defaultLogRegistry.register(4200, handleShopBuyLog);
 }
+

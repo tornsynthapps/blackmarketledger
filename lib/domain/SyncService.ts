@@ -121,7 +121,7 @@ export class SyncService extends BaseService {
         }
 
         const now = Math.floor(Date.now() / 1000);
-        const diffDays = (now - workingTimestamp) / (24 * 60 * 60);
+        const diffDays = (now - (workingTimestamp || 0)) / (24 * 60 * 60);
 
         if (diffDays > 365) return 180;
         if (diffDays > 180) return 60;

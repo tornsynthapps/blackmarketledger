@@ -21,7 +21,7 @@ export interface ItemLogCreateFields {
     torn_log_id?: string | null;
 }
 
-export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "skipped";
+export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "skipped";
 
 export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     item_id: number;
