@@ -266,6 +266,24 @@ export class SyncService extends BaseService {
         return state;
     }
 
+    /**
+     * Executes only Step 1 (Log Ingestion) for a specific historical window.
+     * Does NOT update global sync cursor or affect the main SyncState.
+     * Useful for backfilling missed logs.
+     * @param fromTimestamp (number): Start timestamp (Unix seconds)
+     * @param toTimestamp (number): End timestamp (Unix seconds)
+     * @returns (Promise<{ nextCursor: SyncCursor, earliestTimestamp: number | null }>)
+     */
+    public async runAdvancedStep1(fromTimestamp: number, toTimestamp: number): Promise<{ nextCursor: SyncCursor, earliestTimestamp: number | null }> {
+        this.logger.info(`Advanced Sync Step 1: Ingesting logs from ${fromTimestamp} to ${toTimestamp}`);
+        
+        const cursor: SyncCursor = { lastTimestamp: fromTimestamp, lastLogId: "" };
+        const result = await this.tornLogService.fetchAndIngestNewLogs(cursor, toTimestamp);
+        
+        this.logger.info(`Advanced ingest complete. Next cursor: ${result.nextCursor.lastTimestamp}`);
+        return result;
+    }
+
     private async stepIngestLogs(state: SyncState): Promise<void> {
         this.logger.info(`Sync Step 1: Starting log ingestion until ${state.targetTimestamp}`);
         const lastTimestamp = state.originTimestamp;

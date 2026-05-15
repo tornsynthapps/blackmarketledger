@@ -14,7 +14,8 @@ import {
     Loading03Icon,
     Delete02Icon,
     Analytics01Icon,
-    ArrowDown01Icon
+    ArrowDown01Icon,
+    DatabaseIcon
 } from "@hugeicons/core-free-icons";
 import { SyncService, SyncState } from "@/lib/domain/SyncService";
 import { Logger } from "@/lib/domain/Logger";
@@ -278,6 +279,15 @@ export default function AutoPilotV2Page() {
                         <p className="text-sm text-yellow-700/80 dark:text-yellow-300/80">
                             Auto-Pilot V2 is a completely redesigned sync engine. It operates in 5 discrete steps and allows for graceful interruption.
                         </p>
+                        <div className="pt-2">
+                            <Link 
+                                href="/autopilot/advanced"
+                                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+                            >
+                                <HugeiconsIcon icon={DatabaseIcon} size={12} />
+                                Advanced_Historical_Ingest
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </div>
