@@ -170,6 +170,21 @@ export const SCHEMA_REGISTRY: Record<string, Record<string, string>> = {
 const DB_INSTANCES = new Map<string, Dexie>();
 
 /**
+ * Requests that the browser treat the IndexedDB storage as persistent.
+ * @returns (Promise<boolean>): True if storage is persistent, false otherwise
+ */
+async function requestPersistence(): Promise<boolean> {
+    if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
+        const isPersisted = await navigator.storage.persisted();
+        if (!isPersisted) {
+            return await navigator.storage.persist();
+        }
+        return true;
+    }
+    return false;
+}
+
+/**
  * Singleton database fetcher to ensure a unified schema and connection pool.
  * @param databaseName (string): The name of the browser IndexedDB
  * @returns (Dexie): The initialized Dexie instance for this database
@@ -181,6 +196,17 @@ export function getDatabase(databaseName: string): Dexie {
         const schemas = SCHEMA_REGISTRY[databaseName] || {};
         db.version(5).stores(schemas);
         DB_INSTANCES.set(databaseName, db);
+        
+        // Request persistence in the background
+        requestPersistence().then(persisted => {
+            if (persisted) {
+                console.info(`Storage for ${databaseName} is now persistent.`);
+            } else {
+                console.warn(`Storage for ${databaseName} could not be made persistent.`);
+            }
+        }).catch(err => {
+            console.error(`Error requesting storage persistence for ${databaseName}:`, err);
+        });
     }
     return db;
 }
