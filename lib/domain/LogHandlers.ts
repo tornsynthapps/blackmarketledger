@@ -25,7 +25,7 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
     let category: ItemLogCategories = "normal";
     const logsToPersist: ItemLog[] = [];
 
-    if (typeId === 1112 || typeId === 1225) {
+    if (typeId === 1112 || typeId === 1225 || typeId === 1103) {
         type = "BUY";
     } else if (typeId === 1113 || typeId === 1226) {
         type = "SELL";
@@ -39,7 +39,7 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
     if (typeId === 4201) {
         const itemId = Number(data.item);
         const amount = Number(data.quantity);
-        const total = Number(data.cost_total);
+        const total = Number(data.cost_total) || Number(data.cost);
         const unitPrice = total && amount ? total / amount : Number(data.cost_each) || 0;
         
         if (itemId && amount) {
@@ -53,10 +53,10 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
             }));
         }
     } else {
-        const items = data.items;
+        const items = data.items || data.item;
         if (!Array.isArray(items)) return;
 
-        const totalCost = Number(data.cost_total);
+        const totalCost = Number(data.cost_total) || Number(data.cost);
         const totalQty = items.reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0);
         const unitPrice = totalCost && totalQty ? totalCost / totalQty : Number(data.cost_each) || 0;
         
@@ -203,7 +203,7 @@ export async function handleShopBuyLog(log: NormalizedLog, deps: HandlerDependen
 
 export function initializeDefaultHandlers() {
     // Register Market & Bazaar logs
-    defaultLogRegistry.register([1112, 1113, 1225, 1226, 4201], handleBazaarOrMarketLog);
+    defaultLogRegistry.register([1112, 1113, 1225, 1226, 4201, 1103], handleBazaarOrMarketLog);
 
     // Register Point Market logs
     defaultLogRegistry.register([5010, 5011], handlePointLog);
