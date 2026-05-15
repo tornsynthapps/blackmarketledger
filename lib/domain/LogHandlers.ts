@@ -239,6 +239,31 @@ export async function handleCrimeLog(log: NormalizedLog, deps: HandlerDependenci
     }
 }
 
+// --- Dump Handlers ---
+
+export async function handleDumpLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    const typeId = log.typeId;
+    // 1401: Dump find (item in)
+    // 1400: Dump add (item out)
+    const itemId = Number(data.item);
+    const quantity = Number(data.quantity || 1);
+
+    if (itemId) {
+        await deps.itemLogService.addItemLog({
+            timestamp: log.timestamp * 1000,
+            item_id: itemId,
+            quantity: typeId === 1400 ? -quantity : quantity,
+            unit_price: 0,
+            category: "dump",
+            torn_log_id: String(log.id),
+        });
+    }
+}
+
 // --- Initialization ---
 
 export function initializeDefaultHandlers() {
@@ -262,5 +287,8 @@ export function initializeDefaultHandlers() {
 
     // Register Crime logs
     defaultLogRegistry.register(9020, handleCrimeLog);
+
+    // Register Dump logs
+    defaultLogRegistry.register([1400, 1401], handleDumpLog);
 }
 

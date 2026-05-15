@@ -111,6 +111,7 @@ export default function NewLogsPage() {
         { id: "city-finds", label: "CITY FINDS" },
         { id: "city-shop", label: "CITY SHOP" },
         { id: "crimes", label: "CRIMES" },
+        { id: "dump", label: "DUMP" },
         { id: "skipped", label: "SKIPPED" },
     ];
 

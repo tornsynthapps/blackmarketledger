@@ -109,6 +109,7 @@ describe("ItemLogService", () => {
                     ["city-finds", { stock: 0, cost: 0 }],
                     ["city-shop", { stock: 0, cost: 0 }],
                     ["crimes", { stock: 0, cost: 0 }],
+                    ["dump", { stock: 0, cost: 0 }],
                     ["skipped", { stock: 0, cost: 0 }],
                 ])
             );

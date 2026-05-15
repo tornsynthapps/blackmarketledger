@@ -20,9 +20,16 @@ const SKIPPED_LOGS: number[] = [
     1200, // Bazaar name change
     1210, // Bazaar add (legacy)
     1212, // Bazaar edit (legacy)
+    // Item Use
+    2210, 
+    2030,
     // Future Money
+    4810, // Money receive
+    5720, // Crime money gain
     9015, // Crime success money gain
     9301, // Crime item add spray paint
+    // Casino
+    8314, 
     // Temporary
     6221, // Company Employee Pay
 ]

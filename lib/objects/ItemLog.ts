@@ -21,7 +21,7 @@ export interface ItemLogCreateFields {
     torn_log_id?: string | null;
 }
 
-export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "skipped";
+export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "dump" | "skipped";
 
 export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     item_id: number;
@@ -322,7 +322,7 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
         itemId: number,
         timestamp: number
     ): Promise<Map<string, { stock: number; cost: number }>> {
-        const categories = ["normal", "abroad", "museum", "city-finds", "city-shop", "crimes", "skipped"];
+        const categories = ["normal", "abroad", "museum", "city-finds", "city-shop", "crimes", "dump", "skipped"];
         const result = new Map<string, { stock: number; cost: number }>();
 
         // Initialize with zeros

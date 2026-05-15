@@ -31,6 +31,7 @@ export class ItemLogService extends BaseService {
         "city-finds",
         "city-shop",
         "crimes",
+        "dump",
         "museum",
     ];
 
