@@ -15,7 +15,7 @@ import { ItemList } from "../objects/Item";
 import { TornTrade, Weav3rReceipt } from "../old/game/trade";
 import { tornRateLimiter, weav3rRateLimiter } from "../old/rate-limiter";
 
-export type SyncStepId = "logs" | "metadata" | "trades" | "receipts" | "linking";
+export type SyncStepId = "logs" | "metadata" | "trades" | "receipts" | "linking" | "recalculate";
 
 export interface SyncStepStatus {
     id: SyncStepId;
@@ -31,6 +31,7 @@ export interface SyncState {
     steps: SyncStepStatus[];
     targetTimestamp: number;
     originTimestamp: number;
+    earliestActivityTimestamp: number | null;
 }
 
 export class SyncService extends BaseService {
@@ -93,9 +94,11 @@ export class SyncService extends BaseService {
                 { id: "trades", label: "Populating Trades", status: "pending", progress: "" },
                 { id: "receipts", label: "Populating Receipts", status: "pending", progress: "" },
                 { id: "linking", label: "Linking Records", status: "pending", progress: "" },
+                { id: "recalculate", label: "Recalculating Ledger", status: "pending", progress: "" },
             ],
             targetTimestamp: 0,
             originTimestamp: 0,
+            earliestActivityTimestamp: null,
         };
     }
 
@@ -159,6 +162,7 @@ export class SyncService extends BaseService {
         state.currentStepIndex = 0;
         state.originTimestamp = lastTimestamp;
         state.targetTimestamp = targetTimestamp;
+        state.earliestActivityTimestamp = null;
         
         // Reset steps
         state.steps.forEach(s => {
@@ -235,6 +239,10 @@ export class SyncService extends BaseService {
                     this.logger.info("Executing step: Linking Records");
                     await this.stepAutoLink(state);
                     break;
+                case "recalculate":
+                    this.logger.info("Executing step: Recalculating Ledger");
+                    await this.stepRecalculate(state);
+                    break;
             }
             step.status = "complete";
             this.logger.info(`Step ${step.id} completed successfully.`);
@@ -266,6 +274,14 @@ export class SyncService extends BaseService {
 
         const nextCursor = await this.tornLogService.fetchAndIngestNewLogs(cursor, state.targetTimestamp);
         
+        // Track earliest timestamp
+        if (nextCursor.lastTimestamp > 0) {
+            const earliest = Math.min(state.originTimestamp, nextCursor.lastTimestamp);
+            state.earliestActivityTimestamp = state.earliestActivityTimestamp === null 
+                ? earliest 
+                : Math.min(state.earliestActivityTimestamp, earliest);
+        }
+
         await this.systemConfigRegistry.set("last_sync_timestamp", nextCursor.lastTimestamp);
         await this.systemConfigRegistry.set("last_log_id", nextCursor.lastLogId);
         
@@ -381,6 +397,13 @@ export class SyncService extends BaseService {
         let count = 0;
         for (const trade of pending) {
             state.steps[2].progress = `Populating ${count}/${pending.length}...`;
+            
+            // Track earliest timestamp
+            const tradeTs = Math.floor(trade.timestamp / 1000);
+            state.earliestActivityTimestamp = state.earliestActivityTimestamp === null 
+                ? tradeTs 
+                : Math.min(state.earliestActivityTimestamp, tradeTs);
+
             await this.saveSyncState(state);
             
             try {
@@ -495,6 +518,22 @@ export class SyncService extends BaseService {
         }
 
         state.steps[4].progress = `Linked ${linkCount} records.`;
+    }
+
+    private async stepRecalculate(state: SyncState): Promise<void> {
+        this.logger.info("Sync Step 6: Recalculating ledger cost basis");
+        
+        // Use the tracked earliest activity, or origin as fallback
+        const startTimestampSec = state.earliestActivityTimestamp ?? state.originTimestamp;
+        
+        this.logger.info(`Starting cost-basis recalculation from ${new Date(startTimestampSec * 1000).toLocaleString()}`);
+        
+        state.steps[5].progress = `Recalculating from ${new Date(startTimestampSec * 1000).toLocaleDateString()}...`;
+        await this.saveSyncState(state);
+
+        await this.itemLogService.updateCostBasis(startTimestampSec * 1000);
+        
+        state.steps[5].progress = `Ledger recalculated from ${new Date(startTimestampSec * 1000).toLocaleDateString()}.`;
     }
 
     /**

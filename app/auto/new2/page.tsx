@@ -230,7 +230,7 @@ export default function AutoPilotV2Page() {
     const needsContinueSync = syncState && syncState.steps.some(s => s.status === "failed" || s.status === "pending" && syncState.currentStepIndex > 0);
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 p-4 md:p-8">
+        <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 p-0">
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                     <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-orange-700 dark:text-orange-300">
