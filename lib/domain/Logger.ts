@@ -23,9 +23,10 @@ export class Logger {
      * Internal method to persist logs to IndexedDB.
      * @param level (SystemLogLevel): The severity level of the log
      * @param message (string): The message to log
+     * @param data (any): Optional additional context or data
      * @sideEffects Writes to IndexedDB via SystemLogRegistry
      */
-    private async persist(level: SystemLogLevel, message: string): Promise<void> {
+    private async persist(level: SystemLogLevel, message: string, data?: any): Promise<void> {
         if (!Logger.registry) return;
         try {
             await Logger.registry.put(
@@ -34,6 +35,7 @@ export class Logger {
                     level,
                     context: this.context,
                     message,
+                    data,
                 })
             );
         } catch (e) {
@@ -44,40 +46,40 @@ export class Logger {
     /**
      * Logs an informational message.
      * @param message (string): The message to log
-     * @param args (any[]): Additional arguments to log to console
+     * @param args (any[]): Additional arguments to log to console and store
      */
     public info(message: string, ...args: any[]): void {
         console.log(`[${this.context}] ${message}`, ...args);
-        this.persist("info", message);
+        this.persist("info", message, args.length > 0 ? args : undefined);
     }
 
     /**
      * Logs a warning message.
      * @param message (string): The message to log
-     * @param args (any[]): Additional arguments to log to console
+     * @param args (any[]): Additional arguments to log to console and store
      */
     public warn(message: string, ...args: any[]): void {
         console.warn(`[${this.context}] ${message}`, ...args);
-        this.persist("warn", message);
+        this.persist("warn", message, args.length > 0 ? args : undefined);
     }
 
     /**
      * Logs an error message.
      * @param message (string): The message to log
-     * @param args (any[]): Additional arguments to log to console
+     * @param args (any[]): Additional arguments to log to console and store
      */
     public error(message: string, ...args: any[]): void {
         console.error(`[${this.context}] ${message}`, ...args);
-        this.persist("error", message);
+        this.persist("error", message, args.length > 0 ? args : undefined);
     }
 
     /**
      * Logs a debug message.
      * @param message (string): The message to log
-     * @param args (any[]): Additional arguments to log to console
+     * @param args (any[]): Additional arguments to log to console and store
      */
     public debug(message: string, ...args: any[]): void {
         console.debug(`[${this.context}] ${message}`, ...args);
-        this.persist("debug", message);
+        this.persist("debug", message, args.length > 0 ? args : undefined);
     }
 }

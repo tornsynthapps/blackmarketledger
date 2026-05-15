@@ -14,20 +14,23 @@ export interface SystemLogCreateFields {
     level: SystemLogLevel;
     context: string;
     message: string;
+    data?: any;
 }
 
 export interface SystemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     level: SystemLogLevel;
     context: string;
     message: string;
+    data?: any;
 }
 
 export class SystemLog extends BaseObject {
-    private static readonly CURRENT_VERSION = 1;
+    private static readonly CURRENT_VERSION = 2;
 
     public readonly level: SystemLogLevel;
     public readonly context: string;
     public readonly message: string;
+    public readonly data: any;
 
     /**
      * Creates a system log with optional persisted metadata.
@@ -42,6 +45,7 @@ export class SystemLog extends BaseObject {
         this.level = fields.level;
         this.context = fields.context;
         this.message = fields.message;
+        this.data = fields.data ?? null;
     }
 
     /**
@@ -67,6 +71,7 @@ export class SystemLog extends BaseObject {
                 level: record.level,
                 context: record.context,
                 message: record.message,
+                data: record.data,
             },
             databaseFields
         );
@@ -82,6 +87,7 @@ export class SystemLog extends BaseObject {
             level: this.level,
             context: this.context,
             message: this.message,
+            data: this.data,
         };
     }
 }
@@ -124,5 +130,50 @@ export class SystemLogRegistry extends BaseObjectRegistry<SystemLog, SystemLogDa
      */
     public async count(): Promise<number> {
         return await this.tableRef.count();
+    }
+
+    /**
+     * Fetches a filtered page of system logs.
+     * @param offset (number): Number of records to skip
+     * @param limit (number): Maximum number of records to return
+     * @param filters (object): Filtering criteria
+     */
+    public async getFilteredPaged(
+        offset: number,
+        limit: number,
+        filters: {
+            level?: SystemLogLevel | "all";
+            context?: string;
+            startDate?: number;
+            endDate?: number;
+        }
+    ): Promise<{ logs: SystemLog[]; total: number }> {
+        let collection = this.tableRef.orderBy("timestamp").reverse();
+
+        if (filters.level && filters.level !== "all") {
+            collection = collection.filter((log) => log.level === filters.level);
+        }
+
+        if (filters.context) {
+            const search = filters.context.toLowerCase();
+            collection = collection.filter((log) => log.context.toLowerCase().includes(search));
+        }
+
+        if (filters.startDate) {
+            collection = collection.filter((log) => log.timestamp >= filters.startDate!);
+        }
+
+        if (filters.endDate) {
+            const eod = filters.endDate! + 24 * 60 * 60 * 1000 - 1;
+            collection = collection.filter((log) => log.timestamp <= eod);
+        }
+
+        const total = await collection.count();
+        const records = await collection.offset(offset).limit(limit).toArray();
+
+        return {
+            logs: records.map((record) => SystemLog.fromDatabase(record)),
+            total,
+        };
     }
 }

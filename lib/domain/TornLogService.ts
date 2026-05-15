@@ -14,6 +14,11 @@ import { MuseumService } from "./MuseumService";
 // Ensure handlers are registered
 initializeDefaultHandlers();
 
+const SKIPPED_LOGS: number[] = [
+    // Temporary
+    6221, // Company Employee Pay
+]
+
 export class TornLogService extends BaseService {
     protected get SERVICE_NAME() { return "TornLogService"; }
 
@@ -96,6 +101,11 @@ export class TornLogService extends BaseService {
                     await this.registry.process(log, deps);
                 } catch (error) {
                     this.logger.error(`Error processing log ID ${log.id}`, error);
+                }
+            } else {
+                // Log unsupported type to help with future implementation
+                if (!SKIPPED_LOGS.includes(log.typeId)) {
+                    this.logger.error(`Unsupported log type ID ${log.typeId} encountered.`, log);
                 }
             }
         }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { SystemLog, SystemLogRegistry, type SystemLogLevel } from "@/lib/objects/SystemLog";
 import { PageHeader } from "@/components/PageHeader";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -22,10 +23,18 @@ const LOG_LEVEL_CONFIG: Record<SystemLogLevel, { icon: any; color: string; bgCol
 };
 
 export default function LoggerPage() {
+    const router = useRouter();
     const [logs, setLogs] = useState<SystemLog[]>([]);
     const [totalCount, setCount] = useState(0);
     const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Filters
+    const [levelFilter, setLevelFilter] = useState<SystemLogLevel | "all">("all");
+    const [contextFilter, setContextFilter] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+
     const registry = useMemo(() => new SystemLogRegistry(), []);
 
     const limit = 100;
@@ -34,12 +43,16 @@ export default function LoggerPage() {
     const fetchLogs = async () => {
         setIsLoading(true);
         try {
-            const [fetchedLogs, count] = await Promise.all([
-                registry.getPaged((page - 1) * limit, limit),
-                registry.count(),
-            ]);
-            setLogs(fetchedLogs);
-            setCount(count);
+            const filters = {
+                level: levelFilter,
+                context: contextFilter,
+                startDate: startDate ? new Date(startDate).getTime() : undefined,
+                endDate: endDate ? new Date(endDate).getTime() : undefined,
+            };
+
+            const result = await registry.getFilteredPaged((page - 1) * limit, limit, filters);
+            setLogs(result.logs);
+            setCount(result.total);
         } catch (error) {
             console.error("Failed to fetch system logs:", error);
         } finally {
@@ -49,7 +62,12 @@ export default function LoggerPage() {
 
     useEffect(() => {
         fetchLogs();
-    }, [page]);
+    }, [page, levelFilter, contextFilter, startDate, endDate]);
+
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [levelFilter, contextFilter, startDate, endDate]);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -58,6 +76,55 @@ export default function LoggerPage() {
                 description="Low-level application and background service execution history."
                 icon={Activity01Icon}
             />
+
+            {/* Filters Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-panel border-2 border-primary p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Log Level</label>
+                    <select
+                        value={levelFilter}
+                        onChange={(e) => setLevelFilter(e.target.value as any)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    >
+                        <option value="all">ALL_LEVELS</option>
+                        <option value="info">INFO</option>
+                        <option value="warn">WARN</option>
+                        <option value="error">ERROR</option>
+                        <option value="debug">DEBUG</option>
+                    </select>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Context</label>
+                    <input
+                        type="text"
+                        placeholder="Search context..."
+                        value={contextFilter}
+                        onChange={(e) => setContextFilter(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">From Date</label>
+                    <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">To Date</label>
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
+                </div>
+            </div>
 
             <div className="bg-panel border-2 border-primary overflow-hidden shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]">
                 <div className="overflow-x-auto custom-scrollbar">
@@ -88,7 +155,11 @@ export default function LoggerPage() {
                                 logs.map((log) => {
                                     const config = LOG_LEVEL_CONFIG[log.level];
                                     return (
-                                        <tr key={log.id} className={`group ${config.bgColor} hover:bg-foreground/[0.03] transition-colors border-b border-primary/5 last:border-0`}>
+                                        <tr 
+                                            key={log.id} 
+                                            onClick={() => router.push(`/logger/view?ID=${log.id}`)}
+                                            className={`group ${config.bgColor} hover:bg-foreground/[0.07] transition-colors border-b border-primary/5 last:border-0 cursor-pointer`}
+                                        >
                                             <td className="p-3 font-mono text-[10px] text-muted">#{log.id}</td>
                                             <td className="p-3 font-mono text-[10px] whitespace-nowrap">
                                                 {new Date(log.timestamp).toLocaleString()}
