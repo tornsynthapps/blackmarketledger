@@ -3,19 +3,16 @@ import { ItemLogService } from "./ItemLogService";
 import { TradeService } from "./TradeService";
 import { ReceiptService } from "./ReceiptService";
 import { MuseumService } from "./MuseumService";
+import { TornLogService } from "./TornLogService";
 import { SystemConfigRegistry } from "../objects/SystemConfig";
-import { TronWrapper } from "../old/torn-wrapper";
 import { getTornApiKeyFull, getUserId } from "../old/api-keys";
 import { LocalStorageInterface } from "../old/interfaces/localstorage";
 import { MetadataInterface } from "../old/interfaces/metadata";
-import { SyncCursor, ParsedLog } from "../old/torn-api";
+import { SyncCursor } from "../objects/TornLog";
 import { TornAPI, T3BAPI } from "../old/game/api";
-import { ItemLog, ItemLogCategories } from "../objects/ItemLog";
-import { ItemLogWrapperMuseumSubType } from "../objects/ItemLogWrapper";
+import { ItemLog } from "../objects/ItemLog";
 import { ItemList } from "../objects/Item";
-import { TornAPIClient } from "../tornAPI";
 import { TornTrade, Weav3rReceipt } from "../old/game/trade";
-
 import { tornRateLimiter, weav3rRateLimiter } from "../old/rate-limiter";
 
 export type SyncStepId = "logs" | "metadata" | "trades" | "receipts" | "linking";
@@ -45,6 +42,7 @@ export class SyncService extends BaseService {
     private readonly tradeService: TradeService;
     private readonly receiptService: ReceiptService;
     private readonly museumService: MuseumService;
+    private readonly tornLogService: TornLogService;
     private readonly systemConfigRegistry: SystemConfigRegistry;
     private abortSignal: boolean = false;
 
@@ -54,6 +52,7 @@ export class SyncService extends BaseService {
         this.tradeService = new TradeService();
         this.receiptService = new ReceiptService();
         this.museumService = new MuseumService();
+        this.tornLogService = new TornLogService();
         this.systemConfigRegistry = new SystemConfigRegistry();
         this.abortSignal = false;
     }
@@ -109,10 +108,25 @@ export class SyncService extends BaseService {
 
     /**
      * Retrieves the configured sync window duration in days.
-     * Defaults to 7 days if not set.
+     * Defaults to a dynamic window based on cursor age if not explicitly set.
+     * @param lastTimestamp (number): Optional timestamp to calculate dynamic window.
      */
-    public async getSyncWindowDays(): Promise<number> {
-        return (await this.systemConfigRegistry.get("sync_window_days")) || 7;
+    public async getSyncWindowDays(lastTimestamp?: number): Promise<number> {
+        const override = await this.systemConfigRegistry.get("sync_window_days");
+        if (override) return override;
+
+        let workingTimestamp = lastTimestamp;
+        if (workingTimestamp === undefined) {
+            workingTimestamp = (await this.systemConfigRegistry.get("last_sync_timestamp")) || 0;
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const diffDays = (now - workingTimestamp) / (24 * 60 * 60);
+
+        if (diffDays > 365) return 180;
+        if (diffDays > 180) return 60;
+        if (diffDays > 30) return 30;
+        return 7;
     }
 
     /**
@@ -135,7 +149,7 @@ export class SyncService extends BaseService {
         // Safety: If no cursor is set, default to 7 days ago to avoid fetching years of data
         // Actually, user explicitly asked to default to 0 earlier, but we still apply windowing.
         
-        const windowDays = await this.getSyncWindowDays();
+        const windowDays = await this.getSyncWindowDays(lastTimestamp);
         const windowSeconds = windowDays * 24 * 60 * 60;
 
         // Limit sync window to configured duration
@@ -246,62 +260,19 @@ export class SyncService extends BaseService {
 
     private async stepIngestLogs(state: SyncState): Promise<void> {
         this.logger.info(`Sync Step 1: Starting log ingestion until ${state.targetTimestamp}`);
-        const apiKey = getTornApiKeyFull();
         const lastTimestamp = state.originTimestamp;
         const lastLogId = (await this.systemConfigRegistry.get("last_log_id")) || "";
         const cursor: SyncCursor = { lastTimestamp, lastLogId };
 
-        const itemNames = await TornAPIClient.getItemNames();
-        const nameToIdMap: Record<string, number> = {};
-        Object.entries(itemNames).forEach(([id, name]) => {
-            nameToIdMap[name.toLowerCase()] = parseInt(id, 10);
-        });
-
-        const wrapper = new TronWrapper(apiKey);
-        const logResult = await wrapper.getNewLogs(cursor, state.targetTimestamp);
+        const nextCursor = await this.tornLogService.fetchAndIngestNewLogs(cursor, state.targetTimestamp);
         
-        this.logger.info(`Fetched ${logResult.parsedLogs.length} logs. Ingesting...`);
-        
-        let ingestCount = 0;
-        const batchSize = 100;
-        let logBatch: any[] = [];
-
-        for (const parsed of logResult.parsedLogs) {
-            if (parsed.type !== "SET_CONVERT") {
-                const logData = await this.prepareParsedLog(parsed, nameToIdMap);
-                if (logData) logBatch.push(logData);
-            } else {
-                // Flush batch before museum exchange to maintain relative order
-                if (logBatch.length > 0) {
-                    await this.itemLogService.bulkPutLogs(logBatch.map(l => ItemLog.create(l)));
-                    logBatch = [];
-                }
-                await this.ingestSetConvertLog(parsed);
-            }
-
-            ingestCount++;
-            if (ingestCount % batchSize === 0) {
-                if (logBatch.length > 0) {
-                    await this.itemLogService.bulkPutLogs(logBatch.map(l => ItemLog.create(l)));
-                    logBatch = [];
-                }
-                state.steps[0].progress = `Ingesting ${ingestCount}/${logResult.parsedLogs.length} logs...`;
-                await this.saveSyncState(state);
-            }
-        }
-
-        // Final flush
-        if (logBatch.length > 0) {
-            await this.itemLogService.bulkPutLogs(logBatch.map(l => ItemLog.create(l)));
-        }
-
-        await this.systemConfigRegistry.set("last_sync_timestamp", logResult.nextCursor.lastTimestamp);
-        await this.systemConfigRegistry.set("last_log_id", logResult.nextCursor.lastLogId);
+        await this.systemConfigRegistry.set("last_sync_timestamp", nextCursor.lastTimestamp);
+        await this.systemConfigRegistry.set("last_log_id", nextCursor.lastLogId);
         
         // Recalculate cost basis
         await this.itemLogService.updateCostBasis(lastTimestamp * 1000);
         
-        state.steps[0].progress = `Ingested ${logResult.parsedLogs.length} logs.`;
+        state.steps[0].progress = `Ingestion complete up to ${new Date(nextCursor.lastTimestamp * 1000).toLocaleString()}.`;
     }
 
     private async stepFetchMetadata(state: SyncState): Promise<void> {
@@ -329,8 +300,8 @@ export class SyncService extends BaseService {
             const url = `https://api.torn.com/v2/user/trades?${new URLSearchParams(queryParams).toString()}`;
 
             await tornRateLimiter.acquire();
-            const response = await fetch(url, { cache: "no-store" });
-            const data = await response.json().catch(() => ({}));
+            const response: Response = await fetch(url, { cache: "no-store" });
+            const data: any = await response.json().catch(() => ({}));
 
             if (data?.error?.code === 5 || response.status === 429) {
                 this.logger.warn("Torn API rate limit hit in stepFetchMetadata. Pausing 10s...");
@@ -375,7 +346,7 @@ export class SyncService extends BaseService {
 
         while (receiptUrl) {
             await weav3rRateLimiter.acquire();
-            const response = await fetch(receiptUrl, { cache: "no-store" });
+            const response: Response = await fetch(receiptUrl, { cache: "no-store" });
 
             if (response.status === 429) {
                 this.logger.warn("Weav3r API rate limit hit in stepFetchMetadata. Pausing 10s...");
@@ -384,7 +355,7 @@ export class SyncService extends BaseService {
                 continue;
             }
 
-            const data = await response.json();
+            const data: any = await response.json();
             if (!data || !data.trades || !Array.isArray(data.trades)) break;
 
             for (const r of data.trades) {
@@ -534,68 +505,6 @@ export class SyncService extends BaseService {
         this.logger.info(`Initializing auto-pilot cursor at ${new Date(timestampMs).toLocaleString()}`);
         await this.systemConfigRegistry.set("last_sync_timestamp", Math.floor(timestampMs / 1000));
         await this.systemConfigRegistry.set("last_log_id", "");
-    }
-
-    private async prepareParsedLog(parsed: ParsedLog, nameToIdMap: Record<string, number>): Promise<any | null> {
-        const tornLogId = (parsed as any).tornLogId;
-        if (tornLogId) {
-            const existing = await this.itemLogService.getLogByTornLogId(tornLogId);
-            if (existing) return null;
-        }
-
-        if ('item' in parsed) {
-            const itemName = parsed.item.toLowerCase();
-            const item_id = nameToIdMap[itemName];
-            
-            if (!item_id) {
-                this.logger.warn(`Could not resolve item ID for name: "${parsed.item}"`);
-                return null;
-            }
-
-            const category: ItemLogCategories = parsed.tag === "Abroad" ? "abroad" : "normal";
-            let timestamp = parsed.loggedAt;
-            if (!timestamp || !Number.isFinite(timestamp)) {
-                const legacyDate = (parsed as any).date;
-                timestamp = Number.isFinite(legacyDate) ? legacyDate * 1000 : Date.now();
-            }
-            
-            return {
-                timestamp,
-                item_id,
-                quantity: parsed.type === "BUY" ? parsed.amount : -parsed.amount,
-                unit_price: parsed.price,
-                category,
-                torn_log_id: tornLogId,
-            };
-        }
-        return null;
-    }
-
-    private async ingestSetConvertLog(parsed: any): Promise<void> {
-        const setMap: Record<string, ItemLogWrapperMuseumSubType> = {
-            "plushie": "plushie-set",
-            "flower": "exotic-flower-set",
-            "artifact": "vairocana-buddha", 
-        };
-        
-        let subType = setMap[parsed.setType];
-        
-        // Dynamic detection for artifacts if possible
-        if (parsed.setType === "artifact" && parsed.item) {
-             const itemName = parsed.item.toLowerCase();
-             if (itemName.includes("ganesha")) subType = "ganesha-sculpture";
-             else if (itemName.includes("shabti")) subType = "shabti-sculpture";
-        }
-
-        let timestamp = parsed.loggedAt;
-        if (!timestamp || !Number.isFinite(timestamp)) {
-            const legacyDate = (parsed as any).date;
-            timestamp = Number.isFinite(legacyDate) ? legacyDate * 1000 : Date.now();
-        }
-        
-        if (subType) {
-            await this.museumService.exchangeSet(subType, parsed.times, this.itemLogService, timestamp);
-        }
     }
 
     public async getCursor(): Promise<SyncCursor> {

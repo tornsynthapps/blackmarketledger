@@ -19,6 +19,7 @@ import { SyncService, SyncState } from "@/lib/domain/SyncService";
 import { Logger } from "@/lib/domain/Logger";
 import { TradeService } from "@/lib/domain/TradeService";
 import { ReceiptService } from "@/lib/domain/ReceiptService";
+import { getTornApiKeyFull } from "@/lib/old/api-keys";
 
 function formatCursor(cursor: { lastTimestamp: number } | null) {
     if (!cursor || cursor.lastTimestamp === 0)
@@ -82,8 +83,10 @@ export default function AutoPilotV2Page() {
         try {
             const trades = await tradeService.getAllTrades();
             const receipts = await receiptService.getAllReceipts();
+            const linkedReceiptIds = new Set(trades.map(t => t.receipt_id).filter((id): id is number => id !== null));
+
             setUnlinkedTradesCount(trades.filter(t => t.receipt_id === null && t.sync_status === "complete").length);
-            setUnlinkedReceiptsCount(receipts.filter(r => r.linked_trade_id === null && r.sync_status === "complete").length);
+            setUnlinkedReceiptsCount(receipts.filter(r => !linkedReceiptIds.has(r.id!) && r.sync_status === "complete").length);
         } catch {
             // silent catch in case DB is not ready
         }
@@ -149,10 +152,31 @@ export default function AutoPilotV2Page() {
     };
 
     const handleInitialize = async () => {
-        const timestamp = Date.now();
-        logger.info(`Manually initializing cursor origin to current time.`);
+        logger.info(`Fetching user profile to determine auto-pilot origin...`);
         try {
-            await syncService.initializeAutoPilot(timestamp);
+            const apiKey = getTornApiKeyFull();
+            if (!apiKey) throw new Error("Torn API key is missing. Please set it in settings.");
+
+            const response = await fetch(`https://api.torn.com/v2/user/profile?striptags=true&key=${apiKey}`);
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error.error || "Failed to fetch Torn profile");
+            }
+
+            const age = data.profile?.age;
+            if (typeof age !== 'number') {
+                throw new Error("Could not determine account age from Torn API");
+            }
+
+            // Calculation: now() - <age in days> - 100 days buffer
+            const bufferDays = 100;
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const originTimestamp = Date.now() - ((age + bufferDays) * msPerDay);
+
+            logger.info(`Calculated origin: ${new Date(originTimestamp).toLocaleString()} (Age: ${age} days + 100 days buffer)`);
+            
+            await syncService.initializeAutoPilot(originTimestamp);
             await refreshState();
         } catch (error) {
             logger.error("Manual cursor initialization failed", error);

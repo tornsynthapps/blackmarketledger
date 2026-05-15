@@ -5,6 +5,14 @@ import {
     normalizeItemName,
     resolveMuseumExchangeType,
 } from "./parser";
+
+export {
+    type ParsedLog,
+    type TransactionSourceType,
+    type TransactionTag,
+    normalizeItemName,
+    resolveMuseumExchangeType,
+};
 import { tornRateLimiter, weav3rRateLimiter } from "./rate-limiter";
 import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "./api-keys";
 import {
@@ -81,6 +89,27 @@ export interface NormalizedLog {
     data: Record<string, unknown>;
     params: Record<string, unknown>;
 }
+
+export type LogHandlerFn = (log: NormalizedLog, itemNameMap?: TornItemNameMap) => ParsedLog[];
+
+export class LogHandlerRegistry {
+    private handlers: Map<number, LogHandlerFn> = new Map();
+
+    register(typeIds: number | number[], handler: LogHandlerFn) {
+        const ids = Array.isArray(typeIds) ? typeIds : [typeIds];
+        ids.forEach((id) => this.handlers.set(id, handler));
+    }
+
+    getHandler(typeId: number): LogHandlerFn | undefined {
+        return this.handlers.get(typeId);
+    }
+
+    getRegisteredTypes(): number[] {
+        return Array.from(this.handlers.keys());
+    }
+}
+
+export const defaultLogRegistry = new LogHandlerRegistry();
 
 export interface TornTradeParticipant {
     id: number | string;
@@ -555,62 +584,50 @@ function parseBazaarOrMarketLog(log: NormalizedLog, itemNameMap?: TornItemNameMa
     return parseMarketLog(log, type, sourceType, itemName, amount, price, tag);
 }
 
+function parseMugLog(log: NormalizedLog): ParsedLog[] {
+    let amount: number | null = log?.data?.money_mugged as number;
+    if (!amount) {
+        const moneyMatch = String(log.title).match(/\$([\d,]+)/);
+        amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : 0;
+    }
+    if (amount) {
+        return [
+            {
+                type: "MUG",
+                amount,
+                loggedAt: log.timestamp * 1000,
+                tornLogId: String(log.id),
+                sourceType: "attack",
+            },
+        ];
+    }
+    return [];
+}
+
+// Register Market & Bazaar logs
+defaultLogRegistry.register([1112, 1113, 1225, 1226, 4201], parseBazaarOrMarketLog);
+
+// Register Point Market logs
+defaultLogRegistry.register([5010, 5011], parsePointLog);
+
+// Register Museum logs
+defaultLogRegistry.register(7000, parseMuseumLog);
+
+// Register Mug logs
+defaultLogRegistry.register(8156, parseMugLog);
+
 export function parseNormalizedLog(log: NormalizedLog, itemNameMap?: TornItemNameMap): ParseResult {
     if (isTradeLog(log)) {
         return { kind: "trade" };
     }
 
-    if (!isRelevantLog(log)) {
+    const handler = defaultLogRegistry.getHandler(log.typeId);
+    if (!handler) {
         return { kind: "unsupported" };
     }
 
-    const haystack = `${log.category} ${log.title}`.toLowerCase();
-
-    if (haystack.includes("points") || [5010, 5011].includes(log.typeId)) {
-        const logs = parsePointLog(log);
-        return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
-    }
-
-    if (haystack.includes("museum") || log.typeId === 7000) {
-        const logs = parseMuseumLog(log);
-        return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
-    }
-
-    if (haystack.includes("mugged") || [8156].includes(log.typeId)) {
-        console.log(log);
-        let amount: number | null = log?.data?.money_mugged as number;
-        if (!amount) {
-            const moneyMatch = String(log.title).match(/\$([\d,]+)/);
-            amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : 0;
-        }
-        console.log(amount);
-        if (amount) {
-            return {
-                kind: "parsed",
-                logs: [
-                    {
-                        type: "MUG",
-                        amount,
-                        loggedAt: log.timestamp * 1000,
-                        tornLogId: String(log.id),
-                        sourceType: "attack",
-                    },
-                ],
-            };
-        }
-    }
-
-    if (
-        haystack.includes("bazaar") ||
-        haystack.includes("item market") ||
-        haystack.includes("travel") ||
-        log.category.toLowerCase() === "travel"
-    ) {
-        const logs = parseBazaarOrMarketLog(log, itemNameMap);
-        return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
-    }
-
-    return { kind: "unsupported" };
+    const logs = handler(log, itemNameMap);
+    return logs.length > 0 ? { kind: "parsed", logs } : { kind: "unsupported" };
 }
 
 async function getLogsForCategory(apiKey: string, category: number | string, cursor: SyncCursor) {
@@ -1008,7 +1025,7 @@ export function findMatchingReceipt(
 export function createParsedLogsFromReceipt(
     trade: TornTradeDetail,
     receipt: Weav3rReceipt,
-    currentUserId: string
+    currentUserId: string = ""
 ): ParsedLog[] {
     const tradeItemCount = receipt.items.length;
     // Correctly identify partner ID by picking the one that's not the current user
@@ -1065,7 +1082,7 @@ function extractTradePartnerName(description: string) {
 export function createParsedLogsFromNewReceipt(
     trade: TornTrade,
     receipt: NewWeav3rReceipt,
-    currentUserId: string
+    currentUserId: string = ""
 ): ParsedLog[] {
     const expandedItems = TornTrade.expandSetItems(receipt);
     const tradeItemCount = expandedItems.length;

@@ -13,7 +13,7 @@ import { TornTrade, Weav3rReceipt } from "@/lib/old/game/trade";
 import { DBInterface } from "@/lib/old/interfaces/db";
 
 export default function ReceiptReviewPage() {
-    const { isLoaded, addLogs } = useJournal();
+    const { isLoaded, addLogs, weav3rUserId } = useJournal();
 
     const [trades, setTrades] = useState<TornTrade[]>([]);
     const [receipts, setReceipts] = useState<Weav3rReceipt[]>([]);
@@ -81,7 +81,7 @@ export default function ReceiptReviewPage() {
         trade.manuallyLiked = true;
         receipt.linkedTradeId = trade.tornLogId;
 
-        const parsedLogs = createParsedLogsFromNewReceipt(trade, receipt);
+        const parsedLogs = createParsedLogsFromNewReceipt(trade, receipt, weav3rUserId);
         await addLogs(parsedLogs, { skipNegativeStock: false });
 
         DBInterface.migrationUpdateTrade(trade);

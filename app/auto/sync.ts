@@ -3,6 +3,7 @@ import {
     buildImportRecord,
     createParsedLogsFromNewReceipt,
     NormalizedLog,
+    ParsedLog,
     AutoPilotImportRecord,
 } from "@/lib/old/torn-api";
 import { TronWrapper } from "@/lib/old/torn-wrapper";
@@ -18,7 +19,7 @@ interface SyncLogsParams {
     tradeCursor: SyncCursor;
     batchRecords: AutoPilotImportRecord[];
     onTrace: (event: string, data: any) => Promise<void>;
-    addLogs: (logs: NormalizedLog[], options: any) => Promise<void>;
+    addLogs: (logs: ParsedLog[], options: any) => Promise<void>;
     saveAutoPilotState: (state: any) => Promise<void>;
     setStatusMessage: (message: string) => void;
 }
@@ -26,7 +27,7 @@ interface SyncLogsParams {
 interface SyncLogsResult {
     nextItemCursor: SyncCursor;
     newItemCursor: SyncCursor;
-    itemParsedLogs: NormalizedLog[];
+    itemParsedLogs: ParsedLog[];
     itemLogs: any[];
 }
 
@@ -63,7 +64,7 @@ export async function syncLogs(params: SyncLogsParams): Promise<SyncLogsResult> 
     const { logs: itemLogs, parsedLogs: itemParsedLogs, nextCursor: newItemCursor } = itemResult;
 
     const sortedItemLogs = [...itemLogs].sort((a, b) => a.timestamp - b.timestamp);
-    const sortedItemParsedLogs = [...itemParsedLogs].sort((a, b) => a.timestamp - b.timestamp);
+    const sortedItemParsedLogs = [...itemParsedLogs].sort((a, b) => (a.loggedAt ?? 0) - (b.loggedAt ?? 0));
 
     await onTrace("item_fetch_result", {
         itemCount: itemLogs.length,
@@ -138,7 +139,7 @@ interface SyncTradesParams {
     weav3rUserId: string;
     batchRecords: AutoPilotImportRecord[];
     onTrace: (event: string, data: any) => Promise<void>;
-    addLogs: (logs: NormalizedLog[], options: any) => Promise<void>;
+    addLogs: (logs: ParsedLog[], options: any) => Promise<void>;
     setStatusMessage: (message: string) => void;
     setTrades: React.Dispatch<React.SetStateAction<TornTrade[]>>;
     setReceipts: React.Dispatch<React.SetStateAction<Weav3rReceipt[]>>;
@@ -148,7 +149,7 @@ interface SyncTradesParams {
 interface SyncTradesResult {
     newtornTrades: TornTrade[];
     neweav3rReceipts: Weav3rReceipt[];
-    newAllNewParsedLogs: NormalizedLog[];
+    newAllNewParsedLogs: ParsedLog[];
     newUnlinkedTrades: TornTrade[];
     newUnlinkedReceipts: Weav3rReceipt[];
     nextTradeCursor: SyncCursor;
@@ -213,7 +214,7 @@ export async function syncTrades(params: SyncTradesParams): Promise<SyncTradesRe
         await onTrace("receipt_detail", receipt.toInterface());
     }
 
-    const newAllNewParsedLogs: NormalizedLog[] = [];
+    const newAllNewParsedLogs: ParsedLog[] = [];
     const linkedTrades: any[] = [];
 
     setStatusMessage(`${"Linking trades..."}`);
