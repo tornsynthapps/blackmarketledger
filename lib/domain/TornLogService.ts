@@ -14,25 +14,38 @@ import { MuseumService } from "./MuseumService";
 // Ensure handlers are registered
 initializeDefaultHandlers();
 
-const SKIPPED_LOGS: number[] = [
-    // Skipped Logs
+const FUTURE_WORK : number[] = [
+    // Item Use ========================
+    // Equipping =======================
+    4700,
+    4710,
+    // Money ===========================
+    4810, // Money receive
+    // Crimes
+    5720, // Crime money gain
+    // Casino ==========================
+    8314, 
+    // Crimes + money
+    9015, // Crime success money gain
+    9052, // Crime money gain bootlogging
+    9301, // Crime item add spray paint
+    // Faction =========================
+    6728,
+    // Points ==========================
+    4955,
+    // Company =========================
+    6221, // Company Employee Pay
+    // Missions ========================
+    7815,
+]
+const SKIPPED_LOGS: number[] = FUTURE_WORK.concat([
     1100, // Item market add (old)
     1200, // Bazaar name change
     1210, // Bazaar add (legacy)
     1212, // Bazaar edit (legacy)
-    // Item Use
-    2210, 
-    2030,
-    // Future Money
-    4810, // Money receive
-    5720, // Crime money gain
-    9015, // Crime success money gain
-    9301, // Crime item add spray paint
-    // Casino
-    8314, 
-    // Temporary
-    6221, // Company Employee Pay
-]
+    5000, // Points Market Add
+    5001, // Points Market Remove
+])
 
 export class TornLogService extends BaseService {
     protected get SERVICE_NAME() { return "TornLogService"; }

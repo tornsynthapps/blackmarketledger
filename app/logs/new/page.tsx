@@ -40,6 +40,8 @@ export default function NewLogsPage() {
                 Object.entries(items).forEach(([id, item]: [string, any]) => {
                     map[parseInt(id)] = item.name;
                 });
+                // Ensure custom IDs are mapped
+                map[100002] = "Points";
                 setItemMap(map);
             } catch (error) {
                 console.error("Failed to load items:", error);

@@ -1,8 +1,11 @@
 import { ItemList } from "../objects/Item";
-import { ItemLog } from "../objects/ItemLog";
+import { ItemLog, ItemLogCategories } from "../objects/ItemLog";
 import { ItemLogWrapper, ItemLogWrapperMuseumSubType, MUSEUM_EXCHANGE_RATES } from "../objects/ItemLogWrapper";
+import { TornAPIClient } from "../tornAPI";
 import { BaseService } from "./BaseService";
 import { ItemLogService } from "./ItemLogService";
+
+const TAKE_ORDER: ItemLogCategories[] = ["museum", "normal", "abroad", "city-finds", "city-shop", "crimes", "dump"];
 
 export class MuseumService extends BaseService {
     protected get SERVICE_NAME() { return "MuseumService"; }
@@ -97,29 +100,45 @@ export class MuseumService extends BaseService {
             throw new Error(`No items defined for set: ${set}`);
         }
 
-        // 1. Determine the maximum possible quantity based on combined stock from 'museum' and 'normal'.
+        // 1. Determine the maximum possible quantity based on combined stock across all valid categories.
         let finalExchangeQuantity = quantity;
+        const marketPrices = await TornAPIClient.getMarketPrices();
+
+        type CatStat = { stock: number; cost: number; unitPrice: number };
         const itemStats = new Map<number, { 
-            mStock: number; mAvgCost: number; 
-            nStock: number; nAvgCost: number; 
+            catStats: Map<ItemLogCategories, CatStat>;
+            totalAvailableStock: number;
         }>();
 
         for (const itemId of itemsInSet) {
             const totals = await itemLogService.getLatestTotals(itemId, timestamp);
-            const mTotals = totals.get("museum") || { stock: 0, cost: 0 };
-            const nTotals = totals.get("normal") || { stock: 0, cost: 0 };
+            const catStats = new Map<ItemLogCategories, CatStat>();
+            let totalAvailableStock = 0;
             
-            const mStock = mTotals.stock;
-            const mAvgCost = mStock > 0 ? mTotals.cost / mStock : 0;
-            const nStock = nTotals.stock;
-            const nAvgCost = nStock > 0 ? nTotals.cost / nStock : 0;
+            // First get normal avg cost, as it's needed for other categories
+            const nTotals = totals.get("normal") || { stock: 0, cost: 0 };
+            const nAvgCost = nTotals.stock > 0 ? nTotals.cost / nTotals.stock : 0;
+            
+            for (const cat of TAKE_ORDER) {
+                const catTotal = totals.get(cat) || { stock: 0, cost: 0 };
+                let unitPrice = 0;
+                
+                if (cat === "museum" || cat === "normal") {
+                    unitPrice = catTotal.stock > 0 ? catTotal.cost / catTotal.stock : 0;
+                } else {
+                    unitPrice = nAvgCost > 0 ? nAvgCost : (marketPrices[itemId] || 0);
+                }
+                
+                catStats.set(cat, { stock: catTotal.stock, cost: catTotal.cost, unitPrice });
+                totalAvailableStock += catTotal.stock;
+            }
 
-            itemStats.set(itemId, { mStock, mAvgCost, nStock, nAvgCost });
+            itemStats.set(itemId, { catStats, totalAvailableStock });
 
-            this.logger.debug(` Item ${itemId}: museum=${mStock} (avg ${mAvgCost}), normal=${nStock} (avg ${nAvgCost})`);
+            this.logger.debug(` Item ${itemId}: totalAvailable=${totalAvailableStock}, nAvg=${nAvgCost}`);
 
-            if (mStock + nStock < finalExchangeQuantity) {
-                finalExchangeQuantity = Math.max(0, mStock + nStock);
+            if (totalAvailableStock < finalExchangeQuantity) {
+                finalExchangeQuantity = Math.max(0, totalAvailableStock);
             }
         }
 
@@ -145,36 +164,40 @@ export class MuseumService extends BaseService {
         // 3. Process each item: perform direct removals and log skips for shortfalls.
         for (const itemId of itemsInSet) {
             const stats = itemStats.get(itemId)!;
-            const takeFromMuseum = Math.min(finalExchangeQuantity, stats.mStock);
-            const takeFromNormal = finalExchangeQuantity - takeFromMuseum;
+            let remainingToTake = finalExchangeQuantity;
             const skippedAmount = quantity - finalExchangeQuantity;
 
-            if (takeFromNormal > 0) {
-                totalCostOfExchange += takeFromNormal * stats.nAvgCost;
-                logsToPersist.push(
-                    ItemLog.create({
-                        timestamp,
-                        item_id: itemId,
-                        quantity: -takeFromNormal,
-                        unit_price: stats.nAvgCost,
-                        category: "normal",
-                        wrapper_id: exchangeWrapperId,
-                    })
-                );
-            }
+            for (const cat of TAKE_ORDER) {
+                if (remainingToTake <= 0) break;
+                
+                const catStat = stats.catStats.get(cat)!;
+                const takeFromCat = Math.min(remainingToTake, catStat.stock);
 
-            if (takeFromMuseum > 0) {
-                totalCostOfExchange += takeFromMuseum * stats.mAvgCost;
-                logsToPersist.push(
-                    ItemLog.create({
-                        timestamp,
-                        item_id: itemId,
-                        quantity: -takeFromMuseum,
-                        unit_price: stats.mAvgCost,
-                        category: "museum",
-                        wrapper_id: exchangeWrapperId,
-                    })
-                );
+                if (takeFromCat > 0) {
+                    const avgCost = catStat.stock > 0 ? catStat.cost / catStat.stock : 0;
+                    const cogs = takeFromCat * avgCost;
+                    
+                    let realizedProfit = 0;
+                    if (cat === "museum" || cat === "normal") {
+                        totalCostOfExchange += cogs;
+                    } else {
+                        totalCostOfExchange += takeFromCat * catStat.unitPrice;
+                        realizedProfit = takeFromCat * catStat.unitPrice - cogs;
+                    }
+
+                    logsToPersist.push(
+                        ItemLog.create({
+                            timestamp,
+                            item_id: itemId,
+                            quantity: -takeFromCat,
+                            unit_price: catStat.unitPrice,
+                            category: cat,
+                            wrapper_id: exchangeWrapperId,
+                            realized_profit: realizedProfit,
+                        })
+                    );
+                    remainingToTake -= takeFromCat;
+                }
             }
 
             if (skippedAmount > 0) {

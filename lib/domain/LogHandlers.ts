@@ -101,7 +101,7 @@ export async function handlePointLog(log: NormalizedLog, deps: HandlerDependenci
     
     if (!type) return;
 
-    const quantity = Number(data.points);
+    const quantity = Number(data.quantity) || Number(data.points);
     const totalCost = Number(data.cost_total);
     const unitPrice = totalCost && quantity ? totalCost / quantity : Number(data.cost_each) || 0;
 
@@ -268,7 +268,7 @@ export async function handleDumpLog(log: NormalizedLog, deps: HandlerDependencie
 
 export function initializeDefaultHandlers() {
     // Register Market & Bazaar logs
-    defaultLogRegistry.register([1112, 1113, 1225, 1226, 4201, 1103, 1220, 1221], handleBazaarOrMarketLog);
+    defaultLogRegistry.register([1103, 1112, 1113, 1220, 1221, 1225, 1226, 4201], handleBazaarOrMarketLog);
 
     // Register Point Market logs
     defaultLogRegistry.register([5010, 5011], handlePointLog);

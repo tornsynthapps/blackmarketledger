@@ -1,5 +1,5 @@
 import { NewRateLimiter } from "./api";
-import { getTornApiRateLimit, getTornApiKeyFull } from "@/lib/old/api-keys";
+import { getTornApiRateLimit, getTornApiKeyFull } from "./old/api-keys";
 
 /**
  * Interface representing a complex data structure for Torn inventory items.

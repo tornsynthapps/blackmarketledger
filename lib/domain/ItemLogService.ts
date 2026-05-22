@@ -1,5 +1,5 @@
+import { TornAPIClient } from "../tornAPI";
 import { BaseService } from "./BaseService";
-import { Logger } from "./Logger";
 import { ItemList } from "../objects/Item";
 import {
     ItemLog,
@@ -627,7 +627,7 @@ export class ItemLogService extends BaseService {
                     realized_profit: sourceSkippedProfit
                 });
                 const id = await this.registry.put(n);
-                id && n.applyPersistedId(id);
+                if (id) n.applyPersistedId(id);
                 allLogs.push(n);
             }
 
@@ -660,7 +660,7 @@ export class ItemLogService extends BaseService {
                     total_cost: destTotalsExtra.cost
                 });
                 const id = await this.registry.put(n);
-                id && n.applyPersistedId(id);
+                if (id) n.applyPersistedId(id);
                 allLogs.push(n);
             }
 
@@ -758,9 +758,13 @@ export class ItemLogService extends BaseService {
 
         this.logger.info(` exchange #${wid}: requestedSets=${requestedSets}, rate=${pointsExchangeRate}`);
 
-        // 2. Determine the new max possible sets based on current stock (normal + museum)
+        // 2. Determine the new max possible sets based on current stock across all valid categories
         let finalDoableSets = requestedSets;
-        const itemStats = new Map<number, { mStock: number; mAvg: number; nStock: number; nAvg: number }>();
+        const takeOrder: ItemLogCategories[] = ["museum", "normal", "abroad", "city-finds", "city-shop", "crimes", "dump"];
+        const marketPrices = await TornAPIClient.getMarketPrices();
+
+        type CatStat = { stock: number; cost: number; unitPrice: number };
+        const itemStats = new Map<number, { catStats: Map<ItemLogCategories, CatStat>; nAvg: number }>();
 
         for (const itemId of itemIds) {
             let totals = runningTotalsByItem.get(itemId);
@@ -769,21 +773,33 @@ export class ItemLogService extends BaseService {
                 totals = await this.registry.getLatestTotalsPerCategoryBefore(itemId, pointsLog.timestamp);
                 runningTotalsByItem.set(itemId, totals);
             }
-            const m = totals.get("museum") || { stock: 0, cost: 0 };
-            const n = totals.get("normal") || { stock: 0, cost: 0 };
             
-            const stats = {
-                mStock: m.stock,
-                mAvg: m.stock > 0 ? m.cost / m.stock : 0,
-                nStock: n.stock,
-                nAvg: n.stock > 0 ? n.cost / n.stock : 0
-            };
-            itemStats.set(itemId, stats);
+            const nTotals = totals.get("normal") || { stock: 0, cost: 0 };
+            const nAvg = nTotals.stock > 0 ? nTotals.cost / nTotals.stock : 0;
             
-            this.logger.debug(` Item ${itemId}: museum=${stats.mStock} (avg ${stats.mAvg}), normal=${stats.nStock} (avg ${stats.nAvg})`);
+            const catStats = new Map<ItemLogCategories, CatStat>();
+            let totalStock = 0;
             
-            if (stats.mStock + stats.nStock < finalDoableSets) {
-                finalDoableSets = Math.max(0, stats.mStock + stats.nStock);
+            for (const cat of takeOrder) {
+                const catTotals = totals.get(cat) || { stock: 0, cost: 0 };
+                let unitPrice = 0;
+                
+                if (cat === "museum" || cat === "normal") {
+                    unitPrice = catTotals.stock > 0 ? catTotals.cost / catTotals.stock : 0;
+                } else {
+                    unitPrice = nAvg > 0 ? nAvg : (marketPrices[itemId] || 0);
+                }
+                
+                catStats.set(cat, { stock: catTotals.stock, cost: catTotals.cost, unitPrice });
+                totalStock += catTotals.stock;
+            }
+            
+            itemStats.set(itemId, { catStats, nAvg });
+            
+            this.logger.debug(` Item ${itemId}: totalAvailable=${totalStock}, nAvg=${nAvg}`);
+            
+            if (totalStock < finalDoableSets) {
+                finalDoableSets = Math.max(0, totalStock);
                 this.logger.info(` Exchange #${wid}: Final doable sets reduced to ${finalDoableSets} due to item ${itemId} constraints.`);
             }
         }
@@ -796,34 +812,42 @@ export class ItemLogService extends BaseService {
 
         for (const itemId of itemIds) {
             const stats = itemStats.get(itemId)!;
-            const takeFromMuseum = Math.min(finalDoableSets, stats.mStock);
-            const takeFromNormal = finalDoableSets - takeFromMuseum;
-
-            this.logger.info(` Item ${itemId}: takeFromMuseum=${takeFromMuseum}, takeFromNormal=${takeFromNormal}, skipped=${skippedSets}`);
-
-            // a. Process Museum Removal
-            const mTotals = runningTotalsByItem.get(itemId)!.get("museum") || { stock: 0, cost: 0 };
-            const mCOGS = takeFromMuseum * stats.mAvg;
-            mTotals.stock -= takeFromMuseum;
-            mTotals.cost -= mCOGS;
-            runningTotalsByItem.get(itemId)!.set("museum", { ...mTotals });
-            totalCostOfExchange += mCOGS;
-
-            // b. Process Normal Removal
-            const nTotals = runningTotalsByItem.get(itemId)!.get("normal") || { stock: 0, cost: 0 };
-            const nCOGS = takeFromNormal * stats.nAvg;
-            nTotals.stock -= takeFromNormal;
-            nTotals.cost -= nCOGS;
-            runningTotalsByItem.get(itemId)!.set("normal", { ...nTotals });
-            totalCostOfExchange += nCOGS;
-
-            // c. Update/Create/Delete logs for this item
+            let remainingToTake = finalDoableSets;
+            
             const itemLogs = nonPointsLogs.filter(l => l.item_id === itemId);
-            const configs = [
-                { cat: "museum", qty: -takeFromMuseum, price: stats.mAvg },
-                { cat: "normal", qty: -takeFromNormal, price: stats.nAvg },
-                { cat: "skipped", qty: -skippedSets, price: 0 }
-            ].filter(c => c.qty !== 0);
+            const configs: { cat: ItemLogCategories; qty: number; price: number; rp: number }[] = [];
+            
+            for (const cat of takeOrder) {
+                if (remainingToTake <= 0) break;
+                
+                const catStat = stats.catStats.get(cat)!;
+                const take = Math.min(remainingToTake, catStat.stock);
+                
+                if (take > 0) {
+                    const t = runningTotalsByItem.get(itemId)!.get(cat) || { stock: 0, cost: 0 };
+                    const avgCost = catStat.stock > 0 ? catStat.cost / catStat.stock : 0;
+                    const cogs = take * avgCost;
+                    
+                    t.stock -= take;
+                    t.cost -= cogs;
+                    runningTotalsByItem.get(itemId)!.set(cat, { ...t });
+                    
+                    let realizedProfit = 0;
+                    if (cat === "museum" || cat === "normal") {
+                        totalCostOfExchange += cogs;
+                    } else {
+                        totalCostOfExchange += take * catStat.unitPrice;
+                        realizedProfit = take * catStat.unitPrice - cogs;
+                    }
+                    
+                    configs.push({ cat, qty: -take, price: catStat.unitPrice, rp: realizedProfit });
+                    remainingToTake -= take;
+                }
+            }
+            
+            if (skippedSets > 0) {
+                configs.push({ cat: "skipped", qty: -skippedSets, price: 0, rp: 0 });
+            }
 
             // Reuse existing logs where possible
             for (let j = 0; j < Math.max(itemLogs.length, configs.length); j++) {
@@ -835,10 +859,10 @@ export class ItemLogService extends BaseService {
                         runningTotalsByItem.get(itemId)!.get(config.cat)?.stock ?? 0,
                         runningTotalsByItem.get(itemId)!.get(config.cat)?.cost ?? 0,
                         {
-                            category: config.cat as ItemLogCategories,
+                            category: config.cat,
                             quantity: config.qty,
                             unit_price: config.price,
-                            realized_profit: 0
+                            realized_profit: config.rp
                         }
                     );
                     updatedLogsInWrapper.push(updated);
@@ -848,13 +872,14 @@ export class ItemLogService extends BaseService {
                         item_id: itemId,
                         quantity: config.qty,
                         unit_price: config.price,
-                        category: config.cat as ItemLogCategories,
+                        category: config.cat,
                         wrapper_id: wid,
                         total_stock: runningTotalsByItem.get(itemId)!.get(config.cat)?.stock ?? 0,
                         total_cost: runningTotalsByItem.get(itemId)!.get(config.cat)?.cost ?? 0,
+                        realized_profit: config.rp,
                     });
                     const id = await this.registry.put(n);
-                    id && n.applyPersistedId(id);
+                    if (id) n.applyPersistedId(id);
                     updatedLogsInWrapper.push(n);
                     allLogs.push(n);
                 } else if (existing) {
@@ -899,7 +924,7 @@ export class ItemLogService extends BaseService {
 
         // New logs have the same timestamp and larger IDs, so they sort after current position.
         // activeLog (log.id) tracking preserves iteration continuity without a full re-sort.
-        let activeLog = allLogs.find(l => l.id === log.id) || log;
+        const activeLog = allLogs.find(l => l.id === log.id) || log;
         return { updatedLogs: [activeLog], newIndex };
     }
 
