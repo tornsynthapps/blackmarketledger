@@ -15,7 +15,9 @@ import {
     Delete02Icon,
     Analytics01Icon,
     ArrowDown01Icon,
-    DatabaseIcon
+    DatabaseIcon,
+    CloudDownloadIcon,
+    FileSearchIcon
 } from "@hugeicons/core-free-icons";
 import { SyncService, SyncState } from "@/lib/domain/SyncService";
 import { Logger } from "@/lib/domain/Logger";
@@ -233,6 +235,18 @@ export default function AutoPilotV2Page() {
 
     const needsContinueSync = syncState && syncState.steps.some(s => s.status === "failed" || s.status === "pending" && syncState.currentStepIndex > 0);
 
+    const handleDownloadUnsupported = () => {
+        if (!syncState?.unsupportedLogs) return;
+        const dataStr = JSON.stringify(syncState.unsupportedLogs, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `unsupported_logs_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 p-0">
             <div className="flex items-start justify-between gap-4">
@@ -249,6 +263,13 @@ export default function AutoPilotV2Page() {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                        href="/autopilot/unsupported"
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-panel px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                    >
+                        <HugeiconsIcon icon={FileSearchIcon} size={16} />
+                        Log Visualizer
+                    </Link>
                     <Link
                         href="/old/auto/receipts"
                         className="inline-flex items-center gap-2 rounded-xl border border-border bg-panel px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground"
@@ -454,6 +475,30 @@ export default function AutoPilotV2Page() {
                         />
                         <h2 className="text-xl font-bold">Sync Progress Steps</h2>
                     </div>
+
+                    {syncState && !syncState.isActive && syncState.unsupportedLogs && syncState.unsupportedLogs.length > 0 && (
+                        <div className="mb-6 p-4 rounded-xl border-2 border-dashed border-orange-500/30 bg-orange-500/5 animate-in zoom-in duration-300">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold">
+                                        <HugeiconsIcon icon={Alert01Icon} size={18} />
+                                        Unsupported Logs Detected
+                                    </div>
+                                    <p className="text-sm text-foreground/70">
+                                        We found {syncState.unsupportedLogs.length} log types that are not yet supported by BML. 
+                                        Please download and share them with the developer to add support.
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={handleDownloadUnsupported}
+                                    className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20 active:scale-95 shrink-0"
+                                >
+                                    <HugeiconsIcon icon={CloudDownloadIcon} size={18} />
+                                    Download Logs (.json)
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         {syncState?.steps.map((step, idx) => (

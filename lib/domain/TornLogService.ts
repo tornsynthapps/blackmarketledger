@@ -1,5 +1,5 @@
 import { BaseService } from "./BaseService";
-import { SyncCursor, TornLogEntry, normalizeTornLog } from "../objects/TornLog";
+import { SyncCursor, TornLogEntry, normalizeTornLog, NormalizedLog } from "../objects/TornLog";
 import { 
     defaultLogRegistry, 
     LogHandlerRegistry,
@@ -70,7 +70,7 @@ export class TornLogService extends BaseService {
     public async fetchAndIngestNewLogs(
         cursor: SyncCursor,
         toTimestamp: number
-    ): Promise<{ nextCursor: SyncCursor; earliestTimestamp: number | null }> {
+    ): Promise<{ nextCursor: SyncCursor; earliestTimestamp: number | null; unsupportedLogs: NormalizedLog[] }> {
         const apiKey = getTornApiKeyFull();
         if (!apiKey) throw new Error("Missing Torn API Key");
 
@@ -123,6 +123,7 @@ export class TornLogService extends BaseService {
         this.logger.info(`Ingesting ${normalizedLogs.length} logs...`);
 
         let earliestTimestamp: number | null = null;
+        const unsupportedLogs: NormalizedLog[] = [];
 
         for (const log of normalizedLogs) {
             // Only process if it's a type we care about
@@ -141,6 +142,7 @@ export class TornLogService extends BaseService {
                 // Log unsupported type to help with future implementation
                 if (!SKIPPED_LOGS.includes(log.typeId)) {
                     this.logger.error(`Unsupported log type ID ${log.typeId} encountered.`, log);
+                    unsupportedLogs.push(log);
                 }
             }
         }
@@ -152,7 +154,7 @@ export class TornLogService extends BaseService {
 
         this.logger.info(`Ingestion complete. Next cursor: ${nextCursor.lastTimestamp}`);
 
-        return { nextCursor, earliestTimestamp };
+        return { nextCursor, earliestTimestamp, unsupportedLogs };
     }
 
     private async fetchCategoryLogs(

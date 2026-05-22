@@ -8,7 +8,7 @@ import { SystemConfigRegistry } from "../objects/SystemConfig";
 import { getTornApiKeyFull, getUserId } from "../old/api-keys";
 import { LocalStorageInterface } from "../old/interfaces/localstorage";
 import { MetadataInterface } from "../old/interfaces/metadata";
-import { SyncCursor } from "../objects/TornLog";
+import { SyncCursor, NormalizedLog } from "../objects/TornLog";
 import { TornAPI, T3BAPI } from "../old/game/api";
 import { ItemLog } from "../objects/ItemLog";
 import { ItemList } from "../objects/Item";
@@ -32,6 +32,7 @@ export interface SyncState {
     targetTimestamp: number;
     originTimestamp: number;
     earliestActivityTimestamp: number | null;
+    unsupportedLogs?: NormalizedLog[];
 }
 
 export class SyncService extends BaseService {
@@ -163,7 +164,8 @@ export class SyncService extends BaseService {
         state.originTimestamp = lastTimestamp;
         state.targetTimestamp = targetTimestamp;
         state.earliestActivityTimestamp = null;
-        
+        state.unsupportedLogs = [];
+
         // Reset steps
         state.steps.forEach(s => {
             s.status = "pending";
@@ -274,29 +276,33 @@ export class SyncService extends BaseService {
      * @param toTimestamp (number): End timestamp (Unix seconds)
      * @returns (Promise<{ nextCursor: SyncCursor, earliestTimestamp: number | null }>)
      */
-    public async runAdvancedStep1(fromTimestamp: number, toTimestamp: number): Promise<{ nextCursor: SyncCursor, earliestTimestamp: number | null }> {
+    public async runAdvancedStep1(fromTimestamp: number, toTimestamp: number): Promise<{ nextCursor: SyncCursor, earliestTimestamp: number | null, unsupportedLogs: any[] }> {
         this.logger.info(`Advanced Sync Step 1: Ingesting logs from ${fromTimestamp} to ${toTimestamp}`);
-        
+
         const cursor: SyncCursor = { lastTimestamp: fromTimestamp, lastLogId: "" };
         const result = await this.tornLogService.fetchAndIngestNewLogs(cursor, toTimestamp);
-        
+
         this.logger.info(`Advanced ingest complete. Next cursor: ${result.nextCursor.lastTimestamp}`);
         return result;
     }
-
     private async stepIngestLogs(state: SyncState): Promise<void> {
         this.logger.info(`Sync Step 1: Starting log ingestion until ${state.targetTimestamp}`);
         const lastTimestamp = state.originTimestamp;
         const lastLogId = (await this.systemConfigRegistry.get("last_log_id")) || "";
         const cursor: SyncCursor = { lastTimestamp, lastLogId };
 
-        const { nextCursor, earliestTimestamp } = await this.tornLogService.fetchAndIngestNewLogs(cursor, state.targetTimestamp);
+        const { nextCursor, earliestTimestamp, unsupportedLogs } = await this.tornLogService.fetchAndIngestNewLogs(cursor, state.targetTimestamp);
         
         // Track earliest activity for Step 6 recalculation
         if (earliestTimestamp !== null) {
             state.earliestActivityTimestamp = state.earliestActivityTimestamp === null 
                 ? earliestTimestamp 
                 : Math.min(state.earliestActivityTimestamp, earliestTimestamp);
+        }
+
+        // Accumulate unsupported logs for debugging
+        if (unsupportedLogs.length > 0) {
+            state.unsupportedLogs = (state.unsupportedLogs || []).concat(unsupportedLogs);
         }
 
         await this.systemConfigRegistry.set("last_sync_timestamp", nextCursor.lastTimestamp);
