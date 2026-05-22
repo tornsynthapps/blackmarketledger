@@ -250,7 +250,7 @@ export default function AutoPilotV2Page() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <Link
-                        href="/auto/receipts"
+                        href="/old/auto/receipts"
                         className="inline-flex items-center gap-2 rounded-xl border border-border bg-panel px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground"
                     >
                         Review Receipts
@@ -437,7 +437,7 @@ export default function AutoPilotV2Page() {
                             </p>
                         </div>
                         <Link
-                            href="/auto/receipts"
+                            href="/old/auto/receipts"
                             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground/75 shadow-sm transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                         >
                             Open Receipt Review

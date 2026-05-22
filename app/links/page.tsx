@@ -68,7 +68,7 @@ export default function LinksPage() {
         },
         {
             name: "Auto-Pilot",
-            href: "/auto",
+            href: "/autopilot",
             icon: Radar03Icon,
             desc: "Automated data synchronization",
         },

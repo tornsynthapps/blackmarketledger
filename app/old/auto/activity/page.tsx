@@ -108,7 +108,7 @@ function ActivityPageContent() {
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
             <div className="flex items-center justify-between">
                 <Link
-                    href="/auto"
+                    href="/old/auto"
                     className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors"
                 >
                     <HugeiconsIcon icon={ArrowLeft01Icon} size={16} /> Back to Auto-Pilot

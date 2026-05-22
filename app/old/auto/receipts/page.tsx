@@ -118,7 +118,7 @@ export default function ReceiptReviewPage() {
                     </p>
                 </div>
                 <Link
-                    href="/auto"
+                    href="/old/auto"
                     className="inline-flex items-center gap-2 rounded-xl border border-border bg-panel px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground"
                 >
                     Back To Auto-Pilot

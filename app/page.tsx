@@ -1,7 +1,7 @@
 "use client";
 
-import { useJournal } from "@/store/useJournal";
-import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
+import { ItemLogService } from "@/lib/domain/ItemLogService";
+import { ItemLog } from "@/lib/objects/ItemLog";
 import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/old/parser";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -9,20 +9,15 @@ import {
     PackageSearchIcon,
     AlertCircleIcon,
     Activity01Icon,
-    PencilEdit02Icon,
     ArrowUpDownIcon,
     ArrowUp01Icon,
     ArrowDown01Icon,
     Search01Icon,
     Coins01Icon,
-    CheckmarkCircle01Icon,
-    Book01Icon,
     ArrowRight01Icon,
     ArrowLeft01Icon,
     StarIcon,
 } from "@hugeicons/core-free-icons";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
@@ -46,18 +41,16 @@ import {
     startOfYear,
     endOfYear,
 } from "date-fns";
-import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/old/chartUtils";
-import type { AnyTrackedTransaction } from "@/lib/old/interfaces/transactions";
+import { TornAPIClient } from "@/lib/tornAPI";
 
-const getTransactionTimestamp = (transaction: any) =>
-    "date" in transaction ? transaction.date : transaction.timestamp;
-
-const getTransactionPriority = (transaction: any) => {
-    if ("isWrapper" in transaction && transaction.isWrapper) return 2;
-    if ("type" in transaction && transaction.type === "BUY") return 0;
-    if ("amount" in transaction && transaction.amount >= 0) return 0;
-    return 1;
-};
+interface InventoryItemStats {
+    stock: number;
+    totalCost: number;
+    realizedProfit: number;
+    abroadStock: number;
+    abroadTotalCost: number;
+    abroadRealizedProfit: number;
+}
 
 const formatMoney = (val: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -67,10 +60,35 @@ const formatMoney = (val: number) => {
     }).format(val);
 };
 
-export default function Home() {
-    const { isLoaded, inventory, totalMugLoss, renameItem, transactions } = useJournal();
+export default function NewDashboard() {
+    const itemLogService = useMemo(() => new ItemLogService(), []);
     const router = useRouter();
     const { vibrate } = useHapticFeedback();
+
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [logs, setLogs] = useState<ItemLog[]>([]);
+    const [itemNames, setItemNames] = useState<Record<number, string>>({});
+
+    const fetchData = useCallback(async () => {
+        try {
+            const [allLogs, names] = await Promise.all([
+                itemLogService.getAllLogs(),
+                TornAPIClient.getItemNames(),
+            ]);
+            setLogs(allLogs);
+            setItemNames(names);
+            setIsLoaded(true);
+        } catch (error) {
+            console.error("V2 Dashboard fetch failed:", error);
+        }
+    }, [itemLogService]);
+
+    useEffect(() => {
+        fetchData();
+        // Refresh periodically
+        const interval = setInterval(fetchData, 10000);
+        return () => clearInterval(interval);
+    }, [fetchData]);
 
     type SortKey = "name" | "stock" | "avgCost" | "totalCost" | "realizedProfit";
     const [sortConfig, setSortConfig] = useState<{
@@ -111,7 +129,7 @@ export default function Home() {
 
     // Load prefs
     useEffect(() => {
-        const prefs = localStorage.getItem("bml-main-chart-prefs");
+        const prefs = localStorage.getItem("bml-main-chart-prefs-v2");
         if (prefs) {
             try {
                 const p = JSON.parse(prefs);
@@ -122,28 +140,28 @@ export default function Home() {
                 if (p.includeNetProfit !== undefined) setIncludeNetProfit(p.includeNetProfit);
                 if (p.viewType !== undefined) setViewType(p.viewType);
                 if (p.timeRange !== undefined) setTimeRange(p.timeRange);
-            } catch (e) {}
+            } catch {}
         }
 
-        const sortPref = localStorage.getItem("bml-inventory-sort-pref");
+        const sortPref = localStorage.getItem("bml-inventory-sort-pref-v2");
         if (sortPref) {
             try {
                 setSortConfig(JSON.parse(sortPref));
-            } catch (e) {}
+            } catch {}
         }
 
-        const groupedPref = localStorage.getItem("bml-dashboard-grouped-pref");
+        const groupedPref = localStorage.getItem("bml-dashboard-grouped-pref-v2");
         if (groupedPref) {
             try {
                 setIsGrouped(JSON.parse(groupedPref));
-            } catch (e) {}
+            } catch {}
         }
 
-        const savedGroups = localStorage.getItem("bml-dashboard-favorite-groups");
+        const savedGroups = localStorage.getItem("bml-dashboard-favorite-groups-v2");
         if (savedGroups) {
             try {
                 setFavoriteGroups(new Set(JSON.parse(savedGroups)));
-            } catch (e) {}
+            } catch {}
         }
 
         // Load item types for grouping
@@ -157,7 +175,7 @@ export default function Home() {
     useEffect(() => {
         if (isLoaded) {
             localStorage.setItem(
-                "bml-main-chart-prefs",
+                "bml-main-chart-prefs-v2",
                 JSON.stringify({
                     includeTrading,
                     includeMuseum,
@@ -182,12 +200,12 @@ export default function Home() {
 
     useEffect(() => {
         if (isLoaded) {
-            localStorage.setItem("bml-inventory-sort-pref", JSON.stringify(sortConfig));
+            localStorage.setItem("bml-inventory-sort-pref-v2", JSON.stringify(sortConfig));
         }
     }, [sortConfig, isLoaded]);
 
     useEffect(() => {
-        localStorage.setItem("bml-dashboard-grouped-pref", JSON.stringify(isGrouped));
+        localStorage.setItem("bml-dashboard-grouped-pref-v2", JSON.stringify(isGrouped));
     }, [isGrouped]);
 
     const toggleGroupFavorites = (groupName: string) => {
@@ -198,36 +216,66 @@ export default function Home() {
             } else {
                 next.add(groupName);
             }
-            localStorage.setItem("bml-dashboard-favorite-groups", JSON.stringify(Array.from(next)));
+            localStorage.setItem("bml-dashboard-favorite-groups-v2", JSON.stringify(Array.from(next)));
             return next;
         });
     };
 
-    const itemIdByName = useMemo(() => {
-        const map = new Map<string, number>();
-        transactions.forEach((transaction) => {
-            if (
-                transaction &&
-                typeof transaction === "object" &&
-                "isWrapper" in transaction &&
-                transaction.isWrapper === false &&
-                "itemName" in transaction &&
-                "itemID" in transaction &&
-                typeof transaction.itemName === "string" &&
-                typeof transaction.itemID === "number"
-            ) {
-                map.set(transaction.itemName, transaction.itemID);
-            }
+    const inventory = useMemo(() => {
+        const statsMap = new Map<string, InventoryItemStats>();
+        
+        // Group logs by item
+        const logsByItem = new Map<number, ItemLog[]>();
+        logs.forEach(log => {
+            if (!logsByItem.has(log.item_id)) logsByItem.set(log.item_id, []);
+            logsByItem.get(log.item_id)!.push(log);
         });
-        return map;
-    }, [transactions]);
+
+        logsByItem.forEach((itemLogs, itemId) => {
+            const name = itemNames[itemId] || `Item ${itemId}`;
+            
+            // Get latest log per category
+            const latestByCategory = new Map<string, ItemLog>();
+            itemLogs.forEach(log => {
+                const existing = latestByCategory.get(log.category);
+                if (!existing || log.timestamp > existing.timestamp) {
+                    latestByCategory.set(log.category, log);
+                }
+            });
+
+            const stats: InventoryItemStats = {
+                stock: 0,
+                totalCost: 0,
+                realizedProfit: 0,
+                abroadStock: 0,
+                abroadTotalCost: 0,
+                abroadRealizedProfit: 0,
+            };
+
+            latestByCategory.forEach((log, category) => {
+                if (category === "abroad") {
+                    stats.abroadStock = log.total_stock;
+                    stats.abroadTotalCost = log.total_cost;
+                    stats.abroadRealizedProfit = log.realized_profit;
+                } else if (category !== "skipped") {
+                    stats.stock += log.total_stock;
+                    stats.totalCost += log.total_cost;
+                    stats.realizedProfit += log.realized_profit;
+                }
+            });
+
+            statsMap.set(name, stats);
+        });
+
+        return statsMap;
+    }, [logs, itemNames]);
 
     const { stats, sortedItems } = useMemo(() => {
         let tradingProfit = 0;
         let totalInvValue = 0;
         let museumProfit = 0;
         let abroadProfit = 0;
-        const items: { name: string; stats: any }[] = [];
+        const items: { name: string; stats: InventoryItemStats; itemID: number }[] = [];
 
         inventory.forEach((stat, name) => {
             const isMuseum = name.toLowerCase() === "points";
@@ -243,12 +291,16 @@ export default function Home() {
                 itemStock += stat.abroadStock;
             }
 
+            const itemID = Object.entries(itemNames).find(([, n]) => n === name)?.[0];
+            const numericID = itemID ? parseInt(itemID, 10) : 0;
+
             if (isMuseum) {
                 museumProfit += stat.realizedProfit;
                 if (includeMuseum) {
                     items.push({
                         name,
                         stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
+                        itemID: numericID
                     });
                     totalInvValue += itemValue;
                 }
@@ -258,6 +310,7 @@ export default function Home() {
                     items.push({
                         name,
                         stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
+                        itemID: numericID
                     });
                     totalInvValue += itemValue;
                 }
@@ -268,10 +321,9 @@ export default function Home() {
             const query = search.toLowerCase();
             const itemNameMatch = item.name.toLowerCase().includes(query);
             
-            const itemID = itemIdByName.get(item.name);
             let itemType = item.name.toLowerCase() === "points" 
                 ? "Points" 
-                : (itemID ? itemTypeMap[String(itemID)] : undefined)?.type || "Other";
+                : (item.itemID ? itemTypeMap[String(item.itemID)] : undefined)?.type || "Other";
             
             // Museum set overrides
             if (item.name.toLowerCase() === "flower set") itemType = "Flower";
@@ -306,11 +358,10 @@ export default function Home() {
             stats: { profit: tradingProfit, inventory: totalInvValue, museumProfit, abroadProfit },
             sortedItems: sorted,
         };
-    }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad, itemIdByName, itemTypeMap]);
+    }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad, itemNames, itemTypeMap]);
 
     const enrichedItems = useMemo(() => {
-        return sortedItems.map(({ name, stats }) => {
-            const itemID = itemIdByName.get(name);
+        return sortedItems.map(({ name, stats, itemID }) => {
             let itemType = name.toLowerCase() === "points" 
                 ? "Points" 
                 : (itemID ? itemTypeMap[String(itemID)] : undefined)?.type || "Other";
@@ -326,7 +377,7 @@ export default function Home() {
                 itemID,
             };
         });
-    }, [sortedItems, itemTypeMap, itemIdByName]);
+    }, [sortedItems, itemTypeMap]);
 
     const groupedItems = useMemo(() => {
         if (!isGrouped) return null;
@@ -394,24 +445,17 @@ export default function Home() {
         setSortConfig({ key, direction });
     };
 
-    const openStatsModal = (
-        title: string,
-        statType: "profit" | "inventory" | "mugLoss" | "netProfit"
-    ) => {
-        vibrate("nav");
-        setModalState({ isOpen: true, title, statType });
-    };
-
     const closeStatsModal = () => {
         setModalState({ isOpen: false, title: "", statType: "profit" });
     };
 
+    const totalMugLoss = 0; // V2 doesn't have mug loss yet
     const netTotal = stats.profit + stats.museumProfit + stats.abroadProfit - totalMugLoss;
 
 
     // Chart data generation
     const chartData = useMemo(() => {
-        if (!isLoaded || !transactions.length) return [];
+        if (!isLoaded || !logs.length) return [];
 
         const now = new Date();
         let periods: Date[] = [];
@@ -430,27 +474,21 @@ export default function Home() {
             dateFormat = "yyyy";
         }
 
-        const sortedTransactions = [...transactions].sort((a, b) => {
-            const left = getTransactionTimestamp(a);
-            const right = getTransactionTimestamp(b);
-            if (left !== right) return left - right;
-            return getTransactionPriority(a) - getTransactionPriority(b);
-        });
+        const sortedLogs = [...logs].sort((a, b) => a.timestamp - b.timestamp);
 
-        if (sortedTransactions.length > 0) {
-            const firstTxDate = new Date(getTransactionTimestamp(sortedTransactions[0]));
+        if (sortedLogs.length > 0) {
+            const firstDate = new Date(sortedLogs[0].timestamp);
             let minDate: Date;
-            if (timeRange === "daily") minDate = startOfDay(subDays(firstTxDate, 1));
-            else if (timeRange === "weekly") minDate = startOfWeek(subWeeks(firstTxDate, 1));
-            else if (timeRange === "monthly") minDate = startOfMonth(subMonths(firstTxDate, 1));
-            else minDate = startOfYear(subYears(firstTxDate, 1));
+            if (timeRange === "daily") minDate = startOfDay(subDays(firstDate, 1));
+            else if (timeRange === "weekly") minDate = startOfWeek(subWeeks(firstDate, 1));
+            else if (timeRange === "monthly") minDate = startOfMonth(subMonths(firstDate, 1));
+            else minDate = startOfYear(subYears(firstDate, 1));
 
             periods = periods.filter((p) => p.getTime() >= minDate.getTime());
         }
 
-        const tempInventory = new Map<string, InventorySnapshot>();
-        const mugState = { total: 0 };
-        let transactionIndex = 0;
+        let logIndex = 0;
+        const currentTotalsByCategory = new Map<string, Map<number, { profit: number }>>();
 
         // Calculate baseline totals for data before the first period
         if (periods.length > 0) {
@@ -461,25 +499,45 @@ export default function Home() {
             else firstPeriodStart = startOfYear(periods[0]);
 
             while (
-                transactionIndex < sortedTransactions.length &&
-                getTransactionTimestamp(sortedTransactions[transactionIndex]) < firstPeriodStart.getTime()
+                logIndex < sortedLogs.length &&
+                sortedLogs[logIndex].timestamp < firstPeriodStart.getTime()
             ) {
-                applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState, () => true);
-                transactionIndex++;
+                const log = sortedLogs[logIndex];
+                if (!currentTotalsByCategory.has(log.category)) {
+                    currentTotalsByCategory.set(log.category, new Map());
+                }
+                currentTotalsByCategory.get(log.category)!.set(log.item_id, { profit: log.realized_profit });
+                logIndex++;
             }
         }
 
-        const baselineTotals = getTotals(tempInventory, mugState.total);
-        let baseNetProfit = 0;
-        if (includeTrading) baseNetProfit += baselineTotals.profit;
-        if (includeMuseum) baseNetProfit += baselineTotals.museumProfit;
-        if (includeAbroad) baseNetProfit += baselineTotals.abroadProfit;
-        const baselineNetProfit = baseNetProfit - (includeMug ? baselineTotals.mugLoss : 0);
+        let baselineRealized = 0;
+        let baselineMuseum = 0;
+        let baselineAbroad = 0;
+
+        currentTotalsByCategory.forEach((itemMap, category) => {
+            let categoryProfit = 0;
+            itemMap.forEach(itemStats => {
+                categoryProfit += itemStats.profit;
+            });
+
+            if (category === "abroad") baselineAbroad += categoryProfit;
+            else if (category === "museum") baselineMuseum += categoryProfit;
+            else if (category !== "skipped") baselineRealized += categoryProfit;
+        });
+
+        let baselineNetProfit = 0;
+        if (includeTrading) baselineNetProfit += baselineRealized;
+        if (includeMuseum) baselineNetProfit += baselineMuseum;
+        if (includeAbroad) baselineNetProfit += baselineAbroad;
+        baselineNetProfit -= (includeMug ? totalMugLoss : 0);
 
         // Track previous totals for incremental view
-        let previousTotals: any = {
-            ...baselineTotals,
-            netProfit: baselineNetProfit,
+        let previousTotals = {
+            profit: baselineRealized,
+            museumProfit: baselineMuseum,
+            abroadProfit: baselineAbroad,
+            netProfit: baselineNetProfit
         };
 
         return periods.map((period) => {
@@ -490,25 +548,34 @@ export default function Home() {
             else periodEnd = endOfYear(startOfMonth(period));
 
             while (
-                transactionIndex < sortedTransactions.length &&
-                getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()
+                logIndex < sortedLogs.length &&
+                sortedLogs[logIndex].timestamp <= periodEnd.getTime()
             ) {
-                const isTrackedItem = (item: string) => true; // Always evaluate all so tempInventory stays structurally accurate
-                applyTransaction(
-                    tempInventory,
-                    sortedTransactions[transactionIndex],
-                    mugState,
-                    isTrackedItem
-                );
-                transactionIndex++;
+                const log = sortedLogs[logIndex];
+                if (!currentTotalsByCategory.has(log.category)) {
+                    currentTotalsByCategory.set(log.category, new Map());
+                }
+                currentTotalsByCategory.get(log.category)!.set(log.item_id, { profit: log.realized_profit });
+                logIndex++;
             }
 
-            const currentTotals = getTotals(tempInventory, mugState.total);
+            let totalRealized = 0;
+            let museumProfit = 0;
+            let abroadProfit = 0;
 
-            const totalRealized = currentTotals.profit;
-            const totalMugLoss = currentTotals.mugLoss;
-            const museumProfit = currentTotals.museumProfit;
-            const abroadProfit = currentTotals.abroadProfit;
+            currentTotalsByCategory.forEach((itemMap, category) => {
+                let categoryProfit = 0;
+                itemMap.forEach(itemStats => {
+                    categoryProfit += itemStats.profit;
+                });
+
+                if (category === "abroad") abroadProfit += categoryProfit;
+                else if (category === "museum") museumProfit += categoryProfit;
+                else if (category !== "skipped") totalRealized += categoryProfit;
+            });
+
+            // Special case: "Points" might be in "normal" but we want it in "museum" if it matches old dashboard logic
+            // In V2, "Points" should probably just be in "museum" category.
 
             let baseNetProfit = 0;
             if (includeTrading) baseNetProfit += totalRealized;
@@ -517,15 +584,15 @@ export default function Home() {
 
             const netProfit = baseNetProfit - (includeMug ? totalMugLoss : 0);
 
-            // For incremental view, get period-over-period values
             const incrementalRealized = totalRealized - previousTotals.profit;
-            const incrementalMug = totalMugLoss - previousTotals.mugLoss;
-            const incrementalNet = netProfit - previousTotals.netProfit;
+            const incrementalNet = netProfit - (previousTotals.netProfit || 0);
             const incrementalMuseum = museumProfit - previousTotals.museumProfit;
             const incrementalAbroad = abroadProfit - previousTotals.abroadProfit;
 
             previousTotals = {
-                ...currentTotals,
+                profit: totalRealized,
+                museumProfit,
+                abroadProfit,
                 netProfit,
             };
 
@@ -535,7 +602,7 @@ export default function Home() {
                 realizedProfit: Math.round(
                     viewType === "total" ? totalRealized : incrementalRealized
                 ),
-                mugLoss: -Math.round(viewType === "total" ? totalMugLoss : incrementalMug),
+                mugLoss: 0,
                 netProfit: Math.round(viewType === "total" ? netProfit : incrementalNet),
                 museumProfit: includeMuseum
                     ? Math.round(viewType === "total" ? museumProfit : incrementalMuseum)
@@ -547,7 +614,7 @@ export default function Home() {
         });
     }, [
         isLoaded,
-        transactions,
+        logs,
         timeRange,
         viewType,
         includeTrading,
@@ -559,11 +626,10 @@ export default function Home() {
     if (!isLoaded)
         return (
             <div className="text-center py-20 animate-pulse text-foreground/50 font-mono">
-                INITIALIZING ENGINE...
+                INITIALIZING V2 ENGINE...
             </div>
         );
 
-    // Calculate reference values
     const finalNetProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0;
     const averageNetProfit =
         chartData.length > 0
@@ -572,10 +638,10 @@ export default function Home() {
               )
             : 0;
 
-    // Calculate final reference value prioritizing netProfit
     const referenceValue = viewType === "daily" ? averageNetProfit : finalNetProfit;
+    
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-500 p-4 md:p-8">
             {/* Hero Section */}
             <div className="bg-panel border-2 border-primary relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 -mr-32 -mt-32 rotate-45 pointer-events-none" />
@@ -638,7 +704,7 @@ export default function Home() {
                 {/* Chart (Full Width) */}
                 <div className="p-6 md:p-8 pt-4 h-[440px]">
                     <ProfitChart
-                        chartId="dashboard-main"
+                        chartId="dashboard-main-v2"
                         data={chartData}
                         viewType={viewType}
                         setViewType={setViewType}
@@ -663,7 +729,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-6 bg-primary" />
-                        <h2 className="font-black text-xl uppercase tracking-[0.3em]">Inventory</h2>
+                        <h2 className="font-black text-xl uppercase tracking-[0.3em]">Inventory V2</h2>
                     </div>
                     <div className="relative w-full sm:max-w-xs">
                         <HugeiconsIcon
@@ -769,7 +835,7 @@ export default function Home() {
                                                 vibrate("nav");
                                                 const itemID = item.itemID;
                                                 router.push(
-                                                    itemID !== undefined
+                                                    itemID !== undefined && itemID > 0
                                                         ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
                                                         : `/logs?item=${encodeURIComponent(item.name)}`
                                                 );
@@ -905,17 +971,16 @@ export default function Home() {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedItems.map(({ name, stats }) => {
+                                paginatedItems.map(({ name, stats, itemID }) => {
                                     const avgCost =
                                         stats.stock > 0 ? stats.totalCost / stats.stock : 0;
-                                    const itemID = itemIdByName.get(name);
                                     return (
                                         <tr
                                             key={name}
                                             onClick={() => {
                                                 vibrate("nav");
                                                 router.push(
-                                                    itemID !== undefined
+                                                    itemID !== undefined && itemID > 0
                                                         ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
                                                         : `/logs?item=${encodeURIComponent(name)}`
                                                 );
@@ -929,7 +994,7 @@ export default function Home() {
                                                            <PointsIcon className="w-8 h-8 object-contain drop-shadow-sm transition-transform group-hover:scale-110" />
                                                        ) : name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
                                                            <ItemSetIcon name={name} className="w-8 h-8" />
-                                                       ) : itemID ? (
+                                                       ) : itemID && itemID > 0 ? (
                                                            <img
                                                                src={`https://www.torn.com/images/items/${itemID}/large.png`}
                                                                alt=""
@@ -960,34 +1025,7 @@ export default function Home() {
                                                 {formatMoney(stats.realizedProfit)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const newName = prompt(
-                                                            `Enter new name for ${formatItemName(name)}.\n\nIf you enter the name of another existing item, their logs will be MERGED automatically.`,
-                                                            formatItemName(name)
-                                                        );
-                                                        if (
-                                                            newName !== null &&
-                                                            newName !== formatItemName(name)
-                                                        ) {
-                                                            if (
-                                                                confirm(
-                                                                    `Are you sure you want to rename/merge '${formatItemName(name)}' to '${formatItemName(newName)}'? This updates all logs.`
-                                                                )
-                                                            ) {
-                                                                vibrate("success");
-                                                                renameItem(name, newName);
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="opacity-0 group-hover:opacity-100 text-muted hover:text-primary p-2 transition-all"
-                                                >
-                                                    <HugeiconsIcon
-                                                        icon={PencilEdit02Icon}
-                                                        size={14}
-                                                    />
-                                                </button>
+                                                {/* Rename not supported yet in V2 */}
                                             </td>
                                         </tr>
                                     );
@@ -1057,7 +1095,7 @@ export default function Home() {
                 isOpen={modalState.isOpen}
                 onClose={closeStatsModal}
                 title={modalState.title}
-                transactions={transactions}
+                transactions={[]} // Not used in V2 modal yet or needs adapter
                 statType={modalState.statType}
                 excludedItems={["flushie", "points", ...MUSEUM_TRACKED_ITEMS]}
                 inventoryScope="normal"
@@ -1107,6 +1145,7 @@ function OverviewItem({
         </div>
     );
 }
+
 function DashboardItemCard({
     name,
     stats,
@@ -1114,7 +1153,7 @@ function DashboardItemCard({
     onClick,
 }: {
     name: string;
-    stats: any;
+    stats: InventoryItemStats;
     itemID?: number;
     onClick: () => void;
 }) {

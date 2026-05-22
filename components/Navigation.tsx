@@ -41,7 +41,7 @@ const navItems = [
     { name: "Abroad", href: "/abroad", icon: Airplane02Icon, color: "var(--success)" },
     { name: "Logs", href: "/logs", icon: ReceiptTextIcon, color: "var(--secondary)" },
     { name: "Terminal", href: "/add", icon: ComputerTerminal01Icon, color: "var(--muted)" },
-    { name: "Auto-Pilot", href: "/auto", icon: Radar03Icon, color: "var(--danger)" },
+    { name: "Auto-Pilot", href: "/autopilot", icon: Radar03Icon, color: "var(--danger)" },
     { name: "Blackbox", href: "/blackbox", icon: PackageProcessIcon, color: "var(--secondary)" },
     { name: "BML Connect", href: "/bmlconnect", icon: Exchange01Icon, color: "var(--primary)" },
     { name: "Account", href: "/account", icon: UserIcon, color: "var(--info)" },

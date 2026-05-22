@@ -651,7 +651,7 @@ export default function AutoPilotPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <Link
-                        href="/auto/receipts"
+                        href="/old/auto/receipts"
                         className="inline-flex items-center gap-2 rounded-xl border border-border bg-panel px-4 py-2 text-sm font-semibold text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground"
                     >
                         Review Receipts
@@ -870,7 +870,7 @@ export default function AutoPilotPage() {
                             </p>
                         </div>
                         <Link
-                            href="/auto/receipts"
+                            href="/old/auto/receipts"
                             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold text-foreground/75 shadow-sm transition-colors hover:bg-foreground/5 hover:text-foreground active:scale-[0.98]"
                         >
                             Open Receipt Review
@@ -892,7 +892,7 @@ export default function AutoPilotPage() {
                         {autoPilotStats.map((stat) => (
                             <Link
                                 key={stat.id}
-                                href={`/auto/activity?type=${stat.type}`}
+                                href={`/old/auto/activity?type=${stat.type}`}
                                 className="group flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border hover:border-orange-500/30 hover:bg-orange-500/[0.02] transition-all"
                             >
                                 <div className="flex items-center gap-4">
@@ -1043,7 +1043,7 @@ export default function AutoPilotPage() {
 
                     {activityRecords.length > 5 && (
                         <Link
-                            href="/auto/activity"
+                            href="/old/auto/activity"
                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/80 py-4 text-sm font-bold text-orange-500 transition-all hover:bg-orange-500 hover:text-white"
                         >
                             Show All Activity History
