@@ -460,6 +460,14 @@ export class SyncService extends BaseService {
         state.steps[3].progress = `Populated ${count}/${pending.length} receipts.`;
     }
 
+    public async autoLinkTradesAndReceipts(onProgress?: (msg: string) => void): Promise<void> {
+        const state = await this.getSyncState();
+        if (onProgress) onProgress("Sync Step 5: Automatically linking records");
+        await this.stepAutoLink(state);
+        await this.saveSyncState(state);
+        if (onProgress) onProgress(state.steps[4].progress);
+    }
+
     private async stepAutoLink(state: SyncState): Promise<void> {
         this.logger.info("Sync Step 5: Automatically linking records");
         const trades = await this.tradeService.getAllTrades();
@@ -468,7 +476,8 @@ export class SyncService extends BaseService {
         // Maintain a pool of unlinked receipts that can be removed once linked
         const unlinkedReceipts = receipts.filter(r => r.sync_status === "complete");
 
-        const userId = getUserId() || "";
+        const userIdStr = getUserId() || "";
+        const userId = parseInt(userIdStr) || 0;
         let linkCount = 0;
 
         const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
@@ -484,7 +493,7 @@ export class SyncService extends BaseService {
             const tradeItems = await this.tradeService.getTradeItems(trade.id!);
             
             // Find the trader (the person we traded with)
-            const tradeDetail = tradeItems.find(ti => String(ti.user_id) !== String(userId));
+            const tradeDetail = tradeItems.find(ti => String(ti.user_id) !== userIdStr);
             const traderId = tradeDetail ? tradeDetail.user_id : 0;
 
             const mockTornTrade = new TornTrade(
@@ -518,7 +527,7 @@ export class SyncService extends BaseService {
                     }))
                 );
 
-                if (mockTornTrade.compareAndLinkReceipt(mockReceipt, userId)) {
+                if (mockTornTrade.compareAndLinkReceipt(mockReceipt, userIdStr)) {
                     await this.tradeService.linkReceiptToTrade(trade.id!, receipt.id!);
                     linkCount++;
 
