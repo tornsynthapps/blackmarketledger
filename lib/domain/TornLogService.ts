@@ -16,25 +16,42 @@ initializeDefaultHandlers();
 
 const FUTURE_WORK : number[] = [
     // Item Use ========================
+    2020, // Item Use candy
+    2030, // Item Use alcohol
+    2080, // Item Use first aid kit
+    2270,
+    2410, // Item use box of tissues
     // Equipping =======================
     4700,
     4710,
     // Money ===========================
     4810, // Money receive
+    // Bank
+    5451, // Bank Withdraw
     // Crimes
     5720, // Crime money gain
+    5937, // Property rental market rent owner
+    8395, // Casino russian roulette win
+    // Attack
+    8155, // Attack Mug
+    8411, // Casino table leave
     // Casino ==========================
     8314, 
     // Crimes + money
     9015, // Crime success money gain
     9052, // Crime money gain bootlogging
+    9300, // Crime item add blank DVDs
     9301, // Crime item add spray paint
     // Faction =========================
     6728,
     // Points ==========================
     4955,
+    // Loan
+    6200,
     // Company =========================
+    6220, // Job Pay
     6221, // Company Employee Pay
+    6404, // Job special money gain
     // Missions ========================
     7815,
 ]

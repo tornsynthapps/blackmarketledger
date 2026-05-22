@@ -204,6 +204,29 @@ export async function handleShopBuyLog(log: NormalizedLog, deps: HandlerDependen
     }
 }
 
+export async function handleItemShopSell(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    // Sample: { "item": 40, "quantity": 1, "value_each": 20, "total_value": 20, "color": "green" }
+    const itemId = Number(data.item);
+    const amount = Number(data.quantity);
+    const total = Number(data.total_value);
+    const unitPrice = total && amount ? total / amount : Number(data.value_each) || 0;
+
+    if (itemId && amount) {
+        await deps.itemLogService.addItemLog({
+            timestamp: log.timestamp * 1000,
+            item_id: itemId,
+            quantity: -amount,
+            unit_price: unitPrice,
+            category: "normal",
+            torn_log_id: String(log.id),
+        });
+    }
+}
+
 // --- Crime Handlers ---
 
 export async function handleCrimeLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
@@ -236,6 +259,27 @@ export async function handleCrimeLog(log: NormalizedLog, deps: HandlerDependenci
         if (logsToPersist.length > 0) {
             await deps.itemLogService.bulkPutLogs(logsToPersist);
         }
+    }
+}
+
+export async function handleCrimeSuccessItemGain(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    // Sample: { "crime": 17, "nerve": 4, "item_gained": 35, "color": "green" }
+    const itemId = Number(data.item_gained);
+    const amount = Number(data.quantity || 1);
+
+    if (itemId) {
+        await deps.itemLogService.addItemLog({
+            timestamp: log.timestamp * 1000,
+            item_id: itemId,
+            quantity: amount,
+            unit_price: 0,
+            category: "crimes",
+            torn_log_id: String(log.id),
+        });
     }
 }
 
@@ -284,9 +328,11 @@ export function initializeDefaultHandlers() {
 
     // Register Shop Buys
     defaultLogRegistry.register(4200, handleShopBuyLog);
+    defaultLogRegistry.register(4210, handleItemShopSell);
 
     // Register Crime logs
     defaultLogRegistry.register(9020, handleCrimeLog);
+    defaultLogRegistry.register(5725, handleCrimeSuccessItemGain);
 
     // Register Dump logs
     defaultLogRegistry.register([1400, 1401], handleDumpLog);
