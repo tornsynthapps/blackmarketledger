@@ -308,6 +308,39 @@ export async function handleDumpLog(log: NormalizedLog, deps: HandlerDependencie
     }
 }
 
+export async function handleChristmasTownItems(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    // Sample: { "minigame": "visited Santa", "items": { "527": 1, "528": 1 }, "color": "green" }
+    const items = data.items;
+
+    if (items && typeof items === "object") {
+        const logsToPersist: ItemLog[] = [];
+
+        Object.entries(items).forEach(([itemIdStr, quantity]) => {
+            const itemId = Number(itemIdStr);
+            const amount = Number(quantity);
+
+            if (itemId && amount) {
+                logsToPersist.push(ItemLog.create({
+                    timestamp: log.timestamp * 1000,
+                    item_id: itemId,
+                    quantity: amount,
+                    unit_price: 0,
+                    category: "christmas-town",
+                    torn_log_id: String(log.id),
+                }));
+            }
+        });
+
+        if (logsToPersist.length > 0) {
+            await deps.itemLogService.bulkPutLogs(logsToPersist);
+        }
+    }
+}
+
 // --- Initialization ---
 
 export function initializeDefaultHandlers() {
@@ -336,5 +369,8 @@ export function initializeDefaultHandlers() {
 
     // Register Dump logs
     defaultLogRegistry.register([1400, 1401], handleDumpLog);
+
+    // Register Christmas Town logs
+    defaultLogRegistry.register(8938, handleChristmasTownItems);
 }
 

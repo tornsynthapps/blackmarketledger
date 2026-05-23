@@ -33,6 +33,7 @@ export class ItemLogService extends BaseService {
         "crimes",
         "dump",
         "museum",
+        "christmas-town",
     ];
 
     /**
@@ -760,7 +761,7 @@ export class ItemLogService extends BaseService {
 
         // 2. Determine the new max possible sets based on current stock across all valid categories
         let finalDoableSets = requestedSets;
-        const takeOrder: ItemLogCategories[] = ["museum", "normal", "abroad", "city-finds", "city-shop", "crimes", "dump"];
+        const takeOrder: ItemLogCategories[] = ["museum", "normal", "abroad", "city-finds", "city-shop", "crimes", "dump", "christmas-town"];
         const marketPrices = await TornAPIClient.getMarketPrices();
 
         type CatStat = { stock: number; cost: number; unitPrice: number };

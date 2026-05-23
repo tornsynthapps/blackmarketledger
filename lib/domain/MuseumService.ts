@@ -5,7 +5,7 @@ import { TornAPIClient } from "../tornAPI";
 import { BaseService } from "./BaseService";
 import { ItemLogService } from "./ItemLogService";
 
-const TAKE_ORDER: ItemLogCategories[] = ["museum", "normal", "abroad", "city-finds", "city-shop", "crimes", "dump"];
+const TAKE_ORDER: ItemLogCategories[] = ["museum", "normal", "abroad", "city-finds", "city-shop", "crimes", "dump", "christmas-town"];
 
 export class MuseumService extends BaseService {
     protected get SERVICE_NAME() { return "MuseumService"; }
