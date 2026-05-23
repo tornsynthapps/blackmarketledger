@@ -27,7 +27,7 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
 
     if (typeId === 1112 || typeId === 1225 || typeId === 1103 || typeId === 1220) {
         type = "BUY";
-    } else if (typeId === 1113 || typeId === 1226 || typeId === 1221) {
+    } else if (typeId === 1113 || typeId === 1226 || typeId === 1221 || typeId === 1104) {
         type = "SELL";
     } else if (typeId === 4201) {
         type = "BUY";
@@ -345,7 +345,7 @@ export async function handleChristmasTownItems(log: NormalizedLog, deps: Handler
 
 export function initializeDefaultHandlers() {
     // Register Market & Bazaar logs
-    defaultLogRegistry.register([1103, 1112, 1113, 1220, 1221, 1225, 1226, 4201], handleBazaarOrMarketLog);
+    defaultLogRegistry.register([1103, 1104, 1112, 1113, 1220, 1221, 1225, 1226, 4201], handleBazaarOrMarketLog);
 
     // Register Point Market logs
     defaultLogRegistry.register([5010, 5011], handlePointLog);
