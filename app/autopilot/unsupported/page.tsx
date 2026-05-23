@@ -15,6 +15,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
+import { SKIPPED_LOGS } from "@/lib/domain/TornLogService";
 
 interface UnsupportedLog {
     id: string;
@@ -31,6 +32,7 @@ export default function UnsupportedLogsVisualizer() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([]);
     const [showTypeFilter, setShowTypeFilter] = useState(false);
+    const [hideSkipped, setHideSkipped] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const availableTypeIds = useMemo(() => {
@@ -72,6 +74,11 @@ export default function UnsupportedLogsVisualizer() {
 
     const filteredLogs = useMemo(() => {
         let result = logs;
+
+        // Skip known types if enabled
+        if (hideSkipped) {
+            result = result.filter(log => !SKIPPED_LOGS.includes(log.typeId));
+        }
 
         // Type ID filtering
         if (selectedTypeIds.length < availableTypeIds.length) {
@@ -215,7 +222,19 @@ export default function UnsupportedLogsVisualizer() {
                         </div>
 
                         <button
-                            onClick={() => { setLogs([]); setSearchQuery(""); setSelectedTypeIds([]); }}
+                            onClick={() => setHideSkipped(!hideSkipped)}
+                            className={`h-full flex items-center gap-2 px-6 py-3 rounded-2xl border-2 transition-all text-sm font-bold ${
+                                hideSkipped 
+                                    ? "bg-warning border-warning text-warning-foreground" 
+                                    : "bg-panel border-border hover:bg-foreground/5"
+                            }`}
+                        >
+                            <HugeiconsIcon icon={hideSkipped ? Tick01Icon : Cancel01Icon} size={16} />
+                            Hide Known
+                        </button>
+
+                        <button
+                            onClick={() => { setLogs([]); setSearchQuery(""); setSelectedTypeIds([]); setHideSkipped(true); }}
                             className="px-6 py-3 rounded-2xl border-2 border-border hover:bg-foreground/5 transition-all text-sm font-bold"
                         >
                             <HugeiconsIcon icon={Cancel01Icon} size={16} className="inline mr-2" />

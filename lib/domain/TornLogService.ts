@@ -14,7 +14,7 @@ import { MuseumService } from "./MuseumService";
 // Ensure handlers are registered
 initializeDefaultHandlers();
 
-const FUTURE_WORK : number[] = [
+export const FUTURE_WORK : number[] = [
     // Item Use ========================
     2020, // Item Use candy
     2030, // Item Use alcohol
@@ -55,7 +55,7 @@ const FUTURE_WORK : number[] = [
     // Missions ========================
     7815,
 ]
-const SKIPPED_LOGS: number[] = FUTURE_WORK.concat([
+export const SKIPPED_LOGS: number[] = FUTURE_WORK.concat([
     1100, // Item market add (old)
     1200, // Bazaar name change
     1210, // Bazaar add (legacy)
