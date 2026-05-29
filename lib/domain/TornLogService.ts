@@ -143,8 +143,19 @@ export class TornLogService extends BaseService {
         const unsupportedLogs: NormalizedLog[] = [];
 
         for (const log of normalizedLogs) {
-            // Only process if it's a type we care about
-            if (registeredTypeIds.includes(log.typeId)) {
+            const isSupported = registeredTypeIds.includes(log.typeId);
+            const isSkipped = SKIPPED_LOGS.includes(log.typeId);
+
+            // ALWAYS store raw log data for audit/debugging in SystemLog
+            if (isSupported) {
+                this.logger.info(`Processing Log [${log.typeId}]: ${log.title}`, log);
+            } else if (!isSkipped) {
+                this.logger.error(`Unsupported log type ID ${log.typeId} encountered.`, log);
+                unsupportedLogs.push(log);
+            }
+
+            // Only process business logic if it's a type we care about
+            if (isSupported) {
                 try {
                     await this.registry.process(log, deps);
                     
@@ -154,12 +165,6 @@ export class TornLogService extends BaseService {
                     }
                 } catch (error) {
                     this.logger.error(`Error processing log ID ${log.id}`, error);
-                }
-            } else {
-                // Log unsupported type to help with future implementation
-                if (!SKIPPED_LOGS.includes(log.typeId)) {
-                    this.logger.error(`Unsupported log type ID ${log.typeId} encountered.`, log);
-                    unsupportedLogs.push(log);
                 }
             }
         }
