@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { ItemLogService } from "./ItemLogService";
-import { ItemLog, ItemLogRegistry } from "../objects/ItemLog";
+import { createItemIdentity, getItemIdentityKey, ItemLog, ItemLogRegistry } from "../objects/ItemLog";
 import { ItemLogWrapper, ItemLogWrapperRegistry } from "../objects/ItemLogWrapper";
 import { ItemList } from "../objects/Item";
 import { TornAPIClient } from "../tornAPI";
@@ -89,9 +89,9 @@ describe("ItemLogService Museum Fallback", () => {
         mockRegistry.getLogsByWrapperId.mockResolvedValue([sheepLog, pointsLog]);
         
         // Setup totals: normal is empty, abroad has 5 sheep at $500 each
-        mockRegistry.getLatestTotalsPerCategoryBefore.mockImplementation((itemId: number) => {
+        mockRegistry.getLatestTotalsPerCategoryBefore.mockImplementation((identity: { item_id: number; uid: string | null }) => {
             const totals = new Map();
-            if (itemId === ItemList.SHEEP_PLUSHIE) {
+            if (identity.item_id === ItemList.SHEEP_PLUSHIE) {
                 totals.set("normal", { stock: 0, cost: 0 });
                 totals.set("abroad", { stock: 5, cost: 2500 });
             } else {
@@ -102,7 +102,7 @@ describe("ItemLogService Museum Fallback", () => {
 
         const runningTotalsByItem = new Map();
         // Initialize running totals for points
-        runningTotalsByItem.set(ItemList.POINTS, new Map([["normal", { stock: 100, cost: 10000 }]]));
+        runningTotalsByItem.set(getItemIdentityKey(createItemIdentity(ItemList.POINTS, null)), new Map([["normal", { stock: 100, cost: 10000 }]]));
 
         await (service as unknown as Record<string, (...args: unknown[]) => unknown>).handleMuseumExchangeWrapper(wid, sheepLog, [sheepLog, pointsLog], 0, runningTotalsByItem, new Set());
 
@@ -153,9 +153,9 @@ describe("ItemLogService Museum Fallback", () => {
         
         // Setup totals: normal has 0 stock but had a cost basis of $2000 from previous logs
         // (Wait, if stock is 0, cost is usually 0, but let's simulate normal having stock first)
-        mockRegistry.getLatestTotalsPerCategoryBefore.mockImplementation((itemId: number) => {
+        mockRegistry.getLatestTotalsPerCategoryBefore.mockImplementation((identity: { item_id: number; uid: string | null }) => {
             const totals = new Map();
-            if (itemId === ItemList.SHEEP_PLUSHIE) {
+            if (identity.item_id === ItemList.SHEEP_PLUSHIE) {
                 totals.set("normal", { stock: 1, cost: 2000 });
                 totals.set("city-finds", { stock: 1, cost: 0 });
             } else {
@@ -165,7 +165,7 @@ describe("ItemLogService Museum Fallback", () => {
         });
 
         const runningTotalsByItem = new Map();
-        runningTotalsByItem.set(ItemList.POINTS, new Map([["normal", { stock: 0, cost: 0 }]]));
+        runningTotalsByItem.set(getItemIdentityKey(createItemIdentity(ItemList.POINTS, null)), new Map([["normal", { stock: 0, cost: 0 }]]));
 
         // We want to exchange 2 sets
         const sheepLog2 = ItemLog.create({
@@ -210,14 +210,14 @@ describe("ItemLogService Museum Fallback", () => {
         
         // Mock itemLogService
         const mockItemLogService = {
-            getLatestTotals: vi.fn(),
+            getLatestTotalsByItemIdentities: vi.fn(),
             addWrapper: vi.fn().mockResolvedValue(100),
             bulkPutLogs: vi.fn(),
             logger: (service as unknown as Record<string, { logger: unknown }>).logger, // reuse logger
         };
 
         // Setup totals for SHEEP_PLUSHIE: normal has 0, crimes has 10
-        mockItemLogService.getLatestTotals.mockImplementation((itemId: number) => {
+        mockItemLogService.getLatestTotalsByItemIdentities.mockImplementation((itemId: number) => {
             const totals = new Map();
             if (itemId === ItemList.SHEEP_PLUSHIE) {
                 totals.set("normal", { stock: 0, cost: 0 });
@@ -226,7 +226,7 @@ describe("ItemLogService Museum Fallback", () => {
                 // Other items in set have plenty of normal stock
                 totals.set("normal", { stock: 100, cost: 50000 }); // $500 avg
             }
-            return Promise.resolve(totals);
+            return Promise.resolve([{ identity: { item_id: itemId, uid: null }, totals }]);
         });
 
         (TornAPIClient.getMarketPrices as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({

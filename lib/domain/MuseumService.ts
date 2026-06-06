@@ -1,5 +1,5 @@
 import { ItemList } from "../objects/Item";
-import { ItemLog, ItemLogCategories } from "../objects/ItemLog";
+import { createItemIdentity, ItemLog, ItemLogCategories, type ItemIdentity } from "../objects/ItemLog";
 import { ItemLogWrapper, ItemLogWrapperMuseumSubType, MUSEUM_EXCHANGE_RATES } from "../objects/ItemLogWrapper";
 import { TornAPIClient } from "../tornAPI";
 import { BaseService } from "./BaseService";
@@ -105,40 +105,56 @@ export class MuseumService extends BaseService {
         const marketPrices = await TornAPIClient.getMarketPrices();
 
         type CatStat = { stock: number; cost: number; unitPrice: number };
-        const itemStats = new Map<number, { 
+        const itemStats = new Map<number, Array<{
+            identity: ItemIdentity;
             catStats: Map<ItemLogCategories, CatStat>;
             totalAvailableStock: number;
-        }>();
+        }>>();
 
         for (const itemId of itemsInSet) {
-            const totals = await itemLogService.getLatestTotals(itemId, timestamp);
-            const catStats = new Map<ItemLogCategories, CatStat>();
-            let totalAvailableStock = 0;
-            
-            // First get normal avg cost, as it's needed for other categories
-            const nTotals = totals.get("normal") || { stock: 0, cost: 0 };
-            const nAvgCost = nTotals.stock > 0 ? nTotals.cost / nTotals.stock : 0;
-            
-            for (const cat of TAKE_ORDER) {
-                const catTotal = totals.get(cat) || { stock: 0, cost: 0 };
-                let unitPrice = 0;
-                
-                if (cat === "museum" || cat === "normal") {
-                    unitPrice = catTotal.stock > 0 ? catTotal.cost / catTotal.stock : 0;
-                } else {
-                    unitPrice = nAvgCost > 0 ? nAvgCost : (marketPrices[itemId] || 0);
+            const identityTotals = await itemLogService.getLatestTotalsByItemIdentities(itemId, timestamp);
+            const identityStats = identityTotals.map(({ identity, totals }) => {
+                const catStats = new Map<ItemLogCategories, CatStat>();
+                let totalAvailableStock = 0;
+
+                // First get normal avg cost, as it's needed for other categories.
+                const normalTotals = totals.get("normal") || { stock: 0, cost: 0 };
+                const normalAverageCost = normalTotals.stock > 0 ? normalTotals.cost / normalTotals.stock : 0;
+
+                for (const cat of TAKE_ORDER) {
+                    const catTotal = totals.get(cat) || { stock: 0, cost: 0 };
+                    let unitPrice = 0;
+
+                    if (cat === "museum" || cat === "normal") {
+                        unitPrice = catTotal.stock > 0 ? catTotal.cost / catTotal.stock : 0;
+                    } else {
+                        unitPrice = normalAverageCost > 0 ? normalAverageCost : (marketPrices[itemId] || 0);
+                    }
+
+                    catStats.set(cat, { stock: catTotal.stock, cost: catTotal.cost, unitPrice });
+                    totalAvailableStock += catTotal.stock;
                 }
-                
-                catStats.set(cat, { stock: catTotal.stock, cost: catTotal.cost, unitPrice });
-                totalAvailableStock += catTotal.stock;
-            }
 
-            itemStats.set(itemId, { catStats, totalAvailableStock });
+                this.logger.debug(
+                    ` Item ${itemId}${identity.uid === null ? "" : ` uid=${identity.uid}`}: totalAvailable=${totalAvailableStock}, nAvg=${normalAverageCost}`
+                );
 
-            this.logger.debug(` Item ${itemId}: totalAvailable=${totalAvailableStock}, nAvg=${nAvgCost}`);
+                return {
+                    identity,
+                    catStats,
+                    totalAvailableStock,
+                };
+            });
 
-            if (totalAvailableStock < finalExchangeQuantity) {
-                finalExchangeQuantity = Math.max(0, totalAvailableStock);
+            itemStats.set(itemId, identityStats);
+
+            const combinedAvailableStock = identityStats.reduce(
+                (sum, identityStat) => sum + identityStat.totalAvailableStock,
+                0
+            );
+
+            if (combinedAvailableStock < finalExchangeQuantity) {
+                finalExchangeQuantity = Math.max(0, combinedAvailableStock);
             }
         }
 
@@ -163,40 +179,42 @@ export class MuseumService extends BaseService {
 
         // 3. Process each item: perform direct removals and log skips for shortfalls.
         for (const itemId of itemsInSet) {
-            const stats = itemStats.get(itemId)!;
             let remainingToTake = finalExchangeQuantity;
             const skippedAmount = quantity - finalExchangeQuantity;
 
-            for (const cat of TAKE_ORDER) {
-                if (remainingToTake <= 0) break;
-                
-                const catStat = stats.catStats.get(cat)!;
-                const takeFromCat = Math.min(remainingToTake, catStat.stock);
+            for (const identityStat of itemStats.get(itemId) ?? []) {
+                for (const cat of TAKE_ORDER) {
+                    if (remainingToTake <= 0) break;
 
-                if (takeFromCat > 0) {
-                    const avgCost = catStat.stock > 0 ? catStat.cost / catStat.stock : 0;
-                    const cogs = takeFromCat * avgCost;
-                    
-                    let realizedProfit = 0;
-                    if (cat === "museum" || cat === "normal") {
-                        totalCostOfExchange += cogs;
-                    } else {
-                        totalCostOfExchange += takeFromCat * catStat.unitPrice;
-                        realizedProfit = takeFromCat * catStat.unitPrice - cogs;
+                    const catStat = identityStat.catStats.get(cat)!;
+                    const takeFromCat = Math.min(remainingToTake, catStat.stock);
+
+                    if (takeFromCat > 0) {
+                        const avgCost = catStat.stock > 0 ? catStat.cost / catStat.stock : 0;
+                        const cogs = takeFromCat * avgCost;
+
+                        let realizedProfit = 0;
+                        if (cat === "museum" || cat === "normal") {
+                            totalCostOfExchange += cogs;
+                        } else {
+                            totalCostOfExchange += takeFromCat * catStat.unitPrice;
+                            realizedProfit = takeFromCat * catStat.unitPrice - cogs;
+                        }
+
+                        logsToPersist.push(
+                            ItemLog.create({
+                                timestamp,
+                                item_id: itemId,
+                                uid: identityStat.identity.uid,
+                                quantity: -takeFromCat,
+                                unit_price: catStat.unitPrice,
+                                category: cat,
+                                wrapper_id: exchangeWrapperId,
+                                realized_profit: realizedProfit,
+                            })
+                        );
+                        remainingToTake -= takeFromCat;
                     }
-
-                    logsToPersist.push(
-                        ItemLog.create({
-                            timestamp,
-                            item_id: itemId,
-                            quantity: -takeFromCat,
-                            unit_price: catStat.unitPrice,
-                            category: cat,
-                            wrapper_id: exchangeWrapperId,
-                            realized_profit: realizedProfit,
-                        })
-                    );
-                    remainingToTake -= takeFromCat;
                 }
             }
 
@@ -205,6 +223,7 @@ export class MuseumService extends BaseService {
                     ItemLog.create({
                         timestamp,
                         item_id: itemId,
+                        uid: createItemIdentity(itemId, null).uid,
                         quantity: -skippedAmount,
                         unit_price: 0,
                         category: "skipped",

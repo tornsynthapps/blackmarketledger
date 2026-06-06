@@ -2,9 +2,12 @@ import { TornAPIClient } from "../tornAPI";
 import { BaseService } from "./BaseService";
 import { ItemList } from "../objects/Item";
 import {
+    createItemIdentity,
+    getItemIdentityKey,
     ItemLog,
     ItemLogCategories,
     ItemLogRegistry,
+    type ItemIdentity,
     type ItemLogCreateFields,
 } from "../objects/ItemLog";
 import {
@@ -45,6 +48,36 @@ export class ItemLogService extends BaseService {
         super();
         this.registry = new ItemLogRegistry();
         this.wrapperRegistry = new ItemLogWrapperRegistry();
+    }
+
+    /**
+     * Returns the normalized identity for a log.
+     * @param log (ItemLog): Log to inspect
+     * @returns (ItemIdentity): Identity derived from the log
+     * @sideEffects None
+     */
+    private getLogIdentity(log: ItemLog): ItemIdentity {
+        return createItemIdentity(log);
+    }
+
+    /**
+     * Returns the stable map key for a log identity.
+     * @param logOrIdentity (ItemLog | ItemIdentity): Identity source
+     * @returns (string): Stable key for maps and sets
+     * @sideEffects None
+     */
+    private getIdentityKey(logOrIdentity: ItemLog | ItemIdentity): string {
+        return getItemIdentityKey(createItemIdentity(logOrIdentity));
+    }
+
+    /**
+     * Formats a human-readable identity label for logging.
+     * @param identity (ItemIdentity): Identity to format
+     * @returns (string): Compact label containing item ID and UID
+     * @sideEffects None
+     */
+    private formatIdentity(identity: ItemIdentity): string {
+        return `item ${identity.item_id}${identity.uid === null ? "" : ` uid=${identity.uid}`}`;
     }
 
     /**
@@ -140,8 +173,54 @@ export class ItemLogService extends BaseService {
      * @returns (Promise<Map<string, { stock: number; cost: number }>>): Mapping of category to its latest totals
      * @sideEffects Reads from IndexedDB via ItemLogRegistry
      */
-    public async getLatestTotals(itemId: number, timestamp: number): Promise<Map<string, { stock: number; cost: number }>> {
-        return await this.registry.getLatestTotalsPerCategoryBefore(itemId, timestamp);
+    public async getLatestTotals(
+        itemId: number,
+        timestamp: number,
+        uid: string | null = null
+    ): Promise<Map<string, { stock: number; cost: number }>> {
+        return await this.registry.getLatestTotalsPerCategoryBefore(
+            createItemIdentity(itemId, uid),
+            timestamp
+        );
+    }
+
+    /**
+     * Retrieves all identities for a base item and their latest totals before a timestamp.
+     * @param itemId (number): Base item identifier shared across UID variants
+     * @param timestamp (number): Threshold timestamp
+     * @returns (Promise<Array<{ identity: ItemIdentity; totals: Map<string, { stock: number; cost: number }> }>>): Identity-specific totals
+     * @sideEffects Reads from IndexedDB via ItemLogRegistry
+     */
+    public async getLatestTotalsByItemIdentities(
+        itemId: number,
+        timestamp: number
+    ): Promise<Array<{ identity: ItemIdentity; totals: Map<string, { stock: number; cost: number }> }>> {
+        const logs = await this.registry.getLogsByItemId(itemId);
+        const identities = new Map<string, ItemIdentity>();
+
+        logs.forEach((log) => {
+            if (log.timestamp <= timestamp) {
+                const identity = this.getLogIdentity(log);
+                identities.set(this.getIdentityKey(identity), identity);
+            }
+        });
+
+        if (identities.size === 0) {
+            const identity = createItemIdentity(itemId, null);
+            return [
+                {
+                    identity,
+                    totals: await this.registry.getLatestTotalsPerCategoryBefore(identity, timestamp),
+                },
+            ];
+        }
+
+        return await Promise.all(
+            Array.from(identities.values()).map(async (identity) => ({
+                identity,
+                totals: await this.registry.getLatestTotalsPerCategoryBefore(identity, timestamp),
+            }))
+        );
     }
 
     /**
@@ -207,26 +286,27 @@ export class ItemLogService extends BaseService {
             return;
         }
 
-        // Find all unique item IDs affected from the start timestamp
-        const affectedItemIds = new Set<number>();
+        // Find all unique identities affected from the start timestamp.
+        const affectedIdentities = new Map<string, ItemIdentity>();
         for (const log of allLogs) {
             if (log.timestamp >= fromTimestamp) {
-                affectedItemIds.add(log.item_id);
+                const identity = this.getLogIdentity(log);
+                affectedIdentities.set(this.getIdentityKey(identity), identity);
             }
         }
 
-        if (affectedItemIds.size === 0) {
+        if (affectedIdentities.size === 0) {
             return;
         }
 
-        this.logger.info(`Updating cost-basis globally for ${affectedItemIds.size} items from ${fromTimestamp}`);
+        this.logger.info(`Updating cost-basis globally for ${affectedIdentities.size} item identities from ${fromTimestamp}`);
 
-        // Initialize category-specific running totals per affected item using the last known state before fromTimestamp
-        const runningTotalsByItem = new Map<number, Map<string, { stock: number; cost: number }>>();
-        for (const itemId of affectedItemIds) {
-            this.logger.debug(`Initializing totals for item: ${itemId}`);
-            const totals = await this.registry.getLatestTotalsPerCategoryBefore(itemId, fromTimestamp);
-            runningTotalsByItem.set(itemId, totals);
+        // Initialize category-specific running totals per affected identity using the last known state before fromTimestamp.
+        const runningTotalsByIdentity = new Map<string, Map<string, { stock: number; cost: number }>>();
+        for (const [identityKey, identity] of affectedIdentities.entries()) {
+            this.logger.debug(`Initializing totals for ${this.formatIdentity(identity)}`);
+            const totals = await this.registry.getLatestTotalsPerCategoryBefore(identity, fromTimestamp);
+            runningTotalsByIdentity.set(identityKey, totals);
         }
 
         // Sort all logs chronologically (timestamp first, then database ID for stability)
@@ -245,16 +325,19 @@ export class ItemLogService extends BaseService {
                 this.logger.info(`Cost-basis progress: ${i}/${allLogs.length} logs processed...`);
             }
 
-            // Skip logs before the starting timestamp or logs for items that haven't had activity since fromTimestamp
-            if (log.timestamp < fromTimestamp || !affectedItemIds.has(log.item_id)) {
+            const logIdentity = this.getLogIdentity(log);
+            const identityKey = this.getIdentityKey(logIdentity);
+
+            // Skip logs before the starting timestamp or logs for identities that haven't had activity since fromTimestamp.
+            if (log.timestamp < fromTimestamp || !affectedIdentities.has(identityKey)) {
                 if (log.timestamp >= fromTimestamp) {
-                    this.logger.debug(`Skipping unaffected item log: ${log.id} (item ${log.item_id})`);
+                    this.logger.debug(`Skipping unaffected item log: ${log.id} (${this.formatIdentity(logIdentity)})`);
                 }
                 continue;
             }
 
-            this.logger.info(`Processing log: ${log.id} for item: ${log.item_id}`);
-            const runningTotals = runningTotalsByItem.get(log.item_id)!;
+            this.logger.info(`Processing log: ${log.id} for ${this.formatIdentity(logIdentity)}`);
+            const runningTotals = runningTotalsByIdentity.get(identityKey)!;
 
             // Case: Log has a wrapper.
             if (log.wrapper_id !== null) {
@@ -278,16 +361,16 @@ export class ItemLogService extends BaseService {
                     updatedLogs.push(...result.updatedLogs);
                     continue;
                 } else if (wrapper.type === "museum-exchange" && !processedWrappers.has(wid)) {
-                    const result = await this.handleMuseumExchangeWrapper(wid, log, allLogs, i, runningTotalsByItem, processedWrappers);
+                    const result = await this.handleMuseumExchangeWrapper(wid, log, allLogs, i, runningTotalsByIdentity, processedWrappers);
                     i = result.newIndex;
                     updatedLogs.push(...result.updatedLogs);
                     continue;
-                } else if (wrapper.type === "trade-receipt" && !processedTradeReceiptItems.has(`${wid}_${log.item_id}`)) {
+                } else if (wrapper.type === "trade-receipt" && !processedTradeReceiptItems.has(`${wid}_${identityKey}`)) {
                     const result = await this.handleTradeReceiptWrapper(wid, log, allLogs, i, runningTotals, processedTradeReceiptItems);
                     i = result.newIndex;
                     updatedLogs.push(...result.updatedLogs);
                     continue;
-                } else if (processedWrappers.has(wid) || (wrapper.type === "trade-receipt" && processedTradeReceiptItems.has(`${wid}_${log.item_id}`))) {
+                } else if (processedWrappers.has(wid) || (wrapper.type === "trade-receipt" && processedTradeReceiptItems.has(`${wid}_${identityKey}`))) {
                     // Already processed as part of a multi-log wrapper (e.g. manual-transfer)
                     // Its totals in allLogs[i] are already correct and runningTotals already reflects it.
                     updatedLogs.push(log);
@@ -332,7 +415,8 @@ export class ItemLogService extends BaseService {
         toCategory: ItemLogCategories,
         quantity: number,
         unitCost: number | null = null,
-        timestamp: number = Date.now()
+        timestamp: number = Date.now(),
+        uid: string | null = null
     ): Promise<void> {
         if (quantity <= 0) {
             throw new Error("Transfer quantity must be positive.");
@@ -343,14 +427,14 @@ export class ItemLogService extends BaseService {
         }
 
         this.logger.info(
-            `Requesting transfer: ${quantity} units of item ${itemId} from ${fromCategory} to ${toCategory}`
+            `Requesting transfer: ${quantity} units of item ${itemId}${uid === null ? "" : ` uid=${uid}`} from ${fromCategory} to ${toCategory}`
         );
 
         // 0. Determine initial unit cost if not provided
         let initialUnitCost = unitCost;
         if (initialUnitCost === null) {
             const currentTotals = await this.registry.getLatestTotalsPerCategoryBefore(
-                itemId,
+                createItemIdentity(itemId, uid),
                 timestamp
             );
             const sourceTotals = currentTotals.get(fromCategory);
@@ -371,6 +455,7 @@ export class ItemLogService extends BaseService {
         const sourceLog = ItemLog.create({
             timestamp,
             item_id: itemId,
+            uid,
             quantity: -quantity,
             unit_price: initialUnitCost,
             category: fromCategory,
@@ -381,6 +466,7 @@ export class ItemLogService extends BaseService {
         const destLog = ItemLog.create({
             timestamp,
             item_id: itemId,
+            uid,
             quantity: quantity,
             unit_price: initialUnitCost,
             category: toCategory,
@@ -458,14 +544,14 @@ export class ItemLogService extends BaseService {
         runningTotals: Map<string, { stock: number; cost: number }>,
         processedTradeReceiptItems: Set<string>
     ): Promise<{ updatedLogs: ItemLog[]; newIndex: number }> {
-        const itemKey = `${wid}_${log.item_id}`;
+        const itemKey = `${wid}_${this.getIdentityKey(log)}`;
         processedTradeReceiptItems.add(itemKey);
         
-        this.logger.info(`Processing trade-receipt re-evaluation: ${wid} for item ${log.item_id}`);
+        this.logger.info(`Processing trade-receipt re-evaluation: ${wid} for ${this.formatIdentity(this.getLogIdentity(log))}`);
         const logsWithWrapper = await this.registry.getLogsByWrapperId(wid);
         
-        // Filter logs specifically for this item
-        const itemLogs = logsWithWrapper.filter(l => l.item_id === log.item_id);
+        // Filter logs specifically for this identity.
+        const itemLogs = logsWithWrapper.filter((candidate) => this.getIdentityKey(candidate) === this.getIdentityKey(log));
         
         // Merge split logs back into one and re-evaluate
         const totalQuantity = itemLogs.reduce((sum, l) => sum + l.quantity, 0);
@@ -619,6 +705,7 @@ export class ItemLogService extends BaseService {
                 const n = ItemLog.create({
                     timestamp: sourceLog.timestamp,
                     item_id: sourceLog.item_id,
+                    uid: sourceLog.uid,
                     quantity: -remainingQty,
                     unit_price: finalUnitCost,
                     category: "skipped",
@@ -653,6 +740,7 @@ export class ItemLogService extends BaseService {
                 const n = ItemLog.create({
                     timestamp: sourceLog.timestamp,
                     item_id: sourceLog.item_id,
+                    uid: sourceLog.uid,
                     quantity: remainingQty,
                     unit_price: finalUnitCost,
                     category: destCat,
@@ -715,7 +803,7 @@ export class ItemLogService extends BaseService {
         log: ItemLog,
         allLogs: ItemLog[],
         currentIndex: number,
-        runningTotalsByItem: Map<number, Map<string, { stock: number; cost: number }>>,
+        runningTotalsByIdentity: Map<string, Map<string, { stock: number; cost: number }>>,
         processedWrappers: Set<number>
     ): Promise<{ updatedLogs: ItemLog[]; newIndex: number }> {
         processedWrappers.add(wid);
@@ -731,19 +819,22 @@ export class ItemLogService extends BaseService {
             return { updatedLogs: [], newIndex: currentIndex };
         }
 
-        const nonPointsLogs = logsWithWrapper.filter(l => l.item_id !== ItemList.POINTS);
-        const itemIds = Array.from(new Set(nonPointsLogs.map(l => l.item_id)));
+        const nonPointsLogs = logsWithWrapper.filter((candidate) => candidate.item_id !== ItemList.POINTS);
+        const itemIdentities = Array.from(
+            new Map(nonPointsLogs.map((candidate) => [this.getIdentityKey(candidate), this.getLogIdentity(candidate)])).values()
+        );
         
-        if (itemIds.length === 0) {
+        if (itemIdentities.length === 0) {
             this.logger.error(`Museum exchange #${wid} is missing item logs. Skipping.`);
             return { updatedLogs: [], newIndex: currentIndex };
         }
 
-        // Calculate total requested sets based on the absolute sum of all logs (normal, museum, skipped) for the first item
-        const firstItemId = itemIds[0];
+        // Calculate total requested sets based on the absolute sum of all logs (normal, museum, skipped) for the first identity.
+        const firstIdentity = itemIdentities[0];
+        const firstIdentityKey = this.getIdentityKey(firstIdentity);
         const requestedSets = nonPointsLogs
-            .filter(l => l.item_id === firstItemId)
-            .reduce((sum, l) => sum + Math.abs(l.quantity), 0);
+            .filter((candidate) => this.getIdentityKey(candidate) === firstIdentityKey)
+            .reduce((sum, candidate) => sum + Math.abs(candidate.quantity), 0);
         
         // Determine the points exchange rate
         let pointsExchangeRate = 0;
@@ -752,8 +843,8 @@ export class ItemLogService extends BaseService {
         } else {
             // Fallback for custom/legacy: derive from existing doable ratio
             const prevDoableSets = nonPointsLogs
-                .filter(l => l.item_id === firstItemId && l.category !== "skipped")
-                .reduce((sum, l) => sum + Math.abs(l.quantity), 0);
+                .filter((candidate) => this.getIdentityKey(candidate) === firstIdentityKey && candidate.category !== "skipped")
+                .reduce((sum, candidate) => sum + Math.abs(candidate.quantity), 0);
             pointsExchangeRate = prevDoableSets > 0 ? pointsLog.quantity / prevDoableSets : 0;
         }
 
@@ -765,14 +856,15 @@ export class ItemLogService extends BaseService {
         const marketPrices = await TornAPIClient.getMarketPrices();
 
         type CatStat = { stock: number; cost: number; unitPrice: number };
-        const itemStats = new Map<number, { catStats: Map<ItemLogCategories, CatStat>; nAvg: number }>();
+        const itemStats = new Map<string, { identity: ItemIdentity; catStats: Map<ItemLogCategories, CatStat>; nAvg: number }>();
 
-        for (const itemId of itemIds) {
-            let totals = runningTotalsByItem.get(itemId);
+        for (const identity of itemIdentities) {
+            const identityKey = this.getIdentityKey(identity);
+            let totals = runningTotalsByIdentity.get(identityKey);
             if (!totals) {
-                this.logger.warn(` Item ${itemId} in exchange #${wid} has no totals initialized in current sweep. Fetching latest state.`);
-                totals = await this.registry.getLatestTotalsPerCategoryBefore(itemId, pointsLog.timestamp);
-                runningTotalsByItem.set(itemId, totals);
+                this.logger.warn(` ${this.formatIdentity(identity)} in exchange #${wid} has no totals initialized in current sweep. Fetching latest state.`);
+                totals = await this.registry.getLatestTotalsPerCategoryBefore(identity, pointsLog.timestamp);
+                runningTotalsByIdentity.set(identityKey, totals);
             }
             
             const nTotals = totals.get("normal") || { stock: 0, cost: 0 };
@@ -788,20 +880,20 @@ export class ItemLogService extends BaseService {
                 if (cat === "museum" || cat === "normal") {
                     unitPrice = catTotals.stock > 0 ? catTotals.cost / catTotals.stock : 0;
                 } else {
-                    unitPrice = nAvg > 0 ? nAvg : (marketPrices[itemId] || 0);
+                    unitPrice = nAvg > 0 ? nAvg : (marketPrices[identity.item_id] || 0);
                 }
                 
                 catStats.set(cat, { stock: catTotals.stock, cost: catTotals.cost, unitPrice });
                 totalStock += catTotals.stock;
             }
             
-            itemStats.set(itemId, { catStats, nAvg });
+            itemStats.set(identityKey, { identity, catStats, nAvg });
             
-            this.logger.debug(` Item ${itemId}: totalAvailable=${totalStock}, nAvg=${nAvg}`);
+            this.logger.debug(` ${this.formatIdentity(identity)}: totalAvailable=${totalStock}, nAvg=${nAvg}`);
             
             if (totalStock < finalDoableSets) {
                 finalDoableSets = Math.max(0, totalStock);
-                this.logger.info(` Exchange #${wid}: Final doable sets reduced to ${finalDoableSets} due to item ${itemId} constraints.`);
+                this.logger.info(` Exchange #${wid}: Final doable sets reduced to ${finalDoableSets} due to ${this.formatIdentity(identity)} constraints.`);
             }
         }
         const skippedSets = requestedSets - finalDoableSets;
@@ -811,11 +903,12 @@ export class ItemLogService extends BaseService {
         const updatedLogsInWrapper: ItemLog[] = [];
         let totalCostOfExchange = 0;
 
-        for (const itemId of itemIds) {
-            const stats = itemStats.get(itemId)!;
+        for (const identity of itemIdentities) {
+            const identityKey = this.getIdentityKey(identity);
+            const stats = itemStats.get(identityKey)!;
             let remainingToTake = finalDoableSets;
             
-            const itemLogs = nonPointsLogs.filter(l => l.item_id === itemId);
+            const itemLogs = nonPointsLogs.filter((candidate) => this.getIdentityKey(candidate) === identityKey);
             const configs: { cat: ItemLogCategories; qty: number; price: number; rp: number }[] = [];
             
             for (const cat of takeOrder) {
@@ -825,13 +918,13 @@ export class ItemLogService extends BaseService {
                 const take = Math.min(remainingToTake, catStat.stock);
                 
                 if (take > 0) {
-                    const t = runningTotalsByItem.get(itemId)!.get(cat) || { stock: 0, cost: 0 };
+                    const t = runningTotalsByIdentity.get(identityKey)!.get(cat) || { stock: 0, cost: 0 };
                     const avgCost = catStat.stock > 0 ? catStat.cost / catStat.stock : 0;
                     const cogs = take * avgCost;
                     
                     t.stock -= take;
                     t.cost -= cogs;
-                    runningTotalsByItem.get(itemId)!.set(cat, { ...t });
+                    runningTotalsByIdentity.get(identityKey)!.set(cat, { ...t });
                     
                     let realizedProfit = 0;
                     if (cat === "museum" || cat === "normal") {
@@ -857,8 +950,8 @@ export class ItemLogService extends BaseService {
 
                 if (existing && config) {
                     const updated = existing.withTotals(
-                        runningTotalsByItem.get(itemId)!.get(config.cat)?.stock ?? 0,
-                        runningTotalsByItem.get(itemId)!.get(config.cat)?.cost ?? 0,
+                        runningTotalsByIdentity.get(identityKey)!.get(config.cat)?.stock ?? 0,
+                        runningTotalsByIdentity.get(identityKey)!.get(config.cat)?.cost ?? 0,
                         {
                             category: config.cat,
                             quantity: config.qty,
@@ -870,13 +963,14 @@ export class ItemLogService extends BaseService {
                 } else if (config) {
                     const n = ItemLog.create({
                         timestamp: pointsLog.timestamp,
-                        item_id: itemId,
+                        item_id: identity.item_id,
+                        uid: identity.uid,
                         quantity: config.qty,
                         unit_price: config.price,
                         category: config.cat,
                         wrapper_id: wid,
-                        total_stock: runningTotalsByItem.get(itemId)!.get(config.cat)?.stock ?? 0,
-                        total_cost: runningTotalsByItem.get(itemId)!.get(config.cat)?.cost ?? 0,
+                        total_stock: runningTotalsByIdentity.get(identityKey)!.get(config.cat)?.stock ?? 0,
+                        total_cost: runningTotalsByIdentity.get(identityKey)!.get(config.cat)?.cost ?? 0,
                         realized_profit: config.rp,
                     });
                     const id = await this.registry.put(n);
@@ -899,7 +993,7 @@ export class ItemLogService extends BaseService {
         const costBasisPerPoint = totalPoints > 0 ? totalCostOfExchange / totalPoints : 0;
         this.logger.info(` exchange #${wid}: generating ${totalPoints} points at cost-basis ${costBasisPerPoint} (total cost ${totalCostOfExchange})`);
         
-        const pTotalsMap = runningTotalsByItem.get(ItemList.POINTS);
+        const pTotalsMap = runningTotalsByIdentity.get(this.getIdentityKey(createItemIdentity(ItemList.POINTS, null)));
         if (!pTotalsMap) {
             this.logger.warn(`Points totals map not initialized in exchange #${wid}.`);
         } else {
@@ -1009,6 +1103,7 @@ export class ItemLogService extends BaseService {
                     const splitLog = ItemLog.create({
                         timestamp: log.timestamp,
                         item_id: log.item_id,
+                        uid: log.uid,
                         quantity: -usedFromCat,
                         unit_price: unitPrice,
                         category: cat,
@@ -1029,6 +1124,7 @@ export class ItemLogService extends BaseService {
                     const skippedLog = ItemLog.create({
                         timestamp: log.timestamp,
                         item_id: log.item_id,
+                        uid: log.uid,
                         quantity: -remainingToSell,
                         unit_price: unitPrice,
                         category: "skipped",

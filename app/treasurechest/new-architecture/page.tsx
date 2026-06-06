@@ -577,6 +577,7 @@ export default function NewArchitecturePage() {
                                             <th className="p-2 border-r border-primary/10">ID</th>
                                             <th className="p-2 border-r border-primary/10">WID</th>
                                             <th className="p-2 border-r border-primary/10">Item ID</th>
+                                            <th className="p-2 border-r border-primary/10">UID</th>
                                             <th className="p-2 border-r border-primary/10 text-right">Qty</th>
                                             <th className="p-2 border-r border-primary/10 text-right">Price</th>
                                             <th className="p-2 border-r border-primary/10">Category</th>
@@ -600,6 +601,7 @@ export default function NewArchitecturePage() {
                                                     {log.wrapper_id ?? "NONE"}
                                                 </td>
                                                 <td className="p-2 border-r border-primary/5">{log.item_id}</td>
+                                                <td className="p-2 border-r border-primary/5">{log.uid ?? "STANDARD"}</td>
                                                 <td className={`p-2 border-r border-primary/5 font-black text-right ${log.quantity >= 0 ? "text-success" : "text-danger"}`}>
                                                     {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
                                                 </td>

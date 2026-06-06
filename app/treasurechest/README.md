@@ -5,7 +5,7 @@ This folder contains developer and administrative tools for debugging and managi
 ## Contents
 
 - `debug/`: Tools for debugging specific features.
-- `new-architecture/`: Preview of the upcoming architectural changes.
+- `new-architecture/`: Preview of the upcoming architectural changes, including direct inspection of UID-aware item logs and wrappers.
 - `preview/`: Preview components and layouts.
 - `reset-cursor/`: Tool to reset the dual-cursor state.
 - `userdb/`: **(New)** IndexedDB viewer for inspecting local Dexie data (tables, records, pagination).

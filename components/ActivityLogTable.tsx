@@ -58,11 +58,12 @@ export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableP
     return (
         <div className="bg-panel border-2 border-primary overflow-hidden shadow-lg shadow-primary/5">
             <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse min-w-[800px]">
+                <table className="w-full text-left border-collapse min-w-[920px]">
                     <thead>
                         <tr className="bg-muted/10 border-b-2 border-primary">
                             <th className={`${headerPadding} ${headerFontSize} ${verticalLineClass} font-normal uppercase tracking-widest text-muted-foreground whitespace-nowrap`}>Time</th>
                             <th className={`${headerPadding} ${headerFontSize} ${verticalLineClass} font-normal uppercase tracking-widest text-muted-foreground`}>Item</th>
+                            <th className={`${headerPadding} ${headerFontSize} ${verticalLineClass} font-normal uppercase tracking-widest text-muted-foreground`}>UID</th>
                             <th className={`${headerPadding} ${headerFontSize} ${verticalLineClass} font-normal uppercase tracking-widest text-muted-foreground`}>Category</th>
                             <th className={`${headerPadding} ${headerFontSize} ${verticalLineClass} font-normal uppercase tracking-widest text-muted-foreground text-right`}>Amount</th>
                             <th className={`${headerPadding} ${headerFontSize} ${verticalLineClass} font-normal uppercase tracking-widest text-muted-foreground text-right`}>Unit Price</th>
@@ -73,7 +74,7 @@ export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableP
                     <tbody className="divide-y divide-border/50">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={7} className="p-12 text-center">
+                                <td colSpan={8} className="p-12 text-center">
                                     <div className="flex flex-col items-center gap-3">
                                         <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
                                         <span className="font-mono text-[10px] font-black uppercase tracking-[0.3em] text-primary">Initializing_Data_Stream...</span>
@@ -82,7 +83,7 @@ export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableP
                             </tr>
                         ) : logs.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="p-20 text-center">
+                                <td colSpan={8} className="p-20 text-center">
                                     <div className="flex flex-col items-center gap-2 opacity-40">
                                         <HugeiconsIcon icon={ReceiptTextIcon} className="w-12 h-12 mb-2" />
                                         <p className="font-mono text-xs uppercase tracking-widest">No transaction records found in database.</p>
@@ -99,6 +100,9 @@ export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableP
                                         <span className={`${fontSize} font-black uppercase tracking-tight group-hover:text-primary transition-colors`}>
                                             {itemMap[log.item_id] || `ITEM_${log.item_id}`} <span className="text-muted font-mono font-normal opacity-50">#{log.item_id}</span>
                                         </span>
+                                    </td>
+                                    <td className={`${cellPadding} ${verticalLineClass} font-mono ${fontSize} text-info/80`}>
+                                        {log.uid ?? "STANDARD"}
                                     </td>
                                     <td className={`${cellPadding} ${verticalLineClass}`}>
                                         <span className={`${fontSize} font-mono font-black uppercase tracking-widest text-muted-foreground`}>

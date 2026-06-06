@@ -156,7 +156,7 @@ export function requireBaseObjectDatabaseFields(
 // Dexie requires all tables to be defined in a single .stores() call before opening.
 export const SCHEMA_REGISTRY: Record<string, Record<string, string>> = {
     "BlackMarketLedgerObjectsDB": {
-        "item_logs": "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+category+timestamp]",
+        "item_logs": "++id,item_id,uid,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+uid],[item_id+uid+category+timestamp]",
         "item_log_wrappers": "++id,type,timestamp,logged_at,updated_at",
         "system_logs": "++id,timestamp,level,context",
         "trades": "++id,timestamp,type,wrapper_id,receipt_id,torn_id,user_id,sync_status",
@@ -194,7 +194,7 @@ export function getDatabase(databaseName: string): Dexie {
     if (!db) {
         db = new Dexie(databaseName);
         const schemas = SCHEMA_REGISTRY[databaseName] || {};
-        db.version(5).stores(schemas);
+        db.version(6).stores(schemas);
         DB_INSTANCES.set(databaseName, db);
         
         // Request persistence in the background

@@ -12,6 +12,20 @@ import {
     HandlerDependencies
 } from "./LogParserRegistry";
 
+/**
+ * Normalizes a raw Torn UID field to the persisted representation.
+ * @param rawUid (unknown): Raw UID from Torn payload data
+ * @returns (string | null): Stable UID string or null when absent
+ * @sideEffects None
+ */
+function normalizeRawUid(rawUid: unknown): string | null {
+    if (rawUid === undefined || rawUid === null || rawUid === "") {
+        return null;
+    }
+
+    return String(rawUid);
+}
+
 // --- Bazaar & Item Market Handlers ---
 
 export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
@@ -49,6 +63,7 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
              logsToPersist.push(ItemLog.create({
                 timestamp: log.timestamp * 1000,
                 item_id: itemId,
+                uid: normalizeRawUid(data.uid),
                 quantity: type === "BUY" ? amount : -amount,
                 unit_price: unitPrice,
                 category,
@@ -72,6 +87,7 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
                 logsToPersist.push(ItemLog.create({
                     timestamp: log.timestamp * 1000,
                     item_id: itemId,
+                    uid: normalizeRawUid(item.uid),
                     quantity: type === "BUY" ? qty : -qty,
                     unit_price: unitPrice,
                     category,
@@ -171,6 +187,7 @@ export async function handleCityFindLog(log: NormalizedLog, deps: HandlerDepende
         await deps.itemLogService.addItemLog({
             timestamp: log.timestamp * 1000,
             item_id: itemId,
+            uid: normalizeRawUid(data.uid),
             quantity: 1, // Usually 1 for city finds
             unit_price: 0,
             category: "city-finds",
@@ -196,6 +213,7 @@ export async function handleShopBuyLog(log: NormalizedLog, deps: HandlerDependen
         await deps.itemLogService.addItemLog({
             timestamp: log.timestamp * 1000,
             item_id: itemId,
+            uid: normalizeRawUid(data.uid),
             quantity: amount,
             unit_price: unitPrice,
             category: "city-shop",
@@ -219,6 +237,7 @@ export async function handleItemShopSell(log: NormalizedLog, deps: HandlerDepend
         await deps.itemLogService.addItemLog({
             timestamp: log.timestamp * 1000,
             item_id: itemId,
+            uid: normalizeRawUid(data.uid),
             quantity: -amount,
             unit_price: unitPrice,
             category: "normal",
@@ -275,6 +294,7 @@ export async function handleCrimeSuccessItemGain(log: NormalizedLog, deps: Handl
         await deps.itemLogService.addItemLog({
             timestamp: log.timestamp * 1000,
             item_id: itemId,
+            uid: normalizeRawUid(data.uid),
             quantity: amount,
             unit_price: 0,
             category: "crimes",
@@ -300,6 +320,7 @@ export async function handleDumpLog(log: NormalizedLog, deps: HandlerDependencie
         await deps.itemLogService.addItemLog({
             timestamp: log.timestamp * 1000,
             item_id: itemId,
+            uid: normalizeRawUid(data.uid),
             quantity: typeId === 1400 ? -quantity : quantity,
             unit_price: 0,
             category: "dump",
@@ -373,4 +394,3 @@ export function initializeDefaultHandlers() {
     // Register Christmas Town logs
     defaultLogRegistry.register(8938, handleChristmasTownItems);
 }
-

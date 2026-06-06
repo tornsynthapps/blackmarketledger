@@ -5,4 +5,4 @@ This folder contains the business logic for the application, organized into serv
 ## Files
 
 - **BaseService.ts**: Abstract base class for all domain services.
-- **ItemLogService.ts**: Service for managing item logs, including persistence and retrieval through the `ItemLogRegistry`.
+- **ItemLogService.ts**: Service for managing item logs, including UID-aware persistence, retrieval, wrapper recalculation, and cost-basis updates through the `ItemLogRegistry`.

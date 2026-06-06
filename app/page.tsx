@@ -1,7 +1,7 @@
 "use client";
 
 import { ItemLogService } from "@/lib/domain/ItemLogService";
-import { ItemLog } from "@/lib/objects/ItemLog";
+import { getItemIdentityKey, ItemLog } from "@/lib/objects/ItemLog";
 import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/old/parser";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -50,6 +50,14 @@ interface InventoryItemStats {
     abroadStock: number;
     abroadTotalCost: number;
     abroadRealizedProfit: number;
+}
+
+interface InventoryRow {
+    identityKey: string;
+    itemID: number;
+    itemName: string;
+    uid: string | null;
+    stats: InventoryItemStats;
 }
 
 const formatMoney = (val: number) => {
@@ -222,23 +230,25 @@ export default function NewDashboard() {
     };
 
     const inventory = useMemo(() => {
-        const statsMap = new Map<string, InventoryItemStats>();
-        
-        // Group logs by item
-        const logsByItem = new Map<number, ItemLog[]>();
-        logs.forEach(log => {
-            if (!logsByItem.has(log.item_id)) logsByItem.set(log.item_id, []);
-            logsByItem.get(log.item_id)!.push(log);
+        const rows = new Map<string, InventoryRow>();
+
+        const logsByIdentity = new Map<string, ItemLog[]>();
+        logs.forEach((log) => {
+            const identityKey = getItemIdentityKey(log);
+            if (!logsByIdentity.has(identityKey)) {
+                logsByIdentity.set(identityKey, []);
+            }
+            logsByIdentity.get(identityKey)!.push(log);
         });
 
-        logsByItem.forEach((itemLogs, itemId) => {
-            const name = itemNames[itemId] || `Item ${itemId}`;
-            
-            // Get latest log per category
+        logsByIdentity.forEach((itemLogs, identityKey) => {
+            const sampleLog = itemLogs[0];
+            const itemName = itemNames[sampleLog.item_id] || `Item ${sampleLog.item_id}`;
+
             const latestByCategory = new Map<string, ItemLog>();
-            itemLogs.forEach(log => {
+            itemLogs.forEach((log) => {
                 const existing = latestByCategory.get(log.category);
-                if (!existing || log.timestamp > existing.timestamp) {
+                if (!existing || log.timestamp > existing.timestamp || ((existing.id ?? 0) < (log.id ?? 0) && existing.timestamp === log.timestamp)) {
                     latestByCategory.set(log.category, log);
                 }
             });
@@ -264,10 +274,16 @@ export default function NewDashboard() {
                 }
             });
 
-            statsMap.set(name, stats);
+            rows.set(identityKey, {
+                identityKey,
+                itemID: sampleLog.item_id,
+                itemName,
+                uid: sampleLog.uid,
+                stats,
+            });
         });
 
-        return statsMap;
+        return Array.from(rows.values());
     }, [logs, itemNames]);
 
     const { stats, sortedItems } = useMemo(() => {
@@ -275,42 +291,41 @@ export default function NewDashboard() {
         let totalInvValue = 0;
         let museumProfit = 0;
         let abroadProfit = 0;
-        const items: { name: string; stats: InventoryItemStats; itemID: number }[] = [];
+        const items: Array<InventoryRow & { displayName: string; stats: InventoryItemStats }> = [];
 
-        inventory.forEach((stat, name) => {
-            const isMuseum = name.toLowerCase() === "points";
-            abroadProfit += stat.abroadRealizedProfit;
+        inventory.forEach((row) => {
+            const isMuseum = row.itemName.toLowerCase() === "points";
+            abroadProfit += row.stats.abroadRealizedProfit;
 
-            let itemProfit = stat.realizedProfit;
-            let itemValue = Math.max(0, stat.totalCost);
-            let itemStock = stat.stock;
+            let itemProfit = row.stats.realizedProfit;
+            let itemValue = Math.max(0, row.stats.totalCost);
+            let itemStock = row.stats.stock;
 
             if (includeAbroad) {
-                itemProfit += stat.abroadRealizedProfit;
-                itemValue += Math.max(0, stat.abroadTotalCost);
-                itemStock += stat.abroadStock;
+                itemProfit += row.stats.abroadRealizedProfit;
+                itemValue += Math.max(0, row.stats.abroadTotalCost);
+                itemStock += row.stats.abroadStock;
             }
 
-            const itemID = Object.entries(itemNames).find(([, n]) => n === name)?.[0];
-            const numericID = itemID ? parseInt(itemID, 10) : 0;
+            const displayName = row.uid === null ? row.itemName : `${row.itemName} [uid:${row.uid}]`;
 
             if (isMuseum) {
-                museumProfit += stat.realizedProfit;
+                museumProfit += row.stats.realizedProfit;
                 if (includeMuseum) {
                     items.push({
-                        name,
-                        stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
-                        itemID: numericID
+                        ...row,
+                        displayName,
+                        stats: { ...row.stats, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
                     });
                     totalInvValue += itemValue;
                 }
             } else {
-                tradingProfit += stat.realizedProfit;
+                tradingProfit += row.stats.realizedProfit;
                 if (includeTrading) {
                     items.push({
-                        name,
-                        stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
-                        itemID: numericID
+                        ...row,
+                        displayName,
+                        stats: { ...row.stats, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
                     });
                     totalInvValue += itemValue;
                 }
@@ -319,15 +334,17 @@ export default function NewDashboard() {
 
         const filtered = items.filter((item) => {
             const query = search.toLowerCase();
-            const itemNameMatch = item.name.toLowerCase().includes(query);
+            const itemNameMatch =
+                item.displayName.toLowerCase().includes(query) ||
+                (item.uid !== null && item.uid.toLowerCase().includes(query));
             
-            let itemType = item.name.toLowerCase() === "points" 
+            let itemType = item.itemName.toLowerCase() === "points" 
                 ? "Points" 
                 : (item.itemID ? itemTypeMap[String(item.itemID)] : undefined)?.type || "Other";
             
             // Museum set overrides
-            if (item.name.toLowerCase() === "flower set") itemType = "Flower";
-            if (item.name.toLowerCase() === "plushie set") itemType = "Plushie";
+            if (item.itemName.toLowerCase() === "flower set") itemType = "Flower";
+            if (item.itemName.toLowerCase() === "plushie set") itemType = "Plushie";
             
             const itemTypeMatch = itemType.toLowerCase().includes(query);
             
@@ -339,8 +356,8 @@ export default function NewDashboard() {
             let bVal: number | string;
 
             if (sortConfig.key === "name") {
-                aVal = a.name;
-                bVal = b.name;
+                aVal = a.displayName;
+                bVal = b.displayName;
             } else if (sortConfig.key === "avgCost") {
                 aVal = a.stats.stock > 0 ? a.stats.totalCost / a.stats.stock : 0;
                 bVal = b.stats.stock > 0 ? b.stats.totalCost / b.stats.stock : 0;
@@ -361,20 +378,18 @@ export default function NewDashboard() {
     }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad, itemNames, itemTypeMap]);
 
     const enrichedItems = useMemo(() => {
-        return sortedItems.map(({ name, stats, itemID }) => {
-            let itemType = name.toLowerCase() === "points" 
+        return sortedItems.map((item) => {
+            let itemType = item.itemName.toLowerCase() === "points" 
                 ? "Points" 
-                : (itemID ? itemTypeMap[String(itemID)] : undefined)?.type || "Other";
+                : (item.itemID ? itemTypeMap[String(item.itemID)] : undefined)?.type || "Other";
             
             // Museum set overrides
-            if (name.toLowerCase() === "flower set") itemType = "Flower";
-            if (name.toLowerCase() === "plushie set") itemType = "Plushie";
+            if (item.itemName.toLowerCase() === "flower set") itemType = "Flower";
+            if (item.itemName.toLowerCase() === "plushie set") itemType = "Plushie";
 
             return {
-                name,
-                stats,
+                ...item,
                 itemType,
-                itemID,
             };
         });
     }, [sortedItems, itemTypeMap]);
@@ -488,7 +503,7 @@ export default function NewDashboard() {
         }
 
         let logIndex = 0;
-        const currentTotalsByCategory = new Map<string, Map<number, { profit: number }>>();
+        const currentTotalsByCategory = new Map<string, Map<string, { profit: number }>>();
 
         // Calculate baseline totals for data before the first period
         if (periods.length > 0) {
@@ -506,7 +521,9 @@ export default function NewDashboard() {
                 if (!currentTotalsByCategory.has(log.category)) {
                     currentTotalsByCategory.set(log.category, new Map());
                 }
-                currentTotalsByCategory.get(log.category)!.set(log.item_id, { profit: log.realized_profit });
+                currentTotalsByCategory
+                    .get(log.category)!
+                    .set(getItemIdentityKey(log), { profit: log.realized_profit });
                 logIndex++;
             }
         }
@@ -555,7 +572,9 @@ export default function NewDashboard() {
                 if (!currentTotalsByCategory.has(log.category)) {
                     currentTotalsByCategory.set(log.category, new Map());
                 }
-                currentTotalsByCategory.get(log.category)!.set(log.item_id, { profit: log.realized_profit });
+                currentTotalsByCategory
+                    .get(log.category)!
+                    .set(getItemIdentityKey(log), { profit: log.realized_profit });
                 logIndex++;
             }
 
@@ -827,8 +846,9 @@ export default function NewDashboard() {
                                 <div className="grid grid-cols-1 gap-px bg-border border border-border md:grid-cols-2 xl:grid-cols-3 overflow-hidden">
                                     {items.map((item) => (
                                         <DashboardItemCard
-                                            key={item.name}
-                                            name={item.name}
+                                            key={item.identityKey}
+                                            baseName={item.itemName}
+                                            uid={item.uid}
                                             stats={item.stats}
                                             itemID={item.itemID}
                                             onClick={() => {
@@ -837,7 +857,7 @@ export default function NewDashboard() {
                                                 router.push(
                                                     itemID !== undefined && itemID > 0
                                                         ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
-                                                        : `/logs?item=${encodeURIComponent(item.name)}`
+                                                        : `/logs?item=${encodeURIComponent(item.itemName)}`
                                                 );
                                             }}
                                         />
@@ -971,18 +991,18 @@ export default function NewDashboard() {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedItems.map(({ name, stats, itemID }) => {
+                                paginatedItems.map(({ identityKey, itemName, uid, stats, itemID }) => {
                                     const avgCost =
                                         stats.stock > 0 ? stats.totalCost / stats.stock : 0;
                                     return (
                                         <tr
-                                            key={name}
+                                            key={identityKey}
                                             onClick={() => {
                                                 vibrate("nav");
                                                 router.push(
                                                     itemID !== undefined && itemID > 0
                                                         ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
-                                                        : `/logs?item=${encodeURIComponent(name)}`
+                                                        : `/logs?item=${encodeURIComponent(itemName)}`
                                                 );
                                             }}
                                             className="hover:bg-primary/5 transition-colors cursor-pointer group"
@@ -990,10 +1010,10 @@ export default function NewDashboard() {
                                             <td className="px-6 py-4 font-bold group-hover:text-primary transition-colors uppercase">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-foreground/[0.03] rounded-sm">
-                                                       {name.toLowerCase() === "points" ? (
+                                                       {itemName.toLowerCase() === "points" ? (
                                                            <PointsIcon className="w-8 h-8 object-contain drop-shadow-sm transition-transform group-hover:scale-110" />
-                                                       ) : name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
-                                                           <ItemSetIcon name={name} className="w-8 h-8" />
+                                                       ) : itemName.toLowerCase().includes("flower set") || itemName.toLowerCase().includes("plushie set") ? (
+                                                           <ItemSetIcon name={itemName} className="w-8 h-8" />
                                                        ) : itemID && itemID > 0 ? (
                                                            <img
                                                                src={`https://www.torn.com/images/items/${itemID}/large.png`}
@@ -1005,7 +1025,14 @@ export default function NewDashboard() {
                                                            <div className="w-2 h-2 rounded-full bg-border" />
                                                        )}
                                                     </div>
-                                                    <span className="truncate">{formatItemName(name)}</span>
+                                                    <div className="min-w-0 flex flex-col">
+                                                        <span className="truncate">{formatItemName(itemName)}</span>
+                                                        {uid !== null && (
+                                                            <span className="text-[10px] font-mono normal-case text-info/80">
+                                                                UID {uid}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -1147,12 +1174,14 @@ function OverviewItem({
 }
 
 function DashboardItemCard({
-    name,
+    baseName,
+    uid,
     stats,
     itemID,
     onClick,
 }: {
-    name: string;
+    baseName: string;
+    uid: string | null;
     stats: InventoryItemStats;
     itemID?: number;
     onClick: () => void;
@@ -1167,14 +1196,14 @@ function DashboardItemCard({
         >
             <div className="flex items-center gap-4 min-w-0 flex-1 relative">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center">
-                    {name.toLowerCase() === "points" ? (
+                    {baseName.toLowerCase() === "points" ? (
                         <PointsIcon className="h-10 w-10 object-contain drop-shadow-sm transition-transform group-hover:scale-110" />
-                    ) : name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
-                        <ItemSetIcon name={name} className="h-10 w-10" />
+                    ) : baseName.toLowerCase().includes("flower set") || baseName.toLowerCase().includes("plushie set") ? (
+                        <ItemSetIcon name={baseName} className="h-10 w-10" />
                     ) : itemID && itemID > 0 ? (
                         <img
                             src={`https://www.torn.com/images/items/${itemID}/large.png`}
-                            alt={formatItemName(name)}
+                            alt={formatItemName(baseName)}
                             width={48}
                             height={48}
                             className="h-10 w-10 object-contain drop-shadow-sm transition-transform group-hover:scale-110"
@@ -1189,12 +1218,17 @@ function DashboardItemCard({
 
                 <div className="min-w-0 flex-1">
                     <h2 className="line-clamp-1 text-base font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">
-                        {formatItemName(name)}
+                        {formatItemName(baseName)}
                     </h2>
                     <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] font-mono text-muted uppercase">
                             {stats.stock.toLocaleString()} UNITS
                         </span>
+                        {uid !== null && (
+                            <span className="text-[10px] font-mono text-info/80 uppercase whitespace-nowrap">
+                                UID: {uid}
+                            </span>
+                        )}
                         <span className="text-[10px] font-mono text-muted/40 whitespace-nowrap">
                             AVG: {formatMoney(avgCost)}
                         </span>

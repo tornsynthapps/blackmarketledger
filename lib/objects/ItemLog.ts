@@ -11,6 +11,7 @@ import {
 export interface ItemLogCreateFields {
     timestamp: number;
     item_id: number;
+    uid?: string | null;
     quantity: number;
     unit_price: number;
     category: string;
@@ -23,8 +24,62 @@ export interface ItemLogCreateFields {
 
 export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "dump" | "christmas-town" | "skipped";
 
+export interface ItemIdentity {
+    item_id: number;
+    uid: string | null;
+}
+
+/**
+ * Normalizes item UID inputs into the persisted representation.
+ * @param uid (unknown): Raw UID value from storage or external APIs
+ * @returns (string | null): Stable UID string or null when absent
+ * @sideEffects None
+ */
+export function normalizeItemUid(uid: unknown): string | null {
+    if (uid === undefined || uid === null || uid === "") {
+        return null;
+    }
+
+    return String(uid);
+}
+
+/**
+ * Builds a stable in-memory key for an item identity.
+ * @param identity (ItemIdentity): Item identity to serialize
+ * @returns (string): Stable key suitable for maps and sets
+ * @sideEffects None
+ */
+export function getItemIdentityKey(identity: ItemIdentity): string {
+    return `${identity.item_id}::${identity.uid ?? "__null__"}`;
+}
+
+/**
+ * Extracts the identity from an item log or loose identity input.
+ * @param itemIdOrIdentity (number | ItemIdentity | ItemLog): Source identity data
+ * @param uid (string | null | undefined): Optional UID when the first argument is an item ID
+ * @returns (ItemIdentity): Normalized item identity
+ * @sideEffects None
+ */
+export function createItemIdentity(
+    itemIdOrIdentity: number | ItemIdentity | ItemLog,
+    uid?: string | null
+): ItemIdentity {
+    if (typeof itemIdOrIdentity === "number") {
+        return {
+            item_id: itemIdOrIdentity,
+            uid: normalizeItemUid(uid),
+        };
+    }
+
+    return {
+        item_id: itemIdOrIdentity.item_id,
+        uid: normalizeItemUid(itemIdOrIdentity.uid),
+    };
+}
+
 export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     item_id: number;
+    uid: string | null;
     quantity: number;
     unit_price: number;
     category: string;
@@ -36,9 +91,10 @@ export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
 }
 
 export class ItemLog extends BaseObject {
-    private static readonly CURRENT_VERSION = 6;
+    private static readonly CURRENT_VERSION = 7;
 
     public readonly item_id: number;
+    public readonly uid: string | null;
     public readonly quantity: number;
     public readonly unit_price: number;
     public readonly category: string;
@@ -59,6 +115,7 @@ export class ItemLog extends BaseObject {
         super(fields.timestamp, ItemLog.CURRENT_VERSION, databaseFields);
 
         this.item_id = fields.item_id;
+        this.uid = normalizeItemUid(fields.uid);
         this.quantity = fields.quantity;
         this.unit_price = fields.unit_price;
         this.category = fields.category;
@@ -93,6 +150,7 @@ export class ItemLog extends BaseObject {
             {
                 timestamp: record.timestamp,
                 item_id: record.item_id,
+                uid: record.uid,
                 quantity: record.quantity,
                 unit_price: record.unit_price,
                 category: record.category,
@@ -115,6 +173,7 @@ export class ItemLog extends BaseObject {
         return {
             ...this.toBaseDatabaseRecord(),
             item_id: this.item_id,
+            uid: this.uid,
             quantity: this.quantity,
             unit_price: this.unit_price,
             category: this.category,
@@ -143,6 +202,7 @@ export class ItemLog extends BaseObject {
             {
                 timestamp: this.timestamp,
                 item_id: this.item_id,
+                uid: this.uid,
                 quantity: this.quantity,
                 unit_price: this.unit_price,
                 category: this.category,
@@ -172,7 +232,7 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
         super(
             "BlackMarketLedgerObjectsDB",
             "item_logs",
-            "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+category+timestamp]",
+            "++id,item_id,uid,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+uid],[item_id+uid+category+timestamp]",
             (itemLog) => itemLog.toDatabaseRecord(),
             (record) => ItemLog.fromDatabase(record)
         );
@@ -229,7 +289,11 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
 
         await collection.until(() => filteredRecords.length === limit).each(record => {
             const matchesCategory = !category || category === "all" || record.category === category;
-            const matchesSearch = !searchQuery || (itemMap[record.item_id]?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+            const normalizedQuery = searchQuery?.toLowerCase() || "";
+            const matchesSearch =
+                !searchQuery ||
+                (itemMap[record.item_id]?.toLowerCase() || "").includes(normalizedQuery) ||
+                (record.uid?.toLowerCase() || "").includes(normalizedQuery);
 
             if (matchesCategory && matchesSearch) {
                 if (skipped >= offset) {
@@ -267,7 +331,10 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
             let count = 0;
             const query = searchQuery.toLowerCase();
             await collection.each(record => {
-                if ((itemMap[record.item_id]?.toLowerCase() || "").includes(query)) {
+                if (
+                    (itemMap[record.item_id]?.toLowerCase() || "").includes(query) ||
+                    (record.uid?.toLowerCase() || "").includes(query)
+                ) {
                     count++;
                 }
             });
@@ -300,6 +367,25 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
     }
 
     /**
+     * Fetches all item logs for a specific item identity, ordered by timestamp.
+     * @param identity (ItemIdentity): Unique item identity including optional UID
+     * @returns (Promise<ItemLog[]>): Sorted array of item logs
+     * @sideEffects Reads from IndexedDB through Dexie
+     */
+    public async getLogsByIdentity(identity: ItemIdentity): Promise<ItemLog[]> {
+        const normalizedIdentity = createItemIdentity(identity);
+        const records = await this.tableRef
+            .filter(
+                (record) =>
+                    record.item_id === normalizedIdentity.item_id &&
+                    normalizeItemUid(record.uid) === normalizedIdentity.uid
+            )
+            .sortBy("timestamp");
+
+        return records.map((record) => ItemLog.fromDatabase(record));
+    }
+
+    /**
      * Fetches all item logs associated with a specific wrapper.
      * @param wrapperId (number): Unique identifier of the wrapper
      * @returns (Promise<ItemLog[]>): Array of item logs linked to the wrapper
@@ -319,9 +405,10 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
      * @sideEffects Reads from IndexedDB through Dexie
      */
     public async getLatestTotalsPerCategoryBefore(
-        itemId: number,
+        identity: ItemIdentity,
         timestamp: number
     ): Promise<Map<string, { stock: number; cost: number }>> {
+        const normalizedIdentity = createItemIdentity(identity);
         const categories = ["normal", "abroad", "museum", "city-finds", "city-shop", "crimes", "dump", "christmas-town", "skipped"];
         const result = new Map<string, { stock: number; cost: number }>();
 
@@ -329,15 +416,22 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
         categories.forEach((cat) => result.set(cat, { stock: 0, cost: 0 }));
 
         // Safety: Ensure keys are valid for IndexedDB to prevent DataError
-        if (!Number.isFinite(itemId) || !Number.isFinite(timestamp)) {
-            console.error(`Invalid keys provided to getLatestTotalsPerCategoryBefore: itemId=${itemId}, timestamp=${timestamp}`);
+        if (!Number.isFinite(normalizedIdentity.item_id) || !Number.isFinite(timestamp)) {
+            console.error(
+                `Invalid keys provided to getLatestTotalsPerCategoryBefore: itemId=${normalizedIdentity.item_id}, uid=${normalizedIdentity.uid}, timestamp=${timestamp}`
+            );
             return result;
         }
 
         for (const category of categories) {
             const latestRecord = await this.tableRef
-                .where("[item_id+category+timestamp]")
-                .between([itemId, category, Dexie.minKey], [itemId, category, timestamp], true, false)
+                .where("[item_id+uid+category+timestamp]")
+                .between(
+                    [normalizedIdentity.item_id, normalizedIdentity.uid, category, Dexie.minKey],
+                    [normalizedIdentity.item_id, normalizedIdentity.uid, category, timestamp],
+                    true,
+                    false
+                )
                 .reverse()
                 .first();
 
