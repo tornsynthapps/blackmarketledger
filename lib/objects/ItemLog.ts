@@ -26,18 +26,18 @@ export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | 
 
 export interface ItemIdentity {
     item_id: number;
-    uid: string | null;
+    uid: string;
 }
 
 /**
  * Normalizes item UID inputs into the persisted representation.
  * @param uid (unknown): Raw UID value from storage or external APIs
- * @returns (string | null): Stable UID string or null when absent
+ * @returns (string): Stable UID string or empty string when absent
  * @sideEffects None
  */
-export function normalizeItemUid(uid: unknown): string | null {
-    if (uid === undefined || uid === null || uid === "") {
-        return null;
+export function normalizeItemUid(uid: unknown): string {
+    if (uid === undefined || uid === null || uid === "" || uid === "null") {
+        return "";
     }
 
     return String(uid);
@@ -50,7 +50,7 @@ export function normalizeItemUid(uid: unknown): string | null {
  * @sideEffects None
  */
 export function getItemIdentityKey(identity: ItemIdentity): string {
-    return `${identity.item_id}::${identity.uid ?? "__null__"}`;
+    return `${identity.item_id}::${identity.uid || "__null__"}`;
 }
 
 /**
@@ -79,7 +79,7 @@ export function createItemIdentity(
 
 export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     item_id: number;
-    uid: string | null;
+    uid: string;
     quantity: number;
     unit_price: number;
     category: string;
@@ -94,7 +94,7 @@ export class ItemLog extends BaseObject {
     private static readonly CURRENT_VERSION = 7;
 
     public readonly item_id: number;
-    public readonly uid: string | null;
+    public readonly uid: string;
     public readonly quantity: number;
     public readonly unit_price: number;
     public readonly category: string;
@@ -375,11 +375,8 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
     public async getLogsByIdentity(identity: ItemIdentity): Promise<ItemLog[]> {
         const normalizedIdentity = createItemIdentity(identity);
         const records = await this.tableRef
-            .filter(
-                (record) =>
-                    record.item_id === normalizedIdentity.item_id &&
-                    normalizeItemUid(record.uid) === normalizedIdentity.uid
-            )
+            .where("[item_id+uid]")
+            .equals([normalizedIdentity.item_id, normalizedIdentity.uid])
             .sortBy("timestamp");
 
         return records.map((record) => ItemLog.fromDatabase(record));

@@ -195,6 +195,16 @@ export function getDatabase(databaseName: string): Dexie {
         db = new Dexie(databaseName);
         const schemas = SCHEMA_REGISTRY[databaseName] || {};
         db.version(6).stores(schemas);
+        
+        // Version 7: Enforce non-null UID in item_logs for compound index support
+        db.version(7).stores(schemas).upgrade(async tx => {
+            await tx.table("item_logs").toCollection().modify(record => {
+                if (record.uid === null || record.uid === undefined) {
+                    record.uid = "";
+                }
+            });
+        });
+
         DB_INSTANCES.set(databaseName, db);
         
         // Request persistence in the background
