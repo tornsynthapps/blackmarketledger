@@ -1,15 +1,14 @@
 import { NormalizedLog } from "../objects/TornLog";
-import { 
+import {
     ItemLog,
-    ItemLogCategories 
+    ItemLogCategories
 } from "../objects/ItemLog";
 import { ItemLogWrapperMuseumSubType } from "../objects/ItemLogWrapper";
 import { ItemList } from "../objects/Item";
 import {
-    pickNumber,
-    pickString,
     defaultLogRegistry,
-    HandlerDependencies
+    HandlerDependencies,
+    LogHandlerFn
 } from "./LogParserRegistry";
 
 /**
@@ -28,13 +27,64 @@ function normalizeRawUid(rawUid: unknown): string | null {
 
 // --- Bazaar & Item Market Handlers ---
 
+/**
+ * Enhanced handler for Item Market logs that explicitly supports UIDs.
+ * Matches structure: { "item": [ { "id": 392, "uid": 11193572926, "qty": 1 } ], "cost": 1700, ... }
+ */
+export async function handleItemMarketLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    const typeId = log.typeId;
+
+    if (typeId !== 1103 && typeId !== 1104) return;
+    const type: "BUY" | "SELL" = typeId === 1103 ? "BUY" : "SELL";
+
+    const totalCost = Number(data.cost_total) || Number(data.cost);
+    const logsToPersist: ItemLog[] = [];
+
+
+    // Process array of items (Structure seen in log 1103)
+    const items = (data.items || data.item) as Array<{
+        id?: number | string;
+        qty?: number | string;
+        uid?: number | string;
+    }>;
+
+    if (!Array.isArray(items)) return;
+
+    const totalQty = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+    const unitPrice = totalCost && totalQty ? totalCost / totalQty : Number(data.cost_each) || 0;
+
+    items.forEach((item) => {
+        const itemId = Number(item.id);
+        const qty = Number(item.qty);
+        if (itemId && qty) {
+            logsToPersist.push(ItemLog.create({
+                timestamp: log.timestamp * 1000,
+                item_id: itemId,
+                uid: normalizeRawUid(item.uid),
+                quantity: type === "BUY" ? qty : -qty,
+                unit_price: unitPrice,
+                category: "normal",
+                torn_log_id: String(log.id),
+            }));
+        }
+    });
+
+    if (logsToPersist.length > 0) {
+        await deps.itemLogService.bulkPutLogs(logsToPersist);
+    }
+}
+
 export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
     const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
     if (existing) return;
 
     const data = log.data || {};
     const typeId = log.typeId;
-    
+
     let type: "BUY" | "SELL" | undefined;
     let category: ItemLogCategories = "normal";
     const logsToPersist: ItemLog[] = [];
@@ -58,9 +108,9 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
         const itemId = Number(data.item);
         const amount = Number(data.quantity);
         const unitPrice = totalCost && amount ? totalCost / amount : Number(data.cost_each) || 0;
-        
+
         if (itemId && amount) {
-             logsToPersist.push(ItemLog.create({
+            logsToPersist.push(ItemLog.create({
                 timestamp: log.timestamp * 1000,
                 item_id: itemId,
                 uid: normalizeRawUid(data.uid),
@@ -70,17 +120,21 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
                 torn_log_id: String(log.id),
             }));
         }
-    } 
+    }
     // Structure 2: Multiple items (data.items or data.item is an array)
     // Types: 1112, 1113, 1225, 1226, 1103
     else {
-        const items = data.items || data.item;
+        const items = (data.items || data.item) as Array<{
+            id?: number | string;
+            qty?: number | string;
+            uid?: number | string;
+        }>;
         if (!Array.isArray(items)) return;
 
-        const totalQty = items.reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0);
+        const totalQty = items.reduce((sum: number, item) => sum + Number(item.qty || 0), 0);
         const unitPrice = totalCost && totalQty ? totalCost / totalQty : Number(data.cost_each) || 0;
-        
-        items.forEach((item: any) => {
+
+        items.forEach((item) => {
             const itemId = Number(item.id);
             const qty = Number(item.qty);
             if (itemId && qty) {
@@ -102,6 +156,55 @@ export async function handleBazaarOrMarketLog(log: NormalizedLog, deps: HandlerD
     }
 }
 
+/**
+ * Enhanced handler for Bazaar logs that explicitly supports UIDs.
+ * Matches structure: { "buyer": 2665723, "items": [ { "id": 273, "uid": null, "qty": 58 } ], ... }
+ */
+export async function handleBazaarLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+    const typeId = log.typeId;
+
+    if (typeId !== 1225 && typeId !== 1226) return;
+    const type: "BUY" | "SELL" = typeId === 1225 ? "BUY" : "SELL";
+
+    const totalCost = Number(data.cost_total) || Number(data.cost);
+    const logsToPersist: ItemLog[] = [];
+
+    const items = (data.items || data.item) as Array<{
+        id?: number | string;
+        qty?: number | string;
+        uid?: number | string;
+    }>;
+
+    if (!Array.isArray(items)) return;
+
+    const totalQty = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+    const unitPrice = totalCost && totalQty ? totalCost / totalQty : Number(data.cost_each) || 0;
+
+    items.forEach((item) => {
+        const itemId = Number(item.id);
+        const qty = Number(item.qty);
+        if (itemId && qty) {
+            logsToPersist.push(ItemLog.create({
+                timestamp: log.timestamp * 1000,
+                item_id: itemId,
+                uid: normalizeRawUid(item.uid),
+                quantity: type === "BUY" ? qty : -qty,
+                unit_price: unitPrice,
+                category: "normal",
+                torn_log_id: String(log.id),
+            }));
+        }
+    });
+
+    if (logsToPersist.length > 0) {
+        await deps.itemLogService.bulkPutLogs(logsToPersist);
+    }
+}
+
 // --- Points Market Handlers ---
 
 export async function handlePointLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
@@ -110,11 +213,11 @@ export async function handlePointLog(log: NormalizedLog, deps: HandlerDependenci
 
     const data = log.data || {};
     const typeId = log.typeId;
-    
+
     let type: "BUY" | "SELL" | undefined;
     if (typeId === 5010) type = "BUY";
     else if (typeId === 5011) type = "SELL";
-    
+
     if (!type) return;
 
     const quantity = Number(data.quantity) || Number(data.points);
@@ -143,7 +246,7 @@ export async function handleMuseumLog(log: NormalizedLog, deps: HandlerDependenc
 
     const data = log.data || {};
     // Expecting structure: { "set": "Plushie Set", "quantity": 10, ... }
-    
+
     const times = Number(data.quantity) || Number(data.sets) || Number(data.amount) || 0;
     const typeStr = String(data.set || data.set_type || "").toLowerCase();
 
@@ -363,34 +466,38 @@ export async function handleChristmasTownItems(log: NormalizedLog, deps: Handler
 }
 
 // --- Initialization ---
+type LogAttribute = {
+    description: string;
+    handler: LogHandlerFn;
+    uidSupported: boolean;
+};
+
+const logs: Record<number, LogAttribute> = {
+    1103: { description: "Item market buy (old)", handler: handleItemMarketLog, uidSupported: true },
+    1104: { description: "Item market sell (old)", handler: handleItemMarketLog, uidSupported: true },
+    1112: { description: "Bazaar buy", handler: handleBazaarOrMarketLog, uidSupported: false },
+    1113: { description: "Bazaar sell", handler: handleBazaarOrMarketLog, uidSupported: false },
+    1220: { description: "Item market buy (legacy)", handler: handleBazaarOrMarketLog, uidSupported: false },
+    1221: { description: "Item market sell (legacy)", handler: handleBazaarOrMarketLog, uidSupported: false },
+    1225: { description: "Bazaar buy", handler: handleBazaarLog, uidSupported: true },
+    1226: { description: "Bazaar sell", handler: handleBazaarLog, uidSupported: true },
+    4201: { description: "Item bought abroad", handler: handleBazaarOrMarketLog, uidSupported: false },
+    5010: { description: "Point market buy", handler: handlePointLog, uidSupported: false },
+    5011: { description: "Point market sell", handler: handlePointLog, uidSupported: false },
+    7000: { description: "Museum set exchange", handler: handleMuseumLog, uidSupported: false },
+    8156: { description: "Mugged (skipped)", handler: handleMugLog, uidSupported: false },
+    7011: { description: "City item find", handler: handleCityFindLog, uidSupported: false },
+    4200: { description: "Shop item buy", handler: handleShopBuyLog, uidSupported: false },
+    4210: { description: "Shop item sell", handler: handleItemShopSell, uidSupported: false },
+    9020: { description: "Crime item gain (multiple)", handler: handleCrimeLog, uidSupported: false },
+    5725: { description: "Crime item gain (single)", handler: handleCrimeSuccessItemGain, uidSupported: false },
+    1400: { description: "Dump item add", handler: handleDumpLog, uidSupported: false },
+    1401: { description: "Dump item find", handler: handleDumpLog, uidSupported: false },
+    8938: { description: "Christmas Town items", handler: handleChristmasTownItems, uidSupported: false },
+};
 
 export function initializeDefaultHandlers() {
-    // Register Market & Bazaar logs
-    defaultLogRegistry.register([1103, 1104, 1112, 1113, 1220, 1221, 1225, 1226, 4201], handleBazaarOrMarketLog);
-
-    // Register Point Market logs
-    defaultLogRegistry.register([5010, 5011], handlePointLog);
-
-    // Register Museum logs
-    defaultLogRegistry.register(7000, handleMuseumLog);
-
-    // Register Mug logs
-    defaultLogRegistry.register(8156, handleMugLog);
-
-    // Register City Finds
-    defaultLogRegistry.register(7011, handleCityFindLog);
-
-    // Register Shop Buys
-    defaultLogRegistry.register(4200, handleShopBuyLog);
-    defaultLogRegistry.register(4210, handleItemShopSell);
-
-    // Register Crime logs
-    defaultLogRegistry.register(9020, handleCrimeLog);
-    defaultLogRegistry.register(5725, handleCrimeSuccessItemGain);
-
-    // Register Dump logs
-    defaultLogRegistry.register([1400, 1401], handleDumpLog);
-
-    // Register Christmas Town logs
-    defaultLogRegistry.register(8938, handleChristmasTownItems);
+    Object.entries(logs).forEach(([typeId, attr]) => {
+        defaultLogRegistry.register(Number(typeId), attr.handler);
+    });
 }
