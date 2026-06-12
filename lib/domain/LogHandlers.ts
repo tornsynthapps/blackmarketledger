@@ -498,6 +498,9 @@ const logs: Record<number, LogAttribute> = {
 
 export function initializeDefaultHandlers() {
     Object.entries(logs).forEach(([typeId, attr]) => {
-        defaultLogRegistry.register(Number(typeId), attr.handler);
+        defaultLogRegistry.register(Number(typeId), attr.handler, {
+            uidSupported: attr.uidSupported,
+            description: attr.description,
+        });
     });
 }

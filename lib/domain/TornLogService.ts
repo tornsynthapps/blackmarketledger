@@ -175,10 +175,21 @@ export class TornLogService extends BaseService {
         for (const log of normalizedLogs) {
             const isSupported = registeredTypeIds.includes(log.typeId);
             const isSkipped = SKIPPED_LOGS.includes(log.typeId);
+            const metadata = this.registry.getMetadata(log.typeId);
 
             // ALWAYS store raw log data for audit/debugging in SystemLog
             if (isSupported) {
                 this.logger.info(`Processing Log [${log.typeId}]: ${log.title}`, log);
+                
+                // If the log is supported but doesn't have UID support yet, export it specifically for developers
+                if (metadata && !metadata.uidSupported) {
+                    this.logger.warn(`UID_NOT_SUPPORTED [${log.typeId}]: ${log.title}`, {
+                        id: log.id,
+                        timestamp: log.timestamp,
+                        data: log.data,
+                        params: log.params
+                    });
+                }
             } else if (!isSkipped) {
                 this.logger.error(`Unsupported log type ID ${log.typeId} encountered.`, log);
                 unsupportedLogs.push(log);
@@ -215,7 +226,7 @@ export class TornLogService extends BaseService {
         from: number,
         to: number
     ): Promise<TornLogEntry[]> {
-        let allLogs: TornLogEntry[] = [];
+        const allLogs: TornLogEntry[] = [];
         let currentTo = to;
 
         while (true) {
@@ -243,7 +254,7 @@ export class TornLogService extends BaseService {
             if (page.length < 100) break;
 
             // Move currentTo back to the earliest log in this page
-            const earliest = Math.min(...page.map((l: any) => Number(l.timestamp)));
+            const earliest = Math.min(...page.map((l: { timestamp: number | string }) => Number(l.timestamp)));
             if (earliest <= from) break;
             currentTo = earliest - 1;
         }
