@@ -10,59 +10,89 @@ import { TornAPIClient } from "../tornAPI";
 import { getTornApiKeyFull } from "../old/api-keys";
 import { ItemLogService } from "./ItemLogService";
 import { MuseumService } from "./MuseumService";
+import { categories } from "@/constants/tempLogCategories";
 
 // Ensure handlers are registered
 initializeDefaultHandlers();
 
 export const FUTURE_WORK : number[] = [
-    // Item Use ========================
-    2020, // Item Use candy
-    2030, // Item Use alcohol
-    2080, // Item Use first aid kit
-    2270,
-    2410, // Item use box of tissues
-    // Equipping =======================
-    4700,
-    4710,
-    // Money ===========================
-    4810, // Money receive
-    // Bank
-    5451, // Bank Withdraw
-    // Crimes
-    5720, // Crime money gain
-    5937, // Property rental market rent owner
-    8395, // Casino russian roulette win
-    // Attack
-    8155, // Attack Mug
-    8411, // Casino table leave
-    // Casino ==========================
-    8314, 
-    // Crimes + money
-    9015, // Crime success money gain
-    9052, // Crime money gain bootlogging
-    9300, // Crime item add blank DVDs
-    9301, // Crime item add spray paint
-    // Faction =========================
-    6728,
-    // Points ==========================
-    4955,
-    // Loan
-    6200,
-    // Company =========================
-    6220, // Job Pay
-    6221, // Company Employee Pay
-    6404, // Job special money gain
-    // Missions ========================
-    7815,
+    // // Item Use ========================
+    // 2020, // Item Use candy
+    // 2030, // Item Use alcohol
+    // 2060, // Item use morphine
+    // 2070, // Item use first aid kit
+    // 2080, // Item Use first aid kit
+    // 2200, // Item use cannabis
+    // 2210, // Item use ecstasy
+    // 2230, // Item use LSD
+    // 2240, // Item use opium
+    // 2290, // Item use xanax
+    // 2270,
+    // 2350, // Item use box of grenades
+    // 2360, // Item use box of medical supplies
+    // 2405, // Item use wallet
+    // 2410, // Item use box of tissues
+    // 4000, // Parcel create
+    // 4002, // Parcel wrap
+    // 4102, // Item sending
+    // 4103, // Item receive
+    // 4900, // Points energy refill use
+    // 4915, // Points stock ticker unlock
+    // 4930, // Points racing license unlock
+    // 4945, // Points bazaar unlock
+    // 5460, // Cashiers check withdraw
+    // 5511, // Stock sell
+    // 5943, // Property rental market extension accept owner
+    // 6736, // Faction give money receive
+    // 6746, // Faction loan item receive
+    // 6749, // Faction loan item retrieve receive
+    // 7900, // Missions buy reward item
+    // 8700, // Racing enlist car
+    // 8701, // Racing unenlist car
+    // 9163, // Crime critical fail item loss
+    // // Equipping =======================
+    // 4700,
+    // 4710,
+    // // Money ===========================
+    // 4810, // Money receive
+    // // Bank
+    // 5451, // Bank Withdraw
+    // // Crimes
+    // 5720, // Crime money gain
+    // 5937, // Property rental market rent owner
+    // 8395, // Casino russian roulette win
+    // // Attack
+    // 8155, // Attack Mug
+    // 8411, // Casino table leave
+    // // Casino ==========================
+    // 8314, 
+    // // Crimes + money
+    // 9015, // Crime success money gain
+    // 9052, // Crime money gain bootlogging
+    // 9300, // Crime item add blank DVDs
+    // 9301, // Crime item add spray paint
+    // // Faction =========================
+    // 6728,
+    // // Points ==========================
+    // 4955,
+    // // Loan
+    // 6200,
+    // // Company =========================
+    // 6220, // Job Pay
+    // 6221, // Company Employee Pay
+    // 6404, // Job special money gain
+    // // Missions ========================
+    // 7815,
 ]
 export const SKIPPED_LOGS: number[] = FUTURE_WORK.concat([
     1100, // Item market add (old)
     1200, // Bazaar name change
+    1201, // Bazaar description change
     1210, // Bazaar add (legacy)
     1212, // Bazaar edit (legacy)
     5000, // Points Market Add
     5001, // Points Market Remove
-])
+]).concat(categories)
 
 export class TornLogService extends BaseService {
     protected get SERVICE_NAME() { return "TornLogService"; }

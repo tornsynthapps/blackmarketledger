@@ -32,6 +32,7 @@ export default function LoggerPage() {
     // Filters
     const [levelFilter, setLevelFilter] = useState<SystemLogLevel | "all">("all");
     const [contextFilter, setContextFilter] = useState("");
+    const [messageFilter, setMessageFilter] = useState("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
@@ -46,6 +47,7 @@ export default function LoggerPage() {
             const filters = {
                 level: levelFilter,
                 context: contextFilter,
+                message: messageFilter,
                 startDate: startDate ? new Date(startDate).getTime() : undefined,
                 endDate: endDate ? new Date(endDate).getTime() : undefined,
             };
@@ -62,12 +64,12 @@ export default function LoggerPage() {
 
     useEffect(() => {
         fetchLogs();
-    }, [page, levelFilter, contextFilter, startDate, endDate]);
+    }, [page, levelFilter, contextFilter, messageFilter, startDate, endDate]);
 
     // Reset page when filters change
     useEffect(() => {
         setPage(1);
-    }, [levelFilter, contextFilter, startDate, endDate]);
+    }, [levelFilter, contextFilter, messageFilter, startDate, endDate]);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -78,7 +80,7 @@ export default function LoggerPage() {
             />
 
             {/* Filters Bar */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-panel border-2 border-primary p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-panel border-2 border-primary p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Log Level</label>
                     <select
@@ -101,6 +103,17 @@ export default function LoggerPage() {
                         placeholder="Search context..."
                         value={contextFilter}
                         onChange={(e) => setContextFilter(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Message</label>
+                    <input
+                        type="text"
+                        placeholder="Search message..."
+                        value={messageFilter}
+                        onChange={(e) => setMessageFilter(e.target.value)}
                         className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
                     />
                 </div>

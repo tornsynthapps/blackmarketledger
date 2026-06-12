@@ -92,12 +92,13 @@ export default function UnsupportedLogsVisualizer() {
                 log.id.toLowerCase().includes(query) ||
                 log.typeId.toString().includes(query) ||
                 log.title.toLowerCase().includes(query) ||
-                log.category.toLowerCase().includes(query)
+                log.category.toLowerCase().includes(query) ||
+                JSON.stringify({ ...log.data, ...log.params }).toLowerCase().includes(query)
             );
         }
 
         return result;
-    }, [logs, searchQuery, selectedTypeIds, availableTypeIds]);
+    }, [logs, searchQuery, selectedTypeIds, availableTypeIds, hideSkipped]);
 
     return (
         <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
@@ -158,7 +159,7 @@ export default function UnsupportedLogsVisualizer() {
                             />
                             <input
                                 type="text"
-                                placeholder="Filter by Log ID, Type ID, or Title..."
+                                placeholder="Filter by ID, Type, Title, or Data..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full bg-panel border-2 border-border rounded-2xl pl-12 pr-4 py-3 text-sm outline-none focus:border-primary transition-all"

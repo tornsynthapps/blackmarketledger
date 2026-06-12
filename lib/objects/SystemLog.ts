@@ -144,6 +144,7 @@ export class SystemLogRegistry extends BaseObjectRegistry<SystemLog, SystemLogDa
         filters: {
             level?: SystemLogLevel | "all";
             context?: string;
+            message?: string;
             startDate?: number;
             endDate?: number;
         }
@@ -157,6 +158,11 @@ export class SystemLogRegistry extends BaseObjectRegistry<SystemLog, SystemLogDa
         if (filters.context) {
             const search = filters.context.toLowerCase();
             collection = collection.filter((log) => log.context.toLowerCase().includes(search));
+        }
+
+        if (filters.message) {
+            const search = filters.message.toLowerCase();
+            collection = collection.filter((log) => log.message.toLowerCase().includes(search));
         }
 
         if (filters.startDate) {
