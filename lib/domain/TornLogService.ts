@@ -92,7 +92,7 @@ export const SKIPPED_LOGS: number[] = FUTURE_WORK.concat([
     1212, // Bazaar edit (legacy)
     5000, // Points Market Add
     5001, // Points Market Remove
-]).concat(categories)
+]);
 
 export class TornLogService extends BaseService {
     protected get SERVICE_NAME() { return "TornLogService"; }
