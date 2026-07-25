@@ -242,12 +242,194 @@ export class MuseumService extends BaseService {
                 item_id: ItemList.POINTS,
                 quantity: totalPointsGained,
                 unit_price: costBasisPerPoint,
-                category: "normal",
+                category: "museum",
                 wrapper_id: exchangeWrapperId,
             })
         );
 
         // 5. Persist logs.
         await itemLogService.bulkPutLogs(logsToPersist);
+    }
+
+    public static readonly ITEM_NAMES: Record<number, string> = {
+        [ItemList.POINTS]: "Points",
+        [ItemList.SHEEP_PLUSHIE]: "Sheep Plushie",
+        [ItemList.TEDDY_BEAR_PLUSHIE]: "Teddy Bear Plushie",
+        [ItemList.KITTEN_PLUSHIE]: "Kitten Plushie",
+        [ItemList.JAGUAR_PLUSHIE]: "Jaguar Plushie",
+        [ItemList.WOLVERINE_PLUSHIE]: "Wolverine Plushie",
+        [ItemList.NESSIE_PLUSHIE]: "Nessie Plushie",
+        [ItemList.RED_FOX_PLUSHIE]: "Red Fox Plushie",
+        [ItemList.MONKEY_PLUSHIE]: "Monkey Plushie",
+        [ItemList.CHAMOIS_PLUSHIE]: "Chamois Plushie",
+        [ItemList.PANDA_PLUSHIE]: "Panda Plushie",
+        [ItemList.LION_PLUSHIE]: "Lion Plushie",
+        [ItemList.CAMEL_PLUSHIE]: "Camel Plushie",
+        [ItemList.STINGRAY_PLUSHIE]: "Stingray Plushie",
+        [ItemList.AFRICAN_VIOLET]: "African Violet",
+        [ItemList.BANANA_ORCHID]: "Banana Orchid",
+        [ItemList.CROCUS]: "Crocus",
+        [ItemList.DAHLIA]: "Dahlia",
+        [ItemList.EDELWEISS]: "Edelweiss",
+        [ItemList.HEATHER]: "Heather",
+        [ItemList.ORCHID]: "Orchid",
+        [ItemList.PEONY]: "Peony",
+        [ItemList.CEIBO_FLOWER]: "Ceibo Flower",
+        [ItemList.CHERRY_BLOSSOM]: "Cherry Blossom",
+        [ItemList.TRIBULUS_OMANENSE]: "Tribulus Omanense",
+        [ItemList.METEORITE_FRAGMENT]: "Meteorite Fragment",
+        [ItemList.PATAGONIAN_FOSSIL]: "Patagonian Fossil",
+        [ItemList.OBSIDIAN_POINT]: "Obsidian Point",
+        [ItemList.QUARTZITE_POINT]: "Quartzite Point",
+        [ItemList.CHERT_POINT]: "Chert Point",
+        [ItemList.BASALT_POINT]: "Basalt Point",
+        [ItemList.CHALCEDONY_POINT]: "Chalcedony Point",
+        [ItemList.QUARTZ_POINT]: "Quartz Point",
+        [ItemList.LEOPARD_COIN]: "Leopard Coin",
+        [ItemList.FLORIN_COIN]: "Florin Coin",
+        [ItemList.GOLD_NOBLE_COIN]: "Gold Noble Coin",
+        [ItemList.VAIROCANA_BUDDHA_SCULPTURE]: "Vairocana Buddha Sculpture",
+        [ItemList.GANESHA_SCULPTURE]: "Ganesha Sculpture",
+        [ItemList.SHABTI_SCULPTURE]: "Shabti Sculpture",
+        [ItemList.COMPANION_SCRIPT_ABDULLAH]: "Companion Script: Abdullah",
+        [ItemList.COMPANION_SCRIPT_UBAY]: "Companion Script: Ubay",
+        [ItemList.COMPANION_SCRIPT_ALI]: "Companion Script: Ali",
+        [ItemList.WHITE_SENET_PAWN]: "White Senet Pawn",
+        [ItemList.BLACK_SENET_PAWN]: "Black Senet Pawn",
+        [ItemList.SENET_BOARD]: "Senet Board",
+        [ItemList.EGYPTIAN_AMULET]: "Egyptian Amulet",
+    };
+
+    /**
+     * Computes complete stats for the museum dashboard strictly using V2 domain logs.
+     */
+    public async getMuseumDashboardStats(
+        itemLogService: ItemLogService,
+        timestamp: number = Date.now()
+    ) {
+        await itemLogService.ensureLogsPopulated();
+
+        const getItemStock = async (itemId: number) => {
+            const identityTotals = await itemLogService.getLatestTotalsByItemIdentities(itemId, timestamp);
+            let stock = 0;
+            let totalCost = 0;
+            let realizedProfit = 0;
+
+            identityTotals.forEach(({ totals }) => {
+                totals.forEach((catTotal, category) => {
+                    if (category !== "skipped" && category !== "abroad") {
+                        stock += catTotal.stock;
+                        totalCost += catTotal.cost;
+                    }
+                });
+            });
+
+            const avgCost = stock > 0 ? totalCost / stock : 0;
+            return {
+                itemId,
+                name: MuseumService.ITEM_NAMES[itemId] || `Item ${itemId}`,
+                stock,
+                totalCost,
+                avgCost,
+                realizedProfit,
+                stats: { stock, totalCost, realizedProfit, abroadStock: 0, abroadTotalCost: 0, abroadRealizedProfit: 0 }
+            };
+        };
+
+        const pointsStats = await getItemStock(ItemList.POINTS);
+
+        const flowersData = await Promise.all(
+            this.SETS["exotic-flower-set"].map((itemId) => getItemStock(itemId))
+        );
+
+        const plushiesData = await Promise.all(
+            this.SETS["plushie-set"].map((itemId) => getItemStock(itemId))
+        );
+
+        const artifactKeys: Array<{ key: string; title: string; setKey: ItemLogWrapperMuseumSubType }> = [
+            { key: "meteorite-fragment", title: "Meteorite Fragment", setKey: "meteorite-fragment" },
+            { key: "patagonian-fossil", title: "Patagonian Fossil", setKey: "patagonian-fossil" },
+            { key: "arrowhead-set", title: "Arrowhead Set", setKey: "arrowhead-set" },
+            { key: "medieval-coin-set", title: "Medieval Coin Set", setKey: "medieval-coin-set" },
+            { key: "vairocana-buddha", title: "Vairocana Buddha Sculpture", setKey: "vairocana-buddha" },
+            { key: "ganesha-sculpture", title: "Ganesha Sculpture", setKey: "ganesha-sculpture" },
+            { key: "shabti-sculpture", title: "Shabti Sculpture", setKey: "shabti-sculpture" },
+            { key: "companion-scripts", title: "Companion Scripts", setKey: "companion-scripts" },
+            { key: "senet-game-set", title: "Senet Game Set", setKey: "senet-game-set" },
+            { key: "egyptian-amulet", title: "Egyptian Amulet", setKey: "egyptian-amulet" },
+        ];
+
+        const artifactExchangeData = await Promise.all(
+            artifactKeys.map(async (art) => {
+                const itemIds = this.SETS[art.setKey] || [];
+                const items = await Promise.all(
+                    itemIds.map(async (itemId) => {
+                        const st = await getItemStock(itemId);
+                        return {
+                            itemId,
+                            itemID: itemId,
+                            itemName: st.name,
+                            quantity: 1,
+                            stock: st.stock,
+                            totalCost: st.totalCost,
+                            stats: st.stats,
+                        };
+                    })
+                );
+
+                const exchangesReady =
+                    items.length > 0
+                        ? Math.min(...items.map((i) => Math.floor(i.stock / i.quantity)))
+                        : 0;
+
+                return {
+                    key: art.key,
+                    definition: {
+                        name: art.title,
+                        label: art.title,
+                        points: this.EXCHANGE_RATES[art.setKey] || 0,
+                        pointsPerExchange: this.EXCHANGE_RATES[art.setKey] || 0,
+                        items,
+                    },
+                    items,
+                    exchangesReady,
+                };
+            })
+        );
+
+        const flowerSetsPossible =
+            flowersData.length > 0 ? Math.min(...flowersData.map((f) => f.stock)) : 0;
+        const plushieSetsPossible =
+            plushiesData.length > 0 ? Math.min(...plushiesData.map((p) => p.stock)) : 0;
+
+        let itemsTotalCost = 0;
+        let itemsRealizedProfit = 0;
+
+        [...flowersData, ...plushiesData].forEach((item) => {
+            itemsTotalCost += Math.max(0, item.totalCost);
+            itemsRealizedProfit += item.realizedProfit;
+        });
+
+        artifactExchangeData.forEach((exchange) => {
+            exchange.items.forEach((item) => {
+                itemsTotalCost += Math.max(0, item.totalCost);
+            });
+        });
+
+        const totalValue =
+            Math.max(0, pointsStats.totalCost) + itemsTotalCost;
+        const totalProfit =
+            pointsStats.realizedProfit + itemsRealizedProfit;
+
+        return {
+            pointsStats,
+            flowersData,
+            plushiesData,
+            artifactExchangeData,
+            flowerSetsPossible,
+            plushieSetsPossible,
+            totalValue,
+            totalProfit,
+        };
     }
 }

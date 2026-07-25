@@ -81,7 +81,7 @@ describe("ItemLogService Museum Fallback", () => {
             item_id: ItemList.POINTS,
             quantity: 10,
             unit_price: 0,
-            category: "normal",
+            category: "museum",
             wrapper_id: wid,
         });
 
@@ -102,7 +102,7 @@ describe("ItemLogService Museum Fallback", () => {
 
         const runningTotalsByItem = new Map();
         // Initialize running totals for points
-        runningTotalsByItem.set(getItemIdentityKey(createItemIdentity(ItemList.POINTS, null)), new Map([["normal", { stock: 100, cost: 10000 }]]));
+        runningTotalsByItem.set(getItemIdentityKey(createItemIdentity(ItemList.POINTS, null)), new Map([["museum", { stock: 100, cost: 10000 }]]));
 
         await (service as unknown as Record<string, (...args: unknown[]) => unknown>).handleMuseumExchangeWrapper(wid, sheepLog, [sheepLog, pointsLog], 0, runningTotalsByItem, new Set());
 
@@ -144,7 +144,7 @@ describe("ItemLogService Museum Fallback", () => {
             item_id: ItemList.POINTS,
             quantity: 10,
             unit_price: 0,
-            category: "normal",
+            category: "museum",
             wrapper_id: wid,
         });
 
@@ -165,7 +165,7 @@ describe("ItemLogService Museum Fallback", () => {
         });
 
         const runningTotalsByItem = new Map();
-        runningTotalsByItem.set(getItemIdentityKey(createItemIdentity(ItemList.POINTS, null)), new Map([["normal", { stock: 0, cost: 0 }]]));
+        runningTotalsByItem.set(getItemIdentityKey(createItemIdentity(ItemList.POINTS, null)), new Map([["museum", { stock: 0, cost: 0 }]]));
 
         // We want to exchange 2 sets
         const sheepLog2 = ItemLog.create({
@@ -181,7 +181,7 @@ describe("ItemLogService Museum Fallback", () => {
             item_id: ItemList.POINTS,
             quantity: 20,
             unit_price: 0,
-            category: "normal",
+            category: "museum",
             wrapper_id: wid,
         });
         mockRegistry.getLogsByWrapperId.mockResolvedValue([sheepLog2, pointsLog2]);
@@ -246,6 +246,7 @@ describe("ItemLogService Museum Fallback", () => {
         expect(sheepLog.realized_profit).toBe(1400);
 
         const pointsLog = bulkPutCall.find((l: ItemLog) => l.item_id === ItemList.POINTS);
+        expect(pointsLog.category).toBe("museum");
         // Total cost = 1 * 1500 (for sheep) + 12 * 500 (for other plushies) = 1500 + 6000 = 7500
         // Points gained = 10 (standard for plushie-set)
         // cost basis per point = 750

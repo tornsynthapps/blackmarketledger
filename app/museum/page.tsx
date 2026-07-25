@@ -1,8 +1,9 @@
 "use client";
 
-import { useJournal } from "@/store/useJournal";
-import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
-import { CATEGORY_COLORS } from "@/lib/old/theme";
+import { ItemLogService } from "@/lib/domain/ItemLogService";
+import { MuseumService } from "@/lib/domain/MuseumService";
+import { ItemList } from "@/lib/objects/Item";
+import { ItemLog } from "@/lib/objects/ItemLog";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     Analytics01Icon,
@@ -24,20 +25,6 @@ import {
     PencilEdit02Icon,
 } from "@hugeicons/core-free-icons";
 import { useMemo, useState, useEffect, useCallback } from "react";
-import {
-    getApiKey as getWeav3rApiKey,
-    getUserId as getWeav3rUserId,
-    getTEApiKey,
-} from "@/lib/old/api-keys";
-import {
-    formatItemName,
-    FLOWER_SET,
-    MUSEUM_EXCHANGE_DEFINITIONS,
-    MUSEUM_TRACKED_ITEMS,
-    PLUSHIE_SET,
-    FLOWER_SET_ITEMS,
-    PLUSHIE_SET_ITEMS,
-} from "@/lib/old/parser";
 import { ProfitChart } from "@/components/ProfitChart";
 import { ItemGridCard } from "@/components/ItemGridCard";
 import { TornExchange } from "@/lib/tornexchange";
@@ -56,35 +43,46 @@ import {
     startOfYear,
     endOfYear,
 } from "date-fns";
-import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/old/chartUtils";
 
-const getTransactionTimestamp = (transaction: any) =>
-    "date" in transaction ? transaction.date : transaction.timestamp;
-
-const isMuseumTrackedTransaction = (transaction: any) => {
-    if ("isWrapper" in transaction && transaction.isWrapper) {
-        return false;
-    }
-
-    const itemName = "itemName" in transaction ? transaction.itemName : undefined;
-    if (typeof itemName === "string") {
-        return (
-            itemName === "points" ||
-            itemName === "flushie" ||
-            MUSEUM_TRACKED_ITEMS.includes(itemName)
-        );
-    }
-
-    if ("item" in transaction && typeof transaction.item === "string") {
-        return (
-            transaction.item === "points" ||
-            transaction.item === "flushie" ||
-            MUSEUM_TRACKED_ITEMS.includes(transaction.item)
-        );
-    }
-
-    return false;
+const CATEGORY_COLORS = {
+    museum: { hex: "#a855f7" },
+    normal: { hex: "#22c55e" },
+    abroad: { hex: "#3b82f6" },
 };
+
+const FLOWER_SET_ITEMS = [
+    { id: ItemList.AFRICAN_VIOLET, name: "African Violet", marketValue: 0 },
+    { id: ItemList.BANANA_ORCHID, name: "Banana Orchid", marketValue: 0 },
+    { id: ItemList.CROCUS, name: "Crocus", marketValue: 0 },
+    { id: ItemList.DAHLIA, name: "Dahlia", marketValue: 0 },
+    { id: ItemList.EDELWEISS, name: "Edelweiss", marketValue: 0 },
+    { id: ItemList.HEATHER, name: "Heather", marketValue: 0 },
+    { id: ItemList.ORCHID, name: "Orchid", marketValue: 0 },
+    { id: ItemList.PEONY, name: "Peony", marketValue: 0 },
+    { id: ItemList.CEIBO_FLOWER, name: "Ceibo Flower", marketValue: 0 },
+    { id: ItemList.CHERRY_BLOSSOM, name: "Cherry Blossom", marketValue: 0 },
+    { id: ItemList.TRIBULUS_OMANENSE, name: "Tribulus Omanense", marketValue: 0 },
+];
+
+const PLUSHIE_SET_ITEMS = [
+    { id: ItemList.SHEEP_PLUSHIE, name: "Sheep Plushie", marketValue: 0 },
+    { id: ItemList.TEDDY_BEAR_PLUSHIE, name: "Teddy Bear Plushie", marketValue: 0 },
+    { id: ItemList.KITTEN_PLUSHIE, name: "Kitten Plushie", marketValue: 0 },
+    { id: ItemList.JAGUAR_PLUSHIE, name: "Jaguar Plushie", marketValue: 0 },
+    { id: ItemList.WOLVERINE_PLUSHIE, name: "Wolverine Plushie", marketValue: 0 },
+    { id: ItemList.NESSIE_PLUSHIE, name: "Nessie Plushie", marketValue: 0 },
+    { id: ItemList.RED_FOX_PLUSHIE, name: "Red Fox Plushie", marketValue: 0 },
+    { id: ItemList.MONKEY_PLUSHIE, name: "Monkey Plushie", marketValue: 0 },
+    { id: ItemList.CHAMOIS_PLUSHIE, name: "Chamois Plushie", marketValue: 0 },
+    { id: ItemList.PANDA_PLUSHIE, name: "Panda Plushie", marketValue: 0 },
+    { id: ItemList.LION_PLUSHIE, name: "Lion Plushie", marketValue: 0 },
+    { id: ItemList.CAMEL_PLUSHIE, name: "Camel Plushie", marketValue: 0 },
+    { id: ItemList.STINGRAY_PLUSHIE, name: "Stingray Plushie", marketValue: 0 },
+];
+
+const getWeav3rApiKey = () => (typeof window !== "undefined" ? localStorage.getItem("weav3r_api_key") || "" : "");
+const getWeav3rUserId = () => (typeof window !== "undefined" ? localStorage.getItem("weav3r_user_id") || "" : "");
+const getTEApiKey = () => (typeof window !== "undefined" ? localStorage.getItem("te_api_key") || "" : "");
 
 const formatMoney = (val: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -102,22 +100,14 @@ const formatLargeNumber = (val: number) => {
     return val.toString();
 };
 
-/**
- * Compute buy plan to maximize sets by buying a specific number of different items.
- * @param items - Array of items with name and current stock
- * @param numItems - Number of different items to buy (N)
- * @returns Object containing target sets, purchase details, and summary stats
- *
- * Algorithm:
- * - Sort items by stock ascending (least to most)
- * - Target = stock of (N+1)th item (the item just after the N items we're buying)
- * - For each of first N items: buy = target - current stock
- * - If N >= total items, target = last item stock (no buying beyond that)
- *
- * Example: Kitten(5), Wolverine(19), Nessie(27), Chamois(30), ...
- * - N=1: Target=19 (Wolverine), buy 14 of Kitten (19-5)
- * - N=3: Target=30 (Chamois), buy 25 Kitten, 11 Wolverine, 3 Nessie
- */
+const formatItemName = (name?: string) => {
+    if (!name) return "";
+    return name
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+};
+
 function computeBuyPlanByItems(items: { name: string; stock: number }[], numItems: number) {
     if (items.length === 0 || numItems <= 0) {
         return { target: 0, purchases: [], itemsToBuy: 0, totalQty: 0 };
@@ -144,10 +134,56 @@ function computeBuyPlanByItems(items: { name: string; stock: number }[], numItem
 }
 
 export default function MuseumDashboard() {
-    const { isLoaded, inventory, transactions, weav3rApiKey, weav3rUserId } = useJournal();
+    const itemLogService = useMemo(() => new ItemLogService(), []);
+    const museumService = useMemo(() => new MuseumService(), []);
+
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [logs, setLogs] = useState<ItemLog[]>([]);
+
+    const [dashboardData, setDashboardData] = useState<{
+        pointsStats: { stock: number; totalCost: number; avgCost: number; realizedProfit: number; stats: any };
+        flowersData: Array<{ itemId: number; name: string; stock: number; totalCost: number; avgCost: number; realizedProfit: number; stats: any }>;
+        plushiesData: Array<{ itemId: number; name: string; stock: number; totalCost: number; avgCost: number; realizedProfit: number; stats: any }>;
+        artifactExchangeData: Array<{
+            key: string;
+            definition: { name: string; points: number; items: any[] };
+            items: any[];
+            exchangesReady: number;
+        }>;
+        flowerSetsPossible: number;
+        plushieSetsPossible: number;
+        totalValue: number;
+        totalProfit: number;
+    }>({
+        pointsStats: { stock: 0, totalCost: 0, avgCost: 0, realizedProfit: 0, stats: { stock: 0, totalCost: 0, realizedProfit: 0 } },
+        flowersData: [],
+        plushiesData: [],
+        artifactExchangeData: [],
+        flowerSetsPossible: 0,
+        plushieSetsPossible: 0,
+        totalValue: 0,
+        totalProfit: 0,
+    });
+
+    const loadData = useCallback(async () => {
+        try {
+            const stats = await museumService.getMuseumDashboardStats(itemLogService);
+            const allLogs = await itemLogService.ensureLogsPopulated();
+            setDashboardData(stats);
+            setLogs(allLogs);
+            setIsLoaded(true);
+        } catch (err) {
+            console.error("Failed to load museum domain stats:", err);
+        }
+    }, [museumService, itemLogService]);
+
+    useEffect(() => {
+        loadData();
+        const interval = setInterval(loadData, 10000);
+        return () => clearInterval(interval);
+    }, [loadData]);
 
     const {
-        flushieStats,
         pointsStats,
         flowersData,
         plushiesData,
@@ -156,88 +192,10 @@ export default function MuseumDashboard() {
         plushieSetsPossible,
         totalValue,
         totalProfit,
-    } = useMemo(() => {
-        const defaultStats = {
-            stock: 0,
-            totalCost: 0,
-            realizedProfit: 0,
-            abroadStock: 0,
-            abroadTotalCost: 0,
-            abroadRealizedProfit: 0,
-        };
-        const flushieStats = inventory.get("flushie") || defaultStats;
-        const pointsStats = inventory.get("points") || defaultStats;
+    } = dashboardData;
 
-        const flowersData = FLOWER_SET.map((name) => ({
-            name,
-            stats: inventory.get(name) || defaultStats,
-        }));
-        const plushiesData = PLUSHIE_SET.map((name) => ({
-            name,
-            stats: inventory.get(name) || defaultStats,
-        }));
-
-        const artifactExchangeData = Object.entries(MUSEUM_EXCHANGE_DEFINITIONS)
-            .filter(([key]) => key !== "flower" && key !== "plushie")
-            .map(([key, definition]) => {
-                const items = definition.items.map((item) => ({
-                    ...item,
-                    stats: inventory.get(item.itemName) || defaultStats,
-                }));
-                const exchangesReady =
-                    items.length > 0
-                        ? Math.min(
-                              ...items.map((item) => Math.floor(item.stats.stock / item.quantity))
-                          )
-                        : 0;
-
-                return {
-                    key,
-                    definition,
-                    items,
-                    exchangesReady,
-                };
-            });
-
-        const flowerSetsPossible =
-            FLOWER_SET.length > 0 ? Math.min(...flowersData.map((f) => f.stats.stock)) : 0;
-        const plushieSetsPossible =
-            PLUSHIE_SET.length > 0 ? Math.min(...plushiesData.map((p) => p.stats.stock)) : 0;
-
-        let itemsTotalCost = 0;
-        let itemsRealizedProfit = 0;
-
-        [...flowersData, ...plushiesData].forEach((item) => {
-            itemsTotalCost += Math.max(0, item.stats.totalCost);
-            itemsRealizedProfit += item.stats.realizedProfit;
-        });
-
-        artifactExchangeData.forEach((exchange) => {
-            exchange.items.forEach((item) => {
-                itemsTotalCost += Math.max(0, item.stats.totalCost);
-                itemsRealizedProfit += item.stats.realizedProfit;
-            });
-        });
-
-        const totalValue =
-            Math.max(0, flushieStats.totalCost) +
-            Math.max(0, pointsStats.totalCost) +
-            itemsTotalCost;
-        const totalProfit =
-            flushieStats.realizedProfit + pointsStats.realizedProfit + itemsRealizedProfit;
-
-        return {
-            flushieStats,
-            pointsStats,
-            flowersData,
-            plushiesData,
-            artifactExchangeData,
-            flowerSetsPossible,
-            plushieSetsPossible,
-            totalValue,
-            totalProfit,
-        };
-    }, [inventory]);
+    const weav3rApiKey = getWeav3rApiKey();
+    const weav3rUserId = getWeav3rUserId();
 
     const [timeRange, setTimeRange] = useState<"daily" | "weekly" | "monthly" | "yearly">(() => {
         if (typeof window !== "undefined") {
@@ -382,7 +340,12 @@ export default function MuseumDashboard() {
     ]);
 
     const chartData = useMemo(() => {
-        if (!isLoaded || !transactions.length) return [];
+        if (!isLoaded || !logs.length) return [];
+
+        const pointsLogs = logs.filter(
+            (l) => l.category === "museum" || l.item_id === ItemList.POINTS
+        );
+        if (!pointsLogs.length) return [];
 
         const now = new Date();
         let periods: Date[] = [];
@@ -397,22 +360,14 @@ export default function MuseumDashboard() {
             periods = Array.from({ length: 12 }, (_, i) => subMonths(now, 11 - i));
             dateFormat = "MMM yyyy";
         } else {
-            periods = Array.from({ length: 5 }, (_, i) => subMonths(now, (4 - i) * 12)); // 5 years
+            periods = Array.from({ length: 5 }, (_, i) => subMonths(now, (4 - i) * 12));
             dateFormat = "yyyy";
         }
 
-        const sortedTransactions = [...transactions].sort((a, b) => {
-            const left = getTransactionTimestamp(a);
-            const right = getTransactionTimestamp(b);
-            if (left !== right) return left - right;
-            return 0;
-        });
+        const sorted = [...pointsLogs].sort((a, b) => a.timestamp - b.timestamp);
+        let logIdx = 0;
+        let runningProfit = 0;
 
-        const tempInventory = new Map<string, InventorySnapshot>();
-        let transactionIndex = 0;
-        const mugState = { total: 0 };
-
-        // Calculate baseline totals for data before the first period
         if (periods.length > 0) {
             let firstPeriodStart: Date;
             if (timeRange === "daily") firstPeriodStart = startOfDay(periods[0]);
@@ -420,38 +375,28 @@ export default function MuseumDashboard() {
             else if (timeRange === "monthly") firstPeriodStart = startOfMonth(periods[0]);
             else firstPeriodStart = startOfYear(periods[0]);
 
-            while (
-                transactionIndex < sortedTransactions.length &&
-                getTransactionTimestamp(sortedTransactions[transactionIndex]) < firstPeriodStart.getTime()
-            ) {
-                applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState);
-                transactionIndex += 1;
+            while (logIdx < sorted.length && sorted[logIdx].timestamp < firstPeriodStart.getTime()) {
+                runningProfit += sorted[logIdx].realized_profit;
+                logIdx++;
             }
         }
 
-        const baselineTotals = getTotals(tempInventory, mugState.total);
-        let lastPeriodProfit = baselineTotals.museumProfit;
+        let lastPeriodProfit = runningProfit;
 
         return periods.map((period) => {
             let periodEnd: Date;
             if (timeRange === "daily") periodEnd = endOfDay(startOfDay(period));
             else if (timeRange === "weekly") periodEnd = endOfWeek(period);
             else if (timeRange === "monthly") periodEnd = endOfMonth(period);
-            else periodEnd = endOfMonth(period); // Yearly end
+            else periodEnd = endOfMonth(period);
 
-            while (
-                transactionIndex < sortedTransactions.length &&
-                getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()
-            ) {
-                applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState);
-                transactionIndex += 1;
+            while (logIdx < sorted.length && sorted[logIdx].timestamp <= periodEnd.getTime()) {
+                runningProfit += sorted[logIdx].realized_profit;
+                logIdx++;
             }
 
-            const totals = getTotals(tempInventory, mugState.total);
-            const currentTotalProfit = totals.museumProfit;
-            const value =
-                viewType === "total" ? currentTotalProfit : currentTotalProfit - lastPeriodProfit;
-            lastPeriodProfit = currentTotalProfit;
+            const value = viewType === "total" ? runningProfit : runningProfit - lastPeriodProfit;
+            lastPeriodProfit = runningProfit;
 
             return {
                 date: format(period, dateFormat),
@@ -459,14 +404,16 @@ export default function MuseumDashboard() {
                 ts: periodEnd.getTime(),
             };
         });
-    }, [isLoaded, transactions, timeRange, viewType]);
+    }, [isLoaded, logs, timeRange, viewType]);
 
     const firstRelevantTxDate = useMemo(() => {
-        const pointsTxs = transactions.filter(isMuseumTrackedTransaction);
-        return pointsTxs.length > 0
-            ? Math.min(...pointsTxs.map(getTransactionTimestamp))
+        const pointsLogs = logs.filter(
+            (l) => l.category === "museum" || l.item_id === ItemList.POINTS
+        );
+        return pointsLogs.length > 0
+            ? Math.min(...pointsLogs.map((l) => l.timestamp))
             : Infinity;
-    }, [transactions]);
+    }, [logs]);
 
     const averageProfit = useMemo(() => {
         const relevantPeriods = chartData.filter((p) => p.ts >= firstRelevantTxDate);
@@ -1658,11 +1605,11 @@ export default function MuseumDashboard() {
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
                                         <h3 className="font-semibold">
-                                            {exchange.definition.label}
+                                            {exchange.definition?.label || exchange.definition?.name || exchange.key}
                                         </h3>
                                         <p className="text-sm text-foreground/60">
                                             {exchange.exchangesReady} ready ·{" "}
-                                            {exchange.definition.pointsPerExchange.toLocaleString()}{" "}
+                                            {(exchange.definition?.pointsPerExchange ?? exchange.definition?.points ?? 0).toLocaleString()}{" "}
                                             points each
                                         </p>
                                     </div>
@@ -1670,7 +1617,7 @@ export default function MuseumDashboard() {
                                 <div className="mt-3 space-y-2">
                                     {exchange.items.map((item) => (
                                         <div
-                                            key={`${exchange.key}:${item.itemID}`}
+                                            key={`${exchange.key}:${item.itemId || item.itemID}`}
                                             className="flex items-center justify-between text-sm"
                                         >
                                             <span className="text-foreground/75">

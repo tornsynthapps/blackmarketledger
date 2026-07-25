@@ -2,7 +2,6 @@
 
 import { ItemLogService } from "@/lib/domain/ItemLogService";
 import { getItemIdentityKey, ItemLog } from "@/lib/objects/ItemLog";
-import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/old/parser";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     ArrowUp02Icon,
@@ -20,12 +19,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
 import { PointsIcon } from "@/components/PointsIcon";
 import { ItemSetIcon } from "@/components/ItemSetIcon";
-import { CATEGORY_COLORS } from "@/lib/old/theme";
 import {
     format,
     subDays,
@@ -42,6 +39,58 @@ import {
     endOfYear,
 } from "date-fns";
 import { TornAPIClient } from "@/lib/tornAPI";
+
+const CATEGORY_COLORS = {
+    normal: { hex: "#22c55e" },
+    trading: { hex: "#22c55e" },
+    museum: { hex: "#a855f7" },
+    abroad: { hex: "#3b82f6" },
+    mug: { hex: "#ef4444" },
+    net: { hex: "#3b82f6" },
+};
+
+const MUSEUM_TRACKED_ITEMS = [
+    "sheep plushie",
+    "teddy bear plushie",
+    "kitten plushie",
+    "jaguar plushie",
+    "wolverine plushie",
+    "nessie plushie",
+    "red fox plushie",
+    "monkey plushie",
+    "chamois plushie",
+    "panda plushie",
+    "lion plushie",
+    "camel plushie",
+    "stingray plushie",
+    "african violet",
+    "banana orchid",
+    "crocus",
+    "dahlia",
+    "edelweiss",
+    "heather",
+    "orchid",
+    "peony",
+    "ceibo flower",
+    "cherry blossom",
+    "tribulus omanense",
+];
+
+const vibrate = (type?: string) => {
+    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+        try {
+            window.navigator.vibrate(20);
+        } catch {}
+    }
+};
+
+const formatItemName = (name?: string) => {
+    if (!name) return "";
+    return name
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+};
 
 interface InventoryItemStats {
     stock: number;
@@ -71,7 +120,6 @@ const formatMoney = (val: number) => {
 export default function NewDashboard() {
     const itemLogService = useMemo(() => new ItemLogService(), []);
     const router = useRouter();
-    const { vibrate } = useHapticFeedback();
 
     const [isLoaded, setIsLoaded] = useState(false);
     const [logs, setLogs] = useState<ItemLog[]>([]);
@@ -80,9 +128,10 @@ export default function NewDashboard() {
     const fetchData = useCallback(async () => {
         try {
             const [allLogs, names] = await Promise.all([
-                itemLogService.getAllLogs(),
+                itemLogService.ensureLogsPopulated(),
                 TornAPIClient.getItemNames(),
             ]);
+
             setLogs(allLogs);
             setItemNames(names);
             setIsLoaded(true);
@@ -93,7 +142,6 @@ export default function NewDashboard() {
 
     useEffect(() => {
         fetchData();
-        // Refresh periodically
         const interval = setInterval(fetchData, 10000);
         return () => clearInterval(interval);
     }, [fetchData]);
@@ -470,7 +518,9 @@ export default function NewDashboard() {
 
     // Chart data generation
     const chartData = useMemo(() => {
-        if (!isLoaded || !logs.length) return [];
+        if (!isLoaded) return [];
+
+        if (!logs.length) return [];
 
         const now = new Date();
         let periods: Date[] = [];
@@ -503,7 +553,7 @@ export default function NewDashboard() {
         }
 
         let logIndex = 0;
-        const currentTotalsByCategory = new Map<string, Map<string, { profit: number }>>();
+        const categoryProfits = new Map<string, number>();
 
         // Calculate baseline totals for data before the first period
         if (periods.length > 0) {
@@ -518,12 +568,8 @@ export default function NewDashboard() {
                 sortedLogs[logIndex].timestamp < firstPeriodStart.getTime()
             ) {
                 const log = sortedLogs[logIndex];
-                if (!currentTotalsByCategory.has(log.category)) {
-                    currentTotalsByCategory.set(log.category, new Map());
-                }
-                currentTotalsByCategory
-                    .get(log.category)!
-                    .set(getItemIdentityKey(log), { profit: log.realized_profit });
+                const prev = categoryProfits.get(log.category) || 0;
+                categoryProfits.set(log.category, prev + (log.realized_profit || 0));
                 logIndex++;
             }
         }
@@ -532,15 +578,10 @@ export default function NewDashboard() {
         let baselineMuseum = 0;
         let baselineAbroad = 0;
 
-        currentTotalsByCategory.forEach((itemMap, category) => {
-            let categoryProfit = 0;
-            itemMap.forEach(itemStats => {
-                categoryProfit += itemStats.profit;
-            });
-
-            if (category === "abroad") baselineAbroad += categoryProfit;
-            else if (category === "museum") baselineMuseum += categoryProfit;
-            else if (category !== "skipped") baselineRealized += categoryProfit;
+        categoryProfits.forEach((profit, category) => {
+            if (category === "abroad") baselineAbroad += profit;
+            else if (category === "museum") baselineMuseum += profit;
+            else if (category !== "skipped") baselineRealized += profit;
         });
 
         let baselineNetProfit = 0;
@@ -569,12 +610,8 @@ export default function NewDashboard() {
                 sortedLogs[logIndex].timestamp <= periodEnd.getTime()
             ) {
                 const log = sortedLogs[logIndex];
-                if (!currentTotalsByCategory.has(log.category)) {
-                    currentTotalsByCategory.set(log.category, new Map());
-                }
-                currentTotalsByCategory
-                    .get(log.category)!
-                    .set(getItemIdentityKey(log), { profit: log.realized_profit });
+                const prev = categoryProfits.get(log.category) || 0;
+                categoryProfits.set(log.category, prev + (log.realized_profit || 0));
                 logIndex++;
             }
 
@@ -582,19 +619,11 @@ export default function NewDashboard() {
             let museumProfit = 0;
             let abroadProfit = 0;
 
-            currentTotalsByCategory.forEach((itemMap, category) => {
-                let categoryProfit = 0;
-                itemMap.forEach(itemStats => {
-                    categoryProfit += itemStats.profit;
-                });
-
-                if (category === "abroad") abroadProfit += categoryProfit;
-                else if (category === "museum") museumProfit += categoryProfit;
-                else if (category !== "skipped") totalRealized += categoryProfit;
+            categoryProfits.forEach((profit, category) => {
+                if (category === "abroad") abroadProfit += profit;
+                else if (category === "museum") museumProfit += profit;
+                else if (category !== "skipped") totalRealized += profit;
             });
-
-            // Special case: "Points" might be in "normal" but we want it in "museum" if it matches old dashboard logic
-            // In V2, "Points" should probably just be in "museum" category.
 
             let baseNetProfit = 0;
             if (includeTrading) baseNetProfit += totalRealized;
@@ -604,7 +633,7 @@ export default function NewDashboard() {
             const netProfit = baseNetProfit - (includeMug ? totalMugLoss : 0);
 
             const incrementalRealized = totalRealized - previousTotals.profit;
-            const incrementalNet = netProfit - (previousTotals.netProfit || 0);
+            const incrementalNet = netProfit - previousTotals.netProfit;
             const incrementalMuseum = museumProfit - previousTotals.museumProfit;
             const incrementalAbroad = abroadProfit - previousTotals.abroadProfit;
 
@@ -623,6 +652,7 @@ export default function NewDashboard() {
                 ),
                 mugLoss: 0,
                 netProfit: Math.round(viewType === "total" ? netProfit : incrementalNet),
+                profit: Math.round(viewType === "total" ? totalRealized : incrementalRealized),
                 museumProfit: includeMuseum
                     ? Math.round(viewType === "total" ? museumProfit : incrementalMuseum)
                     : 0,
@@ -644,8 +674,14 @@ export default function NewDashboard() {
 
     if (!isLoaded)
         return (
-            <div className="text-center py-20 animate-pulse text-foreground/50 font-mono">
-                INITIALIZING V2 ENGINE...
+            <div className="space-y-8 pb-10 opacity-60">
+                <div className="bg-panel border border-border/40 p-8 rounded-xl animate-pulse h-48" />
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                </div>
             </div>
         );
 

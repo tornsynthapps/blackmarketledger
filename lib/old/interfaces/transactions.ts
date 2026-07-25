@@ -10,6 +10,11 @@ import { TornItemSource } from "../game/itemLog";
 export const CURR_TRANSACTION_VERSION = 3;
 export const TRANSACTION_PAGE_SIZE = 1000;
 
+export function getTransactionTimestamp(transaction: any): number {
+    if (!transaction) return 0;
+    return transaction.timestamp ?? transaction.date ?? 0;
+}
+
 export type TransactionStockType = "normal" | "abroad" | "city-find" | "consumption" | "skip";
 
 export type TransactionSource = TornItemSource | "trade";
@@ -1462,7 +1467,8 @@ export function calculateInventoryFromTransactions(
             return;
         }
 
-        const itemName = transaction.itemName || `item-${transaction.itemID}`;
+        const rawName = transaction.itemName || `item-${transaction.itemID}`;
+        const itemName = rawName.trim().toLowerCase();
         const current = inventory.get(itemName) ?? createDefaultInventoryStats();
 
         if (transaction.amount >= 0) {

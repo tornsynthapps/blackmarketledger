@@ -101,6 +101,94 @@ export class ItemLogService extends BaseService {
     }
 
     /**
+     * Ensures that ItemLogRegistry is populated with logs.
+     * If Dexie DB is empty, seeds records from legacy IndexedDB store into ItemLogRegistry.
+     */
+    public async ensureLogsPopulated(): Promise<ItemLog[]> {
+        const existingLogs = await this.getAllLogs();
+        if (existingLogs.length > 0) {
+            return existingLogs;
+        }
+
+        if (typeof window === "undefined" || !window.indexedDB) {
+            return existingLogs;
+        }
+
+        try {
+            const dbNames = ["LogsDB", "GoogleCacheLogsDB"];
+            let legacyTxns: any[] = [];
+
+            for (const dbName of dbNames) {
+                try {
+                    legacyTxns = await new Promise<any[]>((resolve) => {
+                        const req = indexedDB.open(dbName);
+                        req.onerror = () => resolve([]);
+                        req.onsuccess = () => {
+                            const db = req.result;
+                            if (!db.objectStoreNames.contains("transactions")) {
+                                db.close();
+                                return resolve([]);
+                            }
+                            const tx = db.transaction("transactions", "readonly");
+                            const store = tx.objectStore("transactions");
+                            const getAllReq = store.getAll();
+                            getAllReq.onsuccess = () => {
+                                db.close();
+                                resolve(getAllReq.result || []);
+                            };
+                            getAllReq.onerror = () => {
+                                db.close();
+                                resolve([]);
+                            };
+                        };
+                    });
+                } catch {
+                    legacyTxns = [];
+                }
+
+                if (legacyTxns.length > 0) break;
+            }
+
+            if (legacyTxns.length > 0) {
+                const logsToInsert: ItemLog[] = [];
+                const sortedTxns = [...legacyTxns].sort((a, b) => (a.timestamp || a.date || 0) - (b.timestamp || b.date || 0));
+
+                sortedTxns.forEach((tx) => {
+                    if (!tx.isWrapper && (tx.itemID || tx.itemName)) {
+                        const rawItemName = (tx.itemName || "").toLowerCase();
+                        const isPoints = tx.itemID === 100002 || rawItemName === "points";
+                        const itemId = isPoints ? 100002 : (tx.itemID || 0);
+                        const category = tx.stockType === "abroad" ? "abroad" : isPoints ? "museum" : "normal";
+
+                        logsToInsert.push(
+                            ItemLog.create({
+                                timestamp: tx.timestamp || tx.date || Date.now(),
+                                item_id: itemId,
+                                uid: null,
+                                quantity: tx.amount || 0,
+                                unit_price: tx.price || 0,
+                                category,
+                                realized_profit: 0,
+                                torn_log_id: tx.tornID || String(tx.id || ""),
+                            })
+                        );
+                    }
+                });
+
+                if (logsToInsert.length > 0) {
+                    await this.bulkPutLogs(logsToInsert);
+                    await this.updateCostBasisGlobally();
+                    return await this.getAllLogs();
+                }
+            }
+        } catch (e) {
+            this.logger.error("Failed to seed ItemLogRegistry from legacy IndexedDB", e);
+        }
+
+        return existingLogs;
+    }
+
+    /**
      * Retrieves a paginated slice of logs with optional filtering.
      */
     public async getPaginatedLogs(
@@ -997,12 +1085,14 @@ export class ItemLogService extends BaseService {
         if (!pTotalsMap) {
             this.logger.warn(`Points totals map not initialized in exchange #${wid}.`);
         } else {
-            const pTotals = pTotalsMap.get("normal") || { stock: 0, cost: 0 };
+            const pCategory = (pointsLog.category as ItemLogCategories) || "museum";
+            const pTotals = pTotalsMap.get(pCategory) || { stock: 0, cost: 0 };
             pTotals.stock += totalPoints;
             pTotals.cost += totalPoints * costBasisPerPoint;
-            pTotalsMap.set("normal", { ...pTotals });
+            pTotalsMap.set(pCategory, { ...pTotals });
 
             const updatedPointsLog = pointsLog.withTotals(pTotals.stock, pTotals.cost, {
+                category: pCategory,
                 quantity: totalPoints,
                 unit_price: costBasisPerPoint,
                 realized_profit: 0

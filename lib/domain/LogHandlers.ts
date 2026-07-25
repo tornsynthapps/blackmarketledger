@@ -238,6 +238,10 @@ export async function handlePointLog(log: NormalizedLog, deps: HandlerDependenci
 
 // --- Museum Handlers ---
 
+/**
+ * Handler for Museum log type 7000 (Museum set exchange).
+ * Converts sets of items to points added under the "museum" category.
+ */
 export async function handleMuseumLog(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
     // Museum service handles its own deduplication/existence checks usually, 
     // but we can check here for safety.

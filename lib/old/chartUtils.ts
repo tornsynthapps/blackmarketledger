@@ -45,17 +45,21 @@ function isLegacyTransaction(
 function isNewConcreteTransaction(
     transaction: LegacyTransaction | AnyTrackedTransaction
 ): transaction is NewTransaction {
-    return "isWrapper" in transaction && transaction.isWrapper === false;
+    if ("date" in transaction && "type" in transaction) {
+        return false;
+    }
+    return transaction.isWrapper !== true && ("itemID" in transaction || "itemName" in transaction);
 }
 
 function isNewMugTransaction(
     transaction: LegacyTransaction | AnyTrackedTransaction
 ): transaction is MugTransaction {
-    return "kind" in transaction && transaction.kind === "mug";
+    return ("kind" in transaction && transaction.kind === "mug") || ("type" in transaction && (transaction as any).type === "MUG");
 }
 
 function getTrackedName(transaction: NewTransaction) {
-    return transaction.itemName || `item-${transaction.itemID}`;
+    const raw = transaction.itemName || `item-${transaction.itemID}`;
+    return raw.trim().toLowerCase();
 }
 
 export const getInventoryEntry = (inventory: Map<string, InventorySnapshot>, item: string) => {
