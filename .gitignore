@@ -40,10 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Agents
-.agents
-agents/skills
-
 # Links
 ./bmlconnect
 
@@ -57,7 +53,6 @@ agents/skills
 .playwright-mcp
 
 # Caveman Skills
-agents/skills/caveman*
 skills-lock.json
 
 # Kilo Code

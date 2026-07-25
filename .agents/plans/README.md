@@ -1,10 +1,10 @@
 # plans
 
-Directory path: `agents/plans`
+Directory path: `.agents/plans`
 
 ## Purpose
 
-Agent helper scripts, guidelines, and execution plans.
+AI Agent configurations, rules, workflows, and skills.
 
 ## Files & Contents
 

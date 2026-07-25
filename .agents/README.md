@@ -1,15 +1,18 @@
-# agents
+# .agents
 
-Directory path: `agents`
+Directory path: `.agents`
 
 ## Purpose
 
-Agent helper scripts, guidelines, and execution plans.
+AI Agent configurations, rules, workflows, and skills.
 
 ## Subdirectories
 
 - `helpers/`: Subdirectory containing related module files.
 - `plans/`: Subdirectory containing related module files.
+- `rules/`: Subdirectory containing related module files.
+- `skills/`: Subdirectory containing related module files.
+- `workflows/`: Subdirectory containing related module files.
 
 ## Files & Contents
 

@@ -1,10 +1,10 @@
 # helpers
 
-Directory path: `agents/helpers`
+Directory path: `.agents/helpers`
 
 ## Purpose
 
-Agent helper scripts, guidelines, and execution plans.
+AI Agent configurations, rules, workflows, and skills.
 
 ## Files & Contents
 

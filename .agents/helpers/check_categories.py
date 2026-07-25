@@ -1,6 +1,6 @@
 import json
 
-with open("agents/references/torn-api.json") as f:
+with open(".agents/references/torn-api.json") as f:
     schema = json.load(f)
 
 for path, obj in schema.get("paths", {}).items():
