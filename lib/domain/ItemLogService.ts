@@ -548,12 +548,12 @@ export class ItemLogService extends BaseService {
             // Skip logs before the starting timestamp or logs for identities that haven't had activity since fromTimestamp.
             if (log.timestamp < fromTimestamp || !affectedIdentities.has(identityKey)) {
                 if (log.timestamp >= fromTimestamp) {
-                    this.logger.debug(`Skipping unaffected item log: ${log.id} (${this.formatIdentity(logIdentity)})`);
+                    this.logger.debug(`Skipping unaffected item log: ${log.id} (${this.formatIdentity(logIdentity)})`, log);
                 }
                 continue;
             }
 
-            this.logger.info(`Processing log: ${log.id} for ${this.formatIdentity(logIdentity)}`);
+            this.logger.info(`Processing log: ${log.id} for ${this.formatIdentity(logIdentity)}`, log);
             const runningTotals = runningTotalsByIdentity.get(identityKey)!;
 
             // Case: Log has a wrapper.
@@ -1269,7 +1269,7 @@ export class ItemLogService extends BaseService {
                 categoryTotals.stock -= absQuantity;
                 categoryTotals.cost -= costOfGoodsSold;
             } else {
-                this.logger.info(` Over-sell detected for item ${log.item_id} in ${log.category}: requested ${absQuantity}, available ${categoryTotals.stock}. Splitting.`);
+                this.logger.info(` Over-sell detected for item ${log.item_id} in ${log.category}: requested ${absQuantity}, available ${categoryTotals.stock}. Splitting.`, log);
                 // Over-Sell: Part of the sell exceeds current stock in this category.
                 // We split the log into multiple logs across categories.
 
