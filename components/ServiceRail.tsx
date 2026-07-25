@@ -103,7 +103,7 @@ export function ServiceRail() {
         {
             name: "Google Drive Sync",
             active: driveConnected,
-            detail: driveConnected ? "Connected" : "Connect in BML Connect.",
+            detail: driveConnected ? "Connected" : "Connect in Settings.",
         },
         {
             name: "Cost-basis on torn bazaar",

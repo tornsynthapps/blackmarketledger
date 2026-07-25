@@ -13,8 +13,6 @@ Application routes, pages, and web interfaces.
 - `add/`: Subdirectory containing related module files.
 - `autopilot/`: Subdirectory containing related module files.
 - `blackbox/`: Subdirectory containing related module files.
-- `bmlconnect/`: Subdirectory containing related module files.
-- `bmlconnectlegacy/`: Subdirectory containing related module files.
 - `changelog/`: Subdirectory containing related module files.
 - `debug/`: Subdirectory containing related module files.
 - `docs/`: Subdirectory containing related module files.

@@ -108,12 +108,6 @@ export default function LinksPage() {
             icon: AccountSetting01Icon,
             desc: "Migrate legacy data to the new system",
         },
-        {
-            name: "BML Connect",
-            href: "/bmlconnect",
-            icon: Exchange01Icon,
-            desc: "Synchronize data with BML services",
-        },
     ];
 
     const publicPages: PageInfo[] = [
