@@ -469,26 +469,55 @@ export class SyncService extends BaseService {
     public async autoLinkTradesAndReceipts(onProgress?: (msg: string) => void): Promise<void> {
         const state = await this.getSyncState();
         if (onProgress) onProgress("Sync Step 5: Automatically linking records");
-        await this.stepAutoLink(state);
+        const earliestLinkedTs = await this.stepAutoLink(state);
+        if (earliestLinkedTs !== null) {
+            this.logger.info(`Standalone autoLink completed. Triggering single cost-basis update from ${new Date(earliestLinkedTs).toLocaleString()}`);
+            await this.itemLogService.updateCostBasis(earliestLinkedTs);
+        }
         await this.saveSyncState(state);
         if (onProgress) onProgress(state.steps[4].progress);
     }
 
-    private async stepAutoLink(state: SyncState): Promise<void> {
-        this.logger.info("Sync Step 5: Automatically linking records");
+    private async stepAutoLink(state: SyncState): Promise<number | null> {
+        this.logger.debug("Sync Step 5: Automatically linking records - Starting diagnostic timing");
+        const startTime = Date.now();
+
+        const fetchTradesStart = Date.now();
         const trades = await this.tradeService.getAllTrades();
+        const fetchTradesMs = Date.now() - fetchTradesStart;
         const unlinkedTrades = trades.filter(t => t.receipt_id === null && t.sync_status === "complete");
+
+        const fetchReceiptsStart = Date.now();
         const receipts = await this.receiptService.getAllReceipts();
+        const fetchReceiptsMs = Date.now() - fetchReceiptsStart;
+
         // Maintain a pool of unlinked receipts that can be removed once linked
         const unlinkedReceipts = receipts.filter(r => r.sync_status === "complete");
+
+        this.logger.debug(
+            `[Step 5 Timings] Data fetched in ${fetchTradesMs + fetchReceiptsMs}ms ` +
+            `(Trades: ${fetchTradesMs}ms [${trades.length} total, ${unlinkedTrades.length} unlinked], ` +
+            `Receipts: ${fetchReceiptsMs}ms [${receipts.length} total, ${unlinkedReceipts.length} candidate pool])`
+        );
 
         const userIdStr = getUserId() || "";
         const userId = parseInt(userIdStr) || 0;
         let linkCount = 0;
+        let earliestLinkedTradeTs: number | null = null;
+
+        let totalTradeItemsFetchMs = 0;
+        let totalReceiptItemsFetchMs = 0;
+        let totalComparisonMs = 0;
+        let totalLinkExecutionMs = 0;
+        let receiptChecksCount = 0;
+        let tradeProcessedCount = 0;
 
         const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+        const loopStart = Date.now();
 
         for (const trade of unlinkedTrades) {
+            tradeProcessedCount++;
+
             // Filter receipts to only those within 6 hours of the trade
             const potentialReceipts = unlinkedReceipts.filter(r => 
                 Math.abs(r.created_at - trade.timestamp) <= SIX_HOURS_MS
@@ -496,8 +525,10 @@ export class SyncService extends BaseService {
 
             if (potentialReceipts.length === 0) continue;
 
+            const tItemStart = Date.now();
             const tradeItems = await this.tradeService.getTradeItems(trade.id!);
-            
+            totalTradeItemsFetchMs += (Date.now() - tItemStart);
+
             // Find the trader (the person we traded with)
             const tradeDetail = tradeItems.find(ti => String(ti.user_id) !== userIdStr);
             const traderId = tradeDetail ? tradeDetail.user_id : 0;
@@ -517,7 +548,11 @@ export class SyncService extends BaseService {
             );
 
             for (const receipt of potentialReceipts) {
+                receiptChecksCount++;
+                const rItemStart = Date.now();
                 const receiptItems = await this.receiptService.getReceiptItems(receipt.id!);
+                totalReceiptItemsFetchMs += (Date.now() - rItemStart);
+
                 const mockReceipt = new Weav3rReceipt(
                     receipt.receipt_id_string,
                     receipt.receipt_id_string,
@@ -533,24 +568,66 @@ export class SyncService extends BaseService {
                     }))
                 );
 
-                if (mockTornTrade.compareAndLinkReceipt(mockReceipt, userIdStr)) {
+                const compStart = Date.now();
+                const isMatch = mockTornTrade.compareAndLinkReceipt(mockReceipt, userIdStr);
+                totalComparisonMs += (Date.now() - compStart);
+
+                if (isMatch) {
+                    const linkStart = Date.now();
                     try {
-                        await this.tradeService.linkReceiptToTrade(trade.id!, receipt.id!);
+                        await this.tradeService.linkReceiptToTrade(trade.id!, receipt.id!, false);
                         linkCount++;
+
+                        if (trade.type === "buy") {
+                            earliestLinkedTradeTs = earliestLinkedTradeTs === null
+                                ? trade.timestamp
+                                : Math.min(earliestLinkedTradeTs, trade.timestamp);
+                        }
+
+                        if (trade.timestamp) {
+                            const tradeTsSec = Math.floor(trade.timestamp / 1000);
+                            state.earliestActivityTimestamp = state.earliestActivityTimestamp === null
+                                ? tradeTsSec
+                                : Math.min(state.earliestActivityTimestamp, tradeTsSec);
+                        }
 
                         // Remove the linked receipt from the unlinked pool to avoid redundant checks
                         const idx = unlinkedReceipts.indexOf(receipt);
                         if (idx !== -1) unlinkedReceipts.splice(idx, 1);
 
+                        totalLinkExecutionMs += (Date.now() - linkStart);
                         break;
                     } catch (err) {
+                        totalLinkExecutionMs += (Date.now() - linkStart);
                         this.logger.warn(`Failed to execute linkReceiptToTrade for trade ${trade.id} and receipt ${receipt.id}:`, err);
                     }
                 }
             }
+
+            if (tradeProcessedCount % 50 === 0) {
+                this.logger.debug(
+                    `[Step 5 Progress] Processed ${tradeProcessedCount}/${unlinkedTrades.length} trades. ` +
+                    `TradeItems DB: ${totalTradeItemsFetchMs}ms, ReceiptItems DB: ${totalReceiptItemsFetchMs}ms (${receiptChecksCount} checks), ` +
+                    `Compare Logic: ${totalComparisonMs}ms, Link DB: ${totalLinkExecutionMs}ms`
+                );
+            }
         }
 
+        const totalDuration = Date.now() - startTime;
+        const loopDuration = Date.now() - loopStart;
+
+        this.logger.debug(
+            `[Step 5 Timings Breakdown] Total duration: ${totalDuration}ms (Loop: ${loopDuration}ms).\n` +
+            `- Trades fetch: ${fetchTradesMs}ms (${unlinkedTrades.length} unlinked trades)\n` +
+            `- Receipts fetch: ${fetchReceiptsMs}ms (${unlinkedReceipts.length} pool remaining)\n` +
+            `- tradeService.getTradeItems: ${totalTradeItemsFetchMs}ms total across ${unlinkedTrades.length} trades\n` +
+            `- receiptService.getReceiptItems: ${totalReceiptItemsFetchMs}ms total across ${receiptChecksCount} candidate checks\n` +
+            `- compareAndLinkReceipt logic: ${totalComparisonMs}ms\n` +
+            `- tradeService.linkReceiptToTrade: ${totalLinkExecutionMs}ms (${linkCount} successful links)`
+        );
+
         state.steps[4].progress = `Linked ${linkCount} records.`;
+        return earliestLinkedTradeTs;
     }
 
     private async stepRecalculate(state: SyncState): Promise<void> {

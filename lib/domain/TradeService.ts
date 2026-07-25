@@ -256,7 +256,11 @@ export class TradeService extends BaseService {
      * @param tradeId (number): Database ID of the trade
      * @param receiptDbId (number): Database ID of the receipt
      */
-    public async linkReceiptToTrade(tradeId: number, receiptDbId: number): Promise<void> {
+    public async linkReceiptToTrade(
+        tradeId: number,
+        receiptDbId: number,
+        recalculateCostBasis: boolean = true
+    ): Promise<void> {
         this.logger.info(`Linking trade ${tradeId} to receipt ${receiptDbId}`);
         const trade = await this.tradeRegistry.getById(tradeId);
         if (!trade) {
@@ -357,8 +361,12 @@ export class TradeService extends BaseService {
                     this.logger.warn(`No matching receipt item found for log item ${log.item_id}`);
                 }
             }
-            this.logger.info(`Triggering cost-basis update from timestamp ${trade.timestamp}`);
-            await this.itemLogService.updateCostBasis(trade.timestamp);
+            if (recalculateCostBasis) {
+                this.logger.info(`Triggering cost-basis update from timestamp ${trade.timestamp}`);
+                await this.itemLogService.updateCostBasis(trade.timestamp);
+            } else {
+                this.logger.info(`Skipping immediate cost-basis update for buy-trade ${trade.torn_id} (batch mode)`);
+            }
         }
 
         // 4. Persist the link
