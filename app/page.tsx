@@ -660,7 +660,7 @@ export default function NewDashboard() {
     const referenceValue = viewType === "daily" ? averageNetProfit : finalNetProfit;
     
     return (
-        <div className="space-y-8 animate-in fade-in duration-500 p-4 md:p-8">
+        <div className="space-y-8 pb-10">
             {/* Hero Section */}
             <div className="bg-panel border-2 border-primary relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 -mr-32 -mt-32 rotate-45 pointer-events-none" />

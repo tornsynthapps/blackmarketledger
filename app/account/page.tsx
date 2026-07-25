@@ -328,7 +328,7 @@ export default function AccountPage() {
         const isValid = isSubscriptionValid();
 
         return (
-            <div className="py-8">
+            <div className="py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="bg-card border-2 border-primary p-6">
                     <SecurityWarning />
 
@@ -462,7 +462,7 @@ export default function AccountPage() {
     }
 
     return (
-        <div className="max-w-lg mx-auto py-8">
+        <div className="max-w-lg mx-auto py-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-card border-2 border-primary p-6">
                 <SecurityWarning />
 

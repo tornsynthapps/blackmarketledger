@@ -14,7 +14,7 @@ export function UnderConstructionPage({
     title = "Under Construction",
 }: UnderConstructionPageProps) {
     return (
-        <div className="min-h-screen bg-background text-foreground p-6 md:p-12 flex items-center justify-center">
+        <div className="min-h-screen bg-background text-foreground p-6 md:p-12 flex items-center justify-center animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="max-w-lg w-full text-center space-y-8">
                 <div className="relative">
                     <div className="absolute inset-0 bg-amber-500/20 blur-[100px] rounded-full" />

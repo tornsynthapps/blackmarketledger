@@ -118,7 +118,7 @@ export default function NewLogsPage() {
     ];
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500 max-w-6xl mx-auto pb-20">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto pb-20">
             {/* HEADER */}
             <PageHeader 
                 title="Activity Log" 

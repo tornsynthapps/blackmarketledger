@@ -163,7 +163,7 @@ export default function LinksPage() {
     ];
 
     return (
-        <div className="flex flex-col gap-4 max-w-6xl mx-auto py-4 px-4">
+        <div className="flex flex-col gap-4 max-w-6xl mx-auto py-4 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="border-l-2 border-blue-500 pl-4">
                 <h1 className="text-2xl font-black uppercase tracking-tighter sm:text-3xl">
                     Central Directory
@@ -181,26 +181,26 @@ export default function LinksPage() {
                     <div className="h-[2px] grow bg-border" />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-1">
+                <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-5 gap-2">
                     {ledgerPages.map((page) => (
                         <Link
                             key={page.href}
                             href={page.href}
                             onClick={() => vibrate("nav")}
-                            className="group flex flex-col gap-1 p-2 bg-panel border border-transparent hover:border-blue-500 transition-all"
+                            className="group flex flex-col gap-1 p-3 bg-panel border border-transparent hover:border-blue-500/60 hover:bg-blue-500/5 transition-all duration-300 rounded-xl hover:-translate-y-0.5 relative overflow-hidden shadow-sm hover:shadow-md hover:shadow-blue-500/5"
                             target={page.newPage ? "_blank" : "_self"}
                         >
                             <div className="flex items-center gap-2">
                                 <HugeiconsIcon
                                     icon={page.icon}
                                     size={20}
-                                    className="text-muted group-hover:text-blue-500 transition-colors"
+                                    className="text-muted group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300"
                                 />
-                                <span className="font-bold text-base uppercase tracking-tight group-hover:text-blue-500 group-hover:italic">
+                                <span className="font-bold text-base uppercase tracking-tight group-hover:text-blue-500 group-hover:italic transition-colors">
                                     {page.name}
                                 </span>
                             </div>
-                            <p className="text-muted text-xs font-sans leading-tight line-clamp-2 group-hover:italic">
+                            <p className="text-muted text-xs font-sans leading-tight line-clamp-2 group-hover:italic transition-colors">
                                 {page.desc}
                             </p>
                         </Link>
@@ -216,26 +216,26 @@ export default function LinksPage() {
                     <div className="h-[2px] grow bg-border" />
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-1">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                     {publicPages.map((page) => (
                         <Link
                             key={page.href}
                             href={page.href}
                             onClick={() => vibrate("nav")}
-                            className="group flex flex-col gap-1 p-2 bg-panel border border-transparent hover:border-danger transition-all"
+                            className="group flex flex-col gap-1 p-3 bg-panel border border-transparent hover:border-danger/60 hover:bg-danger/5 transition-all duration-300 rounded-xl hover:-translate-y-0.5 relative overflow-hidden shadow-sm hover:shadow-md hover:shadow-danger/5"
                             target={page.newPage ? "_blank" : "_self"}
                         >
                             <div className="flex items-center gap-2">
                                 <HugeiconsIcon
                                     icon={page.icon}
                                     size={20}
-                                    className="text-muted group-hover:text-danger transition-colors"
+                                    className="text-muted group-hover:text-danger group-hover:scale-110 transition-all duration-300"
                                 />
-                                <span className="font-bold text-base uppercase tracking-tight group-hover:text-danger group-hover:italic">
+                                <span className="font-bold text-base uppercase tracking-tight group-hover:text-danger group-hover:italic transition-colors">
                                     {page.name}
                                 </span>
                             </div>
-                            <p className="text-muted text-xs font-sans leading-tight line-clamp-2 group-hover:italic">
+                            <p className="text-muted text-xs font-sans leading-tight line-clamp-2 group-hover:italic transition-colors">
                                 {page.desc}
                             </p>
                         </Link>

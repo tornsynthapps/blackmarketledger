@@ -161,7 +161,7 @@ export default function ScriptConnectPage() {
     }, [loadStoredData]);
 
     return (
-        <div className="flex flex-col gap-6 max-w-2xl mx-auto py-6 px-4">
+        <div className="flex flex-col gap-6 max-w-2xl mx-auto py-6 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="border-l-2 border-blue-500 pl-4">
                 <h1 className="text-2xl font-black uppercase tracking-tighter sm:text-3xl">
                     Script Connect

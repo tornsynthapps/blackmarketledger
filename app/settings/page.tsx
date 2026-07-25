@@ -363,7 +363,7 @@ export default function SettingsPage() {
     ];
 
     return (
-        <div className="animate-in fade-in duration-500 w-full px-6 py-4">
+        <div className="space-y-8 pb-10">
             <PageHeader 
                 title="Settings" 
                 description="System Configuration" 
@@ -402,7 +402,7 @@ export default function SettingsPage() {
                 {/* Content Area */}
                 <div className="flex-1 min-h-[600px]">
                     {activeTab === "theme" && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-6">
                             <div className="flex items-center gap-3 px-1">
                                 <HugeiconsIcon icon={PaintBoardIcon} size={16} className="text-primary" />
                                 <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Theme Settings</h3>
@@ -518,7 +518,7 @@ export default function SettingsPage() {
                     )}
 
                     {activeTab === "api" && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-6">
                             <div className="flex items-center gap-3 px-1">
                                 <HugeiconsIcon icon={Key01Icon} size={16} className="text-primary" />
                                 <h3 className="text-lg font-departure tracking-widest text-primary uppercase">API Management</h3>
@@ -638,7 +638,7 @@ export default function SettingsPage() {
                     )}
 
                     {activeTab === "account" && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-6">
                             <div className="flex items-center gap-3 px-1">
                                 <HugeiconsIcon icon={UserIcon} size={16} className="text-primary" />
                                 <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Account Management</h3>

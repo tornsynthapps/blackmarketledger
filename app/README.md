@@ -39,4 +39,5 @@ Application routes, pages, and web interfaces.
 - **`layout.tsx`**: Module file providing specific functionality for this directory.
 - **`not-found.tsx`**: Module file providing specific functionality for this directory.
 - **`page.tsx`**: Module file providing specific functionality for this directory.
+- **`template.tsx`**: Module file providing specific functionality for this directory.
 

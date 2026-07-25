@@ -387,7 +387,7 @@ export default function BMLConnectPage() {
     }
 
     return (
-        <div className="flex flex-col items-center justify-center bg-background font-sans">
+        <div className="flex flex-col items-center justify-center bg-background font-sans animate-in fade-in slide-in-from-bottom-4 duration-500">
             <main className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-panel p-6 shadow-sm">
                 <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/10 blur-3xl"></div>
 

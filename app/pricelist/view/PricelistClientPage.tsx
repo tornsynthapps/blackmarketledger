@@ -430,7 +430,7 @@ export default function PricelistClientPage() {
     }, [isGrouped, visibleItems, itemTypeMap, favoriteGroups, showFavoritesOnly]);
 
     return (
-        <div className="pb-12">
+        <div className="pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <section className="mb-4 border border-border bg-panel/70 overflow-hidden">
                 <div className="flex flex-col lg:flex-row lg:items-center">
                     <Link 

@@ -227,7 +227,7 @@ function PricelistComparisonContent() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-background animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-panel p-8 rounded-2xl border border-border shadow-xl text-center flex flex-col items-center max-w-lg w-full">
                 <HugeiconsIcon icon={AlertCircleIcon} size={48} className="text-warning mb-4" />
                 <h1 className="text-3xl font-black uppercase font-departure tracking-wide mb-2">Under Construction</h1>
