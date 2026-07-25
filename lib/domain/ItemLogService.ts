@@ -37,6 +37,7 @@ export class ItemLogService extends BaseService {
         "dump",
         "museum",
         "christmas-town",
+        "consumption",
     ];
 
     /**
@@ -319,6 +320,134 @@ export class ItemLogService extends BaseService {
      */
     public async bulkPutLogs(logs: ItemLog[]): Promise<void> {
         await this.registry.bulkPut(logs);
+    }
+
+    /**
+     * Consumes a specified quantity of an item from stock in priority order.
+     * Removes from stock at average cost basis (if normal) or market price (if non-normal),
+     * adds to consumption category at removal price, and removes from consumption category at $0.
+     */
+    public async consumeItem(params: {
+        timestamp: number;
+        item_id: number;
+        quantity: number;
+        uid?: string | null;
+        marketPrice?: number;
+        torn_log_id?: string | null;
+    }): Promise<ItemLog[]> {
+        const qtyToConsume = Math.abs(params.quantity);
+        if (qtyToConsume === 0) return [];
+
+        const identityKey = getItemIdentityKey({ item_id: params.item_id, uid: params.uid ?? "" });
+        const runningTotalsMap = await this.registry.getLatestTotalsPerCategoryBefore(
+            { item_id: params.item_id, uid: params.uid ?? "" },
+            params.timestamp
+        );
+
+        let remaining = qtyToConsume;
+        const newLogs: ItemLog[] = [];
+
+        for (const cat of this.CATEGORY_PRIORITY) {
+            if (remaining <= 0 || cat === "consumption") continue;
+            const catTotals = runningTotalsMap.get(cat);
+            const availableStock = catTotals?.stock ?? 0;
+
+            if (availableStock > 0) {
+                const takeQty = Math.min(remaining, availableStock);
+                remaining -= takeQty;
+
+                const avgCost = catTotals && catTotals.stock > 0 ? catTotals.cost / catTotals.stock : 0;
+                const removalPrice = cat === "normal" ? avgCost : (params.marketPrice ?? avgCost);
+
+                newLogs.push(
+                    ItemLog.create({
+                        timestamp: params.timestamp,
+                        item_id: params.item_id,
+                        uid: params.uid ?? null,
+                        quantity: -takeQty,
+                        unit_price: removalPrice,
+                        category: cat,
+                        torn_log_id: params.torn_log_id ?? null,
+                    })
+                );
+
+                newLogs.push(
+                    ItemLog.create({
+                        timestamp: params.timestamp,
+                        item_id: params.item_id,
+                        uid: params.uid ?? null,
+                        quantity: takeQty,
+                        unit_price: removalPrice,
+                        category: "consumption",
+                        torn_log_id: params.torn_log_id ?? null,
+                    })
+                );
+
+                newLogs.push(
+                    ItemLog.create({
+                        timestamp: params.timestamp,
+                        item_id: params.item_id,
+                        uid: params.uid ?? null,
+                        quantity: -takeQty,
+                        unit_price: 0,
+                        category: "consumption",
+                        torn_log_id: params.torn_log_id ?? null,
+                    })
+                );
+            }
+        }
+
+        if (remaining > 0) {
+            const fallbackPrice = params.marketPrice ?? 0;
+            newLogs.push(
+                ItemLog.create({
+                    timestamp: params.timestamp,
+                    item_id: params.item_id,
+                    uid: params.uid ?? null,
+                    quantity: -remaining,
+                    unit_price: fallbackPrice,
+                    category: "normal",
+                    torn_log_id: params.torn_log_id ?? null,
+                })
+            );
+            newLogs.push(
+                ItemLog.create({
+                    timestamp: params.timestamp,
+                    item_id: params.item_id,
+                    uid: params.uid ?? null,
+                    quantity: remaining,
+                    unit_price: fallbackPrice,
+                    category: "consumption",
+                    torn_log_id: params.torn_log_id ?? null,
+                })
+            );
+            newLogs.push(
+                ItemLog.create({
+                    timestamp: params.timestamp,
+                    item_id: params.item_id,
+                    uid: params.uid ?? null,
+                    quantity: -remaining,
+                    unit_price: 0,
+                    category: "consumption",
+                    torn_log_id: params.torn_log_id ?? null,
+                })
+            );
+        }
+
+        const wrapper = ItemLogWrapper.create({
+            timestamp: params.timestamp,
+            wrapper_type: "consumption",
+            description: `Consumed ${qtyToConsume} x item #${params.item_id}`,
+        });
+        const wrapperId = await this.addWrapper(wrapper);
+
+        newLogs.forEach((l) => {
+            l.wrapper_id = wrapperId;
+        });
+
+        await this.bulkPutLogs(newLogs);
+        await this.updateCostBasis(params.timestamp);
+        return newLogs;
     }
 
     /**

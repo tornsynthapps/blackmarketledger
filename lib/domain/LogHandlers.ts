@@ -474,23 +474,22 @@ export async function handleItemUse(log: NormalizedLog, deps: HandlerDependencie
     if (existing) return;
 
     const data = log.data || {};
+    const itemID = Number(data.item);
+    const faction = Number(data.faction ?? 0);
 
-    const itemID = parseInt((data.item || "").toString());
-    const faction = data.faction;
+    if (!itemID || isNaN(itemID)) return;
 
-    if (faction != 0) {
-        // TODO: update it to support faction item use.
+    if (faction !== 0) {
+        // TODO: add support for faction item use in a later part
+        return;
     }
 
-    await deps.itemLogService.bulkPutLogs
-        ([ItemLog.create({
-            timestamp: log.timestamp * 1000,
-            item_id: itemID,
-            quantity: -1,
-            unit_price: 0,
-            category: "consumption",
-            torn_log_id: String(log.id),
-        })]);
+    await deps.itemLogService.consumeItem({
+        timestamp: log.timestamp * 1000,
+        item_id: itemID,
+        quantity: 1,
+        torn_log_id: String(log.id),
+    });
 }
 
 // --- Initialization ---
@@ -522,7 +521,12 @@ const logs: Record<number, LogAttribute> = {
     1400: { description: "Dump item add", handler: handleDumpLog, uidSupported: false },
     1401: { description: "Dump item find", handler: handleDumpLog, uidSupported: false },
     8938: { description: "Christmas Town items", handler: handleChristmasTownItems, uidSupported: false },
-    2270: {description: "Item use speed", handler: handleItemUse, uidSupported: false }
+    2020: { description: "Item use candy", handler: handleItemUse, uidSupported: false },
+    2030: { description: "Item use alcohol", handler: handleItemUse, uidSupported: false },
+    2060: { description: "Item use morphine", handler: handleItemUse, uidSupported: false },
+    2080: { description: "Item use small first aid kit", handler: handleItemUse, uidSupported: false },
+    2270: { description: "Item use speed", handler: handleItemUse, uidSupported: false },
+    2410: { description: "Item use box of tissues", handler: handleItemUse, uidSupported: false },
 };
 
 export function initializeDefaultHandlers() {

@@ -731,6 +731,71 @@ export async function getTornItems(apiKey: string) {
     return itemMap;
 }
 
+export async function getDailyMarketPrices(
+    apiKey: string,
+    timestamp?: number
+): Promise<Map<number, number>> {
+    const dateObj = timestamp ? new Date(timestamp) : new Date();
+    const dateKey = dateObj.toISOString().split("T")[0];
+    const cacheKey = `torn_daily_market_prices_${dateKey}`;
+
+    if (typeof window !== "undefined") {
+        try {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                return new Map<number, number>(
+                    Object.entries(parsed).map(([k, v]) => [Number(k), Number(v)])
+                );
+            }
+        } catch (e) {
+            // cache read fallback
+        }
+    }
+
+    const priceMap = new Map<number, number>();
+    if (!apiKey) return priceMap;
+
+    try {
+        const url = buildUrl(TORN_V2_API_BASE, "/torn/items", { key: apiKey });
+        const response = await fetchWithTornRateLimit(url, { cache: "no-store" });
+        const data = await parseJson(response);
+        const itemsSource = data?.items || data?.data?.items || [];
+
+        const entries = Array.isArray(itemsSource)
+            ? itemsSource
+            : Object.entries(itemsSource).map(([id, val]) => ({
+                  id,
+                  ...(val as object),
+              }));
+
+        const cacheObj: Record<number, number> = {};
+
+        for (const item of entries) {
+            const id = Number(item?.id);
+            const marketPrice = Number(
+                (item as any)?.value?.market_price ?? (item as any)?.value?.buy_price ?? 0
+            );
+            if (Number.isFinite(id)) {
+                priceMap.set(id, marketPrice);
+                cacheObj[id] = marketPrice;
+            }
+        }
+
+        if (typeof window !== "undefined") {
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(cacheObj));
+            } catch (e) {
+                // cache write fallback
+            }
+        }
+    } catch (error) {
+        console.error("Failed to fetch daily market prices:", error);
+    }
+
+    return priceMap;
+}
+
 export async function getCompletedTrades(apiKey: string, startTimestamp: number) {
     let from = startTimestamp;
     const collected: TornTradeListItem[] = [];

@@ -36,8 +36,6 @@ export const FUTURE_WORK : number[] = [
     1500, // Big Al's bunker sell
     1501, // Big Al's bunker buy
     2010, // Item use entertainment
-    2020, // Item use candy
-    2030, // Item use alcohol
     2040, // Item use energy drink
     2050, // Item use book
     2051, // Item finish book
@@ -49,9 +47,7 @@ export const FUTURE_WORK : number[] = [
     2057, // Item finish book list capacity increase
     2058, // Item finish book merit reset
     2059, // Item finish book drug addiction removal
-    2060, // Item use morphine
     2070, // Item use first aid kit
-    2080, // Item use small first aid kit
     2090, // Item use neumune tablet
     2100, // Item use blood bag
     2101, // Item use blood bag wrong type
@@ -112,7 +108,6 @@ export const FUTURE_WORK : number[] = [
     2405, // Item use wallet
     2406, // Item use arca fortunae
     2407, // Item use stash box
-    2410, // Item use box of tissues
     2420, // Item use vanity mirror
     2430, // Item use casino pass
     2440, // Item use dirty bomb

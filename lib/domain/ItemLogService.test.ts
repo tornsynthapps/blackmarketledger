@@ -259,4 +259,53 @@ describe("ItemLogService", () => {
             expect(alphaSell?.realized_profit).toBe(50);
         });
     });
+
+    describe("consumeItem", () => {
+        it("should consume items from normal stock using average cost basis and log consumption loss", async () => {
+            const mockRegistry = {
+                getLatestTotalsPerCategoryBefore: vi.fn().mockResolvedValue(
+                    new Map([
+                        ["normal", { stock: 5, cost: 500 }],
+                        ["abroad", { stock: 0, cost: 0 }],
+                    ])
+                ),
+                bulkPut: vi.fn().mockResolvedValue(undefined),
+                getAll: vi.fn().mockResolvedValue([]),
+                getPaginatedLogs: vi.fn().mockResolvedValue([]),
+                countLogs: vi.fn().mockResolvedValue(0),
+            };
+
+            const mockWrapperRegistry = {
+                put: vi.fn().mockResolvedValue(1),
+                getById: vi.fn().mockResolvedValue(null),
+                getAll: vi.fn().mockResolvedValue([]),
+                delete: vi.fn().mockResolvedValue(undefined),
+            };
+
+            (ItemLogRegistry as any).mockImplementation(function (this: any) {
+                return mockRegistry;
+            });
+            (ItemLogWrapperRegistry as any).mockImplementation(function (this: any) {
+                return mockWrapperRegistry;
+            });
+
+            const service = new ItemLogService();
+            const logs = await service.consumeItem({
+                timestamp: 1000,
+                item_id: 1,
+                quantity: 2,
+                marketPrice: 300,
+            });
+
+            expect(logs.length).toBe(3);
+            const normalDeduction = logs.find((l) => l.category === "normal");
+            const consumptionAdd = logs.find((l) => l.category === "consumption" && l.quantity === 2);
+            const consumptionDeduct = logs.find((l) => l.category === "consumption" && l.quantity === -2);
+
+            expect(normalDeduction?.quantity).toBe(-2);
+            expect(normalDeduction?.unit_price).toBe(100); // 500 / 5 = 100
+            expect(consumptionAdd?.unit_price).toBe(100);
+            expect(consumptionDeduct?.unit_price).toBe(0);
+        });
+    });
 });

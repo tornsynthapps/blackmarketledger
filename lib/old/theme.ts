@@ -19,6 +19,11 @@ export const CATEGORY_COLORS = {
         cssVar: "var(--danger)",
         tailwind: "text-danger",
     },
+    consumption: {
+        hex: "#f97316", // Amber / Orange
+        cssVar: "var(--warning)",
+        tailwind: "text-warning",
+    },
     net: {
         hex: "var(--primary)",
         cssVar: "var(--primary)",

@@ -22,7 +22,7 @@ export interface ItemLogCreateFields {
     torn_log_id?: string | null;
 }
 
-export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "dump" | "christmas-town" | "skipped";
+export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "dump" | "christmas-town" | "consumption" | "skipped";
 
 export interface ItemIdentity {
     item_id: number;

@@ -1089,11 +1089,13 @@ export function useJournal() {
     let totalInventoryValue = 0;
     let totalAbroadRealizedProfit = 0;
     let totalAbroadInventoryValue = 0;
+    let totalConsumptionRealizedProfit = 0;
     inventory.forEach((stats) => {
         totalItemRealizedProfit += stats.realizedProfit;
         totalInventoryValue += Math.max(0, stats.totalCost);
         totalAbroadRealizedProfit += stats.abroadRealizedProfit;
         totalAbroadInventoryValue += Math.max(0, stats.abroadTotalCost);
+        totalConsumptionRealizedProfit += stats.consumptionRealizedProfit ?? 0;
     });
 
     return {
@@ -1111,7 +1113,12 @@ export function useJournal() {
         totalMugLoss,
         totalItemRealizedProfit,
         totalInventoryValue,
-        netTotalProfit: totalItemRealizedProfit + totalAbroadRealizedProfit - totalMugLoss,
+        totalConsumptionRealizedProfit,
+        netTotalProfit:
+            totalItemRealizedProfit +
+            totalAbroadRealizedProfit +
+            totalConsumptionRealizedProfit -
+            totalMugLoss,
         weav3rApiKey,
         weav3rUserId,
         driveApiKey,

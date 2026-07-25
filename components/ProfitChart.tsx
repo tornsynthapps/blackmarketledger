@@ -30,6 +30,7 @@ interface ChartDataPoint {
     netProfit?: number;
     museumProfit?: number;
     abroadProfit?: number;
+    consumptionLoss?: number;
 }
 
 interface ProfitChartProps {

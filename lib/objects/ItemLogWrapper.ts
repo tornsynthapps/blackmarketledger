@@ -19,7 +19,9 @@ export type ItemLogWrapperType =
     // Has sub-type to indicate set of items to exchange.
     | "museum-exchange"
     // "trade-receipt": Associates multiple trade items and a receipt.
-    | "trade-receipt";
+    | "trade-receipt"
+    // "consumption": Consumes items from stock and logs loss under consumption category.
+    | "consumption";
 
 export type ItemLogWrapperAutoSplitSubType = "auto-split-default" | "auto-split-museum";
 
