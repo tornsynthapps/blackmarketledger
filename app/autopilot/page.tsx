@@ -60,6 +60,37 @@ function formatCursor(cursor: { lastTimestamp: number } | null) {
     return { timeAgo, timestamp, isStale, timeAgoStyle };
 }
 
+function getDefaultSyncLabel(cursorTimestamp: number): string {
+    if (!cursorTimestamp) return "Sync Now";
+    const now = Math.floor(Date.now() / 1000);
+    const diffSec = Math.max(0, now - cursorTimestamp);
+    const diffDays = diffSec / (24 * 3600);
+
+    let maxDays = 7;
+    if (diffDays > 365) maxDays = 180;
+    else if (diffDays > 180) maxDays = 60;
+    else if (diffDays > 30) maxDays = 30;
+
+    const effectiveSec = Math.min(diffSec, maxDays * 86400);
+
+    if (effectiveSec < 60) return "Sync (next 1 min)";
+    if (effectiveSec < 3600) return `Sync (next ${Math.round(effectiveSec / 60)} mins)`;
+    if (effectiveSec < 86400) {
+        const hours = Math.round(effectiveSec / 3600);
+        return `Sync (next ${hours} ${hours === 1 ? "hour" : "hours"})`;
+    }
+
+    const days = Math.round(effectiveSec / 86400);
+    if (days === 1) return "Sync (next 1 day)";
+    if (days === 30 || days === 31) return "Sync (next 1 month)";
+    if (days === 60) return "Sync (next 2 months)";
+    if (days === 90) return "Sync (next 3 months)";
+    if (days === 180) return "Sync (next 6 months)";
+    if (days >= 365) return "Sync (next 1 year)";
+
+    return `Sync (next ${days} days)`;
+}
+
 export default function AutoPilotV2Page() {
     const logger = useMemo(() => new Logger("AutoPilotV2"), []);
     const syncService = useMemo(() => new SyncService(), []);
@@ -367,7 +398,7 @@ export default function AutoPilotV2Page() {
                                             className="inline-flex items-center gap-2 rounded-l-xl bg-orange-500 pl-4 pr-3 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-95 border-r border-orange-600/30"
                                         >
                                             <HugeiconsIcon icon={RefreshIcon} size={16} />
-                                            Sync Now
+                                            {getDefaultSyncLabel(cursor?.lastTimestamp || 0)}
                                         </button>
                                         <button
                                             onClick={(e) => {
@@ -385,7 +416,31 @@ export default function AutoPilotV2Page() {
                                                     className="fixed inset-0 z-40"
                                                     onClick={() => setShowSyncOptions(false)}
                                                 />
-                                                <div className="absolute top-full right-0 mt-2 w-48 rounded-xl border border-border bg-panel p-1 shadow-xl z-50 animate-in fade-in zoom-in duration-200">
+                                                <div className="absolute top-full right-0 mt-2 w-52 max-h-64 overflow-y-auto rounded-xl border border-border bg-panel p-1 shadow-xl z-50 animate-in fade-in zoom-in duration-200">
+                                                    <button
+                                                        onClick={() => handleStartSync(3 / 24)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 3 hours)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartSync(6 / 24)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 6 hours)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartSync(1)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next day)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartSync(3)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 3 days)
+                                                    </button>
                                                     <button
                                                         onClick={() => handleStartSync(7)}
                                                         className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
@@ -399,10 +454,22 @@ export default function AutoPilotV2Page() {
                                                         Sync (next 30 days)
                                                     </button>
                                                     <button
+                                                        onClick={() => handleStartSync(90)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 90 days)
+                                                    </button>
+                                                    <button
                                                         onClick={() => handleStartSync(180)}
                                                         className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
                                                     >
                                                         Sync (next 180 days)
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartSync(365)}
+                                                        className="w-full text-left px-3 py-2 text-xs font-semibold rounded-lg hover:bg-foreground/5 transition-colors"
+                                                    >
+                                                        Sync (next 1 year)
                                                     </button>
                                                     <button
                                                         onClick={() => handleStartSync(Infinity)}
