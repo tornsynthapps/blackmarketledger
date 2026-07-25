@@ -107,9 +107,9 @@ export function Navigation() {
                     >
                         {/* New logo replacing text and old database icon */}
                         {isDark ? (
-                            <img src="/logos/dark/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-8 h-8 object-contain" />
+                            <img src="/logos/dark/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-8 h-8 object-contain" />
                         ) : (
-                            <img src="/logos/light/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-8 h-8 object-contain" />
+                            <img src="/logos/light/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-8 h-8 object-contain" />
                         )}
                     </Link>
 
@@ -195,18 +195,13 @@ export function Navigation() {
                         className="flex flex-row items-center gap-3 px-1"
                     >
                         {isDark ? (
-                            <img src="/logos/dark/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
+                            <img src="/logos/dark/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
                         ) : (
-                            <img src="/logos/light/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
+                            <img src="/logos/light/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
                         )}
-                        <div className="flex flex-col min-w-0 justify-center leading-none mt-1">
-                            <span className="font-bold text-[22px] tracking-wider font-departure leading-[0.9]">
-                                BlackMarket
-                            </span>
-                            <span className="font-bold text-[22px] tracking-wider font-departure leading-[0.9]">
-                                Ledger
-                            </span>
-                        </div>
+                        <span className="font-bold text-[18px] tracking-wider font-brand whitespace-nowrap">
+                            Torn Ledger
+                        </span>
                     </Link>
 
                     <div className="flex flex-col gap-1">

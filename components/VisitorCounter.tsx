@@ -9,7 +9,7 @@ export function VisitorCounter() {
 
     useEffect(() => {
         fetch(
-            "https://script.google.com/macros/s/AKfycbxF9XJdE1ff3FYcTGMTK99Ue7j_Y-jabrQiO-WFM7U1mMEQUpIGaVbnaQsHEpp11h04gQ/exec?app=BlackMarket%20Ledger"
+            "https://script.google.com/macros/s/AKfycbxF9XJdE1ff3FYcTGMTK99Ue7j_Y-jabrQiO-WFM7U1mMEQUpIGaVbnaQsHEpp11h04gQ/exec?app=Torn%20Ledger"
         )
             .then((res) => res.json())
             .then((data) => {

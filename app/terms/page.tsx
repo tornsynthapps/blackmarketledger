@@ -29,7 +29,7 @@ export default function TermsOfService() {
                     <p className="text-foreground/80 leading-relaxed">
                         This software is provided &quot;as is&quot; without warranties. We are not
                         liable for losses, missed trades, API outages, or any indirect damages
-                        related to usage of BlackMarket Ledger.
+                        related to usage of Torn Ledger.
                     </p>
                 </section>
             </div>

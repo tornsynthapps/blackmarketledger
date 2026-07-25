@@ -27,7 +27,7 @@ export class TornAPI {
     ): Promise<any> {
         await tornRateLimiter.acquire();
 
-        queries.comment = queries.comment ?? "Blackmarket Ledger";
+        queries.comment = queries.comment ?? "Torn Ledger";
         const url = new URL(this.BASE_URL + endpoint);
         url.search = new URLSearchParams(queries).toString();
 

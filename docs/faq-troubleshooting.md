@@ -1,6 +1,4 @@
-# FAQ & Troubleshooting
-
-Here are solutions to the most common questions and issues users experience with Blackmarket Ledger and the BML Connect extension.
+Here are solutions to the most common questions and issues users experience with Torn Ledger and the extension.
 
 ## General App Questions
 
@@ -55,9 +53,9 @@ Net Total Profit is your Realized Profit (money made from sales) minus your Tota
 - Charts require historical data. If you've just started using BML, wait a few days for the Daily/Weekly trends to populate.
   cidental whitespace (spaces) at the beginning or end of the API key when pasting it into the extension popup.
 
-### My cost basis in the BML box is outdated
+### My cost basis in the Torn Ledger box is outdated
 
-The extension relies on your latest logs. If you just made a trade, ensure you have entered the log into the Blackmarket Ledger web application, and the extension will update the data it displays on Torn shortly after.
+The extension relies on your latest logs. If you just made a trade, ensure you have entered the log into the Torn Ledger web application, and the extension will update the data it displays on Torn shortly after.
 
 ### How do I hide the BML Box?
 

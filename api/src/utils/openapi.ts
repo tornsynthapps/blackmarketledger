@@ -10,7 +10,7 @@ export const openApiSpec = {
     info: {
         title: "Ledger API",
         version: "1.0.0",
-        description: "Authentication and ledger management service for BlackMarket Ledger",
+        description: "Authentication and ledger management service for Torn Ledger",
     },
     servers: [
         {

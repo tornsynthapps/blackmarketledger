@@ -326,13 +326,14 @@ Works with:
 ### CSS Strategy
 
 - Use CSS variables for tokens
-- Prefer utility + component hybrid approach
+- **STRICT MANDATE: Do NOT use inline TailwindCSS utility classes on new code.** Always write modular, dedicated vanilla CSS files (or CSS modules) for new features and components.
 - Avoid heavy UI libraries (maintain uniqueness)
 
 ---
 
 ## 11. What to Avoid (Strict)
 
+- ❌ Inline TailwindCSS utility classes on new code (use separate CSS files instead)
 - ❌ Rounded corners
 - ❌ Soft gradients
 - ❌ Glassmorphism / blur

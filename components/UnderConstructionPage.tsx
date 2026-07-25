@@ -52,7 +52,7 @@ export function UnderConstructionPage({
 
                 <div className="pt-12 border-t border-border">
                     <p className="text-[10px] text-center text-foreground/20 font-bold uppercase tracking-[0.4em]">
-                        BlackMarket Ledger
+                        Torn Ledger
                     </p>
                 </div>
             </div>

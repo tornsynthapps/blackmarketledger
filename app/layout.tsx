@@ -28,7 +28,7 @@ const vt323 = VT323({
 });
 
 export const metadata: Metadata = {
-    title: "BlackMarket Ledger",
+    title: "Torn Ledger",
     description: "Track inventory, profits, and flushie conversions securely in your browser.",
     icons: [
         { rel: "icon", url: "/logos/light/favicon.ico", media: "(prefers-color-scheme: light)" },
@@ -87,6 +87,40 @@ export default function RootLayout({
                   }
                   if (settings.backgroundStyle && settings.backgroundStyle !== 'dots') {
                     document.documentElement.classList.add('bg-' + settings.backgroundStyle);
+                  }
+
+                  const fontMap = {
+                    heading: {
+                      'geist-pixel': 'var(--font-geist-pixel), monospace',
+                      'space-grotesk': '"Space Grotesk", sans-serif',
+                      'sour-gummy': 'var(--font-sour-gummy), cursive',
+                      'cascadia': 'var(--font-cascadia-code), monospace',
+                      'vt323': 'var(--font-vt323), monospace',
+                      'departure': '"Departure Mono", monospace'
+                    },
+                    sans: {
+                      'geist-sans': 'var(--font-geist-sans), sans-serif',
+                      'departure': '"Departure Mono", sans-serif',
+                      'sour-gummy': 'var(--font-sour-gummy), cursive',
+                      'system': 'system-ui, sans-serif',
+                      'space-grotesk': '"Space Grotesk", var(--font-geist-sans), sans-serif'
+                    },
+                    mono: {
+                      'geist-mono': 'var(--font-geist-mono), monospace',
+                      'cascadia': 'var(--font-cascadia-code), monospace',
+                      'departure': '"Departure Mono", monospace',
+                      'vt323': 'var(--font-vt323), monospace',
+                      'space-mono': '"Space Mono", var(--font-geist-mono), monospace'
+                    }
+                  };
+                  if (settings.headingFont && fontMap.heading[settings.headingFont]) {
+                    document.documentElement.style.setProperty('--font-heading', fontMap.heading[settings.headingFont]);
+                  }
+                  if (settings.sansFont && fontMap.sans[settings.sansFont]) {
+                    document.documentElement.style.setProperty('--font-sans', fontMap.sans[settings.sansFont]);
+                  }
+                  if (settings.monoFont && fontMap.mono[settings.monoFont]) {
+                    document.documentElement.style.setProperty('--font-mono', fontMap.mono[settings.monoFont]);
                   }
                 } catch (_) {}
               } catch (_) {}

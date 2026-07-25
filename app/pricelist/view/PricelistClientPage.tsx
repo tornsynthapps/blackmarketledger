@@ -437,7 +437,7 @@ export default function PricelistClientPage() {
                         href="/"
                         className="group bg-panel/40 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border min-w-[240px] transition-colors hover:bg-panel-elevated/60"
                     >
-                        <p className="font-departure text-3xl text-foreground leading-none">BlackMarket Ledger</p>
+                        <p className="font-departure text-3xl text-foreground leading-none">Torn Ledger</p>
                         <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em]">
                             <p className="text-muted group-hover:hidden">
                                 Public Pricelist Viewer

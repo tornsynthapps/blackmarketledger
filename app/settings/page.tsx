@@ -502,20 +502,70 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
 
-                                {/* Monospace Font */}
+                                 {/* Heading Font (--font-heading) */}
                                 <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
                                     <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Monospace Font</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Choose your preferred font for data and code views.</p>
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">Heading Font (--font-heading)</h4>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Font applied to all headings (h1-h6), section titles, and table headers.</p>
                                     </div>
                                     <div className="relative w-48">
                                         <select
-                                            value={settings.monospaceFont}
-                                            onChange={(e) => { vibrate("utility"); updateSetting("monospaceFont", e.target.value as any); }}
+                                            value={settings.headingFont || "departure"}
+                                            onChange={(e) => { vibrate("utility"); updateSetting("headingFont", e.target.value as any); }}
                                             className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
                                         >
-                                            <option value="space" className="bg-panel text-foreground">Space Mono</option>
+                                            <option value="departure" className="bg-panel text-foreground">Departure Mono</option>
+                                            <option value="space-grotesk" className="bg-panel text-foreground">Space Grotesk</option>
+                                            <option value="geist-pixel" className="bg-panel text-foreground">Geist Pixel</option>
                                             <option value="cascadia" className="bg-panel text-foreground">Cascadia Code</option>
+                                            <option value="sour-gummy" className="bg-panel text-foreground">Sour Gummy</option>
+                                            <option value="vt323" className="bg-panel text-foreground">VT323</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Body / Sans Font (--font-sans) */}
+                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
+                                    <div className="space-y-0.5">
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">Body / Sans Font (--font-sans)</h4>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Font applied to body text, paragraphs, and general UI controls.</p>
+                                    </div>
+                                    <div className="relative w-48">
+                                        <select
+                                            value={settings.sansFont || "space-grotesk"}
+                                            onChange={(e) => { vibrate("utility"); updateSetting("sansFont", e.target.value as any); }}
+                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
+                                        >
+                                            <option value="space-grotesk" className="bg-panel text-foreground">Space Grotesk</option>
+                                            <option value="geist-sans" className="bg-panel text-foreground">Geist Sans</option>
+                                            <option value="departure" className="bg-panel text-foreground">Departure Mono</option>
+                                            <option value="sour-gummy" className="bg-panel text-foreground">Sour Gummy</option>
+                                            <option value="system" className="bg-panel text-foreground">System Sans</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Mono / Data Font (--font-mono) */}
+                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
+                                    <div className="space-y-0.5">
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">Data / Mono Font (--font-mono)</h4>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Font applied to numbers, currency, inputs, table data, and code.</p>
+                                    </div>
+                                    <div className="relative w-48">
+                                        <select
+                                            value={settings.monoFont || "space-mono"}
+                                            onChange={(e) => {
+                                                vibrate("utility");
+                                                updateSetting("monoFont", e.target.value as any);
+                                                updateSetting("monospaceFont", e.target.value === "cascadia" ? "cascadia" : "space");
+                                            }}
+                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
+                                        >
+                                            <option value="space-mono" className="bg-panel text-foreground">Space Mono</option>
+                                            <option value="geist-mono" className="bg-panel text-foreground">Geist Mono</option>
+                                            <option value="cascadia" className="bg-panel text-foreground">Cascadia Code</option>
+                                            <option value="departure" className="bg-panel text-foreground">Departure Mono</option>
+                                            <option value="vt323" className="bg-panel text-foreground">VT323</option>
                                         </select>
                                     </div>
                                 </div>

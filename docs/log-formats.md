@@ -1,6 +1,6 @@
 # Supported Log Formats
 
-Blackmarket Ledger (BML) is designed to be highly compatible with standard Torn and Weav3r log formats. This guide details the supported formats for manual terminal entry.
+Torn Ledger is designed to be highly compatible with standard Torn and Weav3r log formats. This guide details the supported formats for manual terminal entry.
 
 ## 🛍️ Bazaar Logs
 

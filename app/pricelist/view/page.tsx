@@ -3,7 +3,7 @@ import PricelistClientPage from "./PricelistClientPage";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
-    title: "Public Pricelist | BlackMarket Ledger",
+    title: "Public Pricelist | Torn Ledger",
     description: "Public Torn pricelist viewer powered by Weav3r market data.",
 };
 

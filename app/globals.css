@@ -83,17 +83,15 @@
     --dots: rgba(255, 255, 255, 0.03);
     --grid: rgba(255, 255, 255, 0.02);
 
-    /* Local Fonts */
+    /* Local & Imported Font Tokens */
     --font-space-grotesk: "Space Grotesk", sans-serif;
     --font-space-mono: "Space Mono", monospace;
 
-    --font-brand: var(--font-vt323), "VT323", monospace;
+    /* 4-Font Variable Core System */
+    --font-brand: "Departure Mono", monospace;
     --font-heading: "Departure Mono", monospace;
-    --font-sans: "Departure Mono", sans-serif;
-    --font-mono: "Departure Mono", monospace;
-
-    --font-monospace-active: var(--font-mono);
-    --font-departure-active: var(--font-heading);
+    --font-sans: "Space Grotesk", var(--font-geist-sans), sans-serif;
+    --font-mono: "Space Mono", var(--font-geist-mono), monospace;
 
     /* Snappy Transitions */
     --transition-speed: 150ms;
@@ -250,7 +248,27 @@ h6 {
     letter-spacing: 0.02em;
 }
 
-/* Typography Helpers */
+/* Typography System Classes */
+.font-brand {
+    font-family: var(--font-brand);
+}
+
+.font-heading {
+    font-family: var(--font-heading);
+}
+
+.font-sans {
+    font-family: var(--font-sans);
+}
+
+.font-mono {
+    font-family: var(--font-mono);
+}
+
+.font-departure {
+    font-family: var(--font-brand);
+}
+
 .text-industrial {
     font-family: var(--font-brand);
     text-transform: uppercase;

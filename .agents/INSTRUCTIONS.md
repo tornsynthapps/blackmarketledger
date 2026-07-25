@@ -132,6 +132,12 @@ Every function **must** include a structured comment that clearly specifies:
 - Components should be reusable and composable.
 - Components should be stored in the `components` folder.
 
+### 4.5 Styling & CSS Mandate (STRICT)
+
+- **Do NOT use TailwindCSS utility classes on any new code or new components.**
+- Always write modular, dedicated vanilla CSS files (or CSS modules) for styling new features and components.
+- Existing code using TailwindCSS can be refactored into CSS files when modified.
+
 ---
 
 ## 5. Error Handling

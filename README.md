@@ -1,8 +1,8 @@
-# Blackmarket Ledger
+# Torn Ledger
 
 **The ultimate trading logistics and profit-tracking tool for Torn.**
 
-Blackmarket Ledger (BML) is a premium, comprehensive dashboard designed specifically for players of [Torn](https://www.torn.com/). It empowers traders to track inventory, calculate cost bases, monitor profits, and analyze historical trends with precision and ease.
+Torn Ledger (TL) is a premium, comprehensive dashboard designed specifically for players of [Torn](https://www.torn.com/). It empowers traders to track inventory, calculate cost bases, monitor profits, and analyze historical trends with precision and ease.
 
 > [!NOTE]
 > This project is designed for serious Torn traders who want to maximize their efficiency and gain deep insights into their trading performance.
