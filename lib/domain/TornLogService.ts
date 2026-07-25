@@ -16,6 +16,7 @@ import { categories } from "@/constants/tempLogCategories";
 initializeDefaultHandlers();
 
 export const FUTURE_WORK : number[] = [
+    4810, 5720, 8314, 7815, 6200
     // // Item Use ========================
     // 2020, // Item Use candy
     // 2030, // Item Use alcohol

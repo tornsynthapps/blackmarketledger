@@ -465,6 +465,30 @@ export async function handleChristmasTownItems(log: NormalizedLog, deps: Handler
     }
 }
 
+export async function handleItemUse(log: NormalizedLog, deps: HandlerDependencies): Promise<void> {
+    const existing = await deps.itemLogService.getLogByTornLogId(String(log.id));
+    if (existing) return;
+
+    const data = log.data || {};
+
+    const itemID = parseInt((data.item || "").toString());
+    const faction = data.faction;
+
+    if (faction != 0) {
+        // TODO: update it to support faction item use.
+    }
+
+    await deps.itemLogService.bulkPutLogs
+        ([ItemLog.create({
+            timestamp: log.timestamp * 1000,
+            item_id: itemID,
+            quantity: -1,
+            unit_price: 0,
+            category: "consumption",
+            torn_log_id: String(log.id),
+        })]);
+}
+
 // --- Initialization ---
 type LogAttribute = {
     description: string;
@@ -494,6 +518,7 @@ const logs: Record<number, LogAttribute> = {
     1400: { description: "Dump item add", handler: handleDumpLog, uidSupported: false },
     1401: { description: "Dump item find", handler: handleDumpLog, uidSupported: false },
     8938: { description: "Christmas Town items", handler: handleChristmasTownItems, uidSupported: false },
+    2270: {description: "Item use speed", handler: handleItemUse, uidSupported: false }
 };
 
 export function initializeDefaultHandlers() {
