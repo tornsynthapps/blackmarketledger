@@ -1,5 +1,16 @@
 # Torn Ledger Version History
 
+## beta-7.1 (2026-07-25)
+
+- **Typography & Font System**: Unified application under a 4-font CSS variable system (`--font-brand`, `--font-heading`, `--font-sans`, `--font-mono`) with Departure Mono locked as brand font and interactive Pixel vs Modern typography theme selection cards in Settings.
+- **Settings Redesign**: Overhauled Settings layout to a continuous single-page scroll view with a flush gapless navigation rail (Account, API Management, Theme Settings, Data Management), scroll-to-section navigation, and IntersectionObserver active tab tracking.
+- **API Management Cleanup**: Consolidated API key management cards into a unified control panel, removed Legacy Keyrings header, updated key names (Weav3r Key, Torn Full Access API Key, TornExchange Key, Vault Sync Key (deprecated)), and fixed conditional commit button rendering.
+- **Blackbox Refactoring**: Replaced legacy Blackbox implementation with the SystemLog audit logger infrastructure, refactoring `/logger` into `/blackbox` and `/blackbox/view` with updated branding.
+- **Chart Standardizations**: Removed Graph Type setting option and standardized all charts across Dashboard and Stats modals to use smooth curved (`monotone`) trajectories.
+- **BML Connect Removal**: Completely purged `/bmlconnect` and `/bmlconnectlegacy` routes, pages, and UI navigation links.
+- **UID Logging Support**: Integrated User ID (UID) tracking support into `LogHandler` and system logger services for enhanced user context during log collection.
+- **Styling Mandates**: Updated agent instructions and design system guidelines to strictly prohibit Tailwind utility classes on new components in favor of separate CSS files.
+
 ## beta-6.4 (2026-04-27)
 
 - **Settings**: New settings page with theme controls and global tokens
