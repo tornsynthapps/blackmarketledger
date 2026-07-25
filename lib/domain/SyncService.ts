@@ -507,8 +507,8 @@ export class SyncService extends BaseService {
                 String(trade.torn_id),
                 trade.timestamp / 1000,
                 "",
-                trade.user_id,
-                traderId,
+                traderId, // Initiator (user.id)
+                userId,   // Current user (trader.id = us)
                 tradeItems.map(ti => ({
                     user_id: ti.user_id,
                     type: ti.type,
@@ -534,14 +534,18 @@ export class SyncService extends BaseService {
                 );
 
                 if (mockTornTrade.compareAndLinkReceipt(mockReceipt, userIdStr)) {
-                    await this.tradeService.linkReceiptToTrade(trade.id!, receipt.id!);
-                    linkCount++;
+                    try {
+                        await this.tradeService.linkReceiptToTrade(trade.id!, receipt.id!);
+                        linkCount++;
 
-                    // Remove the linked receipt from the unlinked pool to avoid redundant checks
-                    const idx = unlinkedReceipts.indexOf(receipt);
-                    if (idx !== -1) unlinkedReceipts.splice(idx, 1);
+                        // Remove the linked receipt from the unlinked pool to avoid redundant checks
+                        const idx = unlinkedReceipts.indexOf(receipt);
+                        if (idx !== -1) unlinkedReceipts.splice(idx, 1);
 
-                    break;
+                        break;
+                    } catch (err) {
+                        this.logger.warn(`Failed to execute linkReceiptToTrade for trade ${trade.id} and receipt ${receipt.id}:`, err);
+                    }
                 }
             }
         }

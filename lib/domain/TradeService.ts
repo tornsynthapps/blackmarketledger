@@ -8,7 +8,7 @@ import { TornAPIClient } from "../tornAPI";
 import { ItemLogService } from "./ItemLogService";
 import { ReceiptRegistry } from "../objects/Receipt";
 import { ReceiptItemRegistry } from "../objects/ReceiptItem";
-import { TornTradeItem, TornTradeMoney } from "../old/game/trade";
+import { TornTradeItem, TornTradeMoney, TornTrade, Weav3rReceipt } from "../old/game/trade";
 import { MetadataInterface } from "../old/interfaces/metadata";
 
 export class TradeService extends BaseService {
@@ -275,7 +275,7 @@ export class TradeService extends BaseService {
 
         this.logger.info(`Validating trade items (${tradeItems.length}) against receipt items (${receiptItems.length})`);
 
-        // 1. Validate Money
+        // 1. Validate Money (allow 1.0 tolerance matching TornTrade.compareReceipt)
         let tradeMoneyPaid = 0;
         const tradeReceivedItems: Record<number, number> = {};
         for (const item of tradeItems) {
@@ -288,17 +288,31 @@ export class TradeService extends BaseService {
 
         this.logger.info(`Trade money paid: ${tradeMoneyPaid}, Receipt total: ${receipt.total_value}`);
 
-        if (Math.abs(receipt.total_value - tradeMoneyPaid) > 0.01) {
+        if (Math.abs(receipt.total_value - tradeMoneyPaid) > 1.0) {
             this.logger.warn(`Money mismatch detected! Trade: ${tradeMoneyPaid}, Receipt: ${receipt.total_value}`);
             throw new Error(`Money mismatch: Trade sent ${tradeMoneyPaid.toLocaleString()}, Receipt total ${receipt.total_value.toLocaleString()}`);
         }
 
-        // 2. Validate Items and Quantities
+        // 2. Expand receipt items (handling Flower Set -1 & Plushie Set -2)
+        const mockReceipt = new Weav3rReceipt(
+            receipt.receipt_id_string,
+            receipt.receipt_id_string,
+            receipt.total_value,
+            receipt.created_at / 1000,
+            receipt.created_at / 1000,
+            receiptItems.map(ri => ({
+                item_id: ri.item_id,
+                item_name: ri.name,
+                quantity: ri.quantity,
+                price_used: ri.price,
+                total_value: ri.subtotal
+            }))
+        );
+
+        const expandedReceiptItems = TornTrade.expandSetItems(mockReceipt, tradeMoneyPaid);
         const receiptReceivedItems: Record<number, number> = {};
-        for (const item of receiptItems) {
-            if (item.item_id !== 0) {
-                receiptReceivedItems[item.item_id] = (receiptReceivedItems[item.item_id] || 0) + item.quantity;
-            }
+        for (const item of expandedReceiptItems) {
+            receiptReceivedItems[item.itemID] = (receiptReceivedItems[item.itemID] || 0) + item.quantity;
         }
 
         // Check if all trade items exist in receipt with correct qty
@@ -330,13 +344,13 @@ export class TradeService extends BaseService {
             this.logger.info(`Found ${relatedLogs.length} related logs to update.`);
 
             for (const log of relatedLogs) {
-                const receiptItem = receiptItems.find(ri => ri.item_id === log.item_id);
+                const receiptItem = expandedReceiptItems.find(ri => ri.itemID === log.item_id);
                 if (receiptItem) {
-                    this.logger.info(`Updating item ${log.item_id} price: ${log.unit_price} -> ${receiptItem.price}`);
+                    this.logger.info(`Updating item ${log.item_id} price: ${log.unit_price} -> ${receiptItem.priceUsed}`);
                     const updatedLog = ItemLog.fromDatabase({
                         ...log.toDatabaseRecord(),
                         id: log.id!,
-                        unit_price: receiptItem.price
+                        unit_price: receiptItem.priceUsed
                     } as any);
                     await this.itemLogService.updateLog(updatedLog);
                 } else {
