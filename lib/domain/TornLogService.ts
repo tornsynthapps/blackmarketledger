@@ -47,7 +47,6 @@ export const FUTURE_WORK : number[] = [
     2057, // Item finish book list capacity increase
     2058, // Item finish book merit reset
     2059, // Item finish book drug addiction removal
-    2070, // Item use first aid kit
     2090, // Item use neumune tablet
     2100, // Item use blood bag
     2101, // Item use blood bag wrong type

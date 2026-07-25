@@ -524,6 +524,7 @@ const logs: Record<number, LogAttribute> = {
     2020: { description: "Item use candy", handler: handleItemUse, uidSupported: false },
     2030: { description: "Item use alcohol", handler: handleItemUse, uidSupported: false },
     2060: { description: "Item use morphine", handler: handleItemUse, uidSupported: false },
+    2070: { description: "Item use first aid kit", handler: handleItemUse, uidSupported: false },
     2080: { description: "Item use small first aid kit", handler: handleItemUse, uidSupported: false },
     2270: { description: "Item use speed", handler: handleItemUse, uidSupported: false },
     2410: { description: "Item use box of tissues", handler: handleItemUse, uidSupported: false },

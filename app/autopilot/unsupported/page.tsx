@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     FileSearchIcon,
@@ -12,11 +12,13 @@ import {
     FilterIcon,
     Tick01Icon,
     InformationCircleIcon,
-    Task01Icon
+    Add01Icon
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
-import { SKIPPED_LOGS, FUTURE_WORK } from "@/lib/domain/TornLogService";
+import { FUTURE_WORK } from "@/lib/domain/TornLogService";
+import { defaultLogRegistry } from "@/lib/domain/LogParserRegistry";
+import { initializeDefaultHandlers } from "@/lib/domain/LogHandlers";
 
 interface UnsupportedLog {
     id: string;
@@ -34,41 +36,62 @@ export default function UnsupportedLogsVisualizer() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([]);
     const [showTypeFilter, setShowTypeFilter] = useState(false);
-    const [hideSkipped, setHideSkipped] = useState(true);
+    const [hideHandled, setHideHandled] = useState(true);
     const [logCategoryFilter, setLogCategoryFilter] = useState<"all" | "unsupported" | "future_work">("all");
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        initializeDefaultHandlers();
+    }, []);
 
     const availableTypeIds = useMemo(() => {
         const types = Array.from(new Set(logs.map(log => log.typeId)));
         return types.sort((a, b) => a - b);
     }, [logs]);
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const fileList = e.target.files;
+        if (!fileList || fileList.length === 0) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
+        initializeDefaultHandlers();
+        const newParsedLogs: UnsupportedLog[] = [];
+        const errors: string[] = [];
+
+        for (let i = 0; i < fileList.length; i++) {
+            const file = fileList[i];
             try {
-                const json = JSON.parse(event.target?.result as string);
-                if (Array.isArray(json)) {
-                    const normalized = json.map((log: any) => ({
-                        ...log,
-                        logCategory: log.logCategory || (FUTURE_WORK.includes(Number(log.typeId)) ? "future_work" : "unsupported"),
-                    }));
-                    setLogs(normalized);
-                    const types = Array.from(new Set(normalized.map((log: any) => Number(log.typeId)))) as number[];
-                    setSelectedTypeIds(types);
-                    setError(null);
-                } else {
-                    throw new Error("Invalid format: Expected an array of logs.");
-                }
+                const text = await file.text();
+                const json = JSON.parse(text);
+                const items = Array.isArray(json) ? json : [json];
+                items.forEach((log: any) => {
+                    if (log && (log.id !== undefined || log.typeId !== undefined)) {
+                        newParsedLogs.push({
+                            ...log,
+                            id: String(log.id ?? Math.random().toString()),
+                            typeId: Number(log.typeId),
+                            logCategory: log.logCategory || (FUTURE_WORK.includes(Number(log.typeId)) ? "future_work" : "unsupported"),
+                        });
+                    }
+                });
             } catch (err: any) {
-                setError(err.message || "Failed to parse JSON file.");
-                setLogs([]);
+                errors.push(`${file.name}: ${err.message || "Failed to parse JSON"}`);
             }
-        };
-        reader.readAsText(file);
+        }
+
+        if (newParsedLogs.length > 0) {
+            setLogs((prev) => {
+                const existingIds = new Set(prev.map((l) => l.id));
+                const uniqueNew = newParsedLogs.filter((l) => !existingIds.has(l.id));
+                const merged = [...prev, ...uniqueNew];
+                const types = Array.from(new Set(merged.map((l) => l.typeId))).sort((a, b) => a - b);
+                setSelectedTypeIds(types);
+                return merged;
+            });
+            setError(errors.length > 0 ? errors.join("; ") : null);
+        } else if (errors.length > 0) {
+            setError(errors.join("; "));
+        }
+        e.target.value = "";
     };
 
     const toggleTypeId = (typeId: number) => {
@@ -101,9 +124,9 @@ export default function UnsupportedLogsVisualizer() {
             });
         }
 
-        // Skip known types if enabled
-        if (hideSkipped) {
-            result = result.filter(log => !SKIPPED_LOGS.includes(log.typeId));
+        // Hide logs that have registered log handlers if enabled
+        if (hideHandled) {
+            result = result.filter(log => defaultLogRegistry.getHandler(log.typeId) === undefined);
         }
 
         // Type ID filtering
@@ -124,7 +147,7 @@ export default function UnsupportedLogsVisualizer() {
         }
 
         return result;
-    }, [logs, logCategoryFilter, searchQuery, selectedTypeIds, availableTypeIds, hideSkipped]);
+    }, [logs, logCategoryFilter, searchQuery, selectedTypeIds, availableTypeIds, hideHandled]);
 
     return (
         <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
@@ -151,21 +174,23 @@ export default function UnsupportedLogsVisualizer() {
                     <div className="space-y-1">
                         <h3 className="text-xl font-bold">Upload Unsupported Logs</h3>
                         <p className="text-muted text-sm max-w-sm">
-                            Select the .json file downloaded from Auto-Pilot to visualize and filter its contents.
+                            Select one or more .json files downloaded from Auto-Pilot to visualize and filter contents.
                         </p>
                     </div>
                     <input
                         type="file"
                         accept=".json"
+                        multiple
                         onChange={handleFileUpload}
                         className="hidden"
                         id="log-upload"
                     />
                     <label
                         htmlFor="log-upload"
-                        className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl cursor-pointer hover:opacity-90 transition-all active:scale-95"
+                        className="px-6 py-3 bg-primary text-primary-foreground font-bold rounded-xl cursor-pointer hover:opacity-90 transition-all active:scale-95 flex items-center gap-2"
                     >
-                        Select File
+                        <HugeiconsIcon icon={Upload01Icon} size={18} />
+                        Select File(s)
                     </label>
                     {error && (
                         <div className="flex items-center gap-2 text-danger text-sm font-bold bg-danger/10 px-4 py-2 rounded-lg">
@@ -176,38 +201,58 @@ export default function UnsupportedLogsVisualizer() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {/* Log Category Filter Tabs */}
-                    <div className="flex items-center gap-2 p-1.5 bg-panel border-2 border-border rounded-2xl w-fit">
-                        <button
-                            onClick={() => setLogCategoryFilter("all")}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
-                                logCategoryFilter === "all"
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "text-muted hover:text-foreground hover:bg-foreground/5"
-                            }`}
-                        >
-                            All Logs ({categoryCounts.total})
-                        </button>
-                        <button
-                            onClick={() => setLogCategoryFilter("unsupported")}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
-                                logCategoryFilter === "unsupported"
-                                    ? "bg-orange-500 text-white shadow-sm"
-                                    : "text-muted hover:text-foreground hover:bg-foreground/5"
-                            }`}
-                        >
-                            Unsupported ({categoryCounts.unsupported})
-                        </button>
-                        <button
-                            onClick={() => setLogCategoryFilter("future_work")}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
-                                logCategoryFilter === "future_work"
-                                    ? "bg-purple-600 text-white shadow-sm"
-                                    : "text-muted hover:text-foreground hover:bg-foreground/5"
-                            }`}
-                        >
-                            Future Work ({categoryCounts.futureWork})
-                        </button>
+                    {/* Log Category Filter Tabs & Add Files Button */}
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 p-1.5 bg-panel border-2 border-border rounded-2xl w-fit">
+                            <button
+                                onClick={() => setLogCategoryFilter("all")}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                    logCategoryFilter === "all"
+                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                        : "text-muted hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                            >
+                                All Logs ({categoryCounts.total})
+                            </button>
+                            <button
+                                onClick={() => setLogCategoryFilter("unsupported")}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                    logCategoryFilter === "unsupported"
+                                        ? "bg-orange-500 text-white shadow-sm"
+                                        : "text-muted hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                            >
+                                Unsupported ({categoryCounts.unsupported})
+                            </button>
+                            <button
+                                onClick={() => setLogCategoryFilter("future_work")}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                    logCategoryFilter === "future_work"
+                                        ? "bg-purple-600 text-white shadow-sm"
+                                        : "text-muted hover:text-foreground hover:bg-foreground/5"
+                                }`}
+                            >
+                                Future Work ({categoryCounts.futureWork})
+                            </button>
+                        </div>
+
+                        <div>
+                            <input
+                                type="file"
+                                accept=".json"
+                                multiple
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                id="log-upload-more"
+                            />
+                            <label
+                                htmlFor="log-upload-more"
+                                className="px-4 py-2 bg-panel border-2 border-border font-bold text-xs rounded-xl cursor-pointer hover:bg-foreground/5 transition-all flex items-center gap-2"
+                            >
+                                <HugeiconsIcon icon={Add01Icon} size={16} />
+                                Add File(s)
+                            </label>
+                        </div>
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-4">
@@ -283,19 +328,19 @@ export default function UnsupportedLogsVisualizer() {
                         </div>
 
                         <button
-                            onClick={() => setHideSkipped(!hideSkipped)}
+                            onClick={() => setHideHandled(!hideHandled)}
                             className={`h-full flex items-center gap-2 px-6 py-3 rounded-2xl border-2 transition-all text-sm font-bold ${
-                                hideSkipped 
+                                hideHandled 
                                     ? "bg-warning border-warning text-warning-foreground" 
                                     : "bg-panel border-border hover:bg-foreground/5"
                             }`}
                         >
-                            <HugeiconsIcon icon={hideSkipped ? Tick01Icon : Cancel01Icon} size={16} />
-                            Hide Known
+                            <HugeiconsIcon icon={hideHandled ? Tick01Icon : Cancel01Icon} size={16} />
+                            Hide Handled
                         </button>
 
                         <button
-                            onClick={() => { setLogs([]); setSearchQuery(""); setSelectedTypeIds([]); setHideSkipped(true); setLogCategoryFilter("all"); }}
+                            onClick={() => { setLogs([]); setSearchQuery(""); setSelectedTypeIds([]); setHideHandled(true); setLogCategoryFilter("all"); setError(null); }}
                             className="px-6 py-3 rounded-2xl border-2 border-border hover:bg-foreground/5 transition-all text-sm font-bold"
                         >
                             <HugeiconsIcon icon={Cancel01Icon} size={16} className="inline mr-2" />
@@ -318,6 +363,7 @@ export default function UnsupportedLogsVisualizer() {
                                     {filteredLogs.length > 0 ? (
                                         filteredLogs.map((log) => {
                                             const isFuture = (log.logCategory || (FUTURE_WORK.includes(log.typeId) ? "future_work" : "unsupported")) === "future_work";
+                                            const hasHandler = defaultLogRegistry.getHandler(log.typeId) !== undefined;
                                             return (
                                                 <tr key={log.id} className="hover:bg-foreground/[0.02] transition-colors group">
                                                     <td className="px-6 py-4">
@@ -333,6 +379,11 @@ export default function UnsupportedLogsVisualizer() {
                                                             }`}>
                                                                 {isFuture ? "Future Work" : "Unsupported"}
                                                             </span>
+                                                            {hasHandler && (
+                                                                <span className="px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                                                                    Handled
+                                                                </span>
+                                                            )}
                                                             {log.category && (
                                                                 <span className="px-2 py-0.5 rounded bg-foreground/5 text-[10px] font-bold uppercase tracking-wider text-muted">
                                                                     {log.category}
