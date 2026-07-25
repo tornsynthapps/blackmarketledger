@@ -17,10 +17,15 @@ export type ItemLogWrapperType =
     | "manual-transfer"
     // "museum-exchange": Exchanges one or more items for points in the museum.
     // Has sub-type to indicate set of items to exchange.
-    | "museum-exchange";
+    | "museum-exchange"
+    // "trade-receipt": Associates multiple trade items and a receipt.
+    | "trade-receipt"
+    // "consumption": Consumes items from stock and logs loss under consumption category.
+    | "consumption";
+
+export type ItemLogWrapperAutoSplitSubType = "auto-split-default" | "auto-split-museum";
 
 export type ItemLogWrapperMuseumSubType =
-    // Museum Exchange
     | "plushie-set"
     | "exotic-flower-set"
     | "meteorite-fragment"
@@ -34,7 +39,25 @@ export type ItemLogWrapperMuseumSubType =
     | "senet-game-set"
     | "egyptian-amulet";
 
-export type ItemLogWrapperSubType = ItemLogWrapperMuseumSubType | null;
+export const MUSEUM_EXCHANGE_RATES: Record<ItemLogWrapperMuseumSubType, number> = {
+    "plushie-set": 10,
+    "exotic-flower-set": 10,
+    "meteorite-fragment": 15,
+    "patagonian-fossil": 20,
+    "arrowhead-set": 25,
+    "medieval-coin-set": 100,
+    "vairocana-buddha": 100,
+    "ganesha-sculpture": 250,
+    "shabti-sculpture": 500,
+    "companion-scripts": 1000,
+    "senet-game-set": 2000,
+    "egyptian-amulet": 10000,
+};
+
+export type ItemLogWrapperSubType =
+    | ItemLogWrapperAutoSplitSubType
+    | ItemLogWrapperMuseumSubType
+    | null;
 
 export interface ItemLogWrapperCreateFields {
     timestamp: number;

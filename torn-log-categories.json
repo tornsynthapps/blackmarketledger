@@ -1,0 +1,4588 @@
+{
+    "logtypes": [
+        {
+            "id": 1,
+            "title": "Created account"
+        },
+        {
+            "id": 2,
+            "title": "Started introduction"
+        },
+        {
+            "id": 3,
+            "title": "Finished introduction"
+        },
+        {
+            "id": 101,
+            "title": "Successful login"
+        },
+        {
+            "id": 102,
+            "title": "Failed login"
+        },
+        {
+            "id": 103,
+            "title": "Logout"
+        },
+        {
+            "id": 104,
+            "title": "Logout all devices"
+        },
+        {
+            "id": 105,
+            "title": "Inactive refills"
+        },
+        {
+            "id": 106,
+            "title": "Development server accessed"
+        },
+        {
+            "id": 110,
+            "title": "Password reset requested"
+        },
+        {
+            "id": 111,
+            "title": "Password reset successful"
+        },
+        {
+            "id": 120,
+            "title": "2FA SMS code sent"
+        },
+        {
+            "id": 121,
+            "title": "2FA SMS code entry successful"
+        },
+        {
+            "id": 122,
+            "title": "2FA SMS code entry failed"
+        },
+        {
+            "id": 123,
+            "title": "2FA Secret question entry successful"
+        },
+        {
+            "id": 124,
+            "title": "2FA Secret question entry failed"
+        },
+        {
+            "id": 125,
+            "title": "2FA Email code sent"
+        },
+        {
+            "id": 126,
+            "title": "2FA Email code entry successful"
+        },
+        {
+            "id": 127,
+            "title": "2FA Email code entry failed"
+        },
+        {
+            "id": 130,
+            "title": "2FA Authenticator code entry successful"
+        },
+        {
+            "id": 131,
+            "title": "2FA Authenticator code entry failed"
+        },
+        {
+            "id": 300,
+            "title": "Name change"
+        },
+        {
+            "id": 301,
+            "title": "Email change"
+        },
+        {
+            "id": 302,
+            "title": "Email validate"
+        },
+        {
+            "id": 303,
+            "title": "Password change success"
+        },
+        {
+            "id": 304,
+            "title": "Password change failed"
+        },
+        {
+            "id": 305,
+            "title": "Gender change"
+        },
+        {
+            "id": 310,
+            "title": "Security panel entry success"
+        },
+        {
+            "id": 311,
+            "title": "Security panel entry failure"
+        },
+        {
+            "id": 312,
+            "title": "2FA enable/disable"
+        },
+        {
+            "id": 313,
+            "title": "Authorised device add/remove"
+        },
+        {
+            "id": 314,
+            "title": "Mobile number add/remove/verified"
+        },
+        {
+            "id": 315,
+            "title": "Date of birth add/remove"
+        },
+        {
+            "id": 316,
+            "title": "Secret question add/remove"
+        },
+        {
+            "id": 317,
+            "title": "Authenticator add/remove/verified"
+        },
+        {
+            "id": 320,
+            "title": "Login widgets enable/disable"
+        },
+        {
+            "id": 321,
+            "title": "Honor names enable/disable"
+        },
+        {
+            "id": 322,
+            "title": "Preferred validation"
+        },
+        {
+            "id": 323,
+            "title": "Revive preference"
+        },
+        {
+            "id": 324,
+            "title": "Revive preference automatic"
+        },
+        {
+            "id": 325,
+            "title": "Attack & defending preferences"
+        },
+        {
+            "id": 330,
+            "title": "Icon placement"
+        },
+        {
+            "id": 331,
+            "title": "Icon order"
+        },
+        {
+            "id": 332,
+            "title": "Icon size"
+        },
+        {
+            "id": 333,
+            "title": "Icon refresh"
+        },
+        {
+            "id": 340,
+            "title": "Resend seasonal newsletter"
+        },
+        {
+            "id": 341,
+            "title": "Email subscriptions"
+        },
+        {
+            "id": 345,
+            "title": "API key reset (deprecated)"
+        },
+        {
+            "id": 346,
+            "title": "API key add"
+        },
+        {
+            "id": 347,
+            "title": "API key delete"
+        },
+        {
+            "id": 348,
+            "title": "API key pause/unpause"
+        },
+        {
+            "id": 350,
+            "title": "Profile signature"
+        },
+        {
+            "id": 351,
+            "title": "Profile signature viewing preference"
+        },
+        {
+            "id": 355,
+            "title": "Forum signature"
+        },
+        {
+            "id": 356,
+            "title": "Forum signature viewing preference"
+        },
+        {
+            "id": 360,
+            "title": "Personal details display preference"
+        },
+        {
+            "id": 361,
+            "title": "Personal details real name change"
+        },
+        {
+            "id": 362,
+            "title": "Personal details country change"
+        },
+        {
+            "id": 363,
+            "title": "Personal details city change"
+        },
+        {
+            "id": 364,
+            "title": "Personal details age change"
+        },
+        {
+            "id": 370,
+            "title": "Gallery image upload"
+        },
+        {
+            "id": 371,
+            "title": "Gallery image edit type"
+        },
+        {
+            "id": 372,
+            "title": "Gallery image add description"
+        },
+        {
+            "id": 373,
+            "title": "Gallery image delete"
+        },
+        {
+            "id": 374,
+            "title": "Gallery profile image change"
+        },
+        {
+            "id": 375,
+            "title": "Gallery profile image remove"
+        },
+        {
+            "id": 381,
+            "title": "Staff gallery image delete receive"
+        },
+        {
+            "id": 400,
+            "title": "Seasonal newsletter send"
+        },
+        {
+            "id": 401,
+            "title": "Seasonal newsletter energy bonus"
+        },
+        {
+            "id": 402,
+            "title": "Seasonal newsletter nerve bonus"
+        },
+        {
+            "id": 410,
+            "title": "Inactive update send"
+        },
+        {
+            "id": 420,
+            "title": "George tutorial send"
+        },
+        {
+            "id": 500,
+            "title": "Captcha validation success"
+        },
+        {
+            "id": 501,
+            "title": "Captcha validation failure"
+        },
+        {
+            "id": 510,
+            "title": "Discord verification"
+        },
+        {
+            "id": 1100,
+            "title": "Item market add (old)"
+        },
+        {
+            "id": 1101,
+            "title": "Item market remove (old)"
+        },
+        {
+            "id": 1102,
+            "title": "Item market edit (old)"
+        },
+        {
+            "id": 1103,
+            "title": "Item market buy (old)"
+        },
+        {
+            "id": 1104,
+            "title": "Item market sell (old)"
+        },
+        {
+            "id": 1110,
+            "title": "Item market add"
+        },
+        {
+            "id": 1111,
+            "title": "Item market remove"
+        },
+        {
+            "id": 1112,
+            "title": "Item market buy"
+        },
+        {
+            "id": 1113,
+            "title": "Item market sell"
+        },
+        {
+            "id": 1115,
+            "title": "Item market price edit"
+        },
+        {
+            "id": 1116,
+            "title": "Item market anonymity edit"
+        },
+        {
+            "id": 1200,
+            "title": "Bazaar name change"
+        },
+        {
+            "id": 1201,
+            "title": "Bazaar description change"
+        },
+        {
+            "id": 1202,
+            "title": "Bazaar open / close"
+        },
+        {
+            "id": 1205,
+            "title": "Bazaar favorite"
+        },
+        {
+            "id": 1206,
+            "title": "Bazaar unfavorite"
+        },
+        {
+            "id": 1210,
+            "title": "Bazaar add (legacy)"
+        },
+        {
+            "id": 1211,
+            "title": "Bazaar remove (legacy)"
+        },
+        {
+            "id": 1212,
+            "title": "Bazaar edit (legacy)"
+        },
+        {
+            "id": 1220,
+            "title": "Bazaar buy (legacy)"
+        },
+        {
+            "id": 1221,
+            "title": "Bazaar sell (legacy)"
+        },
+        {
+            "id": 1222,
+            "title": "Bazaar add"
+        },
+        {
+            "id": 1223,
+            "title": "Bazaar remove"
+        },
+        {
+            "id": 1224,
+            "title": "Bazaar edit"
+        },
+        {
+            "id": 1225,
+            "title": "Bazaar buy"
+        },
+        {
+            "id": 1226,
+            "title": "Bazaar sell"
+        },
+        {
+            "id": 1300,
+            "title": "Display add (legacy)"
+        },
+        {
+            "id": 1301,
+            "title": "Display remove (legacy)"
+        },
+        {
+            "id": 1302,
+            "title": "Display add"
+        },
+        {
+            "id": 1303,
+            "title": "Display remove"
+        },
+        {
+            "id": 1400,
+            "title": "Dump add (legacy)"
+        },
+        {
+            "id": 1401,
+            "title": "Dump find (legacy)"
+        },
+        {
+            "id": 1402,
+            "title": "Dump find none"
+        },
+        {
+            "id": 1403,
+            "title": "Dump add"
+        },
+        {
+            "id": 1404,
+            "title": "Dump find"
+        },
+        {
+            "id": 1500,
+            "title": "Big Al's bunker sell"
+        },
+        {
+            "id": 1501,
+            "title": "Big Al's bunker buy"
+        },
+        {
+            "id": 2010,
+            "title": "Item use entertainment"
+        },
+        {
+            "id": 2020,
+            "title": "Item use candy"
+        },
+        {
+            "id": 2030,
+            "title": "Item use alcohol"
+        },
+        {
+            "id": 2040,
+            "title": "Item use energy drink"
+        },
+        {
+            "id": 2050,
+            "title": "Item use book"
+        },
+        {
+            "id": 2051,
+            "title": "Item finish book"
+        },
+        {
+            "id": 2052,
+            "title": "Item finish book strength increase"
+        },
+        {
+            "id": 2053,
+            "title": "Item finish book speed increase"
+        },
+        {
+            "id": 2054,
+            "title": "Item finish book defense increase"
+        },
+        {
+            "id": 2055,
+            "title": "Item finish book dexterity increase"
+        },
+        {
+            "id": 2056,
+            "title": "Item finish book working stats increase"
+        },
+        {
+            "id": 2057,
+            "title": "Item finish book list capacity increase"
+        },
+        {
+            "id": 2058,
+            "title": "Item finish book merit reset"
+        },
+        {
+            "id": 2059,
+            "title": "Item finish book drug addiction removal"
+        },
+        {
+            "id": 2060,
+            "title": "Item use morphine"
+        },
+        {
+            "id": 2070,
+            "title": "Item use first aid kit"
+        },
+        {
+            "id": 2080,
+            "title": "Item use small first aid kit"
+        },
+        {
+            "id": 2090,
+            "title": "Item use neumune tablet"
+        },
+        {
+            "id": 2100,
+            "title": "Item use blood bag"
+        },
+        {
+            "id": 2101,
+            "title": "Item use blood bag wrong type"
+        },
+        {
+            "id": 2102,
+            "title": "Item use blood bag irradiated"
+        },
+        {
+            "id": 2105,
+            "title": "Item use ipecac syrup"
+        },
+        {
+            "id": 2110,
+            "title": "Item use lawyer business card"
+        },
+        {
+            "id": 2120,
+            "title": "Item use parachute"
+        },
+        {
+            "id": 2130,
+            "title": "Item use skateboard"
+        },
+        {
+            "id": 2140,
+            "title": "Item use boxing gloves"
+        },
+        {
+            "id": 2150,
+            "title": "Item use dumbbells"
+        },
+        {
+            "id": 2160,
+            "title": "Item use book of carols"
+        },
+        {
+            "id": 2170,
+            "title": "Item use gift card"
+        },
+        {
+            "id": 2180,
+            "title": "Item use erotic dvd"
+        },
+        {
+            "id": 2190,
+            "title": "Item use feathery hotel coupon"
+        },
+        {
+            "id": 2200,
+            "title": "Item use cannabis"
+        },
+        {
+            "id": 2201,
+            "title": "Item use cannabis overdose"
+        },
+        {
+            "id": 2210,
+            "title": "Item use ecstasy"
+        },
+        {
+            "id": 2211,
+            "title": "Item use ecstasy overdose"
+        },
+        {
+            "id": 2220,
+            "title": "Item use ketamine"
+        },
+        {
+            "id": 2221,
+            "title": "Item use ketamine overdose"
+        },
+        {
+            "id": 2230,
+            "title": "Item use LSD"
+        },
+        {
+            "id": 2231,
+            "title": "Item use LSD overdose"
+        },
+        {
+            "id": 2240,
+            "title": "Item use opium"
+        },
+        {
+            "id": 2241,
+            "title": "Item use opium overdose"
+        },
+        {
+            "id": 2250,
+            "title": "Item use PCP"
+        },
+        {
+            "id": 2251,
+            "title": "Item use PCP overdose"
+        },
+        {
+            "id": 2260,
+            "title": "Item use shrooms"
+        },
+        {
+            "id": 2261,
+            "title": "Item use shrooms overdose"
+        },
+        {
+            "id": 2270,
+            "title": "Item use speed"
+        },
+        {
+            "id": 2271,
+            "title": "Item use speed overdose"
+        },
+        {
+            "id": 2280,
+            "title": "Item use vicodin"
+        },
+        {
+            "id": 2281,
+            "title": "Item use vicodin overdose"
+        },
+        {
+            "id": 2290,
+            "title": "Item use xanax"
+        },
+        {
+            "id": 2291,
+            "title": "Item use xanax overdose"
+        },
+        {
+            "id": 2295,
+            "title": "Item use love juice"
+        },
+        {
+            "id": 2300,
+            "title": "Item use dog poop success"
+        },
+        {
+            "id": 2301,
+            "title": "Item use dog poop fail"
+        },
+        {
+            "id": 2302,
+            "title": "Item target dog poop success"
+        },
+        {
+            "id": 2303,
+            "title": "Item target dog poop fail"
+        },
+        {
+            "id": 2310,
+            "title": "Item use stink bombs success"
+        },
+        {
+            "id": 2311,
+            "title": "Item use stink bombs fail"
+        },
+        {
+            "id": 2312,
+            "title": "Item target stink bombs success"
+        },
+        {
+            "id": 2313,
+            "title": "Item target stink bombs fail"
+        },
+        {
+            "id": 2320,
+            "title": "Item use toilet paper success"
+        },
+        {
+            "id": 2321,
+            "title": "Item use toilet paper fail"
+        },
+        {
+            "id": 2322,
+            "title": "Item target toilet paper success"
+        },
+        {
+            "id": 2323,
+            "title": "Item target toilet paper fail"
+        },
+        {
+            "id": 2325,
+            "title": "Item use poison mistletoe"
+        },
+        {
+            "id": 2326,
+            "title": "Item target poison mistletoe"
+        },
+        {
+            "id": 2330,
+            "title": "Item use donator pack"
+        },
+        {
+            "id": 2340,
+            "title": "Item use empty blood bag"
+        },
+        {
+            "id": 2350,
+            "title": "Item use box of grenades"
+        },
+        {
+            "id": 2360,
+            "title": "Item use box of medical supplies"
+        },
+        {
+            "id": 2370,
+            "title": "Item use lottery voucher"
+        },
+        {
+            "id": 2380,
+            "title": "Item use piggy bank deposit"
+        },
+        {
+            "id": 2381,
+            "title": "Item use piggy bank withdraw"
+        },
+        {
+            "id": 2390,
+            "title": "Item use drug pack"
+        },
+        {
+            "id": 2400,
+            "title": "Item use goodie bag"
+        },
+        {
+            "id": 2405,
+            "title": "Item use wallet"
+        },
+        {
+            "id": 2406,
+            "title": "Item use arca fortunae"
+        },
+        {
+            "id": 2407,
+            "title": "Item use stash box"
+        },
+        {
+            "id": 2410,
+            "title": "Item use box of tissues"
+        },
+        {
+            "id": 2420,
+            "title": "Item use vanity mirror"
+        },
+        {
+            "id": 2430,
+            "title": "Item use casino pass"
+        },
+        {
+            "id": 2440,
+            "title": "Item use dirty bomb"
+        },
+        {
+            "id": 2441,
+            "title": "Item use dirty bomb prime"
+        },
+        {
+            "id": 2442,
+            "title": "Item use dirty bomb safe"
+        },
+        {
+            "id": 2443,
+            "title": "Dirty bomb radiation"
+        },
+        {
+            "id": 2444,
+            "title": "Dirty bomb hospitalize"
+        },
+        {
+            "id": 2445,
+            "title": "Dirty bomb claim responsibility"
+        },
+        {
+            "id": 2450,
+            "title": "Item use cake frosting / lock picking kit"
+        },
+        {
+            "id": 2460,
+            "title": "Item use felovax"
+        },
+        {
+            "id": 2470,
+            "title": "Item use zylkene"
+        },
+        {
+            "id": 2480,
+            "title": "Item use dukes safe"
+        },
+        {
+            "id": 2490,
+            "title": "Item use empty vial"
+        },
+        {
+            "id": 2500,
+            "title": "Item use keg of beer"
+        },
+        {
+            "id": 2501,
+            "title": "Item use keg of beer empty"
+        },
+        {
+            "id": 2510,
+            "title": "Item use six pack of alcohol"
+        },
+        {
+            "id": 2520,
+            "title": "Item use six pack of energy drink"
+        },
+        {
+            "id": 2525,
+            "title": "Item use tin of treats"
+        },
+        {
+            "id": 2530,
+            "title": "Item use halloween basket take candy (legacy)"
+        },
+        {
+            "id": 2531,
+            "title": "Item use halloween basket decrease happiness (legacy)"
+        },
+        {
+            "id": 2532,
+            "title": "Item target halloween basket take candy (legacy)"
+        },
+        {
+            "id": 2533,
+            "title": "Item target halloween basket decrease happiness (legacy)"
+        },
+        {
+            "id": 2535,
+            "title": "Item use halloween basket"
+        },
+        {
+            "id": 2536,
+            "title": "Halloween treat receive"
+        },
+        {
+            "id": 2538,
+            "title": "Halloween basket evolution"
+        },
+        {
+            "id": 2540,
+            "title": "Halloween basket upgrade"
+        },
+        {
+            "id": 2545,
+            "title": "Halloween basket receive happy"
+        },
+        {
+            "id": 2546,
+            "title": "Halloween basket receive nerve"
+        },
+        {
+            "id": 2547,
+            "title": "Halloween basket receive energy"
+        },
+        {
+            "id": 2548,
+            "title": "Halloween basket receive item"
+        },
+        {
+            "id": 2600,
+            "title": "Item use strippogram"
+        },
+        {
+            "id": 2601,
+            "title": "Item target strippogram"
+        },
+        {
+            "id": 2605,
+            "title": "Item use anniversary present"
+        },
+        {
+            "id": 2610,
+            "title": "Item use christmas cracker user win"
+        },
+        {
+            "id": 2611,
+            "title": "Item use christmas cracker target win"
+        },
+        {
+            "id": 2612,
+            "title": "Item use christmas cracker user lose"
+        },
+        {
+            "id": 2613,
+            "title": "Item use christmas cracker target lose"
+        },
+        {
+            "id": 2615,
+            "title": "Item use cache"
+        },
+        {
+            "id": 2620,
+            "title": "Item use relic"
+        },
+        {
+            "id": 2621,
+            "title": "Relic wither"
+        },
+        {
+            "id": 4000,
+            "title": "Parcel create"
+        },
+        {
+            "id": 4001,
+            "title": "Parcel open"
+        },
+        {
+            "id": 4002,
+            "title": "Parcel wrap"
+        },
+        {
+            "id": 4003,
+            "title": "Parcel disguise"
+        },
+        {
+            "id": 4005,
+            "title": "Parcel open small explosive device"
+        },
+        {
+            "id": 4006,
+            "title": "Parcel open horses head"
+        },
+        {
+            "id": 4100,
+            "title": "Item send (legacy)"
+        },
+        {
+            "id": 4101,
+            "title": "Item receive (legacy)"
+        },
+        {
+            "id": 4102,
+            "title": "Item send"
+        },
+        {
+            "id": 4103,
+            "title": "Item receive"
+        },
+        {
+            "id": 4104,
+            "title": "Item send (legacy 2)"
+        },
+        {
+            "id": 4105,
+            "title": "Item receive (legacy 2)"
+        },
+        {
+            "id": 4200,
+            "title": "Item shop buy"
+        },
+        {
+            "id": 4201,
+            "title": "Item abroad buy"
+        },
+        {
+            "id": 4210,
+            "title": "Item shop sell"
+        },
+        {
+            "id": 4220,
+            "title": "Item shop sell points"
+        },
+        {
+            "id": 4300,
+            "title": "Auction house item add"
+        },
+        {
+            "id": 4301,
+            "title": "Auction house property add"
+        },
+        {
+            "id": 4305,
+            "title": "Auction house item bid fail"
+        },
+        {
+            "id": 4306,
+            "title": "Auction house property bid fail"
+        },
+        {
+            "id": 4310,
+            "title": "Auction house item bid"
+        },
+        {
+            "id": 4311,
+            "title": "Auction house property bid"
+        },
+        {
+            "id": 4312,
+            "title": "Auction house item outbid"
+        },
+        {
+            "id": 4313,
+            "title": "Auction house property outbid"
+        },
+        {
+            "id": 4320,
+            "title": "Auction house item win"
+        },
+        {
+            "id": 4321,
+            "title": "Auction house property win"
+        },
+        {
+            "id": 4322,
+            "title": "Auction house item sold"
+        },
+        {
+            "id": 4323,
+            "title": "Auction house property sold"
+        },
+        {
+            "id": 4330,
+            "title": "Auction house item timeout"
+        },
+        {
+            "id": 4331,
+            "title": "Auction house property timeout"
+        },
+        {
+            "id": 4400,
+            "title": "Trade initiate outgoing"
+        },
+        {
+            "id": 4401,
+            "title": "Trade initiate incoming"
+        },
+        {
+            "id": 4410,
+            "title": "Trade cancel outgoing"
+        },
+        {
+            "id": 4411,
+            "title": "Trade cancel incoming"
+        },
+        {
+            "id": 4412,
+            "title": "Trade decline outgoing"
+        },
+        {
+            "id": 4413,
+            "title": "Trade decline incoming"
+        },
+        {
+            "id": 4420,
+            "title": "Trade expire"
+        },
+        {
+            "id": 4430,
+            "title": "Trade completed"
+        },
+        {
+            "id": 4431,
+            "title": "Trade accepted"
+        },
+        {
+            "id": 4440,
+            "title": "Trade money outgoing"
+        },
+        {
+            "id": 4441,
+            "title": "Trade money incoming"
+        },
+        {
+            "id": 4442,
+            "title": "Trade money add"
+        },
+        {
+            "id": 4443,
+            "title": "Trade money remove"
+        },
+        {
+            "id": 4445,
+            "title": "Trade items outgoing"
+        },
+        {
+            "id": 4446,
+            "title": "Trade items incoming"
+        },
+        {
+            "id": 4447,
+            "title": "Trade items add"
+        },
+        {
+            "id": 4448,
+            "title": "Trade items remove"
+        },
+        {
+            "id": 4450,
+            "title": "Trade property outgoing"
+        },
+        {
+            "id": 4451,
+            "title": "Trade property incoming"
+        },
+        {
+            "id": 4452,
+            "title": "Trade property add"
+        },
+        {
+            "id": 4453,
+            "title": "Trade property remove (legacy)"
+        },
+        {
+            "id": 4454,
+            "title": "Trade property remove"
+        },
+        {
+            "id": 4455,
+            "title": "Trade shares outgoing (legacy)"
+        },
+        {
+            "id": 4456,
+            "title": "Trade shares incoming (legacy)"
+        },
+        {
+            "id": 4457,
+            "title": "Trade shares add (legacy)"
+        },
+        {
+            "id": 4458,
+            "title": "Trade shares remove (legacy)"
+        },
+        {
+            "id": 4460,
+            "title": "Trade NAPs (legacy)"
+        },
+        {
+            "id": 4465,
+            "title": "Trade peace treaties"
+        },
+        {
+            "id": 4466,
+            "title": "Trade peace treaties add"
+        },
+        {
+            "id": 4467,
+            "title": "Trade peace treaties remove"
+        },
+        {
+            "id": 4470,
+            "title": "Trade faction outgoing"
+        },
+        {
+            "id": 4471,
+            "title": "Trade faction incoming"
+        },
+        {
+            "id": 4472,
+            "title": "Trade faction add"
+        },
+        {
+            "id": 4473,
+            "title": "Trade faction remove"
+        },
+        {
+            "id": 4475,
+            "title": "Trade company outgoing"
+        },
+        {
+            "id": 4476,
+            "title": "Trade company incoming"
+        },
+        {
+            "id": 4477,
+            "title": "Trade company add"
+        },
+        {
+            "id": 4478,
+            "title": "Trade company remove"
+        },
+        {
+            "id": 4480,
+            "title": "Trade money add other user"
+        },
+        {
+            "id": 4481,
+            "title": "Trade money remove other user"
+        },
+        {
+            "id": 4482,
+            "title": "Trade items add other user"
+        },
+        {
+            "id": 4483,
+            "title": "Trade items remove other user"
+        },
+        {
+            "id": 4484,
+            "title": "Trade property add other user"
+        },
+        {
+            "id": 4485,
+            "title": "Trade property remove other user (legacy)"
+        },
+        {
+            "id": 4486,
+            "title": "Trade shares add other user (legacy)"
+        },
+        {
+            "id": 4487,
+            "title": "Trade shares remove other user (legacy)"
+        },
+        {
+            "id": 4488,
+            "title": "Trade peace treaties add other user"
+        },
+        {
+            "id": 4489,
+            "title": "Trade peace treaties remove other user"
+        },
+        {
+            "id": 4490,
+            "title": "Trade faction add other user"
+        },
+        {
+            "id": 4491,
+            "title": "Trade faction remove other user"
+        },
+        {
+            "id": 4492,
+            "title": "Trade company add other user"
+        },
+        {
+            "id": 4493,
+            "title": "Trade company remove other user"
+        },
+        {
+            "id": 4494,
+            "title": "Trade property remove other user"
+        },
+        {
+            "id": 4498,
+            "title": "Trade comment"
+        },
+        {
+            "id": 4499,
+            "title": "Trade comment other user"
+        },
+        {
+            "id": 4500,
+            "title": "Ammo buy"
+        },
+        {
+            "id": 4510,
+            "title": "Ammo sell"
+        },
+        {
+            "id": 4520,
+            "title": "Ammo priority"
+        },
+        {
+            "id": 4600,
+            "title": "Mods equip"
+        },
+        {
+            "id": 4610,
+            "title": "Mods unequip"
+        },
+        {
+            "id": 4700,
+            "title": "Items equip"
+        },
+        {
+            "id": 4710,
+            "title": "Items unequip"
+        },
+        {
+            "id": 4750,
+            "title": "Loadout switch"
+        },
+        {
+            "id": 4751,
+            "title": "Loadout rename"
+        },
+        {
+            "id": 4752,
+            "title": "Loadout reset"
+        },
+        {
+            "id": 4800,
+            "title": "Money send"
+        },
+        {
+            "id": 4810,
+            "title": "Money receive"
+        },
+        {
+            "id": 4850,
+            "title": "Keepsake purchase"
+        },
+        {
+            "id": 4900,
+            "title": "Points energy refill use"
+        },
+        {
+            "id": 4905,
+            "title": "Points nerve refill use"
+        },
+        {
+            "id": 4910,
+            "title": "Points casino token refill use"
+        },
+        {
+            "id": 4915,
+            "title": "Points stock ticker unlock"
+        },
+        {
+            "id": 4920,
+            "title": "Points friend capacity increase"
+        },
+        {
+            "id": 4925,
+            "title": "Points enemy capacity increase"
+        },
+        {
+            "id": 4926,
+            "title": "Points target capacity increase"
+        },
+        {
+            "id": 4927,
+            "title": "Points loadout capacity increase"
+        },
+        {
+            "id": 4930,
+            "title": "Points racing license unlock"
+        },
+        {
+            "id": 4935,
+            "title": "Points city watch unlock"
+        },
+        {
+            "id": 4940,
+            "title": "Points display case unlock"
+        },
+        {
+            "id": 4945,
+            "title": "Points bazaar unlock"
+        },
+        {
+            "id": 4950,
+            "title": "Points merit buy"
+        },
+        {
+            "id": 4955,
+            "title": "Points merit reset use"
+        },
+        {
+            "id": 4960,
+            "title": "Points Big Al's bunker unlock"
+        },
+        {
+            "id": 4965,
+            "title": "Points honor unlock"
+        },
+        {
+            "id": 4970,
+            "title": "Points hairstyle unlock"
+        },
+        {
+            "id": 4975,
+            "title": "Points backdrop unlock"
+        },
+        {
+            "id": 4976,
+            "title": "Points hairstyle equip"
+        },
+        {
+            "id": 4977,
+            "title": "Points hairstyle unequip"
+        },
+        {
+            "id": 4978,
+            "title": "Points backdrop change"
+        },
+        {
+            "id": 5000,
+            "title": "Points market add"
+        },
+        {
+            "id": 5001,
+            "title": "Points market remove"
+        },
+        {
+            "id": 5010,
+            "title": "Points market buy"
+        },
+        {
+            "id": 5011,
+            "title": "Points market sell"
+        },
+        {
+            "id": 5100,
+            "title": "Merit assign"
+        },
+        {
+            "id": 5110,
+            "title": "Honor awarded"
+        },
+        {
+            "id": 5120,
+            "title": "Medal awarded"
+        },
+        {
+            "id": 5130,
+            "title": "Rank change"
+        },
+        {
+            "id": 5140,
+            "title": "Title change"
+        },
+        {
+            "id": 5150,
+            "title": "Honor bar changed"
+        },
+        {
+            "id": 5200,
+            "title": "Level up"
+        },
+        {
+            "id": 5250,
+            "title": "Referral signup"
+        },
+        {
+            "id": 5251,
+            "title": "Referral reward"
+        },
+        {
+            "id": 5252,
+            "title": "Referral remove"
+        },
+        {
+            "id": 5300,
+            "title": "Gym train strength"
+        },
+        {
+            "id": 5301,
+            "title": "Gym train defense"
+        },
+        {
+            "id": 5302,
+            "title": "Gym train speed"
+        },
+        {
+            "id": 5303,
+            "title": "Gym train dexterity"
+        },
+        {
+            "id": 5310,
+            "title": "Gym train addict"
+        },
+        {
+            "id": 5320,
+            "title": "Gym purchase"
+        },
+        {
+            "id": 5321,
+            "title": "Gym activate"
+        },
+        {
+            "id": 5350,
+            "title": "Jail"
+        },
+        {
+            "id": 5351,
+            "title": "Jail escape success"
+        },
+        {
+            "id": 5352,
+            "title": "Jail escape failure"
+        },
+        {
+            "id": 5355,
+            "title": "Jail escape fruitcake"
+        },
+        {
+            "id": 5356,
+            "title": "Jail fruitcake"
+        },
+        {
+            "id": 5360,
+            "title": "Bust success"
+        },
+        {
+            "id": 5361,
+            "title": "Bust receive success"
+        },
+        {
+            "id": 5362,
+            "title": "Bust failure"
+        },
+        {
+            "id": 5363,
+            "title": "Bust receive failure"
+        },
+        {
+            "id": 5370,
+            "title": "Bail"
+        },
+        {
+            "id": 5371,
+            "title": "Bail receive"
+        },
+        {
+            "id": 5400,
+            "title": "Hospital"
+        },
+        {
+            "id": 5410,
+            "title": "Revive"
+        },
+        {
+            "id": 5411,
+            "title": "Revive receive"
+        },
+        {
+            "id": 5412,
+            "title": "Reviving skill level up"
+        },
+        {
+            "id": 5415,
+            "title": "Revive failure"
+        },
+        {
+            "id": 5416,
+            "title": "Revive receive failure"
+        },
+        {
+            "id": 5420,
+            "title": "Early discharge"
+        },
+        {
+            "id": 5450,
+            "title": "Bank invest"
+        },
+        {
+            "id": 5451,
+            "title": "Bank withdraw"
+        },
+        {
+            "id": 5460,
+            "title": "Cashiers check withdraw"
+        },
+        {
+            "id": 5461,
+            "title": "Cashiers check receive"
+        },
+        {
+            "id": 5500,
+            "title": "Stock listing add (legacy)"
+        },
+        {
+            "id": 5501,
+            "title": "Stock listing remove (legacy)"
+        },
+        {
+            "id": 5510,
+            "title": "Stock buy"
+        },
+        {
+            "id": 5511,
+            "title": "Stock sell"
+        },
+        {
+            "id": 5520,
+            "title": "Stock split"
+        },
+        {
+            "id": 5521,
+            "title": "Stock merge"
+        },
+        {
+            "id": 5530,
+            "title": "Stock special item"
+        },
+        {
+            "id": 5531,
+            "title": "Stock special money"
+        },
+        {
+            "id": 5532,
+            "title": "Stock special property"
+        },
+        {
+            "id": 5533,
+            "title": "Stock special ammo"
+        },
+        {
+            "id": 5534,
+            "title": "Stock special happy"
+        },
+        {
+            "id": 5535,
+            "title": "Stock special energy"
+        },
+        {
+            "id": 5536,
+            "title": "Stock special nerve"
+        },
+        {
+            "id": 5537,
+            "title": "Stock special points"
+        },
+        {
+            "id": 5544,
+            "title": "Stock special withdrawal ready"
+        },
+        {
+            "id": 5545,
+            "title": "Stock special passive active"
+        },
+        {
+            "id": 5550,
+            "title": "Donation success"
+        },
+        {
+            "id": 5551,
+            "title": "Donation success bonus points"
+        },
+        {
+            "id": 5555,
+            "title": "Subscription success"
+        },
+        {
+            "id": 5560,
+            "title": "Subscription created"
+        },
+        {
+            "id": 5561,
+            "title": "Subscription canceled"
+        },
+        {
+            "id": 5562,
+            "title": "Subscription suspended"
+        },
+        {
+            "id": 5563,
+            "title": "Subscription reactivated"
+        },
+        {
+            "id": 5565,
+            "title": "Donation failure"
+        },
+        {
+            "id": 5570,
+            "title": "Donation expired"
+        },
+        {
+            "id": 5575,
+            "title": "Subscription reward"
+        },
+        {
+            "id": 5580,
+            "title": "Subscription draw"
+        },
+        {
+            "id": 5585,
+            "title": "Donation staff privilege"
+        },
+        {
+            "id": 5600,
+            "title": "Seasonal gift items"
+        },
+        {
+            "id": 5610,
+            "title": "Seasonal gift energy"
+        },
+        {
+            "id": 5611,
+            "title": "Seasonal gift refills"
+        },
+        {
+            "id": 5615,
+            "title": "Seasonal gift merit reset"
+        },
+        {
+            "id": 5700,
+            "title": "Crime fail"
+        },
+        {
+            "id": 5705,
+            "title": "Crime fail jail"
+        },
+        {
+            "id": 5710,
+            "title": "Crime fail hospital"
+        },
+        {
+            "id": 5715,
+            "title": "Crime fail money loss"
+        },
+        {
+            "id": 5720,
+            "title": "Crime success money gain"
+        },
+        {
+            "id": 5725,
+            "title": "Crime success item gain"
+        },
+        {
+            "id": 5730,
+            "title": "Crime success points gain"
+        },
+        {
+            "id": 5735,
+            "title": "Crime success casino token gain"
+        },
+        {
+            "id": 5750,
+            "title": "Friends list add"
+        },
+        {
+            "id": 5751,
+            "title": "Friends list remove"
+        },
+        {
+            "id": 5752,
+            "title": "Friends list description"
+        },
+        {
+            "id": 5753,
+            "title": "Friends list add automatic"
+        },
+        {
+            "id": 5755,
+            "title": "Enemies list add"
+        },
+        {
+            "id": 5756,
+            "title": "Enemies list remove"
+        },
+        {
+            "id": 5757,
+            "title": "Enemies list description"
+        },
+        {
+            "id": 5758,
+            "title": "Enemies list exchanges"
+        },
+        {
+            "id": 5760,
+            "title": "Targets list add"
+        },
+        {
+            "id": 5761,
+            "title": "Targets list remove"
+        },
+        {
+            "id": 5762,
+            "title": "Targets list description"
+        },
+        {
+            "id": 5770,
+            "title": "Recently met list remove"
+        },
+        {
+            "id": 5800,
+            "title": "Virus programming start"
+        },
+        {
+            "id": 5801,
+            "title": "Virus programming cancel"
+        },
+        {
+            "id": 5802,
+            "title": "Virus programming complete"
+        },
+        {
+            "id": 5850,
+            "title": "Vault deposit"
+        },
+        {
+            "id": 5851,
+            "title": "Vault withdraw"
+        },
+        {
+            "id": 5852,
+            "title": "Vault sharing"
+        },
+        {
+            "id": 5900,
+            "title": "Property upgrade"
+        },
+        {
+            "id": 5905,
+            "title": "Property staff"
+        },
+        {
+            "id": 5910,
+            "title": "Property move"
+        },
+        {
+            "id": 5915,
+            "title": "Property kick"
+        },
+        {
+            "id": 5916,
+            "title": "Property kick receive"
+        },
+        {
+            "id": 5920,
+            "title": "Property upkeep"
+        },
+        {
+            "id": 5925,
+            "title": "Property sell market add"
+        },
+        {
+            "id": 5926,
+            "title": "Property sell market remove"
+        },
+        {
+            "id": 5927,
+            "title": "Property buy"
+        },
+        {
+            "id": 5928,
+            "title": "Property sell"
+        },
+        {
+            "id": 5930,
+            "title": "Property rental market add"
+        },
+        {
+            "id": 5931,
+            "title": "Property rental market remove"
+        },
+        {
+            "id": 5932,
+            "title": "Property rental market offer owner"
+        },
+        {
+            "id": 5933,
+            "title": "Property rental market offer renter"
+        },
+        {
+            "id": 5934,
+            "title": "Property rental market offer remove owner"
+        },
+        {
+            "id": 5935,
+            "title": "Property rental market offer remove renter"
+        },
+        {
+            "id": 5936,
+            "title": "Property rental market rent renter"
+        },
+        {
+            "id": 5937,
+            "title": "Property rental market rent owner"
+        },
+        {
+            "id": 5938,
+            "title": "Property rental market rent expire renter"
+        },
+        {
+            "id": 5939,
+            "title": "Property rental market rent expire owner"
+        },
+        {
+            "id": 5940,
+            "title": "Property rental market extension owner"
+        },
+        {
+            "id": 5941,
+            "title": "Property rental market extension renter"
+        },
+        {
+            "id": 5942,
+            "title": "Property rental market extension accept renter"
+        },
+        {
+            "id": 5943,
+            "title": "Property rental market extension accept owner"
+        },
+        {
+            "id": 5945,
+            "title": "Property give"
+        },
+        {
+            "id": 5946,
+            "title": "Property receive"
+        },
+        {
+            "id": 5947,
+            "title": "Property rental market offer decline renter"
+        },
+        {
+            "id": 5948,
+            "title": "Property rental market offer decline owner"
+        },
+        {
+            "id": 5950,
+            "title": "Property rental market extension decline renter"
+        },
+        {
+            "id": 5951,
+            "title": "Property rental market extension decline owner"
+        },
+        {
+            "id": 5952,
+            "title": "Property rental market extension withdraw renter"
+        },
+        {
+            "id": 5953,
+            "title": "Property rental market extension withdraw owner"
+        },
+        {
+            "id": 5960,
+            "title": "Education start"
+        },
+        {
+            "id": 5961,
+            "title": "Education leave"
+        },
+        {
+            "id": 5962,
+            "title": "Education kick"
+        },
+        {
+            "id": 5963,
+            "title": "Education complete"
+        },
+        {
+            "id": 5970,
+            "title": "Church donate"
+        },
+        {
+            "id": 5971,
+            "title": "Church pray"
+        },
+        {
+            "id": 5975,
+            "title": "Church propose send"
+        },
+        {
+            "id": 5976,
+            "title": "Church propose receive"
+        },
+        {
+            "id": 5977,
+            "title": "Church propose cancel send"
+        },
+        {
+            "id": 5978,
+            "title": "Church propose cancel receive"
+        },
+        {
+            "id": 5979,
+            "title": "Church propose decline send"
+        },
+        {
+            "id": 5980,
+            "title": "Church propose decline receive"
+        },
+        {
+            "id": 5981,
+            "title": "Church propose accept send"
+        },
+        {
+            "id": 5982,
+            "title": "Church propose accept receive"
+        },
+        {
+            "id": 5983,
+            "title": "Church propose break send"
+        },
+        {
+            "id": 5984,
+            "title": "Church propose break receive"
+        },
+        {
+            "id": 5985,
+            "title": "Church invite guest send"
+        },
+        {
+            "id": 5986,
+            "title": "Church invite guest receive"
+        },
+        {
+            "id": 5987,
+            "title": "Church guest accept send"
+        },
+        {
+            "id": 5988,
+            "title": "Church guest accept receive"
+        },
+        {
+            "id": 5989,
+            "title": "Church marry"
+        },
+        {
+            "id": 5990,
+            "title": "Church divorce send"
+        },
+        {
+            "id": 5991,
+            "title": "Church divorce receive"
+        },
+        {
+            "id": 5992,
+            "title": "Church guest witness"
+        },
+        {
+            "id": 6000,
+            "title": "Travel initiate"
+        },
+        {
+            "id": 6001,
+            "title": "Travel fee"
+        },
+        {
+            "id": 6002,
+            "title": "Travel business class ticket"
+        },
+        {
+            "id": 6005,
+            "title": "Rehab"
+        },
+        {
+            "id": 6010,
+            "title": "Offshore bank deposit"
+        },
+        {
+            "id": 6011,
+            "title": "Offshore bank withdraw"
+        },
+        {
+            "id": 6012,
+            "title": "Offshore bank interest"
+        },
+        {
+            "id": 6015,
+            "title": "Fortune teller"
+        },
+        {
+            "id": 6020,
+            "title": "Hunting"
+        },
+        {
+            "id": 6021,
+            "title": "Hunting skill level up"
+        },
+        {
+            "id": 6200,
+            "title": "Loan increase"
+        },
+        {
+            "id": 6201,
+            "title": "Loan decrease"
+        },
+        {
+            "id": 6203,
+            "title": "Loan fees increase"
+        },
+        {
+            "id": 6204,
+            "title": "Loan fees pay"
+        },
+        {
+            "id": 6205,
+            "title": "Loan warning"
+        },
+        {
+            "id": 6206,
+            "title": "Loan increase upkeep"
+        },
+        {
+            "id": 6210,
+            "title": "Job join"
+        },
+        {
+            "id": 6211,
+            "title": "Job interview failure"
+        },
+        {
+            "id": 6212,
+            "title": "Job interview angry"
+        },
+        {
+            "id": 6215,
+            "title": "Job promote"
+        },
+        {
+            "id": 6216,
+            "title": "Job quit"
+        },
+        {
+            "id": 6217,
+            "title": "Job fired"
+        },
+        {
+            "id": 6220,
+            "title": "Job pay"
+        },
+        {
+            "id": 6221,
+            "title": "Company employee pay"
+        },
+        {
+            "id": 6222,
+            "title": "Company director pay"
+        },
+        {
+            "id": 6235,
+            "title": "Faction looking for members toggle"
+        },
+        {
+            "id": 6236,
+            "title": "Faction allow applications toggle"
+        },
+        {
+            "id": 6237,
+            "title": "Company allow applications toggle"
+        },
+        {
+            "id": 6240,
+            "title": "Company application send"
+        },
+        {
+            "id": 6241,
+            "title": "Company application delete"
+        },
+        {
+            "id": 6242,
+            "title": "Company application accept send"
+        },
+        {
+            "id": 6243,
+            "title": "Company application accept receive"
+        },
+        {
+            "id": 6244,
+            "title": "Company application decline send"
+        },
+        {
+            "id": 6245,
+            "title": "Company application decline receive"
+        },
+        {
+            "id": 6250,
+            "title": "Faction application send"
+        },
+        {
+            "id": 6251,
+            "title": "Faction application delete"
+        },
+        {
+            "id": 6252,
+            "title": "Faction application accept send"
+        },
+        {
+            "id": 6253,
+            "title": "Faction application accept receive"
+        },
+        {
+            "id": 6254,
+            "title": "Faction application decline send"
+        },
+        {
+            "id": 6255,
+            "title": "Faction application decline receive"
+        },
+        {
+            "id": 6260,
+            "title": "Company quit"
+        },
+        {
+            "id": 6261,
+            "title": "Company fire send"
+        },
+        {
+            "id": 6262,
+            "title": "Company fire receive"
+        },
+        {
+            "id": 6263,
+            "title": "Company train send"
+        },
+        {
+            "id": 6264,
+            "title": "Company train receive"
+        },
+        {
+            "id": 6265,
+            "title": "Company wage change send"
+        },
+        {
+            "id": 6266,
+            "title": "Company wage change receive"
+        },
+        {
+            "id": 6267,
+            "title": "Company rank change send"
+        },
+        {
+            "id": 6268,
+            "title": "Company rank change receive"
+        },
+        {
+            "id": 6275,
+            "title": "Company fire bankruptcy"
+        },
+        {
+            "id": 6280,
+            "title": "Company create"
+        },
+        {
+            "id": 6281,
+            "title": "Company stock pricing"
+        },
+        {
+            "id": 6282,
+            "title": "Company stock order"
+        },
+        {
+            "id": 6283,
+            "title": "Company advertising budget"
+        },
+        {
+            "id": 6284,
+            "title": "Company deposit"
+        },
+        {
+            "id": 6285,
+            "title": "Company withdraw"
+        },
+        {
+            "id": 6290,
+            "title": "Company storage upgrade"
+        },
+        {
+            "id": 6291,
+            "title": "Company staffroom upgrade"
+        },
+        {
+            "id": 6292,
+            "title": "Company size upgrade"
+        },
+        {
+            "id": 6293,
+            "title": "Company name change"
+        },
+        {
+            "id": 6294,
+            "title": "Company director change send"
+        },
+        {
+            "id": 6295,
+            "title": "Company director change receive"
+        },
+        {
+            "id": 6296,
+            "title": "Company image upload"
+        },
+        {
+            "id": 6300,
+            "title": "Company sell"
+        },
+        {
+            "id": 6301,
+            "title": "Company newsletter send"
+        },
+        {
+            "id": 6302,
+            "title": "Company newsletter receive"
+        },
+        {
+            "id": 6310,
+            "title": "Company news save"
+        },
+        {
+            "id": 6311,
+            "title": "Company news unsave"
+        },
+        {
+            "id": 6400,
+            "title": "Job special gain strength"
+        },
+        {
+            "id": 6401,
+            "title": "Job special gain item"
+        },
+        {
+            "id": 6402,
+            "title": "Job special gain defense"
+        },
+        {
+            "id": 6403,
+            "title": "Job special spy"
+        },
+        {
+            "id": 6404,
+            "title": "Job special gain money"
+        },
+        {
+            "id": 6405,
+            "title": "Job special gain casino tokens"
+        },
+        {
+            "id": 6406,
+            "title": "Job special gain nerve"
+        },
+        {
+            "id": 6407,
+            "title": "Job special class action lawsuit"
+        },
+        {
+            "id": 6408,
+            "title": "Job special give jail bail"
+        },
+        {
+            "id": 6409,
+            "title": "Job special receive jail bail"
+        },
+        {
+            "id": 6410,
+            "title": "Job special gain working stats"
+        },
+        {
+            "id": 6500,
+            "title": "Company special gain special ammo"
+        },
+        {
+            "id": 6501,
+            "title": "Company special gain exp"
+        },
+        {
+            "id": 6502,
+            "title": "Company special view target info"
+        },
+        {
+            "id": 6503,
+            "title": "Company special reduce education time"
+        },
+        {
+            "id": 6504,
+            "title": "Company special reduce drug addiction"
+        },
+        {
+            "id": 6505,
+            "title": "Company special gain item"
+        },
+        {
+            "id": 6506,
+            "title": "Company special view abroad stocks"
+        },
+        {
+            "id": 6507,
+            "title": "Company special gain racing points"
+        },
+        {
+            "id": 6508,
+            "title": "Company special gain endurance"
+        },
+        {
+            "id": 6509,
+            "title": "Company special gain money"
+        },
+        {
+            "id": 6510,
+            "title": "Company special view level progress"
+        },
+        {
+            "id": 6511,
+            "title": "Company special gain energy"
+        },
+        {
+            "id": 6512,
+            "title": "Company special gain nerve"
+        },
+        {
+            "id": 6513,
+            "title": "Company special gain happy"
+        },
+        {
+            "id": 6514,
+            "title": "Company special gain energy nerve and happy"
+        },
+        {
+            "id": 6515,
+            "title": "Company special view true level"
+        },
+        {
+            "id": 6516,
+            "title": "Company special cancel virus"
+        },
+        {
+            "id": 6517,
+            "title": "Company special view bounties"
+        },
+        {
+            "id": 6518,
+            "title": "Company special view bank investment"
+        },
+        {
+            "id": 6519,
+            "title": "Company special guarantee stealth"
+        },
+        {
+            "id": 6520,
+            "title": "Company special receive cancel virus"
+        },
+        {
+            "id": 6521,
+            "title": "Company special gain casino tokens"
+        },
+        {
+            "id": 6522,
+            "title": "Company special gain respect"
+        },
+        {
+            "id": 6523,
+            "title": "Company special gain working stats"
+        },
+        {
+            "id": 6524,
+            "title": "Company special gain credit score"
+        },
+        {
+            "id": 6550,
+            "title": "Company special gain loan time"
+        },
+        {
+            "id": 6525,
+            "title": "Company special gain items"
+        },
+        {
+            "id": 6526,
+            "title": "Company special gain strength"
+        },
+        {
+            "id": 6527,
+            "title": "Company special gain speed"
+        },
+        {
+            "id": 6528,
+            "title": "Company special gain dexterity"
+        },
+        {
+            "id": 6529,
+            "title": "Company special gain defense"
+        },
+        {
+            "id": 6530,
+            "title": "Company special gain racing skill"
+        },
+        {
+            "id": 6531,
+            "title": "Company special gain crime experience"
+        },
+        {
+            "id": 6532,
+            "title": "Company special view city items"
+        },
+        {
+            "id": 6533,
+            "title": "Company special gain property"
+        },
+        {
+            "id": 6534,
+            "title": "Company special use embargo"
+        },
+        {
+            "id": 6535,
+            "title": "Company special receive embargo"
+        },
+        {
+            "id": 6536,
+            "title": "Company special reduce bank time"
+        },
+        {
+            "id": 6537,
+            "title": "Company special use free ride"
+        },
+        {
+            "id": 6538,
+            "title": "Company special receive free ride"
+        },
+        {
+            "id": 6539,
+            "title": "Company special use intricate hack"
+        },
+        {
+            "id": 6540,
+            "title": "Company special view company details"
+        },
+        {
+            "id": 6541,
+            "title": "Company special block bounties"
+        },
+        {
+            "id": 6542,
+            "title": "Company special gain mission credits"
+        },
+        {
+            "id": 6543,
+            "title": "Company special gain life boost"
+        },
+        {
+            "id": 6544,
+            "title": "Company special view employment and faction history"
+        },
+        {
+            "id": 6545,
+            "title": "Company special view friends / enemies list"
+        },
+        {
+            "id": 6546,
+            "title": "Company special use watchlist"
+        },
+        {
+            "id": 6547,
+            "title": "Company special receive watchlist"
+        },
+        {
+            "id": 6548,
+            "title": "Company special view most wanted"
+        },
+        {
+            "id": 6549,
+            "title": "Company special use logistics report"
+        },
+        {
+            "id": 6700,
+            "title": "Bounty place"
+        },
+        {
+            "id": 6701,
+            "title": "Bounty place receive"
+        },
+        {
+            "id": 6705,
+            "title": "Bounty expire"
+        },
+        {
+            "id": 6706,
+            "title": "Bounty expire receive"
+        },
+        {
+            "id": 6708,
+            "title": "Bounty refund"
+        },
+        {
+            "id": 6710,
+            "title": "Bounty claim"
+        },
+        {
+            "id": 6711,
+            "title": "Bounty claim lister"
+        },
+        {
+            "id": 6712,
+            "title": "Bounty claim target"
+        },
+        {
+            "id": 6720,
+            "title": "Faction leave"
+        },
+        {
+            "id": 6721,
+            "title": "Faction kick send"
+        },
+        {
+            "id": 6722,
+            "title": "Faction kick receive"
+        },
+        {
+            "id": 6723,
+            "title": "Faction kick destroyed"
+        },
+        {
+            "id": 6725,
+            "title": "Faction deposit item (legacy)"
+        },
+        {
+            "id": 6726,
+            "title": "Faction deposit money"
+        },
+        {
+            "id": 6727,
+            "title": "Faction deposit points"
+        },
+        {
+            "id": 6728,
+            "title": "Faction deposit item"
+        },
+        {
+            "id": 6730,
+            "title": "Faction give item send (legacy)"
+        },
+        {
+            "id": 6731,
+            "title": "Faction give item receive (legacy)"
+        },
+        {
+            "id": 6732,
+            "title": "Faction give item send"
+        },
+        {
+            "id": 6733,
+            "title": "Faction give item receive"
+        },
+        {
+            "id": 6735,
+            "title": "Faction give money send"
+        },
+        {
+            "id": 6736,
+            "title": "Faction give money receive"
+        },
+        {
+            "id": 6737,
+            "title": "Faction money balance change send"
+        },
+        {
+            "id": 6738,
+            "title": "Faction money balance change receive"
+        },
+        {
+            "id": 6740,
+            "title": "Faction give points send"
+        },
+        {
+            "id": 6741,
+            "title": "Faction give points receive"
+        },
+        {
+            "id": 6742,
+            "title": "Faction points balance change send"
+        },
+        {
+            "id": 6743,
+            "title": "Faction points balance change receive"
+        },
+        {
+            "id": 6745,
+            "title": "Faction loan item send"
+        },
+        {
+            "id": 6746,
+            "title": "Faction loan item receive"
+        },
+        {
+            "id": 6747,
+            "title": "Faction loan item return"
+        },
+        {
+            "id": 6748,
+            "title": "Faction loan item retrieve send"
+        },
+        {
+            "id": 6749,
+            "title": "Faction loan item retrieve receive"
+        },
+        {
+            "id": 6750,
+            "title": "Faction loan item take ownership"
+        },
+        {
+            "id": 6751,
+            "title": "Faction loan item receive ownership"
+        },
+        {
+            "id": 6752,
+            "title": "Faction item receive ownership (legacy)"
+        },
+        {
+            "id": 6753,
+            "title": "Faction item receive ownership"
+        },
+        {
+            "id": 6754,
+            "title": "Faction money receive ownership"
+        },
+        {
+            "id": 6755,
+            "title": "Faction points receive ownership"
+        },
+        {
+            "id": 6760,
+            "title": "Faction tree upgrade set"
+        },
+        {
+            "id": 6761,
+            "title": "Faction tree upgrade unset"
+        },
+        {
+            "id": 6762,
+            "title": "Faction tree upgrade restore"
+        },
+        {
+            "id": 6763,
+            "title": "Faction tree upgrade unset entire branch"
+        },
+        {
+            "id": 6764,
+            "title": "Faction tree upgrade restore entire branch"
+        },
+        {
+            "id": 6765,
+            "title": "Faction tree branch select"
+        },
+        {
+            "id": 6766,
+            "title": "Faction tree war mode"
+        },
+        {
+            "id": 6767,
+            "title": "Faction tree optimize"
+        },
+        {
+            "id": 6768,
+            "title": "Faction organized crimes use items"
+        },
+        {
+            "id": 6769,
+            "title": "Faction organized crimes lose items"
+        },
+        {
+            "id": 6770,
+            "title": "Faction organized crimes join"
+        },
+        {
+            "id": 6771,
+            "title": "Faction organized crimes leave"
+        },
+        {
+            "id": 6772,
+            "title": "Faction organized crimes remove"
+        },
+        {
+            "id": 6773,
+            "title": "Faction organized crimes remove receive"
+        },
+        {
+            "id": 6774,
+            "title": "Faction organized crimes success"
+        },
+        {
+            "id": 6775,
+            "title": "Faction organized crimes failure"
+        },
+        {
+            "id": 6776,
+            "title": "Faction organized crimes failure jail"
+        },
+        {
+            "id": 6777,
+            "title": "Faction organized crimes failure hospital"
+        },
+        {
+            "id": 6778,
+            "title": "Faction organized crimes failure injury"
+        },
+        {
+            "id": 6779,
+            "title": "Faction organized crimes spawn"
+        },
+        {
+            "id": 6780,
+            "title": "Faction organized crimes plan"
+        },
+        {
+            "id": 6781,
+            "title": "Faction organized crimes plan receive"
+        },
+        {
+            "id": 6782,
+            "title": "Faction organized crimes success jail"
+        },
+        {
+            "id": 6783,
+            "title": "Faction organized crimes success hospital"
+        },
+        {
+            "id": 6784,
+            "title": "Faction organized crimes success injury"
+        },
+        {
+            "id": 6785,
+            "title": "Faction organized crimes cancel"
+        },
+        {
+            "id": 6786,
+            "title": "Faction organized crimes cancel receive"
+        },
+        {
+            "id": 6790,
+            "title": "Faction organized crimes initiate"
+        },
+        {
+            "id": 6791,
+            "title": "Faction organized crimes initiate receive"
+        },
+        {
+            "id": 6792,
+            "title": "Faction payout money send"
+        },
+        {
+            "id": 6793,
+            "title": "Faction payout money receive"
+        },
+        {
+            "id": 6794,
+            "title": "Faction payout money balance send"
+        },
+        {
+            "id": 6795,
+            "title": "Faction payout money balance receive"
+        },
+        {
+            "id": 6796,
+            "title": "Faction payout item send"
+        },
+        {
+            "id": 6797,
+            "title": "Faction payout item receive"
+        },
+        {
+            "id": 6799,
+            "title": "Faction organized crimes radiation sickness receive"
+        },
+        {
+            "id": 6800,
+            "title": "Faction create"
+        },
+        {
+            "id": 6805,
+            "title": "Faction newsletter send"
+        },
+        {
+            "id": 6806,
+            "title": "Faction newsletter receive"
+        },
+        {
+            "id": 6810,
+            "title": "Faction payday give"
+        },
+        {
+            "id": 6811,
+            "title": "Faction payday receive"
+        },
+        {
+            "id": 6815,
+            "title": "Faction permissions change (legacy)"
+        },
+        {
+            "id": 6816,
+            "title": "Faction permissions change receive (legacy)"
+        },
+        {
+            "id": 6818,
+            "title": "Faction position create"
+        },
+        {
+            "id": 6819,
+            "title": "Faction position delete"
+        },
+        {
+            "id": 6820,
+            "title": "Faction position name change"
+        },
+        {
+            "id": 6821,
+            "title": "Faction position permission toggle"
+        },
+        {
+            "id": 6825,
+            "title": "Faction member position change"
+        },
+        {
+            "id": 6826,
+            "title": "Faction member position change receive"
+        },
+        {
+            "id": 6827,
+            "title": "Faction member position auto change receive"
+        },
+        {
+            "id": 6830,
+            "title": "Faction change leader"
+        },
+        {
+            "id": 6831,
+            "title": "Faction change leader receive"
+        },
+        {
+            "id": 6832,
+            "title": "Faction change leader auto receive"
+        },
+        {
+            "id": 6833,
+            "title": "Faction change leader auto remove"
+        },
+        {
+            "id": 6835,
+            "title": "Faction change coleader"
+        },
+        {
+            "id": 6836,
+            "title": "Faction change coleader noone (legacy)"
+        },
+        {
+            "id": 6837,
+            "title": "Faction change coleader remove"
+        },
+        {
+            "id": 6838,
+            "title": "Faction change coleader receive"
+        },
+        {
+            "id": 6845,
+            "title": "Faction change announcement"
+        },
+        {
+            "id": 6850,
+            "title": "Faction change urgent announcement"
+        },
+        {
+            "id": 6851,
+            "title": "Faction remove urgent announcement"
+        },
+        {
+            "id": 6852,
+            "title": "Faction change important announcement"
+        },
+        {
+            "id": 6853,
+            "title": "Faction remove important announcement"
+        },
+        {
+            "id": 6855,
+            "title": "Faction change description"
+        },
+        {
+            "id": 6860,
+            "title": "Faction change name"
+        },
+        {
+            "id": 6863,
+            "title": "Faction image upload"
+        },
+        {
+            "id": 6865,
+            "title": "Faction change tag"
+        },
+        {
+            "id": 6866,
+            "title": "Faction change tag image"
+        },
+        {
+            "id": 6869,
+            "title": "Organized crimes system migration"
+        },
+        {
+            "id": 6870,
+            "title": "Faction delete"
+        },
+        {
+            "id": 6875,
+            "title": "Faction build dirty bomb"
+        },
+        {
+            "id": 6876,
+            "title": "Faction complete dirty bomb"
+        },
+        {
+            "id": 6900,
+            "title": "Faction raid initiate"
+        },
+        {
+            "id": 6901,
+            "title": "Faction raid cease"
+        },
+        {
+            "id": 6902,
+            "title": "Faction raid surrender"
+        },
+        {
+            "id": 6910,
+            "title": "Faction territory initiate"
+        },
+        {
+            "id": 6914,
+            "title": "Faction territory wall join energy cost"
+        },
+        {
+            "id": 6915,
+            "title": "Faction territory wall join"
+        },
+        {
+            "id": 6916,
+            "title": "Faction territory wall remove"
+        },
+        {
+            "id": 6950,
+            "title": "Faction ranked warring enlist"
+        },
+        {
+            "id": 6951,
+            "title": "Faction ranked warring unenlist"
+        },
+        {
+            "id": 6955,
+            "title": "Faction ranked warring scheduling preference"
+        },
+        {
+            "id": 6970,
+            "title": "Faction news save"
+        },
+        {
+            "id": 6971,
+            "title": "Faction news unsave"
+        },
+        {
+            "id": 7000,
+            "title": "Museum exchange"
+        },
+        {
+            "id": 7011,
+            "title": "City item find"
+        },
+        {
+            "id": 7050,
+            "title": "Article create"
+        },
+        {
+            "id": 7051,
+            "title": "Article edit"
+        },
+        {
+            "id": 7052,
+            "title": "Article edit receive"
+        },
+        {
+            "id": 7053,
+            "title": "Article publish"
+        },
+        {
+            "id": 7054,
+            "title": "Article publish receive"
+        },
+        {
+            "id": 7055,
+            "title": "Article points reward"
+        },
+        {
+            "id": 7056,
+            "title": "Article delete"
+        },
+        {
+            "id": 7057,
+            "title": "Article delete receive"
+        },
+        {
+            "id": 7058,
+            "title": "Article restore"
+        },
+        {
+            "id": 7059,
+            "title": "Article restore receive"
+        },
+        {
+            "id": 7060,
+            "title": "Article comment"
+        },
+        {
+            "id": 7061,
+            "title": "Article comment receive"
+        },
+        {
+            "id": 7062,
+            "title": "Article unpublish"
+        },
+        {
+            "id": 7063,
+            "title": "Article unpublish receive"
+        },
+        {
+            "id": 7070,
+            "title": "Tell your story submit"
+        },
+        {
+            "id": 7071,
+            "title": "Tell your story delete"
+        },
+        {
+            "id": 7072,
+            "title": "Tell your story restore"
+        },
+        {
+            "id": 7080,
+            "title": "Headline create"
+        },
+        {
+            "id": 7081,
+            "title": "Headline delete"
+        },
+        {
+            "id": 7082,
+            "title": "Headline restore"
+        },
+        {
+            "id": 7090,
+            "title": "Reporter add"
+        },
+        {
+            "id": 7091,
+            "title": "Reporter add receive"
+        },
+        {
+            "id": 7092,
+            "title": "Reporter remove"
+        },
+        {
+            "id": 7093,
+            "title": "Reporter remove receive"
+        },
+        {
+            "id": 7100,
+            "title": "Classified advert add"
+        },
+        {
+            "id": 7110,
+            "title": "Image advert add"
+        },
+        {
+            "id": 7115,
+            "title": "Image advert decline send"
+        },
+        {
+            "id": 7116,
+            "title": "Image advert decline receive"
+        },
+        {
+            "id": 7120,
+            "title": "Image advert accept send"
+        },
+        {
+            "id": 7121,
+            "title": "Image advert accept receive"
+        },
+        {
+            "id": 7125,
+            "title": "Image advert refund"
+        },
+        {
+            "id": 7126,
+            "title": "Image advert remove send"
+        },
+        {
+            "id": 7127,
+            "title": "Image advert remove receive"
+        },
+        {
+            "id": 7130,
+            "title": "Comic submit"
+        },
+        {
+            "id": 7131,
+            "title": "Comic decline send"
+        },
+        {
+            "id": 7132,
+            "title": "Comic decline receive"
+        },
+        {
+            "id": 7133,
+            "title": "Comic accept send"
+        },
+        {
+            "id": 7134,
+            "title": "Comic accept receive"
+        },
+        {
+            "id": 7135,
+            "title": "Comic remove send"
+        },
+        {
+            "id": 7136,
+            "title": "Comic remove receive"
+        },
+        {
+            "id": 7140,
+            "title": "Personals add"
+        },
+        {
+            "id": 7141,
+            "title": "Personals remove send"
+        },
+        {
+            "id": 7142,
+            "title": "Personals remove receive"
+        },
+        {
+            "id": 7150,
+            "title": "Ignore list add"
+        },
+        {
+            "id": 7151,
+            "title": "Ignore list remove"
+        },
+        {
+            "id": 7200,
+            "title": "Message send"
+        },
+        {
+            "id": 7201,
+            "title": "Message receive"
+        },
+        {
+            "id": 7205,
+            "title": "Message read"
+        },
+        {
+            "id": 7210,
+            "title": "Message delete"
+        },
+        {
+            "id": 7215,
+            "title": "Message save"
+        },
+        {
+            "id": 7216,
+            "title": "Message save delete"
+        },
+        {
+            "id": 7217,
+            "title": "Message unsave"
+        },
+        {
+            "id": 7300,
+            "title": "Event delete (legacy)"
+        },
+        {
+            "id": 7301,
+            "title": "Event send (legacy)"
+        },
+        {
+            "id": 7302,
+            "title": "Event receive (legacy)"
+        },
+        {
+            "id": 7305,
+            "title": "Event receive delete (legacy)"
+        },
+        {
+            "id": 7310,
+            "title": "Event save (legacy)"
+        },
+        {
+            "id": 7311,
+            "title": "Event save delete (legacy)"
+        },
+        {
+            "id": 7320,
+            "title": "Event send"
+        },
+        {
+            "id": 7321,
+            "title": "Event receive"
+        },
+        {
+            "id": 7322,
+            "title": "Event save"
+        },
+        {
+            "id": 7323,
+            "title": "Event unsave"
+        },
+        {
+            "id": 7400,
+            "title": "Forums create thread"
+        },
+        {
+            "id": 7401,
+            "title": "Forums create post"
+        },
+        {
+            "id": 7410,
+            "title": "Forums edit own post"
+        },
+        {
+            "id": 7411,
+            "title": "Forums edit user post"
+        },
+        {
+            "id": 7412,
+            "title": "Forums edit user post receive"
+        },
+        {
+            "id": 7420,
+            "title": "Forums rate"
+        },
+        {
+            "id": 7430,
+            "title": "Forums pin"
+        },
+        {
+            "id": 7431,
+            "title": "Forums pin receive"
+        },
+        {
+            "id": 7435,
+            "title": "Forums sticky"
+        },
+        {
+            "id": 7436,
+            "title": "Forums sticky receive"
+        },
+        {
+            "id": 7440,
+            "title": "Forums lock"
+        },
+        {
+            "id": 7441,
+            "title": "Forums lock receive"
+        },
+        {
+            "id": 7445,
+            "title": "Forums delete"
+        },
+        {
+            "id": 7446,
+            "title": "Forums delete receive"
+        },
+        {
+            "id": 7450,
+            "title": "Forums move"
+        },
+        {
+            "id": 7451,
+            "title": "Forums move receive"
+        },
+        {
+            "id": 7455,
+            "title": "Forums poll vote"
+        },
+        {
+            "id": 7456,
+            "title": "Forums poll opt out"
+        },
+        {
+            "id": 7460,
+            "title": "Forums subscribe"
+        },
+        {
+            "id": 7465,
+            "title": "Forums report"
+        },
+        {
+            "id": 7466,
+            "title": "Forums report delete"
+        },
+        {
+            "id": 7500,
+            "title": "Forums bug report assign send"
+        },
+        {
+            "id": 7501,
+            "title": "Forums bug report unassign"
+        },
+        {
+            "id": 7502,
+            "title": "Forums bug report assign receive"
+        },
+        {
+            "id": 7505,
+            "title": "Forums bug report status"
+        },
+        {
+            "id": 7506,
+            "title": "Forums bug report status receive"
+        },
+        {
+            "id": 7700,
+            "title": "Staff rating"
+        },
+        {
+            "id": 7800,
+            "title": "Missions accept"
+        },
+        {
+            "id": 7805,
+            "title": "Missions decline"
+        },
+        {
+            "id": 7810,
+            "title": "Missions fail"
+        },
+        {
+            "id": 7815,
+            "title": "Missions complete"
+        },
+        {
+            "id": 7850,
+            "title": "Missions receive energy"
+        },
+        {
+            "id": 7851,
+            "title": "Missions receive nerve"
+        },
+        {
+            "id": 7900,
+            "title": "Missions buy reward item"
+        },
+        {
+            "id": 7905,
+            "title": "Missions buy reward ammo"
+        },
+        {
+            "id": 7910,
+            "title": "Missions buy reward mod"
+        },
+        {
+            "id": 8000,
+            "title": "Account close"
+        },
+        {
+            "id": 8001,
+            "title": "Account reopen"
+        },
+        {
+            "id": 8005,
+            "title": "Account delete"
+        },
+        {
+            "id": 8007,
+            "title": "Staff account delete receive"
+        },
+        {
+            "id": 8010,
+            "title": "Account recovery success"
+        },
+        {
+            "id": 8011,
+            "title": "Account recovery failure"
+        },
+        {
+            "id": 8100,
+            "title": "Attack lost"
+        },
+        {
+            "id": 8101,
+            "title": "Attack lost receive"
+        },
+        {
+            "id": 8105,
+            "title": "Attack stalemate"
+        },
+        {
+            "id": 8106,
+            "title": "Attack stalemate receive"
+        },
+        {
+            "id": 8110,
+            "title": "Attack timeout"
+        },
+        {
+            "id": 8111,
+            "title": "Attack timeout receive"
+        },
+        {
+            "id": 8115,
+            "title": "Attack escape"
+        },
+        {
+            "id": 8116,
+            "title": "Attack escape receive"
+        },
+        {
+            "id": 8140,
+            "title": "Attack failed"
+        },
+        {
+            "id": 8141,
+            "title": "Attack failed receive"
+        },
+        {
+            "id": 8145,
+            "title": "Attack assist"
+        },
+        {
+            "id": 8150,
+            "title": "Attack leave"
+        },
+        {
+            "id": 8151,
+            "title": "Attack leave receive"
+        },
+        {
+            "id": 8155,
+            "title": "Attack mug"
+        },
+        {
+            "id": 8156,
+            "title": "Attack mug receive"
+        },
+        {
+            "id": 8160,
+            "title": "Attack hospitalize"
+        },
+        {
+            "id": 8161,
+            "title": "Attack hospitalize receive"
+        },
+        {
+            "id": 8165,
+            "title": "Attack arrest"
+        },
+        {
+            "id": 8166,
+            "title": "Attack arrest receive"
+        },
+        {
+            "id": 8170,
+            "title": "Attack receive loot"
+        },
+        {
+            "id": 8180,
+            "title": "Attack radiation sickness receive"
+        },
+        {
+            "id": 8300,
+            "title": "Casino slots win"
+        },
+        {
+            "id": 8301,
+            "title": "Casino slots lose"
+        },
+        {
+            "id": 8305,
+            "title": "Casino roulette win"
+        },
+        {
+            "id": 8306,
+            "title": "Casino roulette lose"
+        },
+        {
+            "id": 8310,
+            "title": "Casino high-low start"
+        },
+        {
+            "id": 8311,
+            "title": "Casino high-low lose"
+        },
+        {
+            "id": 8312,
+            "title": "Casino high-low draw"
+        },
+        {
+            "id": 8313,
+            "title": "Casino high-low win"
+        },
+        {
+            "id": 8314,
+            "title": "Casino high-low cash in full"
+        },
+        {
+            "id": 8315,
+            "title": "Casino high-low cash in half"
+        },
+        {
+            "id": 8320,
+            "title": "Casino keno win"
+        },
+        {
+            "id": 8321,
+            "title": "Casino keno lose"
+        },
+        {
+            "id": 8330,
+            "title": "Casino craps bet"
+        },
+        {
+            "id": 8331,
+            "title": "Casino craps win"
+        },
+        {
+            "id": 8332,
+            "title": "Casino craps lose"
+        },
+        {
+            "id": 8340,
+            "title": "Casino lottery bet"
+        },
+        {
+            "id": 8341,
+            "title": "Casino lottery win"
+        },
+        {
+            "id": 8350,
+            "title": "Casino blackjack start"
+        },
+        {
+            "id": 8351,
+            "title": "Casino blackjack hit"
+        },
+        {
+            "id": 8352,
+            "title": "Casino blackjack double down"
+        },
+        {
+            "id": 8353,
+            "title": "Casino blackjack split"
+        },
+        {
+            "id": 8354,
+            "title": "Casino blackjack lose"
+        },
+        {
+            "id": 8355,
+            "title": "Casino blackjack win"
+        },
+        {
+            "id": 8356,
+            "title": "Casino blackjack insurance lose"
+        },
+        {
+            "id": 8357,
+            "title": "Casino blackjack insurance win"
+        },
+        {
+            "id": 8358,
+            "title": "Casino blackjack push"
+        },
+        {
+            "id": 8359,
+            "title": "Casino blackjack surrender"
+        },
+        {
+            "id": 8370,
+            "title": "Casino spin the wheel start"
+        },
+        {
+            "id": 8371,
+            "title": "Casino spin the wheel free spin"
+        },
+        {
+            "id": 8372,
+            "title": "Casino spin the wheel lose"
+        },
+        {
+            "id": 8373,
+            "title": "Casino spin the wheel hospital"
+        },
+        {
+            "id": 8374,
+            "title": "Casino spin the wheel win money"
+        },
+        {
+            "id": 8375,
+            "title": "Casino spin the wheel win points"
+        },
+        {
+            "id": 8376,
+            "title": "Casino spin the wheel win casino tokens"
+        },
+        {
+            "id": 8377,
+            "title": "Casino spin the wheel win item"
+        },
+        {
+            "id": 8378,
+            "title": "Casino spin the wheel win property"
+        },
+        {
+            "id": 8379,
+            "title": "Casino spin the wheel honor bar"
+        },
+        {
+            "id": 8390,
+            "title": "Casino russian roulette start"
+        },
+        {
+            "id": 8391,
+            "title": "Casino russian roulette join"
+        },
+        {
+            "id": 8392,
+            "title": "Casino russian roulette opponent join"
+        },
+        {
+            "id": 8393,
+            "title": "Casino russian roulette result"
+        },
+        {
+            "id": 8394,
+            "title": "Casino russian roulette opponent result"
+        },
+        {
+            "id": 8395,
+            "title": "Casino russian roulette win"
+        },
+        {
+            "id": 8396,
+            "title": "Casino russian roulette lose"
+        },
+        {
+            "id": 8397,
+            "title": "Casino russian roulette timeout"
+        },
+        {
+            "id": 8398,
+            "title": "Casino russian roulette opponent timeout"
+        },
+        {
+            "id": 8399,
+            "title": "Casino russian roulette timeout refund"
+        },
+        {
+            "id": 8400,
+            "title": "Casino russian roulette leave"
+        },
+        {
+            "id": 8410,
+            "title": "Casino poker table join"
+        },
+        {
+            "id": 8411,
+            "title": "Casino poker table leave"
+        },
+        {
+            "id": 8412,
+            "title": "Casino poker tournament register"
+        },
+        {
+            "id": 8413,
+            "title": "Casino poker tournament unregister"
+        },
+        {
+            "id": 8415,
+            "title": "Casino poker small blind"
+        },
+        {
+            "id": 8416,
+            "title": "Casino poker big blind"
+        },
+        {
+            "id": 8417,
+            "title": "Casino poker tournament small blind"
+        },
+        {
+            "id": 8418,
+            "title": "Casino poker tournament big blind"
+        },
+        {
+            "id": 8425,
+            "title": "Casino poker check"
+        },
+        {
+            "id": 8426,
+            "title": "Casino poker fold"
+        },
+        {
+            "id": 8427,
+            "title": "Casino poker call"
+        },
+        {
+            "id": 8428,
+            "title": "Casino poker bet"
+        },
+        {
+            "id": 8429,
+            "title": "Casino poker raise"
+        },
+        {
+            "id": 8430,
+            "title": "Casino poker tournament check"
+        },
+        {
+            "id": 8431,
+            "title": "Casino poker tournament fold"
+        },
+        {
+            "id": 8432,
+            "title": "Casino poker tournament call"
+        },
+        {
+            "id": 8433,
+            "title": "Casino poker tournament bet"
+        },
+        {
+            "id": 8434,
+            "title": "Casino poker tournament raise"
+        },
+        {
+            "id": 8435,
+            "title": "Casino poker win"
+        },
+        {
+            "id": 8436,
+            "title": "Casino poker lose"
+        },
+        {
+            "id": 8437,
+            "title": "Casino poker timeout"
+        },
+        {
+            "id": 8440,
+            "title": "Casino poker sit out"
+        },
+        {
+            "id": 8441,
+            "title": "Casino poker sit in"
+        },
+        {
+            "id": 8442,
+            "title": "Casino poker tournament win"
+        },
+        {
+            "id": 8443,
+            "title": "Casino poker tournament lose"
+        },
+        {
+            "id": 8444,
+            "title": "Casino poker tournament winnings"
+        },
+        {
+            "id": 8445,
+            "title": "Casino poker tournament eliminated"
+        },
+        {
+            "id": 8450,
+            "title": "Bookie bet"
+        },
+        {
+            "id": 8451,
+            "title": "Bookie lose"
+        },
+        {
+            "id": 8452,
+            "title": "Bookie win"
+        },
+        {
+            "id": 8453,
+            "title": "Bookie refund"
+        },
+        {
+            "id": 8455,
+            "title": "Bookie withdraw"
+        },
+        {
+            "id": 8460,
+            "title": "Bookie bet (new)"
+        },
+        {
+            "id": 8461,
+            "title": "Bookie lose (new)"
+        },
+        {
+            "id": 8462,
+            "title": "Bookie win (new)"
+        },
+        {
+            "id": 8463,
+            "title": "Bookie refund (new)"
+        },
+        {
+            "id": 8465,
+            "title": "Bookie withdraw (new)"
+        },
+        {
+            "id": 8690,
+            "title": "Gambling self-exclusion"
+        },
+        {
+            "id": 8700,
+            "title": "Racing enlist car"
+        },
+        {
+            "id": 8701,
+            "title": "Racing unenlist car"
+        },
+        {
+            "id": 8702,
+            "title": "Racing rename car"
+        },
+        {
+            "id": 8705,
+            "title": "Racing upgrade car"
+        },
+        {
+            "id": 8706,
+            "title": "Racing remove upgrade"
+        },
+        {
+            "id": 8710,
+            "title": "Racing create custom race"
+        },
+        {
+            "id": 8711,
+            "title": "Racing join custom race"
+        },
+        {
+            "id": 8715,
+            "title": "Racing join official race"
+        },
+        {
+            "id": 8720,
+            "title": "Racing leave custom race"
+        },
+        {
+            "id": 8721,
+            "title": "Racing leave official race"
+        },
+        {
+            "id": 8722,
+            "title": "Racing race timeout"
+        },
+        {
+            "id": 8725,
+            "title": "Racing change car"
+        },
+        {
+            "id": 8730,
+            "title": "Racing finish custom race"
+        },
+        {
+            "id": 8731,
+            "title": "Racing finish official race"
+        },
+        {
+            "id": 8732,
+            "title": "Racing skill level up"
+        },
+        {
+            "id": 8733,
+            "title": "Racing personal best"
+        },
+        {
+            "id": 8735,
+            "title": "Racing crash"
+        },
+        {
+            "id": 8740,
+            "title": "Racing pay join fee"
+        },
+        {
+            "id": 8741,
+            "title": "Racing receive refund"
+        },
+        {
+            "id": 8742,
+            "title": "Racing receive winnings"
+        },
+        {
+            "id": 8745,
+            "title": "Racing class increase"
+        },
+        {
+            "id": 8800,
+            "title": "Token shop honor"
+        },
+        {
+            "id": 8801,
+            "title": "Token shop hairstyle unlock"
+        },
+        {
+            "id": 8802,
+            "title": "Token shop backdrop unlock"
+        },
+        {
+            "id": 8803,
+            "title": "Token shop hairstyle equip"
+        },
+        {
+            "id": 8804,
+            "title": "Token shop backdrop change"
+        },
+        {
+            "id": 8805,
+            "title": "Token shop hairstyle unequip"
+        },
+        {
+            "id": 8820,
+            "title": "Report send"
+        },
+        {
+            "id": 8822,
+            "title": "Report reply"
+        },
+        {
+            "id": 8840,
+            "title": "Energy maximum increase"
+        },
+        {
+            "id": 8841,
+            "title": "Energy maximum decrease"
+        },
+        {
+            "id": 8842,
+            "title": "Nerve maximum increase"
+        },
+        {
+            "id": 8843,
+            "title": "Nerve maximum decrease"
+        },
+        {
+            "id": 8844,
+            "title": "Happy maximum increase"
+        },
+        {
+            "id": 8845,
+            "title": "Happy maximum decrease"
+        },
+        {
+            "id": 8846,
+            "title": "Life maximum increase"
+        },
+        {
+            "id": 8847,
+            "title": "Life maximum decrease"
+        },
+        {
+            "id": 8850,
+            "title": "Event start time change"
+        },
+        {
+            "id": 8855,
+            "title": "Community event prize"
+        },
+        {
+            "id": 8860,
+            "title": "Mr & Ms Torn submit image (legacy)"
+        },
+        {
+            "id": 8861,
+            "title": "Mr & Ms Torn withdraw image (legacy)"
+        },
+        {
+            "id": 8864,
+            "title": "Mr & Ms Torn decline send (legacy)"
+        },
+        {
+            "id": 8865,
+            "title": "Mr & Ms Torn decline receive (legacy)"
+        },
+        {
+            "id": 8866,
+            "title": "Mr & Ms Torn remove send (legacy)"
+        },
+        {
+            "id": 8867,
+            "title": "Mr & Ms Torn remove receive (legacy)"
+        },
+        {
+            "id": 8868,
+            "title": "Mr & Ms Torn accept send (legacy)"
+        },
+        {
+            "id": 8869,
+            "title": "Mr & Ms Torn accept receive (legacy)"
+        },
+        {
+            "id": 8874,
+            "title": "Mr & Ms Torn vote (legacy)"
+        },
+        {
+            "id": 8875,
+            "title": "Mr & Ms Torn results (legacy)"
+        },
+        {
+            "id": 8876,
+            "title": "Mr & Ms Torn points receive (legacy)"
+        },
+        {
+            "id": 8877,
+            "title": "Mr & Ms Torn crown receive (legacy)"
+        },
+        {
+            "id": 8880,
+            "title": "Elimination team join"
+        },
+        {
+            "id": 8881,
+            "title": "Elimination team leave"
+        },
+        {
+            "id": 8882,
+            "title": "Elimination team eliminated"
+        },
+        {
+            "id": 8885,
+            "title": "Elimination results"
+        },
+        {
+            "id": 8886,
+            "title": "Elimination enter candidacy"
+        },
+        {
+            "id": 8887,
+            "title": "Elimination withdraw candidacy"
+        },
+        {
+            "id": 8888,
+            "title": "Elimination leader vote"
+        },
+        {
+            "id": 8889,
+            "title": "Elimination leader elected"
+        },
+        {
+            "id": 8890,
+            "title": "Elimination newsletter send"
+        },
+        {
+            "id": 8891,
+            "title": "Elimination newsletter receive"
+        },
+        {
+            "id": 8892,
+            "title": "Elimination vice-captain appoint"
+        },
+        {
+            "id": 8893,
+            "title": "Elimination vice-captain appoint receive"
+        },
+        {
+            "id": 8894,
+            "title": "Elimination vice-captain remove"
+        },
+        {
+            "id": 8895,
+            "title": "Elimination vice-captain remove receive"
+        },
+        {
+            "id": 8900,
+            "title": "Dog tags steal (legacy)"
+        },
+        {
+            "id": 8901,
+            "title": "Dog tags lose (legacy)"
+        },
+        {
+            "id": 8902,
+            "title": "Dog tags return send (legacy)"
+        },
+        {
+            "id": 8903,
+            "title": "Dog tags return receive (legacy)"
+        },
+        {
+            "id": 8904,
+            "title": "Dog tags results (legacy)"
+        },
+        {
+            "id": 8920,
+            "title": "Anniversary cake t"
+        },
+        {
+            "id": 8921,
+            "title": "Anniversary cake o"
+        },
+        {
+            "id": 8922,
+            "title": "Anniversary cake r"
+        },
+        {
+            "id": 8923,
+            "title": "Anniversary cake n"
+        },
+        {
+            "id": 8930,
+            "title": "Christmas town find item"
+        },
+        {
+            "id": 8931,
+            "title": "Christmas town find key"
+        },
+        {
+            "id": 8932,
+            "title": "Christmas town chest open (legacy)"
+        },
+        {
+            "id": 8933,
+            "title": "Christmas town reward (legacy)"
+        },
+        {
+            "id": 8934,
+            "title": "Christmas town purchase item"
+        },
+        {
+            "id": 8935,
+            "title": "Christmas town purchase ornament"
+        },
+        {
+            "id": 8936,
+            "title": "Christmas town pot deposit item"
+        },
+        {
+            "id": 8937,
+            "title": "Christmas town ornament (deprecated)"
+        },
+        {
+            "id": 8938,
+            "title": "Christmas town items"
+        },
+        {
+            "id": 8939,
+            "title": "Christmas town bucks"
+        },
+        {
+            "id": 8940,
+            "title": "Christmas town money"
+        },
+        {
+            "id": 8941,
+            "title": "Christmas town ornament"
+        },
+        {
+            "id": 8942,
+            "title": "Christmas town hat"
+        },
+        {
+            "id": 8945,
+            "title": "Christmas town coupon receive"
+        },
+        {
+            "id": 8946,
+            "title": "Christmas town coupon exchange"
+        },
+        {
+            "id": 8960,
+            "title": "Easter egg hunt pickup blue egg (legacy)"
+        },
+        {
+            "id": 8961,
+            "title": "Easter egg hunt pickup green egg (legacy)"
+        },
+        {
+            "id": 8962,
+            "title": "Easter egg hunt pickup red egg (legacy)"
+        },
+        {
+            "id": 8963,
+            "title": "Easter egg hunt pickup yellow egg (legacy)"
+        },
+        {
+            "id": 8964,
+            "title": "Easter egg hunt pickup white egg (legacy)"
+        },
+        {
+            "id": 8965,
+            "title": "Easter egg hunt pickup black egg (legacy)"
+        },
+        {
+            "id": 8966,
+            "title": "Easter egg hunt pickup brown egg (legacy)"
+        },
+        {
+            "id": 8967,
+            "title": "Easter egg hunt pickup orange egg (legacy)"
+        },
+        {
+            "id": 8968,
+            "title": "Easter egg hunt pickup pink egg (legacy)"
+        },
+        {
+            "id": 8969,
+            "title": "Easter egg hunt pickup purple egg (legacy)"
+        },
+        {
+            "id": 8977,
+            "title": "Easter egg hunt exchange (legacy)"
+        },
+        {
+            "id": 8978,
+            "title": "Easter egg hunt results (legacy)"
+        },
+        {
+            "id": 8980,
+            "title": "Easter egg hunt pickup egg"
+        },
+        {
+            "id": 8981,
+            "title": "Item use green easter egg"
+        },
+        {
+            "id": 8982,
+            "title": "Item use red easter egg"
+        },
+        {
+            "id": 8983,
+            "title": "Item use yellow easter egg"
+        },
+        {
+            "id": 8984,
+            "title": "Item use purple easter egg"
+        },
+        {
+            "id": 8985,
+            "title": "Item use black easter egg"
+        },
+        {
+            "id": 8986,
+            "title": "Item use blue easter egg"
+        },
+        {
+            "id": 8987,
+            "title": "Item use white easter egg"
+        },
+        {
+            "id": 8988,
+            "title": "Item use brown easter egg"
+        },
+        {
+            "id": 8989,
+            "title": "Item use gold easter egg"
+        },
+        {
+            "id": 9000,
+            "title": "Crime system migration"
+        },
+        {
+            "id": 9005,
+            "title": "Crime skill level up"
+        },
+        {
+            "id": 9006,
+            "title": "Crime skill level down"
+        },
+        {
+            "id": 9010,
+            "title": "Crime success"
+        },
+        {
+            "id": 9015,
+            "title": "Crime success money gain (new)"
+        },
+        {
+            "id": 9020,
+            "title": "Crime success item gain (new)"
+        },
+        {
+            "id": 9025,
+            "title": "Crime success points gain (new)"
+        },
+        {
+            "id": 9027,
+            "title": "Crime success ammo gain"
+        },
+        {
+            "id": 9030,
+            "title": "Crime success money paid"
+        },
+        {
+            "id": 9050,
+            "title": "Crime success bootlegging copy DVDs"
+        },
+        {
+            "id": 9051,
+            "title": "Crime success bootlegging online store"
+        },
+        {
+            "id": 9052,
+            "title": "Crime success bootlegging sell DVDs"
+        },
+        {
+            "id": 9053,
+            "title": "Crime success bootlegging online store money paid"
+        },
+        {
+            "id": 9055,
+            "title": "Crime success skimming collect card details"
+        },
+        {
+            "id": 9056,
+            "title": "Crime success skimming sell card details"
+        },
+        {
+            "id": 9060,
+            "title": "Crime success burglary scout target"
+        },
+        {
+            "id": 9065,
+            "title": "Crime success unlock"
+        },
+        {
+            "id": 9070,
+            "title": "Crime success scamming farm emails"
+        },
+        {
+            "id": 9071,
+            "title": "Crime success scamming farm emails money paid"
+        },
+        {
+            "id": 9072,
+            "title": "Crime success scamming farm emails initiate phishing website"
+        },
+        {
+            "id": 9073,
+            "title": "Crime success scamming farm emails initiate website scraper"
+        },
+        {
+            "id": 9150,
+            "title": "Crime fail (new)"
+        },
+        {
+            "id": 9154,
+            "title": "Crime critical fail"
+        },
+        {
+            "id": 9155,
+            "title": "Crime critical fail jail"
+        },
+        {
+            "id": 9158,
+            "title": "Crime critical fail injury"
+        },
+        {
+            "id": 9160,
+            "title": "Crime critical fail hospital"
+        },
+        {
+            "id": 9163,
+            "title": "Crime critical fail item loss"
+        },
+        {
+            "id": 9165,
+            "title": "Crime critical fail money loss"
+        },
+        {
+            "id": 9190,
+            "title": "Crime critical fail lose card details"
+        },
+        {
+            "id": 9191,
+            "title": "Crime critical fail lose online store"
+        },
+        {
+            "id": 9300,
+            "title": "Crime item add blank DVDs"
+        },
+        {
+            "id": 9301,
+            "title": "Crime item add spray can"
+        },
+        {
+            "id": 9302,
+            "title": "Crime use items for skimming"
+        },
+        {
+            "id": 9303,
+            "title": "Crime item retrieve spy camera and card skimmer"
+        },
+        {
+            "id": 9304,
+            "title": "Crime use items for disposal"
+        },
+        {
+            "id": 9305,
+            "title": "Crime item add component"
+        },
+        {
+            "id": 9306,
+            "title": "Crime item remove component"
+        },
+        {
+            "id": 9307,
+            "title": "Crime cracking character guess"
+        },
+        {
+            "id": 9308,
+            "title": "Crime bootlegging online store toggle"
+        },
+        {
+            "id": 9309,
+            "title": "Crime item add for forgery"
+        },
+        {
+            "id": 9310,
+            "title": "Crime use items for forgery"
+        },
+        {
+            "id": 9350,
+            "title": "Crime graffiti reputation up"
+        },
+        {
+            "id": 9351,
+            "title": "Crime graffiti reputation down"
+        },
+        {
+            "id": 9356,
+            "title": "Crime scamming read email"
+        },
+        {
+            "id": 9360,
+            "title": "Crime arson inquire"
+        },
+        {
+            "id": 9361,
+            "title": "Crime use items for arson"
+        },
+        {
+            "id": 9362,
+            "title": "Crime unlock item for arson"
+        },
+        {
+            "id": 15001,
+            "title": "Staff donation status change receive"
+        },
+        {
+            "id": 15021,
+            "title": "Staff items remove receive"
+        },
+        {
+            "id": 15031,
+            "title": "Staff money remove receive"
+        },
+        {
+            "id": 15035,
+            "title": "Staff check credit receive"
+        },
+        {
+            "id": 15037,
+            "title": "Staff church fund check credit receive"
+        },
+        {
+            "id": 15041,
+            "title": "Staff points remove receive"
+        },
+        {
+            "id": 15043,
+            "title": "Staff points credit receive"
+        },
+        {
+            "id": 15051,
+            "title": "Staff donator days remove receive"
+        },
+        {
+            "id": 15061,
+            "title": "Staff special refills credit receive"
+        },
+        {
+            "id": 15071,
+            "title": "Staff casino ban receive"
+        },
+        {
+            "id": 15073,
+            "title": "Staff casino ban remove receive"
+        },
+        {
+            "id": 15081,
+            "title": "Staff referral set referrer"
+        },
+        {
+            "id": 15082,
+            "title": "Staff referral set referee"
+        },
+        {
+            "id": 15086,
+            "title": "Staff referral unset referrer"
+        },
+        {
+            "id": 15087,
+            "title": "Staff referral unset referee"
+        }
+    ]
+}

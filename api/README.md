@@ -1,56 +1,21 @@
-# Ledger API Service
+# api
 
-This is the authentication and ledger management service for the BlackMarket Ledger, designed to run as a Cloudflare Worker.
+Directory path: `api`
 
-## Overview
+## Purpose
 
-The Ledger API provides a modular and secure way to handle user authentication, account signup with Torn verification, and token management. It integrates with Supabase for data storage and the Torn API for identity verification.
+Cloudflare Worker API service providing backend endpoints, authentication, and database access.
 
-## Folder Structure
+## Subdirectories
 
-- **`db/schemas/`**: Cloudflare D1 database table schemas.
-- **`db/migrations/`**: Database migration scripts.
-- **`src/`**: Main source code for the worker.
-    - **`auth/`**: Authentication route handlers.
-        - `index.ts`: Auth router configuration.
-        - `login.ts`: User login logic with attack protection.
-        - `signup.ts`: Multi-mode signup flow (message/money).
-        - `reset-token.ts`: Secure token rotation.
-    - **`services/`**: External service integrations.
-        - `supabase.ts`: Supabase client initialization.
-    - **`utils/`**: Shared utilities.
-        - `crypto.ts`: Token hashing functions.
-        - `logger.ts`: Conditional debug logging.
-        - `openapi.ts`: OpenAPI 3.0 specification for Swagger.
-        - `random.ts`: Random word and token generation.
-    - **`types/`**: TypeScript interface and type definitions.
-    - `index.ts`: Application entry point and logging middleware.
-- **`tests/`**: Semi-manual test scripts for developers.
-    - `login.sh`: Script to test the login endpoint.
-    - `signup.sh`: Script to test the signup flow.
-    - `reset-token.sh`: Script to test token resets.
-- `package.json`: Project dependencies and scripts.
-- `wrangler.toml`: Cloudflare Workers configuration.
+- `db/`: Subdirectory containing related module files.
+- `src/`: Subdirectory containing related module files.
+- `tests/`: Subdirectory containing related module files.
 
-## Key Endpoints
+## Files & Contents
 
-- **GET `/docs`**: OpenAPI 3.0 specification (JSON)
-- **GET `/docs/scalarui`**: Scalar API reference
-- **POST `/auth/login`**: Authenticate an existing user.
-- **POST `/auth/signup`**: Initiate or verify account creation.
-- **POST `/auth/reset-token`**: Initiate or verify secret token reset.
+- **`MANIFEST.md`**: Module file providing specific functionality for this directory.
+- **`package-lock.json`**: JSON configuration or data file.
+- **`package.json`**: Package dependencies and scripts configuration.
+- **`wrangler.toml`**: Cloudflare Workers deployment configuration.
 
-## Development
-
-1. **Install dependencies**: `npm install`
-2. **Deploy**: `npm run deploy`
-3. **Check logs**: `npx wrangler tail`
-
-## Configuration
-
-Required environment variables (use `wrangler secret put`):
-
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `TORN_API_KEY`
-- `SUPABASE_URL` (in `wrangler.toml`)
-- `DEBUG` (in `wrangler.toml`)

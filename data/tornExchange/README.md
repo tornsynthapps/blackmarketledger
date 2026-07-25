@@ -1,7 +1,12 @@
-# Torn Exchange Data
+# tornExchange
 
-This directory contains API definitions for the Torn Exchange (TE) API.
+Directory path: `data/tornExchange`
 
-## Files
+## Purpose
 
-- [swagger-api.yml](./swagger-api.yml): The OpenAPI (Swagger) definition for the Torn Exchange API, used for interacting with TE services.
+Static data assets, mappings, and Torn game references.
+
+## Files & Contents
+
+- **`swagger-api.yml`**: Module file providing specific functionality for this directory.
+

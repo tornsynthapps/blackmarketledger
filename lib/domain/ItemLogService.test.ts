@@ -67,6 +67,7 @@ describe("ItemLogService", () => {
 
         mockRegistry = {
             getLogsByItemId: vi.fn(),
+            getLogsByIdentity: vi.fn(),
             getLatestTotalsPerCategoryBefore: vi.fn(),
             put: vi.fn(),
             bulkPut: vi.fn(),
@@ -100,13 +101,16 @@ describe("ItemLogService", () => {
             const inputWrappers = parseWrappersCsv(path.join(testDataDir, `case${caseNum}_input_wrappers.csv`));
             const expectedOutputLogs = parseLogsCsv(path.join(testDataDir, `case${caseNum}_output_logs.csv`));
 
-            mockRegistry.getLogsByItemId.mockResolvedValue(inputLogs);
+            mockRegistry.getAll.mockResolvedValue(inputLogs);
             mockRegistry.getLatestTotalsPerCategoryBefore.mockResolvedValue(
                 new Map([
                     ["normal", { stock: 0, cost: 0 }],
                     ["abroad", { stock: 0, cost: 0 }],
                     ["museum", { stock: 0, cost: 0 }],
                     ["city-finds", { stock: 0, cost: 0 }],
+                    ["city-shop", { stock: 0, cost: 0 }],
+                    ["crimes", { stock: 0, cost: 0 }],
+                    ["dump", { stock: 0, cost: 0 }],
                     ["skipped", { stock: 0, cost: 0 }],
                 ])
             );
@@ -128,7 +132,7 @@ describe("ItemLogService", () => {
             let nextLogId = Math.max(0, ...inputLogs.map(l => l.id ?? 0)) + 1;
             mockRegistry.put.mockImplementation(() => Promise.resolve(nextLogId++));
 
-            await service.updateCostBasis(1, startTimestamp);
+            await service.updateCostBasis(startTimestamp);
 
             // Verify the results
             // 1. Logs in bulkPut
@@ -188,6 +192,120 @@ describe("ItemLogService", () => {
 
         it("(6) should handle manual transfer split", async () => {
             await runTest(6, 1777521206160);
+        });
+
+        it("keeps same item_id with different uid buckets fully separate", async () => {
+            const sharedTimestamp = 2000000;
+            const logs = [
+                ItemLog.create({
+                    timestamp: sharedTimestamp,
+                    item_id: 186,
+                    uid: "alpha",
+                    quantity: 2,
+                    unit_price: 100,
+                    category: "normal",
+                }),
+                ItemLog.create({
+                    timestamp: sharedTimestamp + 1,
+                    item_id: 186,
+                    uid: "beta",
+                    quantity: 3,
+                    unit_price: 200,
+                    category: "normal",
+                }),
+                ItemLog.create({
+                    timestamp: sharedTimestamp + 2,
+                    item_id: 186,
+                    uid: "alpha",
+                    quantity: -1,
+                    unit_price: 150,
+                    category: "normal",
+                }),
+            ];
+
+            logs.forEach((log, index) => log.applyPersistedId(index + 1));
+
+            mockRegistry.getAll.mockResolvedValue(logs);
+            mockRegistry.getLatestTotalsPerCategoryBefore.mockImplementation((identity: { item_id: number; uid: string | null }) => {
+                expect(identity.item_id).toBe(186);
+                return Promise.resolve(
+                    new Map([
+                        ["normal", { stock: 0, cost: 0 }],
+                        ["abroad", { stock: 0, cost: 0 }],
+                        ["museum", { stock: 0, cost: 0 }],
+                        ["city-finds", { stock: 0, cost: 0 }],
+                        ["city-shop", { stock: 0, cost: 0 }],
+                        ["crimes", { stock: 0, cost: 0 }],
+                        ["dump", { stock: 0, cost: 0 }],
+                        ["christmas-town", { stock: 0, cost: 0 }],
+                        ["skipped", { stock: 0, cost: 0 }],
+                    ])
+                );
+            });
+
+            await service.updateCostBasis(sharedTimestamp);
+
+            const updatedLogs: ItemLog[] = mockRegistry.bulkPut.mock.calls[0][0];
+            const alphaBuy = updatedLogs.find((log) => log.uid === "alpha" && log.quantity === 2);
+            const betaBuy = updatedLogs.find((log) => log.uid === "beta" && log.quantity === 3);
+            const alphaSell = updatedLogs.find((log) => log.uid === "alpha" && log.quantity === -1);
+
+            expect(alphaBuy?.total_stock).toBe(2);
+            expect(alphaBuy?.total_cost).toBe(200);
+            expect(betaBuy?.total_stock).toBe(3);
+            expect(betaBuy?.total_cost).toBe(600);
+            expect(alphaSell?.total_stock).toBe(1);
+            expect(alphaSell?.total_cost).toBe(100);
+            expect(alphaSell?.realized_profit).toBe(50);
+        });
+    });
+
+    describe("consumeItem", () => {
+        it("should consume items from normal stock using average cost basis and log consumption loss", async () => {
+            const mockRegistry = {
+                getLatestTotalsPerCategoryBefore: vi.fn().mockResolvedValue(
+                    new Map([
+                        ["normal", { stock: 5, cost: 500 }],
+                        ["abroad", { stock: 0, cost: 0 }],
+                    ])
+                ),
+                bulkPut: vi.fn().mockResolvedValue(undefined),
+                getAll: vi.fn().mockResolvedValue([]),
+                getPaginatedLogs: vi.fn().mockResolvedValue([]),
+                countLogs: vi.fn().mockResolvedValue(0),
+            };
+
+            const mockWrapperRegistry = {
+                put: vi.fn().mockResolvedValue(1),
+                getById: vi.fn().mockResolvedValue(null),
+                getAll: vi.fn().mockResolvedValue([]),
+                delete: vi.fn().mockResolvedValue(undefined),
+            };
+
+            (ItemLogRegistry as any).mockImplementation(function (this: any) {
+                return mockRegistry;
+            });
+            (ItemLogWrapperRegistry as any).mockImplementation(function (this: any) {
+                return mockWrapperRegistry;
+            });
+
+            const service = new ItemLogService();
+            const logs = await service.consumeItem({
+                timestamp: 1000,
+                item_id: 1,
+                quantity: 2,
+                marketPrice: 300,
+            });
+
+            expect(logs.length).toBe(3);
+            const normalDeduction = logs.find((l) => l.category === "normal");
+            const consumptionAdd = logs.find((l) => l.category === "consumption" && l.quantity === 2);
+            const consumptionDeduct = logs.find((l) => l.category === "consumption" && l.quantity === -2);
+
+            expect(normalDeduction?.quantity).toBe(-2);
+            expect(normalDeduction?.unit_price).toBe(100); // 500 / 5 = 100
+            expect(consumptionAdd?.unit_price).toBe(100);
+            expect(consumptionDeduct?.unit_price).toBe(0);
         });
     });
 });

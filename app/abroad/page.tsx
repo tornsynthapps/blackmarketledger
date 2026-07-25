@@ -209,8 +209,27 @@ export default function AbroadDashboard() {
 
         const tempInventory = new Map<string, InventorySnapshot>();
         let transactionIndex = 0;
-        let lastPeriodProfit = 0;
         const mugState = { total: 0 };
+
+        // Calculate baseline totals for data before the first period
+        if (periods.length > 0) {
+            let firstPeriodStart: Date;
+            if (timeRange === "daily") firstPeriodStart = startOfDay(periods[0]);
+            else if (timeRange === "weekly") firstPeriodStart = startOfWeek(periods[0]);
+            else if (timeRange === "monthly") firstPeriodStart = startOfMonth(periods[0]);
+            else firstPeriodStart = startOfYear(periods[0]);
+
+            while (
+                transactionIndex < sortedTransactions.length &&
+                getTransactionTimestamp(sortedTransactions[transactionIndex]) < firstPeriodStart.getTime()
+            ) {
+                applyTransaction(tempInventory, sortedTransactions[transactionIndex], mugState);
+                transactionIndex += 1;
+            }
+        }
+
+        const baselineTotals = getTotals(tempInventory, mugState.total);
+        let lastPeriodProfit = baselineTotals.abroadProfit;
 
         return periods.map((period) => {
             let periodEnd: Date;

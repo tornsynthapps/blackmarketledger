@@ -1,6 +1,6 @@
 # App User Guide
 
-This guide provides a detailed overview of every page in the Blackmarket Ledger (BML) suite. Use the navigation links below to jump to a specific section.
+This guide provides a detailed overview of every page in the Torn Ledger suite. Use the navigation links below to jump to a specific section.
 
 ## 📊 Dashboard
 

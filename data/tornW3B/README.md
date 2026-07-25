@@ -1,7 +1,12 @@
-# TornW3B Data
+# tornW3B
 
-This directory contains API definitions for the TornW3B API.
+Directory path: `data/tornW3B`
 
-## Files
+## Purpose
 
-- [swagger-api.json](./swagger-api.json): The OpenAPI (Swagger) definition for the TornW3B API, used for accessing marketplace data, ranked weapons, and dollar bazaar listings.
+Static data assets, mappings, and Torn game references.
+
+## Files & Contents
+
+- **`swagger-api.json`**: JSON configuration or data file.
+

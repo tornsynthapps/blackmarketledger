@@ -57,7 +57,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
                 <main className="pt-8 px-4 w-full max-w-6xl mx-auto flex-1 h-full flex flex-col">
                     <div className="flex-1">{children}</div>
 
-                    <footer className="mt-8 pt-4 pb-4 border-t border-primary flex flex-col md:flex-row items-center justify-between gap-4 text-sm uppercase tracking-widest font-bold text-muted font-vt323">
+                    <footer className="mt-8 pt-4 pb-4 border-t border-primary flex flex-col md:flex-row items-center justify-between gap-4 text-sm uppercase tracking-widest font-bold text-muted font-departure">
                         <div className="flex items-center gap-3">
                             <div className="bg-primary text-primary-foreground px-2 py-0.5 text-xs">
                                 BML

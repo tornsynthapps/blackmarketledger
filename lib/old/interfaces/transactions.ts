@@ -10,10 +10,15 @@ import { TornItemSource } from "../game/itemLog";
 export const CURR_TRANSACTION_VERSION = 3;
 export const TRANSACTION_PAGE_SIZE = 1000;
 
+export function getTransactionTimestamp(transaction: any): number {
+    if (!transaction) return 0;
+    return transaction.timestamp ?? transaction.date ?? 0;
+}
+
 export type TransactionStockType = "normal" | "abroad" | "city-find" | "consumption" | "skip";
 
 export type TransactionSource = TornItemSource | "trade";
-export type WrapperTransactionType = "split" | "convert" | "set-convert" | "trade";
+export type WrapperTransactionType = "split" | "convert" | "set-convert" | "trade" | "consumption";
 export type AnyTrackedTransaction = Transaction | WrapperTransaction | MugTransaction;
 
 export interface LegacyMigrationIssue {
@@ -33,6 +38,9 @@ export interface InventoryItemStats {
     abroadStock: number;
     abroadTotalCost: number;
     abroadRealizedProfit: number;
+    consumptionStock: number;
+    consumptionTotalCost: number;
+    consumptionRealizedProfit: number;
 }
 
 export type ItemIDResolver =
@@ -82,6 +90,18 @@ export interface MugTransactionInput {
     timestamp: number;
     amount: number;
     source?: TransactionSource | "attack";
+    tornID?: string | null;
+    tradeID?: string | null;
+    description?: string | null;
+}
+
+export interface ConsumptionTransactionInput {
+    id?: string;
+    timestamp: number;
+    itemID: number;
+    itemName?: string | null;
+    amount: number;
+    marketPrice: number;
     tornID?: string | null;
     tradeID?: string | null;
     description?: string | null;
@@ -414,6 +434,9 @@ function createDefaultInventoryStats(): InventoryItemStats {
         abroadStock: 0,
         abroadTotalCost: 0,
         abroadRealizedProfit: 0,
+        consumptionStock: 0,
+        consumptionTotalCost: 0,
+        consumptionRealizedProfit: 0,
     };
 }
 
@@ -531,6 +554,110 @@ export class TransactionBuilder {
         });
         this.insertIntoStore(transaction);
         return transaction;
+    }
+
+    addConsumption(input: ConsumptionTransactionInput): TransactionBuildResult {
+        const qtyToConsume = Math.abs(input.amount);
+        let remaining = qtyToConsume;
+        const childInputs: TransactionInput[] = [];
+
+        const stockSources: TransactionStockType[] = ["normal", "abroad", "city-find"];
+
+        for (const stockType of stockSources) {
+            if (remaining <= 0) break;
+            const snapshot = this.getSnapshotBefore(input.itemID, stockType, input.timestamp);
+            if (snapshot.stock > 0) {
+                const takeQty = Math.min(remaining, snapshot.stock);
+                remaining -= takeQty;
+
+                const removalPrice = stockType === "normal" ? snapshot.costBasis : input.marketPrice;
+
+                childInputs.push({
+                    timestamp: input.timestamp,
+                    itemID: input.itemID,
+                    itemName: input.itemName,
+                    amount: -takeQty,
+                    price: removalPrice,
+                    stockType,
+                    tornID: input.tornID,
+                    tradeID: input.tradeID,
+                    description: input.description,
+                });
+
+                childInputs.push({
+                    timestamp: input.timestamp,
+                    itemID: input.itemID,
+                    itemName: input.itemName,
+                    amount: takeQty,
+                    price: removalPrice,
+                    stockType: "consumption",
+                    tornID: input.tornID,
+                    tradeID: input.tradeID,
+                    description: input.description,
+                });
+
+                childInputs.push({
+                    timestamp: input.timestamp,
+                    itemID: input.itemID,
+                    itemName: input.itemName,
+                    amount: -takeQty,
+                    price: 0,
+                    stockType: "consumption",
+                    tornID: input.tornID,
+                    tradeID: input.tradeID,
+                    description: input.description,
+                });
+            }
+        }
+
+        if (remaining > 0) {
+            const fallbackPrice = input.marketPrice;
+            childInputs.push({
+                timestamp: input.timestamp,
+                itemID: input.itemID,
+                itemName: input.itemName,
+                amount: -remaining,
+                price: fallbackPrice,
+                stockType: "normal",
+                tornID: input.tornID,
+                tradeID: input.tradeID,
+                description: input.description,
+            });
+            childInputs.push({
+                timestamp: input.timestamp,
+                itemID: input.itemID,
+                itemName: input.itemName,
+                amount: remaining,
+                price: fallbackPrice,
+                stockType: "consumption",
+                tornID: input.tornID,
+                tradeID: input.tradeID,
+                description: input.description,
+            });
+            childInputs.push({
+                timestamp: input.timestamp,
+                itemID: input.itemID,
+                itemName: input.itemName,
+                amount: -remaining,
+                price: 0,
+                stockType: "consumption",
+                tornID: input.tornID,
+                tradeID: input.tradeID,
+                description: input.description,
+            });
+        }
+
+        return this.insertWithOptionalWrapper("consumption", childInputs, {
+            id: input.id,
+            timestamp: input.timestamp,
+            itemID: input.itemID,
+            amount: -qtyToConsume,
+            price: input.marketPrice,
+            tornID: input.tornID ?? null,
+            tradeID: input.tradeID ?? null,
+            description: input.description ?? null,
+            forceWrap: true,
+        });
     }
 
     private insertWrappedGroup(
@@ -1462,13 +1589,17 @@ export function calculateInventoryFromTransactions(
             return;
         }
 
-        const itemName = transaction.itemName || `item-${transaction.itemID}`;
+        const rawName = transaction.itemName || `item-${transaction.itemID}`;
+        const itemName = rawName.trim().toLowerCase();
         const current = inventory.get(itemName) ?? createDefaultInventoryStats();
 
         if (transaction.amount >= 0) {
             if (transaction.stockType === "abroad") {
                 current.abroadStock += transaction.amount;
                 current.abroadTotalCost += transaction.amount * transaction.price;
+            } else if (transaction.stockType === "consumption") {
+                current.consumptionStock += transaction.amount;
+                current.consumptionTotalCost += transaction.amount * transaction.price;
             } else {
                 current.stock += transaction.amount;
                 current.totalCost += transaction.amount * transaction.price;
@@ -1482,6 +1613,13 @@ export function calculateInventoryFromTransactions(
                 current.abroadStock -= soldAmount;
                 current.abroadTotalCost -= costOfGoods;
                 current.abroadRealizedProfit += transaction.price * soldAmount - costOfGoods;
+            } else if (transaction.stockType === "consumption") {
+                const avgCost =
+                    current.consumptionStock > 0 ? current.consumptionTotalCost / current.consumptionStock : 0;
+                const costOfGoods = avgCost * soldAmount;
+                current.consumptionStock -= soldAmount;
+                current.consumptionTotalCost -= costOfGoods;
+                current.consumptionRealizedProfit += transaction.price * soldAmount - costOfGoods;
             } else {
                 const avgCost = current.stock > 0 ? current.totalCost / current.stock : 0;
                 const costOfGoods = avgCost * soldAmount;

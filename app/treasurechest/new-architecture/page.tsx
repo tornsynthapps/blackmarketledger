@@ -2,11 +2,19 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { ItemLogService } from "@/lib/domain/ItemLogService";
+import { MuseumService } from "@/lib/domain/MuseumService";
+import { TradeService } from "@/lib/domain/TradeService";
+import { ReceiptService } from "@/lib/domain/ReceiptService";
+import { SyncService } from "@/lib/domain/SyncService";
 import { ItemLog } from "@/lib/objects/ItemLog";
 import { ItemLogWrapper } from "@/lib/objects/ItemLogWrapper";
+import { Trade } from "@/lib/objects/Trade";
+import { TradeItem } from "@/lib/objects/TradeItem";
+import { Receipt } from "@/lib/objects/Receipt";
+import { ReceiptItem } from "@/lib/objects/ReceiptItem";
+import { PageHeader } from "@/components/PageHeader";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    ArrowLeft01Icon,
     DatabaseIcon,
     PlusSignIcon,
     Delete02Icon,
@@ -15,11 +23,9 @@ import {
     Settings01Icon,
     Cancel01Icon,
     Tick01Icon,
-    Download01Icon,
-    FileCodeIcon,
-    TableIcon,
+    Link01Icon,
+    ArrowUpDownIcon,
 } from "@hugeicons/core-free-icons";
-import Link from "next/link";
 
 /**
  * UTILS: EXPORT ENGINE
@@ -160,8 +166,15 @@ function EditModal<T extends Record<string, any>>({
 export default function NewArchitecturePage() {
     const [logs, setLogs] = useState<ItemLog[]>([]);
     const [wrappers, setWrappers] = useState<ItemLogWrapper[]>([]);
-    const [activeTab, setActiveTab] = useState<"logs" | "wrappers" | "services">("logs");
+    const [trades, setTrades] = useState<Trade[]>([]);
+    const [receipts, setReceipts] = useState<Receipt[]>([]);
+    const [activeTab, setActiveTab] = useState<"logs" | "wrappers" | "trades-receipts" | "services">("logs");
     const [isLoading, setIsLoading] = useState(true);
+    const [statusMessage, setStatusMessage] = useState("");
+
+    // Date Picker State
+    const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16));
+    const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 16));
 
     // Modal state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -169,16 +182,24 @@ export default function NewArchitecturePage() {
     const [editType, setEditType] = useState<"log" | "wrapper">("log");
 
     const service = useMemo(() => new ItemLogService(), []);
+    const museumService = useMemo(() => new MuseumService(), []);
+    const tradeService = useMemo(() => new TradeService(), []);
+    const receiptService = useMemo(() => new ReceiptService(), []);
+    const syncService = useMemo(() => new SyncService(), []);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [fetchedLogs, fetchedWrappers] = await Promise.all([
+            const [fetchedLogs, fetchedWrappers, fetchedTrades, fetchedReceipts] = await Promise.all([
                 service.getAllLogs(),
                 service.getAllWrappers(),
+                tradeService.getAllTrades(),
+                receiptService.getAllReceipts(),
             ]);
             setLogs(fetchedLogs);
             setWrappers(fetchedWrappers);
+            setTrades(fetchedTrades);
+            setReceipts(fetchedReceipts);
         } catch (error) {
             console.error("Failed to fetch data:", error);
         } finally {
@@ -224,20 +245,18 @@ export default function NewArchitecturePage() {
     };
 
     const handleUpdateCostBasis = async () => {
-        const itemId = prompt("Enter Item ID:", "1");
-        const minTimestamp = logs.length > 0 ? Math.min(...logs.map((l) => l.timestamp)) : Date.now();
-        const timestamp = prompt("Enter Start Timestamp (ms):", minTimestamp.toString());
-        if (itemId && timestamp) {
-            setIsLoading(true);
-            try {
-                await service.updateCostBasis(parseInt(itemId), parseInt(timestamp));
-                alert("Cost basis updated successfully.");
-                await fetchData();
-            } catch (error) {
-                alert("Error updating cost basis: " + (error as Error).message);
-            } finally {
-                setIsLoading(false);
-            }
+        const timestamp = new Date(startDate).getTime();
+        setIsLoading(true);
+        setStatusMessage(`Recalculating cost basis from ${new Date(timestamp).toLocaleString()}...`);
+        try {
+            await service.updateCostBasis(timestamp);
+            alert("Global cost basis recalculation completed successfully.");
+            await fetchData();
+        } catch (error) {
+            alert("Error updating cost basis: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
         }
     };
 
@@ -268,6 +287,28 @@ export default function NewArchitecturePage() {
         }
     };
 
+    const handleMuseumExchange = async () => {
+        const setType = prompt("Enter Set Type (plushie-set | exotic-flower-set):", "plushie-set") as any;
+        const quantity = prompt("Enter Number of Sets:", "1");
+
+        if (setType && quantity) {
+            setIsLoading(true);
+            try {
+                await museumService.exchangeSet(
+                    setType,
+                    parseInt(quantity),
+                    service
+                );
+                alert("Museum exchange completed successfully.");
+                await fetchData();
+            } catch (error) {
+                alert("Error during museum exchange: " + (error as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
     const handleAddDummyLog = async () => {
         try {
             await service.addItemLog({
@@ -281,6 +322,128 @@ export default function NewArchitecturePage() {
         } catch (error) {
             alert("Error adding dummy log: " + (error as Error).message);
         }
+    };
+
+    const handleFetchTrade = async () => {
+        const tornId = prompt("Enter Torn Trade ID:");
+        if (tornId) {
+            setIsLoading(true);
+            try {
+                await tradeService.fetchAndCreateTrade(tornId);
+                alert("Trade fetched and created successfully.");
+                await fetchData();
+            } catch (error) {
+                alert("Error fetching trade: " + (error as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    const handleFetchReceipt = async (source: "weav3r" | "tornexchange") => {
+        const receiptId = prompt(`Enter ${source} Receipt ID:`);
+        if (receiptId) {
+            setIsLoading(true);
+            try {
+                await receiptService.fetchAndCreateReceipt(source, receiptId);
+                alert(`${source} receipt fetched and created successfully.`);
+                await fetchData();
+            } catch (error) {
+                alert(`Error fetching ${source} receipt: ` + (error as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    const handleBulkFetchIDs = async () => {
+        setIsLoading(true);
+        setStatusMessage("Fetching bulk IDs...");
+        try {
+            await syncService.fetchBulkTradesAndReceipts(
+                new Date(startDate).getTime(),
+                new Date(endDate).getTime(),
+                (msg) => setStatusMessage(msg)
+            );
+            alert("Bulk ID fetch completed.");
+            await fetchData();
+        } catch (error) {
+            alert("Error during bulk fetch: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
+        }
+    };
+
+    const handlePopulateDetails = async () => {
+        setIsLoading(true);
+        setStatusMessage("Populating details in background...");
+        try {
+            await syncService.runBackgroundSync((msg) => setStatusMessage(msg));
+            alert("Detail population completed.");
+            await fetchData();
+        } catch (error) {
+            alert("Error during population: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
+        }
+    };
+
+    const handleAutoLink = async () => {
+        setIsLoading(true);
+        setStatusMessage("Auto-linking trades and receipts...");
+        try {
+            await syncService.autoLinkTradesAndReceipts((msg) => setStatusMessage(msg));
+            alert("Auto-linking completed.");
+            await fetchData();
+        } catch (error) {
+            alert("Error during auto-linking: " + (error as Error).message);
+        } finally {
+            setIsLoading(false);
+            setStatusMessage("");
+        }
+    };
+
+    const handleLinkTradeReceipt = async () => {
+        const tradeId = prompt("Enter Trade DB ID:");
+        const receiptId = prompt("Enter Receipt DB ID:");
+        if (tradeId && receiptId) {
+            setIsLoading(true);
+            try {
+                await tradeService.linkReceiptToTrade(parseInt(tradeId), parseInt(receiptId));
+                alert("Receipt linked to trade successfully.");
+                await fetchData();
+            } catch (error) {
+                alert("Error linking receipt: " + (error as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    const handleDeleteTrade = async (id: number) => {
+            setIsLoading(true);
+            try {
+                await tradeService.deleteTrade(id);
+                await fetchData();
+            } catch (error) {
+                alert("Error deleting trade: " + (error as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
+    };
+
+    const handleDeleteReceipt = async (id: number) => {
+            setIsLoading(true);
+            try {
+                await receiptService.deleteReceipt(id);
+                await fetchData();
+            } catch (error) {
+                alert("Error deleting receipt: " + (error as Error).message);
+            } finally {
+                setIsLoading(false);
+            }
     };
 
     const openEditModal = (obj: any, type: "log" | "wrapper") => {
@@ -331,355 +494,581 @@ export default function NewArchitecturePage() {
     };
 
     return (
-        <div className="min-h-screen text-foreground p-4 md:p-8 animate-in fade-in duration-1000 font-sans selection:bg-white selection:text-black">
-            {/* Background Texture Overlay */}
-            <div className="fixed inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100" />
-            
-            <div className="max-w-full mx-auto space-y-12 relative z-10">
-                {/* SYSTEM HEADER */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-l-4 border-foreground pl-6 py-2">
-                    <div className="space-y-4">
-                        <Link
-                            href="/treasurechest"
-                            className="inline-flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.4em] text-muted hover:text-foreground transition-all group"
-                        >
-                            <HugeiconsIcon
-                                icon={ArrowLeft01Icon}
-                                size={12}
-                                className="group-hover:-translate-x-2 transition-transform"
-                            />
-                            RETURN_TO_BASE
-                        </Link>
+        <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto py-8 px-4">
+            <PageHeader 
+                title="Archive v2" 
+                description="Core Architecture Debug Protocol"
+                icon={DatabaseIcon} 
+            />
 
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-6xl font-black uppercase tracking-[-0.05em] leading-none">
-                                    Archive.v2
-                                </h1>
-                                <div className="h-2 w-2 bg-success animate-pulse shrink-0" />
-                            </div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.6em] text-muted">
-                                CORE_ARCHITECTURE_DEBUG_PROTOCOL
-                            </p>
-                        </div>
-                    </div>
+            {/* TAB SYSTEM */}
+            <div className="flex flex-wrap gap-2 p-1 bg-panel border-2 border-primary inline-flex">
+                {(["logs", "wrappers", "trades-receipts", "services"] as const).map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-6 py-2 font-black uppercase text-[10px] tracking-[0.3em] transition-all relative overflow-hidden ${
+                            activeTab === tab
+                                ? "bg-primary text-background"
+                                : "text-muted hover:text-foreground hover:bg-primary/5"
+                        }`}
+                    >
+                        {tab.replace("-", " & ")}
+                    </button>
+                ))}
+            </div>
 
-                    <div className="flex flex-wrap gap-2 md:pb-1">
+            {/* MAIN CONSOLE */}
+            <div className="bg-panel border-2 border-primary overflow-hidden shadow-lg shadow-primary/5">
+                {/* Console Header Bar */}
+                <div className="h-10 border-b-2 border-primary flex items-center px-4 justify-between bg-muted/10">
+                    <div className="flex gap-2">
                         <button
                             onClick={fetchData}
-                            className="px-4 py-2 border-2 border-border-strong hover:border-foreground transition-all font-black uppercase text-[10px] tracking-[0.2em] flex items-center gap-2 group bg-panel/50 backdrop-blur-sm"
+                            className="text-muted hover:text-primary transition-all font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2"
                         >
                             <HugeiconsIcon
                                 icon={RefreshIcon}
-                                size={14}
-                                className={isLoading ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}
+                                size={12}
+                                className={isLoading ? "animate-spin" : ""}
                             />
                             SYNC
                         </button>
-                        <div className="w-[2px] bg-border-strong mx-1" />
+                        <div className="w-[1px] bg-primary/20 h-3 self-center" />
                         <button
                             onClick={() => handleExport('csv')}
-                            className="px-4 py-2 border-2 border-border-strong hover:bg-success hover:border-success hover:text-black transition-all font-black uppercase text-[10px] tracking-[0.2em] flex items-center gap-2 bg-panel/50 backdrop-blur-sm"
+                            className="text-muted hover:text-primary transition-all font-black uppercase text-[9px] tracking-[0.2em]"
                         >
-                            <HugeiconsIcon icon={TableIcon} size={14} />
                             CSV
                         </button>
                         <button
                             onClick={() => handleExport('md')}
-                            className="px-4 py-2 border-2 border-border-strong hover:bg-info hover:border-info hover:text-white transition-all font-black uppercase text-[10px] tracking-[0.2em] flex items-center gap-2 bg-panel/50 backdrop-blur-sm"
+                            className="text-muted hover:text-primary transition-all font-black uppercase text-[9px] tracking-[0.2em]"
                         >
-                            <HugeiconsIcon icon={FileCodeIcon} size={14} />
                             MD
                         </button>
                     </div>
-                </div>
-
-                {/* TAB SYSTEM */}
-                <div className="flex gap-2 p-1 bg-panel/30 backdrop-blur-sm border border-border-strong inline-flex">
-                    {(["logs", "wrappers", "services"] as const).map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`px-10 py-3 font-black uppercase text-[10px] tracking-[0.3em] transition-all relative overflow-hidden ${
-                                activeTab === tab
-                                    ? "bg-foreground text-background"
-                                    : "text-muted hover:text-foreground hover:bg-foreground/5"
-                            }`}
-                        >
-                            {tab}
-                            {activeTab === tab && (
-                                <div className="absolute top-0 left-0 w-full h-[2px] bg-white opacity-50" />
-                            )}
-                        </button>
-                    ))}
-                </div>
-
-                {/* MAIN CONSOLE */}
-                <div className="bg-[#101012] border-2 border-border-strong relative shadow-2xl">
-                    {/* Console Header Bar */}
-                    <div className="h-10 border-b-2 border-border-strong flex items-center px-4 justify-between bg-panel/50 backdrop-blur-sm">
-                        <div className="flex gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-border-strong" />
-                            <div className="w-2 h-2 rounded-full bg-border-strong" />
-                            <div className="w-2 h-2 rounded-full bg-border-strong" />
-                        </div>
-                        <div className="text-[9px] font-black uppercase tracking-[0.5em] text-muted">
-                            {activeTab}.{isLoading ? "processing" : "ready"}
-                        </div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.5em] text-muted">
+                        {activeTab}.{isLoading ? "processing" : "ready"}
                     </div>
+                </div>
 
-                    <div className="p-0 overflow-hidden min-h-[400px]">
-                        {activeTab === "logs" && (
-                            <div className="space-y-0">
-                                <div className="p-4 border-b border-border-strong flex justify-between items-center bg-panel/20">
-                                    <div className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                                        <HugeiconsIcon icon={DatabaseIcon} size={14} />
-                                        ITEM_LOG_BUFFER
-                                    </div>
+                <div className="p-0 overflow-hidden min-h-[400px]">
+                    {activeTab === "logs" && (
+                        <div className="space-y-0">
+                            <div className="p-4 border-b border-primary/20 flex justify-between items-center bg-muted/5">
+                                <div className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                                    <HugeiconsIcon icon={DatabaseIcon} size={14} />
+                                    ITEM_LOG_BUFFER
+                                </div>
+                                <button
+                                    onClick={handleAddDummyLog}
+                                    className="px-4 py-1.5 bg-primary text-background font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all"
+                                >
+                                    <HugeiconsIcon icon={PlusSignIcon} size={12} />
+                                    INJECT_DUMMY
+                                </button>
+                            </div>
+
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left border-collapse table-auto border-spacing-0">
+                                    <thead>
+                                        <tr className="bg-muted/10 border-b border-primary/20 text-[9px] font-black uppercase tracking-[0.3em] text-muted whitespace-nowrap">
+                                            <th className="p-2 border-r border-primary/10">ID</th>
+                                            <th className="p-2 border-r border-primary/10">WID</th>
+                                            <th className="p-2 border-r border-primary/10">Item ID</th>
+                                            <th className="p-2 border-r border-primary/10">UID</th>
+                                            <th className="p-2 border-r border-primary/10 text-right">Qty</th>
+                                            <th className="p-2 border-r border-primary/10 text-right">Price</th>
+                                            <th className="p-2 border-r border-primary/10">Category</th>
+                                            <th className="p-2 border-r border-primary/10 text-right">Stock</th>
+                                            <th className="p-2 border-r border-primary/10 text-right">Cost</th>
+                                            <th className="p-2 border-r border-primary/10 text-right">Profit</th>
+                                            <th className="p-2 border-r border-primary/10">Timestamp</th>
+                                            <th className="p-2 border-r border-primary/10">Updated</th>
+                                            <th className="p-2 text-right">Ops</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-[10px] font-mono leading-none divide-y divide-primary/5">
+                                        {logs.map((log, index) => (
+                                            <tr
+                                                key={log.id}
+                                                className="hover:bg-primary/[0.02] transition-colors group animate-in slide-in-from-left-2 fade-in fill-mode-backwards"
+                                                style={{ animationDelay: `${index * 30}ms` }}
+                                            >
+                                                <td className="p-2 border-r border-primary/5 text-muted/60">{log.id}</td>
+                                                <td className="p-2 border-r border-primary/5 text-muted/60">
+                                                    {log.wrapper_id ?? "NONE"}
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5">{log.item_id}</td>
+                                                <td className="p-2 border-r border-primary/5">{log.uid ?? "STANDARD"}</td>
+                                                <td className={`p-2 border-r border-primary/5 font-black text-right ${log.quantity >= 0 ? "text-success" : "text-danger"}`}>
+                                                    {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5 text-right text-muted/80">${log.unit_price.toLocaleString()}</td>
+                                                <td className="p-2 border-r border-primary/5">
+                                                    <span className="px-2 py-0.5 border border-primary/20 bg-muted/10 text-[8px] font-black uppercase tracking-wider">
+                                                        {log.category}
+                                                    </span>
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5 text-right">{log.total_stock}</td>
+                                                <td className="p-2 border-r border-primary/5 text-right text-muted/80">${log.total_cost.toLocaleString()}</td>
+                                                <td className="p-2 border-r border-primary/5 text-success font-black text-right">
+                                                    +${log.realized_profit.toLocaleString()}
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5 text-[9px] text-muted/50">
+                                                    {log.timestamp}
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5 text-[9px] text-muted/50">
+                                                    {log.updated_at}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => openEditModal(log, "log")}
+                                                            className="w-6 h-6 flex items-center justify-center border border-primary/20 hover:border-info hover:text-info transition-all"
+                                                            title="MOD_LOG"
+                                                        >
+                                                            <HugeiconsIcon icon={PencilEdit02Icon} size={12} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteLog(log.id!)}
+                                                            className="w-6 h-6 flex items-center justify-center border border-primary/20 hover:border-danger hover:text-danger transition-all"
+                                                            title="PURGE_LOG"
+                                                        >
+                                                            <HugeiconsIcon icon={Delete02Icon} size={12} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {logs.length === 0 && (
+                                            <tr>
+                                                <td colSpan={12} className="p-20 text-center text-muted font-black uppercase tracking-[0.5em] italic animate-pulse">
+                                                    NO_DATA_RECORDS_LOCATED
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "wrappers" && (
+                        <div className="space-y-0">
+                            <div className="p-4 border-b border-primary/20 flex justify-between items-center bg-muted/5">
+                                <div className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                                    <HugeiconsIcon icon={DatabaseIcon} size={14} />
+                                    WRAPPER_REGISTRY
+                                </div>
+                                <button
+                                    onClick={handleAddWrapper}
+                                    className="px-4 py-1.5 bg-primary text-background font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all"
+                                >
+                                    <HugeiconsIcon icon={PlusSignIcon} size={12} />
+                                    INJECT_WRAPPER
+                                </button>
+                            </div>
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left border-collapse table-auto divide-y divide-primary/5">
+                                    <thead>
+                                        <tr className="bg-muted/10 border-b border-primary/20 text-[9px] font-black uppercase tracking-[0.3em] text-muted whitespace-nowrap">
+                                            <th className="p-2 border-r border-primary/10">ID</th>
+                                            <th className="p-2 border-r border-primary/10">Type</th>
+                                            <th className="p-2 border-r border-primary/10">Subtype</th>
+                                            <th className="p-2 border-r border-primary/10">Desc</th>
+                                            <th className="p-2 border-r border-primary/10">Time</th>
+                                            <th className="p-2 border-r border-primary/10">Updated</th>
+                                            <th className="p-2 text-right">Ops</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-[10px] font-mono leading-none divide-y divide-primary/5">
+                                        {wrappers.map((wrapper, index) => (
+                                            <tr
+                                                key={wrapper.id}
+                                                className="hover:bg-primary/[0.02] transition-colors group animate-in slide-in-from-left-2 fade-in fill-mode-backwards"
+                                                style={{ animationDelay: `${index * 50}ms` }}
+                                            >
+                                                <td className="p-2 border-r border-primary/5 text-muted/60">{wrapper.id}</td>
+                                                <td className="p-2 border-r border-primary/5">
+                                                    <span className="px-2 py-0.5 border border-primary/20 bg-muted/10 text-[8px] font-black uppercase tracking-wider">
+                                                        {wrapper.type}
+                                                    </span>
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5">
+                                                    {wrapper.sub_type ? (
+                                                        <span className="px-2 py-0.5 border border-info/20 bg-info/5 text-info text-[8px] font-black uppercase tracking-wider">
+                                                            {wrapper.sub_type}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-muted/40 italic">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5">{wrapper.description}</td>
+                                                <td className="p-2 border-r border-primary/5 text-muted/60">
+                                                    {wrapper.timestamp}
+                                                </td>
+                                                <td className="p-2 border-r border-primary/5 text-muted/60">
+                                                    {wrapper.updated_at}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => openEditModal(wrapper, "wrapper")}
+                                                            className="w-6 h-6 flex items-center justify-center border border-primary/20 hover:border-info hover:text-info transition-all"
+                                                            title="MOD_WRAP"
+                                                        >
+                                                            <HugeiconsIcon icon={PencilEdit02Icon} size={12} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteWrapper(wrapper.id!)}
+                                                            className="w-6 h-6 flex items-center justify-center border border-primary/20 hover:border-danger hover:text-danger transition-all"
+                                                            title="PURGE_WRAP"
+                                                        >
+                                                            <HugeiconsIcon icon={Delete02Icon} size={12} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {wrappers.length === 0 && (
+                                            <tr>
+                                                <td colSpan={6} className="p-20 text-center text-muted font-black uppercase tracking-[0.5em] italic animate-pulse">
+                                                    NO_WRAPPER_RECORDS
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "trades-receipts" && (
+                        <div className="space-y-0">
+                            <div className="p-4 border-b border-primary/20 flex flex-wrap gap-4 justify-between items-center bg-muted/5">
+                                <div className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                                    <HugeiconsIcon icon={ArrowUpDownIcon} size={14} />
+                                    TRADES_AND_RECEIPTS_REGISTRY
+                                </div>
+                                <div className="flex gap-2">
                                     <button
-                                        onClick={handleAddDummyLog}
-                                        className="px-4 py-1.5 bg-foreground text-background font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"
+                                        onClick={handleFetchTrade}
+                                        className="px-4 py-1.5 bg-primary text-background font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:opacity-90 transition-all"
                                     >
                                         <HugeiconsIcon icon={PlusSignIcon} size={12} />
-                                        INJECT_DUMMY
+                                        FETCH_TRADE
+                                    </button>
+                                    <button
+                                        onClick={() => handleFetchReceipt("weav3r")}
+                                        className="px-4 py-1.5 bg-primary text-background font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:opacity-90 transition-all"
+                                    >
+                                        <HugeiconsIcon icon={PlusSignIcon} size={12} />
+                                        FETCH_WEAV3R
+                                    </button>
+                                    <button
+                                        onClick={() => handleFetchReceipt("tornexchange")}
+                                        className="px-4 py-1.5 bg-primary text-background font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:opacity-90 transition-all"
+                                    >
+                                        <HugeiconsIcon icon={PlusSignIcon} size={12} />
+                                        FETCH_TE
+                                    </button>
+                                    <button
+                                        onClick={handleLinkTradeReceipt}
+                                        className="px-4 py-1.5 border-2 border-primary font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:bg-primary hover:text-background transition-all"
+                                    >
+                                        <HugeiconsIcon icon={Link01Icon} size={12} />
+                                        LINK_RECEIPT
                                     </button>
                                 </div>
+                            </div>
 
-                                <div className="overflow-x-auto custom-scrollbar">
-                                    <table className="w-full text-left border-collapse table-auto border-spacing-0">
-                                        <thead>
-                                            <tr className="bg-panel/50 border-b border-border-strong text-[9px] font-black uppercase tracking-[0.3em] text-muted whitespace-nowrap">
-                                                <th className="p-2 border-r border-border-strong/50">ID</th>
-                                                <th className="p-2 border-r border-border-strong/50">WID</th>
-                                                <th className="p-2 border-r border-border-strong/50">Item ID</th>
-                                                <th className="p-2 border-r border-border-strong/50 text-right">Qty</th>
-                                                <th className="p-2 border-r border-border-strong/50 text-right">Price</th>
-                                                <th className="p-2 border-r border-border-strong/50">Category</th>
-                                                <th className="p-2 border-r border-border-strong/50 text-right">Stock</th>
-                                                <th className="p-2 border-r border-border-strong/50 text-right">Cost</th>
-                                                <th className="p-2 border-r border-border-strong/50 text-right">Profit</th>
-                                                <th className="p-2 border-r border-border-strong/50">Timestamp</th>
-                                                <th className="p-2 border-r border-border-strong/50">Updated</th>
-                                                <th className="p-2 text-right">Ops</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="text-[10px] font-mono leading-none">
-                                            {logs.map((log, index) => (
-                                                <tr
-                                                    key={log.id}
-                                                    className="border-b border-border-strong/30 hover:bg-white/[0.02] transition-colors group animate-in slide-in-from-left-2 fade-in fill-mode-backwards"
-                                                    style={{ animationDelay: `${index * 30}ms` }}
-                                                >
-                                                    <td className="p-2 border-r border-border-strong/30 text-muted/60">{log.id}</td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-muted/60">
-                                                        {log.wrapper_id ?? "NONE"}
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30">{log.item_id}</td>
-                                                    <td className={`p-2 border-r border-border-strong/30 font-black text-right ${log.quantity >= 0 ? "text-success" : "text-danger"}`}>
-                                                        {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-right text-muted/80">${log.unit_price.toLocaleString()}</td>
-                                                    <td className="p-2 border-r border-border-strong/30">
-                                                        <span className="px-2 py-0.5 border border-border-strong bg-panel text-[8px] font-black uppercase tracking-wider">
-                                                            {log.category}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-right">{log.total_stock}</td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-right text-muted/80">${log.total_cost.toLocaleString()}</td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-success font-black text-right">
-                                                        +${log.realized_profit.toLocaleString()}
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-[9px] text-muted/50">
-                                                        {log.timestamp}
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-[9px] text-muted/50">
-                                                        {log.updated_at}
-                                                    </td>
-                                                    <td className="p-2 text-right">
-                                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 divide-x divide-primary/20">
+                                <div>
+                                    <div className="p-2 bg-muted/10 border-b border-primary/20 text-[9px] font-black uppercase tracking-widest text-center">
+                                        TRADES
+                                    </div>
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left border-collapse table-auto border-spacing-0 divide-y divide-primary/5">
+                                            <thead>
+                                                <tr className="bg-muted/5 border-b border-primary/20 text-[9px] font-black uppercase tracking-[0.3em] text-muted whitespace-nowrap">
+                                                    <th className="p-2 border-r border-primary/10">ID</th>
+                                                    <th className="p-2 border-r border-primary/10">Torn ID</th>
+                                                    <th className="p-2 border-r border-primary/10">Wrapper</th>
+                                                    <th className="p-2 border-r border-primary/10">Receipt</th>
+                                                    <th className="p-2 border-r border-primary/10">Timestamp</th>
+                                                    <th className="p-2 text-right">Ops</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-[10px] font-mono divide-y divide-primary/5">
+                                                {trades.map((trade) => (
+                                                    <tr key={trade.id} className="hover:bg-primary/[0.02] group transition-colors">
+                                                        <td className="p-2 border-r border-primary/5 text-muted/60">{trade.id}</td>
+                                                        <td className="p-2 border-r border-primary/5">{trade.torn_id}</td>
+                                                        <td className="p-2 border-r border-primary/5">{trade.wrapper_id}</td>
+                                                        <td className="p-2 border-r border-primary/5">{trade.receipt_id ?? "NONE"}</td>
+                                                        <td className="p-2 border-r border-primary/5 text-muted/50">{trade.timestamp}</td>
+                                                        <td className="p-2 text-right">
                                                             <button
-                                                                onClick={() => openEditModal(log, "log")}
-                                                                className="w-6 h-6 flex items-center justify-center border border-border hover:border-info hover:text-info transition-all"
-                                                                title="MOD_LOG"
-                                                            >
-                                                                <HugeiconsIcon icon={PencilEdit02Icon} size={12} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteLog(log.id!)}
-                                                                className="w-6 h-6 flex items-center justify-center border border-border hover:border-danger hover:text-danger transition-all"
-                                                                title="PURGE_LOG"
+                                                                onClick={() => handleDeleteTrade(trade.id!)}
+                                                                className="w-6 h-6 flex items-center justify-center border border-primary/10 hover:border-danger hover:text-danger transition-all opacity-0 group-hover:opacity-100"
+                                                                title="PURGE_TRADE"
                                                             >
                                                                 <HugeiconsIcon icon={Delete02Icon} size={12} />
                                                             </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {logs.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={12} className="p-20 text-center text-muted font-black uppercase tracking-[0.5em] italic animate-pulse">
-                                                        NO_DATA_RECORDS_LOCATED
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === "wrappers" && (
-                            <div className="space-y-0">
-                                <div className="p-4 border-b border-border-strong flex justify-between items-center bg-panel/20">
-                                    <div className="text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                                        <HugeiconsIcon icon={DatabaseIcon} size={14} />
-                                        WRAPPER_REGISTRY
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <button
-                                        onClick={handleAddWrapper}
-                                        className="px-4 py-1.5 bg-foreground text-background font-black uppercase text-[9px] tracking-[0.2em] flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"
-                                    >
-                                        <HugeiconsIcon icon={PlusSignIcon} size={12} />
-                                        INJECT_WRAPPER
-                                    </button>
                                 </div>
-                                <div className="overflow-x-auto custom-scrollbar">
-                                    <table className="w-full text-left border-collapse table-auto">
-                                        <thead>
-                                            <tr className="bg-panel/50 border-b border-border-strong text-[9px] font-black uppercase tracking-[0.3em] text-muted whitespace-nowrap">
-                                                <th className="p-2 border-r border-border-strong/50">ID</th>
-                                                <th className="p-2 border-r border-border-strong/50">Type</th>
-                                                <th className="p-2 border-r border-border-strong/50">Subtype</th>
-                                                <th className="p-2 border-r border-border-strong/50">Desc</th>
-                                                <th className="p-2 border-r border-border-strong/50">Time</th>
-                                                <th className="p-2 border-r border-border-strong/50">Updated</th>
-                                                <th className="p-2 text-right">Ops</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="text-[10px] font-mono leading-none">
-                                            {wrappers.map((wrapper, index) => (
-                                                <tr
-                                                    key={wrapper.id}
-                                                    className="border-b border-border-strong/30 hover:bg-white/[0.02] transition-colors group animate-in slide-in-from-left-2 fade-in fill-mode-backwards"
-                                                    style={{ animationDelay: `${index * 50}ms` }}
-                                                >
-                                                    <td className="p-2 border-r border-border-strong/30 text-muted/60">{wrapper.id}</td>
-                                                    <td className="p-2 border-r border-border-strong/30">
-                                                        <span className="px-2 py-0.5 border border-border-strong bg-panel text-[8px] font-black uppercase tracking-wider">
-                                                            {wrapper.type}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30">
-                                                        {wrapper.sub_type ? (
-                                                            <span className="px-2 py-0.5 border border-border-strong bg-info/10 text-info text-[8px] font-black uppercase tracking-wider">
-                                                                {wrapper.sub_type}
+                                <div>
+                                    <div className="p-2 bg-muted/10 border-b border-primary/20 text-[9px] font-black uppercase tracking-widest text-center">
+                                        RECEIPTS
+                                    </div>
+                                    <div className="overflow-x-auto custom-scrollbar">
+                                        <table className="w-full text-left border-collapse table-auto border-spacing-0 divide-y divide-primary/5">
+                                            <thead>
+                                                <tr className="bg-muted/5 border-b border-primary/20 text-[9px] font-black uppercase tracking-[0.3em] text-muted whitespace-nowrap">
+                                                    <th className="p-2 border-r border-primary/10">ID</th>
+                                                    <th className="p-2 border-r border-primary/10">Source</th>
+                                                    <th className="p-2 border-r border-primary/10">Ext ID</th>
+                                                    <th className="p-2 border-r border-primary/10 text-right">Value</th>
+                                                    <th className="p-2 border-r border-primary/10">Created</th>
+                                                    <th className="p-2 text-right">Ops</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-[10px] font-mono divide-y divide-primary/5">
+                                                {receipts.map((receipt) => (
+                                                    <tr key={receipt.id} className="hover:bg-primary/[0.02] group transition-colors">
+                                                        <td className="p-2 border-r border-primary/5 text-muted/60">{receipt.id}</td>
+                                                        <td className="p-2 border-r border-primary/5">
+                                                            <span className={`px-2 py-0.5 border border-primary/20 text-[8px] font-black uppercase tracking-wider ${receipt.source === "weav3r" ? "bg-info/10 text-info" : "bg-warning/10 text-warning"}`}>
+                                                                {receipt.source}
                                                             </span>
-                                                        ) : (
-                                                            <span className="text-muted/40 italic">-</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30">{wrapper.description}</td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-muted/60">
-                                                        {wrapper.timestamp}
-                                                    </td>
-                                                    <td className="p-2 border-r border-border-strong/30 text-muted/60">
-                                                        {wrapper.updated_at}
-                                                    </td>
-                                                    <td className="p-2 text-right">
-                                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        </td>
+                                                        <td className="p-2 border-r border-primary/5">{receipt.receipt_id_string}</td>
+                                                        <td className="p-2 border-r border-primary/5 text-right font-black">${receipt.total_value.toLocaleString()}</td>
+                                                        <td className="p-2 border-r border-primary/5 text-muted/50">{receipt.created_at}</td>
+                                                        <td className="p-2 text-right">
                                                             <button
-                                                                onClick={() => openEditModal(wrapper, "wrapper")}
-                                                                className="w-6 h-6 flex items-center justify-center border border-border hover:border-info hover:text-info transition-all"
-                                                                title="MOD_WRAP"
-                                                            >
-                                                                <HugeiconsIcon icon={PencilEdit02Icon} size={12} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteWrapper(wrapper.id!)}
-                                                                className="w-6 h-6 flex items-center justify-center border border-border hover:border-danger hover:text-danger transition-all"
-                                                                title="PURGE_WRAP"
+                                                                onClick={() => handleDeleteReceipt(receipt.id!)}
+                                                                className="w-6 h-6 flex items-center justify-center border border-primary/10 hover:border-danger hover:text-danger transition-all opacity-0 group-hover:opacity-100"
+                                                                title="PURGE_RECEIPT"
                                                             >
                                                                 <HugeiconsIcon icon={Delete02Icon} size={12} />
                                                             </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {wrappers.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={6} className="p-20 text-center text-muted font-black uppercase tracking-[0.5em] italic animate-pulse">
-                                                        NO_WRAPPER_RECORDS
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {activeTab === "services" && (
-                            <div className="p-12 grid grid-cols-1 md:grid-cols-2 gap-12 max-w-5xl mx-auto">
-                                <div className="p-8 border-2 border-border-strong space-y-6 bg-panel/20 hover:border-foreground transition-all group">
+                    {activeTab === "services" && (
+                        <div className="p-8 space-y-12 max-w-5xl mx-auto">
+                            {/* DATE RANGE SELECTOR */}
+                            <div className="p-6 border-2 border-primary/20 bg-muted/5 space-y-4 shadow-sm shadow-primary/5 animate-in slide-in-from-top-4 duration-500">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                    <HugeiconsIcon icon={Settings01Icon} size={14} />
+                                    SERVICE_PARAMETERS_CONFIG
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2 group">
+                                        <label className="text-[9px] font-bold text-muted uppercase tracking-widest group-focus-within:text-primary transition-colors">Temporal_Start</label>
+                                        <input 
+                                            type="datetime-local" 
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="w-full bg-background border-2 border-border-strong p-3 font-mono text-[10px] uppercase outline-none focus:border-primary transition-all focus:bg-primary/5"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 group">
+                                        <label className="text-[9px] font-bold text-muted uppercase tracking-widest group-focus-within:text-primary transition-colors">Temporal_End</label>
+                                        <input 
+                                            type="datetime-local" 
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="w-full bg-background border-2 border-border-strong p-3 font-mono text-[10px] uppercase outline-none focus:border-primary transition-all focus:bg-primary/5"
+                                        />
+                                    </div>
+                                </div>
+                                {statusMessage && (
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-primary animate-pulse mt-4 flex items-center gap-2">
+                                        <HugeiconsIcon icon={RefreshIcon} size={12} className="animate-spin" />
+                                        {statusMessage}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">04</div>
                                     <div className="flex items-center gap-4">
-                                        <div className="p-3 border-2 border-foreground group-hover:bg-foreground group-hover:text-background transition-all">
-                                            <HugeiconsIcon icon={Settings01Icon} size={28} />
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={RefreshIcon} size={24} />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black uppercase tracking-wider">
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                BULK_ID_FETCH
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Delta</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Fetches all distinct Trade and Receipt IDs within the configured time frame. Created as partial records.
+                                    </p>
+                                    <button
+                                        onClick={handleBulkFetchIDs}
+                                        disabled={isLoading}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5 disabled:opacity-50"
+                                    >
+                                        EXECUTE_SERVICE_004
+                                    </button>
+                                </div>
+
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">05</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={DatabaseIcon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                POPULATE_DETAILS
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Epsilon</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Sequentially fetches full details (items, prices, participants) for all records marked as pending.
+                                    </p>
+                                    <button
+                                        onClick={handlePopulateDetails}
+                                        disabled={isLoading}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5 disabled:opacity-50"
+                                    >
+                                        EXECUTE_SERVICE_005
+                                    </button>
+                                </div>
+
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">06</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Link01Icon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                AUTO_LINK_REGISTRY
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Zeta</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Iteratively attempts to match unlinked Trades with unlinked Receipts based on value and temporal proximity.
+                                    </p>
+                                    <button
+                                        onClick={handleAutoLink}
+                                        disabled={isLoading}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5 disabled:opacity-50"
+                                    >
+                                        EXECUTE_SERVICE_006
+                                    </button>
+                                </div>
+
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">01</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Settings01Icon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
                                                 RECALCULATE_COST_BASIS
                                             </h3>
                                             <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Alpha</p>
                                         </div>
                                     </div>
                                     <p className="text-xs text-muted leading-relaxed font-mono">
-                                        Triggers full recalculation of cost-basis and running totals for specific inventory ID from defined temporal origin. Destructive to current buffer state.
+                                        Triggers full recalculation of cost-basis and running totals for all items from defined temporal origin.
                                     </p>
                                     <button
                                         onClick={handleUpdateCostBasis}
-                                        className="w-full py-4 border-2 border-foreground font-black uppercase text-[10px] tracking-[0.3em] hover:bg-foreground hover:text-background transition-all active:translate-y-1 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-none"
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
                                     >
                                         EXECUTE_SERVICE_001
                                     </button>
                                 </div>
 
-                                <div className="p-8 border-2 border-border-strong space-y-6 bg-panel/20 hover:border-foreground transition-all group">
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">02</div>
                                     <div className="flex items-center gap-4">
-                                        <div className="p-3 border-2 border-foreground group-hover:bg-foreground group-hover:text-background transition-all">
-                                            <HugeiconsIcon icon={Settings01Icon} size={28} />
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Settings01Icon} size={24} />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black uppercase tracking-wider">
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
                                                 TRANSFER_INVENTORY
                                             </h3>
                                             <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Beta</p>
                                         </div>
                                     </div>
                                     <p className="text-xs text-muted leading-relaxed font-mono">
-                                        Executes a manual transfer of inventory units between categories. Creates a wrapper and linked logs, then triggers cost-basis normalization.
+                                        Executes a manual transfer of inventory units between categories. Creates a wrapper and linked logs.
                                     </p>
                                     <button
                                         onClick={handleTransferItem}
-                                        className="w-full py-4 border-2 border-foreground font-black uppercase text-[10px] tracking-[0.3em] hover:bg-foreground hover:text-background transition-all active:translate-y-1 shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-none"
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
                                     >
                                         EXECUTE_SERVICE_002
                                     </button>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                {/* Footer Metadata */}
-                <div className="pt-12 border-t border-border-strong flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-[9px] text-muted font-black uppercase tracking-[0.5em]">
-                        HARDLINE_ARCH_DEBUGGER // BML_OS.v4.0.0
-                    </p>
-                    <div className="flex gap-4 text-[9px] font-black uppercase tracking-[0.2em] text-muted">
-                        <span>SYS_OK</span>
-                        <span>BUF_ACTIVE</span>
-                        <span className="text-success">CON_ESTABLISHED</span>
-                    </div>
+                                <div className="p-6 border-2 border-primary/20 space-y-4 bg-muted/5 hover:border-primary transition-all group relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-5 font-black text-6xl italic -translate-y-4 translate-x-4 group-hover:opacity-10 transition-opacity">03</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 border-2 border-primary group-hover:bg-primary group-hover:text-background transition-all">
+                                            <HugeiconsIcon icon={Settings01Icon} size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-black uppercase tracking-wider">
+                                                MUSEUM_EXCHANGE
+                                            </h3>
+                                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Protocol.Gamma</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted leading-relaxed font-mono">
+                                        Exchanges sets of items for Points at the Museum. Validates sufficient stock in the 'museum' category.
+                                    </p>
+                                    <button
+                                        onClick={handleMuseumExchange}
+                                        className="w-full py-3 border-2 border-primary font-black uppercase text-[10px] tracking-[0.3em] hover:bg-primary hover:text-background transition-all shadow-md shadow-primary/5"
+                                    >
+                                        EXECUTE_SERVICE_003
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Footer Metadata */}
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 opacity-50">
+                <p className="text-[9px] text-muted font-black uppercase tracking-[0.5em]">
+                    HARDLINE_ARCH_DEBUGGER // BML_OS.v4.0.0
+                </p>
+                <div className="flex gap-4 text-[9px] font-black uppercase tracking-[0.2em] text-muted">
+                    <span>SYS_OK</span>
+                    <span>BUF_ACTIVE</span>
+                    <span className="text-success">CON_ESTABLISHED</span>
                 </div>
             </div>
 

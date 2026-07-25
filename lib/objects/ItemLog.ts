@@ -11,6 +11,7 @@ import {
 export interface ItemLogCreateFields {
     timestamp: number;
     item_id: number;
+    uid?: string | null;
     quantity: number;
     unit_price: number;
     category: string;
@@ -18,12 +19,67 @@ export interface ItemLogCreateFields {
     total_stock?: number;
     total_cost?: number;
     realized_profit?: number;
+    torn_log_id?: string | null;
 }
 
-export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "skipped";
+export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "dump" | "christmas-town" | "consumption" | "skipped";
+
+export interface ItemIdentity {
+    item_id: number;
+    uid: string;
+}
+
+/**
+ * Normalizes item UID inputs into the persisted representation.
+ * @param uid (unknown): Raw UID value from storage or external APIs
+ * @returns (string): Stable UID string or empty string when absent
+ * @sideEffects None
+ */
+export function normalizeItemUid(uid: unknown): string {
+    if (uid === undefined || uid === null || uid === "" || uid === "null") {
+        return "";
+    }
+
+    return String(uid);
+}
+
+/**
+ * Builds a stable in-memory key for an item identity.
+ * @param identity (ItemIdentity): Item identity to serialize
+ * @returns (string): Stable key suitable for maps and sets
+ * @sideEffects None
+ */
+export function getItemIdentityKey(identity: ItemIdentity): string {
+    return `${identity.item_id}::${identity.uid || "__null__"}`;
+}
+
+/**
+ * Extracts the identity from an item log or loose identity input.
+ * @param itemIdOrIdentity (number | ItemIdentity | ItemLog): Source identity data
+ * @param uid (string | null | undefined): Optional UID when the first argument is an item ID
+ * @returns (ItemIdentity): Normalized item identity
+ * @sideEffects None
+ */
+export function createItemIdentity(
+    itemIdOrIdentity: number | ItemIdentity | ItemLog,
+    uid?: string | null
+): ItemIdentity {
+    if (typeof itemIdOrIdentity === "number") {
+        return {
+            item_id: itemIdOrIdentity,
+            uid: normalizeItemUid(uid),
+        };
+    }
+
+    return {
+        item_id: itemIdOrIdentity.item_id,
+        uid: normalizeItemUid(itemIdOrIdentity.uid),
+    };
+}
 
 export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     item_id: number;
+    uid: string;
     quantity: number;
     unit_price: number;
     category: string;
@@ -31,12 +87,14 @@ export interface ItemLogDatabaseRecord extends BaseObjectDatabaseRecord {
     total_stock: number;
     total_cost: number;
     realized_profit: number;
+    torn_log_id: string | null;
 }
 
 export class ItemLog extends BaseObject {
-    private static readonly CURRENT_VERSION = 5;
+    private static readonly CURRENT_VERSION = 7;
 
     public readonly item_id: number;
+    public readonly uid: string;
     public readonly quantity: number;
     public readonly unit_price: number;
     public readonly category: string;
@@ -44,6 +102,7 @@ export class ItemLog extends BaseObject {
     public readonly total_stock: number;
     public readonly total_cost: number;
     public readonly realized_profit: number;
+    public readonly torn_log_id: string | null;
 
     /**
      * Creates an item log with optional persisted metadata.
@@ -56,6 +115,7 @@ export class ItemLog extends BaseObject {
         super(fields.timestamp, ItemLog.CURRENT_VERSION, databaseFields);
 
         this.item_id = fields.item_id;
+        this.uid = normalizeItemUid(fields.uid);
         this.quantity = fields.quantity;
         this.unit_price = fields.unit_price;
         this.category = fields.category;
@@ -63,6 +123,7 @@ export class ItemLog extends BaseObject {
         this.total_stock = fields.total_stock ?? 0;
         this.total_cost = fields.total_cost ?? 0;
         this.realized_profit = fields.realized_profit ?? 0;
+        this.torn_log_id = fields.torn_log_id ?? null;
     }
 
     /**
@@ -89,6 +150,7 @@ export class ItemLog extends BaseObject {
             {
                 timestamp: record.timestamp,
                 item_id: record.item_id,
+                uid: record.uid,
                 quantity: record.quantity,
                 unit_price: record.unit_price,
                 category: record.category,
@@ -96,6 +158,7 @@ export class ItemLog extends BaseObject {
                 total_stock: record.total_stock,
                 total_cost: record.total_cost,
                 realized_profit: record.realized_profit,
+                torn_log_id: record.torn_log_id,
             },
             databaseFields
         );
@@ -110,6 +173,7 @@ export class ItemLog extends BaseObject {
         return {
             ...this.toBaseDatabaseRecord(),
             item_id: this.item_id,
+            uid: this.uid,
             quantity: this.quantity,
             unit_price: this.unit_price,
             category: this.category,
@@ -117,6 +181,7 @@ export class ItemLog extends BaseObject {
             total_stock: this.total_stock,
             total_cost: this.total_cost,
             realized_profit: this.realized_profit,
+            torn_log_id: this.torn_log_id,
         };
     }
 
@@ -137,11 +202,13 @@ export class ItemLog extends BaseObject {
             {
                 timestamp: this.timestamp,
                 item_id: this.item_id,
+                uid: this.uid,
                 quantity: this.quantity,
                 unit_price: this.unit_price,
                 category: this.category,
                 wrapper_id: this.wrapper_id,
                 realized_profit: this.realized_profit,
+                torn_log_id: this.torn_log_id,
                 ...overrides,
                 total_stock: totalStock,
                 total_cost: totalCost,
@@ -165,10 +232,126 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
         super(
             "BlackMarketLedgerObjectsDB",
             "item_logs",
-            "++id,item_id,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,[item_id+category+timestamp]",
+            "++id,item_id,uid,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+uid],[item_id+uid+category+timestamp]",
             (itemLog) => itemLog.toDatabaseRecord(),
             (record) => ItemLog.fromDatabase(record)
         );
+    }
+
+    /**
+     * Fetches Every record in the table and hydrates them into domain objects.
+     * @returns (Promise<ItemLog[]>): All stored objects for the registry table
+     * @sideEffects Reads from IndexedDB through Dexie
+     */
+    public override async getAll(): Promise<ItemLog[]> {
+        const records = await this.tableRef.orderBy("timestamp").reverse().toArray();
+        return records.map((record) => ItemLog.fromDatabase(record));
+    }
+
+    /**
+     * Retrieves a paginated slice of logs, optionally filtered by category, item name, and date range.
+     * @param offset (number): Records to skip
+     * @param limit (number): Max records to return
+     * @param category (string | null): Optional category filter
+     * @param searchQuery (string | null): Optional item name search (partial)
+     * @param itemMap (Record<number, string>): Map of item ID to name for searching
+     * @param startDate (number | null): Optional starting timestamp (ms)
+     * @param endDate (number | null): Optional ending timestamp (ms)
+     * @returns (Promise<ItemLog[]>): Hydrated logs
+     */
+    public async getPaginatedLogs(
+        offset: number,
+        limit: number,
+        category: string | null = null,
+        searchQuery: string | null = null,
+        itemMap: Record<number, string> = {},
+        startDate: number | null = null,
+        endDate: number | null = null
+    ): Promise<ItemLog[]> {
+        let collection = this.tableRef.orderBy("timestamp").reverse();
+
+        if (category && category !== "all") {
+            collection = this.tableRef.where("category").equals(category).reverse();
+        }
+
+        // Apply date range filters if present
+        if (startDate || endDate) {
+            const start = startDate ?? 0;
+            const end = endDate ? (endDate + 24 * 60 * 60 * 1000 - 1) : Date.now();
+            
+            // If we are already filtering by category, we must continue filtering the collection
+            // because IndexedDB doesn't support multiple where clauses easily without compound indexes
+            collection = collection.filter(r => r.timestamp >= start && r.timestamp <= end);
+        }
+        
+        const filteredRecords: ItemLogDatabaseRecord[] = [];
+        let skipped = 0;
+
+        await collection.until(() => filteredRecords.length === limit).each(record => {
+            const matchesCategory = !category || category === "all" || record.category === category;
+            const normalizedQuery = searchQuery?.toLowerCase() || "";
+            const matchesSearch =
+                !searchQuery ||
+                (itemMap[record.item_id]?.toLowerCase() || "").includes(normalizedQuery) ||
+                (record.uid?.toLowerCase() || "").includes(normalizedQuery);
+
+            if (matchesCategory && matchesSearch) {
+                if (skipped >= offset) {
+                    filteredRecords.push(record);
+                } else {
+                    skipped++;
+                }
+            }
+        });
+
+        return filteredRecords.map(r => ItemLog.fromDatabase(r));
+    }
+
+    /**
+     * Returns the total count of logs matching the filters.
+     */
+    public async countLogs(
+        category: string | null = null,
+        searchQuery: string | null = null,
+        itemMap: Record<number, string> = {},
+        startDate: number | null = null,
+        endDate: number | null = null
+    ): Promise<number> {
+        let collection = category && category !== "all" 
+            ? this.tableRef.where("category").equals(category)
+            : this.tableRef.toCollection();
+
+        if (startDate || endDate) {
+            const start = startDate ?? 0;
+            const end = endDate ? (endDate + 24 * 60 * 60 * 1000 - 1) : Date.now();
+            collection = collection.filter(r => r.timestamp >= start && r.timestamp <= end);
+        }
+
+        if (searchQuery) {
+            let count = 0;
+            const query = searchQuery.toLowerCase();
+            await collection.each(record => {
+                if (
+                    (itemMap[record.item_id]?.toLowerCase() || "").includes(query) ||
+                    (record.uid?.toLowerCase() || "").includes(query)
+                ) {
+                    count++;
+                }
+            });
+            return count;
+        }
+
+        return await collection.count();
+    }
+
+    /**
+     * Fetches a log by its Torn API log ID.
+     * @param tornLogId (string): The Torn log ID
+     * @returns (Promise<ItemLog | undefined>): The found log or undefined
+     */
+    public async getByTornLogId(tornLogId: string): Promise<ItemLog | undefined> {
+        const record = await this.tableRef.where("torn_log_id").equals(tornLogId).first();
+        return record ? ItemLog.fromDatabase(record) : undefined;
     }
 
     /**
@@ -179,6 +362,22 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
      */
     public async getLogsByItemId(itemId: number): Promise<ItemLog[]> {
         const records = await this.tableRef.where("item_id").equals(itemId).sortBy("timestamp");
+
+        return records.map((record) => ItemLog.fromDatabase(record));
+    }
+
+    /**
+     * Fetches all item logs for a specific item identity, ordered by timestamp.
+     * @param identity (ItemIdentity): Unique item identity including optional UID
+     * @returns (Promise<ItemLog[]>): Sorted array of item logs
+     * @sideEffects Reads from IndexedDB through Dexie
+     */
+    public async getLogsByIdentity(identity: ItemIdentity): Promise<ItemLog[]> {
+        const normalizedIdentity = createItemIdentity(identity);
+        const records = await this.tableRef
+            .where("[item_id+uid]")
+            .equals([normalizedIdentity.item_id, normalizedIdentity.uid])
+            .sortBy("timestamp");
 
         return records.map((record) => ItemLog.fromDatabase(record));
     }
@@ -203,19 +402,33 @@ export class ItemLogRegistry extends BaseObjectRegistry<ItemLog, ItemLogDatabase
      * @sideEffects Reads from IndexedDB through Dexie
      */
     public async getLatestTotalsPerCategoryBefore(
-        itemId: number,
+        identity: ItemIdentity,
         timestamp: number
     ): Promise<Map<string, { stock: number; cost: number }>> {
-        const categories = ["normal", "abroad", "museum", "city-finds", "skipped"];
+        const normalizedIdentity = createItemIdentity(identity);
+        const categories = ["normal", "abroad", "museum", "city-finds", "city-shop", "crimes", "dump", "christmas-town", "skipped"];
         const result = new Map<string, { stock: number; cost: number }>();
 
         // Initialize with zeros
         categories.forEach((cat) => result.set(cat, { stock: 0, cost: 0 }));
 
+        // Safety: Ensure keys are valid for IndexedDB to prevent DataError
+        if (!Number.isFinite(normalizedIdentity.item_id) || !Number.isFinite(timestamp)) {
+            console.error(
+                `Invalid keys provided to getLatestTotalsPerCategoryBefore: itemId=${normalizedIdentity.item_id}, uid=${normalizedIdentity.uid}, timestamp=${timestamp}`
+            );
+            return result;
+        }
+
         for (const category of categories) {
             const latestRecord = await this.tableRef
-                .where("[item_id+category+timestamp]")
-                .between([itemId, category, Dexie.minKey], [itemId, category, timestamp], true, false)
+                .where("[item_id+uid+category+timestamp]")
+                .between(
+                    [normalizedIdentity.item_id, normalizedIdentity.uid, category, Dexie.minKey],
+                    [normalizedIdentity.item_id, normalizedIdentity.uid, category, timestamp],
+                    true,
+                    false
+                )
                 .reverse()
                 .first();
 

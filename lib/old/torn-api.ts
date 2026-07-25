@@ -5,7 +5,15 @@ import {
     normalizeItemName,
     resolveMuseumExchangeType,
 } from "./parser";
-import { createRateLimiter } from "./rate-limiter";
+
+export {
+    type ParsedLog,
+    type TransactionSourceType,
+    type TransactionTag,
+    normalizeItemName,
+    resolveMuseumExchangeType,
+};
+import { tornRateLimiter, weav3rRateLimiter } from "./rate-limiter";
 import { getTornApiRateLimit, getWeav3rApiRateLimit, refreshApiKeysFromStorage } from "./api-keys";
 import {
     TornTrade,
@@ -18,21 +26,10 @@ import { getSetItems } from "./market-prices";
 export const TORN_V2_API_BASE = "https://api.torn.com/v2";
 const WEAV3R_API_BASE = "https://weav3r.dev/api";
 
-function getStoredRateLimits(): { torn: number; weav3r: number } {
-    return {
-        torn: getTornApiRateLimit(),
-        weav3r: getWeav3rApiRateLimit(),
-    };
-}
-
-let tornRateLimiter = createRateLimiter(getStoredRateLimits().torn);
-let weav3rRateLimiter = createRateLimiter(getStoredRateLimits().weav3r);
-
 export function refreshApiRateLimiters() {
     refreshApiKeysFromStorage();
-    const limits = getStoredRateLimits();
-    tornRateLimiter = createRateLimiter(limits.torn);
-    weav3rRateLimiter = createRateLimiter(limits.weav3r);
+    tornRateLimiter.reset();
+    weav3rRateLimiter.reset();
 }
 const AUTO_PILOT_LOG_CATEGORIES = [
     11, // Market
@@ -92,6 +89,27 @@ export interface NormalizedLog {
     data: Record<string, unknown>;
     params: Record<string, unknown>;
 }
+
+export type LogHandlerFn = (log: NormalizedLog, itemNameMap?: TornItemNameMap) => ParsedLog[];
+
+export class LogHandlerRegistry {
+    private handlers: Map<number, LogHandlerFn> = new Map();
+
+    register(typeIds: number | number[], handler: LogHandlerFn) {
+        const ids = Array.isArray(typeIds) ? typeIds : [typeIds];
+        ids.forEach((id) => this.handlers.set(id, handler));
+    }
+
+    getHandler(typeId: number): LogHandlerFn | undefined {
+        return this.handlers.get(typeId);
+    }
+
+    getRegisteredTypes(): number[] {
+        return Array.from(this.handlers.keys());
+    }
+}
+
+export const defaultLogRegistry = new LogHandlerRegistry();
 
 export interface TornTradeParticipant {
     id: number | string;
@@ -239,14 +257,38 @@ async function parseJson(response: Response) {
     return data;
 }
 
-async function fetchWithTornRateLimit(url: string, options?: RequestInit): Promise<Response> {
+async function fetchWithTornRateLimit(url: string, options?: RequestInit, retryCount = 0): Promise<Response> {
     await tornRateLimiter.acquire();
-    return fetch(url, options);
+    const response = await fetch(url, options);
+    
+    // Torn V2 can return 200 with code 5 for rate limits
+    const data = await response.clone().json().catch(() => ({}));
+    if (data?.error?.code === 5 || response.status === 429) {
+        if (retryCount === 0) {
+            console.warn("Torn API Rate Limit hit in fetchWithTornRateLimit. Pausing 10s and retrying...");
+            tornRateLimiter.pauseGlobal(10000);
+            await new Promise(r => setTimeout(r, 10000));
+            return fetchWithTornRateLimit(url, options, 1);
+        }
+        throw new Error("Torn API rate limit exceeded.");
+    }
+    return response;
 }
 
-async function fetchWithWeav3rRateLimit(url: string, options?: RequestInit): Promise<Response> {
+async function fetchWithWeav3rRateLimit(url: string, options?: RequestInit, retryCount = 0): Promise<Response> {
     await weav3rRateLimiter.acquire();
-    return fetch(url, options);
+    const response = await fetch(url, options);
+    
+    if (response.status === 429) {
+        if (retryCount === 0) {
+            console.warn("Weav3r API Rate Limit hit. Pausing 10s and retrying...");
+            weav3rRateLimiter.pauseGlobal(10000);
+            await new Promise(r => setTimeout(r, 10000));
+            return fetchWithWeav3rRateLimit(url, options, 1);
+        }
+        throw new Error("Weav3r API rate limit exceeded.");
+    }
+    return response;
 }
 
 export function buildUrl(
@@ -542,62 +584,50 @@ function parseBazaarOrMarketLog(log: NormalizedLog, itemNameMap?: TornItemNameMa
     return parseMarketLog(log, type, sourceType, itemName, amount, price, tag);
 }
 
+function parseMugLog(log: NormalizedLog): ParsedLog[] {
+    let amount: number | null = log?.data?.money_mugged as number;
+    if (!amount) {
+        const moneyMatch = String(log.title).match(/\$([\d,]+)/);
+        amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : 0;
+    }
+    if (amount) {
+        return [
+            {
+                type: "MUG",
+                amount,
+                loggedAt: log.timestamp * 1000,
+                tornLogId: String(log.id),
+                sourceType: "attack",
+            },
+        ];
+    }
+    return [];
+}
+
+// Register Market & Bazaar logs
+defaultLogRegistry.register([1112, 1113, 1225, 1226, 4201], parseBazaarOrMarketLog);
+
+// Register Point Market logs
+defaultLogRegistry.register([5010, 5011], parsePointLog);
+
+// Register Museum logs
+defaultLogRegistry.register(7000, parseMuseumLog);
+
+// Register Mug logs
+defaultLogRegistry.register(8156, parseMugLog);
+
 export function parseNormalizedLog(log: NormalizedLog, itemNameMap?: TornItemNameMap): ParseResult {
     if (isTradeLog(log)) {
         return { kind: "trade" };
     }
 
-    if (!isRelevantLog(log)) {
+    const handler = defaultLogRegistry.getHandler(log.typeId);
+    if (!handler) {
         return { kind: "unsupported" };
     }
 
-    const haystack = `${log.category} ${log.title}`.toLowerCase();
-
-    if (haystack.includes("points") || [5010, 5011].includes(log.typeId)) {
-        const logs = parsePointLog(log);
-        return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
-    }
-
-    if (haystack.includes("museum") || log.typeId === 7000) {
-        const logs = parseMuseumLog(log);
-        return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
-    }
-
-    if (haystack.includes("mugged") || [8156].includes(log.typeId)) {
-        console.log(log);
-        let amount: number | null = log?.data?.money_mugged as number;
-        if (!amount) {
-            const moneyMatch = String(log.title).match(/\$([\d,]+)/);
-            amount = moneyMatch ? parseInt(moneyMatch[1].replace(/,/g, ""), 10) : 0;
-        }
-        console.log(amount);
-        if (amount) {
-            return {
-                kind: "parsed",
-                logs: [
-                    {
-                        type: "MUG",
-                        amount,
-                        loggedAt: log.timestamp * 1000,
-                        tornLogId: String(log.id),
-                        sourceType: "attack",
-                    },
-                ],
-            };
-        }
-    }
-
-    if (
-        haystack.includes("bazaar") ||
-        haystack.includes("item market") ||
-        haystack.includes("travel") ||
-        log.category.toLowerCase() === "travel"
-    ) {
-        const logs = parseBazaarOrMarketLog(log, itemNameMap);
-        return logs.length ? { kind: "parsed", logs } : { kind: "unsupported" };
-    }
-
-    return { kind: "unsupported" };
+    const logs = handler(log, itemNameMap);
+    return logs.length > 0 ? { kind: "parsed", logs } : { kind: "unsupported" };
 }
 
 async function getLogsForCategory(apiKey: string, category: number | string, cursor: SyncCursor) {
@@ -699,6 +729,71 @@ export async function getTornItems(apiKey: string) {
     }
 
     return itemMap;
+}
+
+export async function getDailyMarketPrices(
+    apiKey: string,
+    timestamp?: number
+): Promise<Map<number, number>> {
+    const dateObj = timestamp ? new Date(timestamp) : new Date();
+    const dateKey = dateObj.toISOString().split("T")[0];
+    const cacheKey = `torn_daily_market_prices_${dateKey}`;
+
+    if (typeof window !== "undefined") {
+        try {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                return new Map<number, number>(
+                    Object.entries(parsed).map(([k, v]) => [Number(k), Number(v)])
+                );
+            }
+        } catch (e) {
+            // cache read fallback
+        }
+    }
+
+    const priceMap = new Map<number, number>();
+    if (!apiKey) return priceMap;
+
+    try {
+        const url = buildUrl(TORN_V2_API_BASE, "/torn/items", { key: apiKey });
+        const response = await fetchWithTornRateLimit(url, { cache: "no-store" });
+        const data = await parseJson(response);
+        const itemsSource = data?.items || data?.data?.items || [];
+
+        const entries = Array.isArray(itemsSource)
+            ? itemsSource
+            : Object.entries(itemsSource).map(([id, val]) => ({
+                  id,
+                  ...(val as object),
+              }));
+
+        const cacheObj: Record<number, number> = {};
+
+        for (const item of entries) {
+            const id = Number(item?.id);
+            const marketPrice = Number(
+                (item as any)?.value?.market_price ?? (item as any)?.value?.buy_price ?? 0
+            );
+            if (Number.isFinite(id)) {
+                priceMap.set(id, marketPrice);
+                cacheObj[id] = marketPrice;
+            }
+        }
+
+        if (typeof window !== "undefined") {
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(cacheObj));
+            } catch (e) {
+                // cache write fallback
+            }
+        }
+    } catch (error) {
+        console.error("Failed to fetch daily market prices:", error);
+    }
+
+    return priceMap;
 }
 
 export async function getCompletedTrades(apiKey: string, startTimestamp: number) {
@@ -995,7 +1090,7 @@ export function findMatchingReceipt(
 export function createParsedLogsFromReceipt(
     trade: TornTradeDetail,
     receipt: Weav3rReceipt,
-    currentUserId: string
+    currentUserId: string = ""
 ): ParsedLog[] {
     const tradeItemCount = receipt.items.length;
     // Correctly identify partner ID by picking the one that's not the current user
@@ -1052,7 +1147,7 @@ function extractTradePartnerName(description: string) {
 export function createParsedLogsFromNewReceipt(
     trade: TornTrade,
     receipt: NewWeav3rReceipt,
-    currentUserId: string
+    currentUserId: string = ""
 ): ParsedLog[] {
     const expandedItems = TornTrade.expandSetItems(receipt);
     const tradeItemCount = expandedItems.length;

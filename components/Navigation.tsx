@@ -41,9 +41,8 @@ const navItems = [
     { name: "Abroad", href: "/abroad", icon: Airplane02Icon, color: "var(--success)" },
     { name: "Logs", href: "/logs", icon: ReceiptTextIcon, color: "var(--secondary)" },
     { name: "Terminal", href: "/add", icon: ComputerTerminal01Icon, color: "var(--muted)" },
-    { name: "Auto-Pilot", href: "/auto", icon: Radar03Icon, color: "var(--danger)" },
+    { name: "Auto-Pilot", href: "/autopilot", icon: Radar03Icon, color: "var(--danger)" },
     { name: "Blackbox", href: "/blackbox", icon: PackageProcessIcon, color: "var(--secondary)" },
-    { name: "BML Connect", href: "/bmlconnect", icon: Exchange01Icon, color: "var(--primary)" },
     { name: "Account", href: "/account", icon: UserIcon, color: "var(--info)" },
     { name: "Settings", href: "/settings", icon: Settings01Icon, color: "var(--primary)" },
     { name: "Links", href: "/links", icon: Link01Icon, color: "var(--accent-red)" },
@@ -107,9 +106,9 @@ export function Navigation() {
                     >
                         {/* New logo replacing text and old database icon */}
                         {isDark ? (
-                            <img src="/logos/dark/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-8 h-8 object-contain" />
+                            <img src="/logos/dark/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-8 h-8 object-contain" />
                         ) : (
-                            <img src="/logos/light/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-8 h-8 object-contain" />
+                            <img src="/logos/light/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-8 h-8 object-contain" />
                         )}
                     </Link>
 
@@ -126,7 +125,7 @@ export function Navigation() {
                                     href={item.href}
                                     onClick={() => vibrate("nav")}
                                     className={cn(
-                                        "group flex items-center gap-0 hover:gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent",
+                                        "group flex items-center gap-0 hover:gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent font-heading",
                                         isActive
                                             ? "bg-primary text-primary-foreground"
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 hover:border-border"
@@ -195,18 +194,13 @@ export function Navigation() {
                         className="flex flex-row items-center gap-3 px-1"
                     >
                         {isDark ? (
-                            <img src="/logos/dark/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
+                            <img src="/logos/dark/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
                         ) : (
-                            <img src="/logos/light/android-chrome-192x192.png" alt="BlackMarket Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
+                            <img src="/logos/light/android-chrome-192x192.png" alt="Torn Ledger Logo" className="w-10 h-10 object-contain shrink-0" />
                         )}
-                        <div className="flex flex-col min-w-0 justify-center leading-none mt-1">
-                            <span className="font-bold text-[22px] tracking-wider font-vt323 leading-[0.9]">
-                                BlackMarket
-                            </span>
-                            <span className="font-bold text-[22px] tracking-wider font-vt323 leading-[0.9]">
-                                Ledger
-                            </span>
-                        </div>
+                        <span className="font-bold text-[18px] tracking-wider font-brand whitespace-nowrap">
+                            Torn Ledger
+                        </span>
                     </Link>
 
                     <div className="flex flex-col gap-1">
@@ -222,7 +216,7 @@ export function Navigation() {
                                     href={item.href}
                                     onClick={() => vibrate("nav")}
                                     className={cn(
-                                        "flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest transition-all border-l-2",
+                                        "flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest transition-all border-l-2 font-heading",
                                         isActive
                                             ? "bg-primary/5 text-primary border-primary"
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 border-transparent"
@@ -253,7 +247,7 @@ export function Navigation() {
                             className="flex-1 flex items-center justify-center gap-2 h-8 bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
                         >
                             <HugeiconsIcon icon={BookOpenTextIcon} size={14} />
-                            <span className="text-[9px] font-bold uppercase tracking-wider">
+                            <span className="text-[9px] font-bold uppercase tracking-wider font-heading">
                                 Docs
                             </span>
                         </Link>
@@ -312,7 +306,7 @@ export function Navigation() {
                                             setIsDrawerOpen(false);
                                         }}
                                         className={cn(
-                                            "flex items-center gap-4 px-6 py-4 text-[13px] font-bold uppercase tracking-widest transition-all",
+                                            "flex items-center gap-4 px-6 py-4 text-[13px] font-bold uppercase tracking-widest transition-all font-heading",
                                             isActive
                                                 ? "bg-primary text-primary-foreground"
                                                 : "text-muted hover:text-foreground hover:bg-foreground/5"

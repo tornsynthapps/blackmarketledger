@@ -1,288 +1,246 @@
 "use client";
 
-import { useMemo, useState, useEffect, Suspense, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { SystemLog, SystemLogRegistry, type SystemLogLevel } from "@/lib/objects/SystemLog";
+import { PageHeader } from "@/components/PageHeader";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    Search01Icon,
-    Delete02Icon,
+    Activity01Icon,
+    Alert01Icon,
+    AlertCircleIcon,
+    InformationCircleIcon,
+    Settings01Icon,
     ArrowLeft01Icon,
-    RefreshIcon,
-    ArrowDown01Icon,
     ArrowRight01Icon,
-    CloudDownloadIcon,
     PackageProcessIcon,
 } from "@hugeicons/core-free-icons";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { Storage } from "@/lib/storage";
-import { Blackbox } from "@/lib/blackbox";
 
-import { BlackboxLog, BlackboxData, formatTimestamp } from "./types";
-import { EventItem } from "./EventItem";
-import { BlackboxDetailView } from "./BlackboxDetailView";
+const LOG_LEVEL_CONFIG: Record<SystemLogLevel, { icon: any; color: string; bgColor: string }> = {
+    info: { icon: InformationCircleIcon, color: "text-info", bgColor: "bg-info/5" },
+    warn: { icon: Alert01Icon, color: "text-warning", bgColor: "bg-warning/5" },
+    error: { icon: AlertCircleIcon, color: "text-danger", bgColor: "bg-danger/5" },
+    debug: { icon: Settings01Icon, color: "text-muted", bgColor: "bg-muted/5" },
+};
 
-function parseBlackboxData(rawData: Record<string, any>): BlackboxData[] {
-    const blackboxes: BlackboxData[] = [];
-    for (const [id, logsValue] of Object.entries(rawData)) {
-        try {
-            const logsMap = typeof logsValue === "string" ? JSON.parse(logsValue) : logsValue;
-            const logs: BlackboxLog[] = [];
-            for (const [, value] of Object.entries(logsMap)) {
-                try {
-                    if (typeof value === "object" && value !== null) {
-                        logs.push(value as BlackboxLog);
-                    } else if (typeof value === "string") {
-                        logs.push(JSON.parse(value));
-                    } else {
-                        logs.push({
-                            event: "parse_error",
-                            data: { raw: value },
-                            timestamp: "",
-                        });
-                    }
-                } catch {
-                    logs.push({
-                        event: "parse_error",
-                        data: { raw: value },
-                        timestamp: "",
-                    });
-                }
-            }
-            const validLogs = logs.filter((l) => l.timestamp);
-            validLogs.sort(
-                (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-            );
-            const firstLog = validLogs.find((l) => l.event === "sync_start");
-            const createdAt = firstLog?.timestamp || new Date(parseInt(id)).toISOString();
-            blackboxes.push({
-                id,
-                createdAt,
-                logs: validLogs.length > 0 ? validLogs : logs,
-            });
-        } catch {
-            blackboxes.push({
-                id,
-                createdAt: new Date(parseInt(id)).toISOString(),
-                logs: [],
-            });
-        }
-    }
-    const validBlackboxes = blackboxes.filter((b) => {
-        const date = new Date(b.createdAt);
-        return !isNaN(date.getTime());
-    });
-    validBlackboxes.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    return validBlackboxes;
-}
-
-function BlackboxCard({
-    blackbox,
-    isSelected,
-    onSelect,
-}: {
-    blackbox: BlackboxData;
-    isSelected: boolean;
-    onSelect: () => void;
-}) {
-    return (
-        <div
-            onClick={onSelect}
-            className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                isSelected
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-            }`}
-        >
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="font-mono text-sm font-medium">#{blackbox.id}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatTimestamp(blackbox.createdAt)}
-                    </p>
-                </div>
-                <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                    {blackbox.logs.length} events
-                </span>
-            </div>
-        </div>
-    );
-}
-
-function BlackboxPageContent() {
+export default function BlackboxPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const selectedId = searchParams.get("id");
-
-    const [searchQuery, setSearchQuery] = useState("");
-    const [rawData, setRawData] = useState<Record<string, any>>({});
+    const [logs, setLogs] = useState<SystemLog[]>([]);
+    const [totalCount, setCount] = useState(0);
+    const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
 
-    const loadData = async () => {
+    // Filters
+    const [levelFilter, setLevelFilter] = useState<SystemLogLevel | "all">("all");
+    const [contextFilter, setContextFilter] = useState("");
+    const [messageFilter, setMessageFilter] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+
+    const registry = useMemo(() => new SystemLogRegistry(), []);
+
+    const limit = 100;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const fetchLogs = async () => {
         setIsLoading(true);
         try {
-            const data = await Storage.getAllKeysAndValues(Blackbox.STORAGE_KEY);
-            setRawData(data);
+            const filters = {
+                level: levelFilter,
+                context: contextFilter,
+                message: messageFilter,
+                startDate: startDate ? new Date(startDate).getTime() : undefined,
+                endDate: endDate ? new Date(endDate).getTime() : undefined,
+            };
+
+            const result = await registry.getFilteredPaged((page - 1) * limit, limit, filters);
+            setLogs(result.logs);
+            setCount(result.total);
         } catch (error) {
-            console.error("Failed to load blackbox data:", error);
+            console.error("Failed to fetch system logs:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        loadData();
-    }, []);
+        fetchLogs();
+    }, [page, levelFilter, contextFilter, messageFilter, startDate, endDate]);
 
-    const blackboxes = useMemo(() => parseBlackboxData(rawData), [rawData]);
-
-    const selectedBlackbox = useMemo(
-        () => blackboxes.find((b) => b.id === selectedId),
-        [blackboxes, selectedId]
-    );
-
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this blackbox?")) return;
-        try {
-            await Storage.delete(Blackbox.STORAGE_KEY, id);
-            await loadData();
-            if (selectedId === id) {
-                router.push("/blackbox");
-            }
-        } catch (error) {
-            console.error("Failed to delete blackbox:", error);
-            alert("Failed to delete blackbox");
-        }
-    };
-
-    const handleExportSelected = () => {
-        if (!selectedId || !rawData[selectedId]) return;
-        const dataStr = JSON.stringify({ [selectedId]: rawData[selectedId] }, null, 2);
-        const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-        const exportFileDefaultName = `blackbox-${selectedId}-${new Date().toISOString()}.json`;
-
-        const linkElement = document.createElement("a");
-        linkElement.setAttribute("href", dataUri);
-        linkElement.setAttribute("download", exportFileDefaultName);
-        linkElement.click();
-    };
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [levelFilter, contextFilter, messageFilter, startDate, endDate]);
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6 p-4">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold">Blackbox</h1>
-                <div className="flex gap-2">
-                    <Link
-                        href="/blackbox/import"
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <PageHeader
+                title="Blackbox Diagnostic Logs"
+                description="Low-level application and background service execution history."
+                icon={PackageProcessIcon}
+            />
+
+            {/* Filters Bar */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-panel border-2 border-primary p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Log Level</label>
+                    <select
+                        value={levelFilter}
+                        onChange={(e) => setLevelFilter(e.target.value as any)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
                     >
-                        <HugeiconsIcon icon={CloudDownloadIcon} className="w-4 h-4" />
-                        View from file
-                    </Link>
+                        <option value="all">ALL_LEVELS</option>
+                        <option value="info">INFO</option>
+                        <option value="warn">WARN</option>
+                        <option value="error">ERROR</option>
+                        <option value="debug">DEBUG</option>
+                    </select>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Context</label>
+                    <input
+                        type="text"
+                        placeholder="Search context..."
+                        value={contextFilter}
+                        onChange={(e) => setContextFilter(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">Message</label>
+                    <input
+                        type="text"
+                        placeholder="Search message..."
+                        value={messageFilter}
+                        onChange={(e) => setMessageFilter(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">From Date</label>
+                    <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted">To Date</label>
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full bg-background border-2 border-primary/20 p-2 text-xs font-mono focus:border-primary outline-none transition-colors"
+                    />
                 </div>
             </div>
 
-            {selectedId && selectedBlackbox ? (
-                <BlackboxDetailView
-                    blackbox={selectedBlackbox}
-                    onBack={() => router.push("/blackbox")}
-                    onRefresh={() => router.refresh()}
-                    extraActions={
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleExportSelected}
-                                className="flex items-center gap-2 px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                <HugeiconsIcon icon={PackageProcessIcon} className="w-3.5 h-3.5" />
-                                Export
-                            </button>
-                            <button
-                                onClick={() => handleDelete(selectedId)}
-                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                            >
-                                <HugeiconsIcon icon={Delete02Icon} className="w-4 h-4" />
-                            </button>
-                        </div>
-                    }
-                />
-            ) : (
-                <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="relative flex-1">
-                            <HugeiconsIcon
-                                icon={Search01Icon}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Search blackboxes..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                            />
-                        </div>
-                    </div>
-
-                    {blackboxes.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                            <HugeiconsIcon
-                                icon={ArrowDown01Icon}
-                                className="w-12 h-12 mx-auto mb-4 opacity-50"
-                            />
-                            <p>No blackboxes yet. Run a sync in Auto-Pilot to create one.</p>
-                        </div>
-                    ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {blackboxes
-                                .filter((b) => {
-                                    if (!searchQuery.trim()) return true;
-                                    const query = searchQuery.toLowerCase();
+            <div className="bg-panel border-2 border-primary overflow-hidden shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="bg-primary/10 border-b-2 border-primary text-left">
+                                <th className="p-3 font-bold text-[10px] uppercase tracking-[0.2em] w-16">ID</th>
+                                <th className="p-3 font-bold text-[10px] uppercase tracking-[0.2em] w-48">Timestamp</th>
+                                <th className="p-3 font-bold text-[10px] uppercase tracking-[0.2em] w-24">Level</th>
+                                <th className="p-3 font-bold text-[10px] uppercase tracking-[0.2em] w-48">Context</th>
+                                <th className="p-3 font-bold text-[10px] uppercase tracking-[0.2em]">Message</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-primary/10">
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={5} className="p-10 text-center text-muted font-mono text-xs italic">
+                                        ACCESSING_DATA_STREAM...
+                                    </td>
+                                </tr>
+                            ) : logs.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="p-10 text-center text-muted font-mono text-xs italic">
+                                        NO_LOGS_FOUND_IN_BUFFER
+                                    </td>
+                                </tr>
+                            ) : (
+                                logs.map((log) => {
+                                    const config = LOG_LEVEL_CONFIG[log.level];
                                     return (
-                                        b.id.toLowerCase().includes(query) ||
-                                        b.logs.some(
-                                            (l) =>
-                                                l.event.toLowerCase().includes(query) ||
-                                                JSON.stringify(l.data).toLowerCase().includes(query)
-                                        )
+                                        <tr 
+                                            key={log.id} 
+                                            onClick={() => router.push(`/blackbox/view?ID=${log.id}`)}
+                                            className={`group ${config.bgColor} hover:bg-foreground/[0.07] transition-colors border-b border-primary/5 last:border-0 cursor-pointer`}
+                                        >
+                                            <td className="p-3 font-mono text-[10px] text-muted">#{log.id}</td>
+                                            <td className="p-3 font-mono text-[10px] whitespace-nowrap">
+                                                {new Date(log.timestamp).toLocaleString()}
+                                            </td>
+                                            <td className="p-3 font-mono text-[10px]">
+                                                <div className={`flex items-center gap-1.5 ${config.color} font-black uppercase`}>
+                                                    <HugeiconsIcon icon={config.icon} size={12} />
+                                                    {log.level}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 font-mono text-[10px] text-info font-bold">
+                                                {log.context}
+                                            </td>
+                                            <td className="p-3 font-mono text-[10px] leading-relaxed break-words">
+                                                {log.message}
+                                            </td>
+                                        </tr>
                                     );
                                 })
-                                .map((blackbox) => (
-                                    <div key={blackbox.id} className="relative">
-                                        <BlackboxCard
-                                            blackbox={blackbox}
-                                            isSelected={blackbox.id === selectedId}
-                                            onSelect={() =>
-                                                router.push(`/blackbox?id=${blackbox.id}`)
-                                            }
-                                        />
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDelete(blackbox.id);
-                                            }}
-                                            className="absolute top-2 right-2 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                        >
-                                            <HugeiconsIcon
-                                                icon={Delete02Icon}
-                                                className="w-4 h-4"
-                                            />
-                                        </button>
-                                    </div>
-                                ))}
-                        </div>
-                    )}
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            )}
-        </div>
-    );
-}
 
-export { parseBlackboxData };
-export default function BlackboxPage() {
-    return (
-        <Suspense fallback={<div className="animate-pulse">Loading...</div>}>
-            <BlackboxPageContent />
-        </Suspense>
+                {/* Pagination */}
+                <div className="p-4 border-t-2 border-primary bg-primary/5 flex items-center justify-between">
+                    <div className="text-[10px] font-bold text-muted uppercase tracking-wider">
+                        Displaying {logs.length} of {totalCount} logs
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            disabled={page === 1 || isLoading}
+                            onClick={() => setPage(p => p - 1)}
+                            className="p-2 border-2 border-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all active:translate-y-0.5"
+                        >
+                            <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
+                        </button>
+                        <span className="font-mono text-xs font-bold px-4">
+                            PAGE {page} OF {Math.max(1, totalPages)}
+                        </span>
+                        <button
+                            disabled={page === totalPages || totalPages === 0 || isLoading}
+                            onClick={() => setPage(p => p + 1)}
+                            className="p-2 border-2 border-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-all active:translate-y-0.5"
+                        >
+                            <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <style jsx global>{`
+                .custom-scrollbar::-webkit-scrollbar {
+                    height: 8px;
+                    width: 8px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: #141416;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #3a3a3f;
+                    border: 2px solid #141416;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #f2f2f2;
+                }
+            `}</style>
+        </div>
     );
 }

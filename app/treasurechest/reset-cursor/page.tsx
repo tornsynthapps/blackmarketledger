@@ -72,7 +72,8 @@ export default function ResetCursorPage() {
                 {/* Header */}
                 <div className="space-y-4">
                     <Link
-                        href="/auto"
+                        href="/autopilot" 
+
                         className="inline-flex items-center gap-2 text-sm text-foreground/50 hover:text-orange-500 transition-colors group"
                     >
                         <HugeiconsIcon

@@ -1,6 +1,6 @@
-# Contributing to Blackmarket Ledger
+# Contributing to Torn Ledger
 
-First off, thank you for considering contributing to Blackmarket Ledger! It's people like you that make BML a great tool for the Torn community.
+First off, thank you for considering contributing to Torn Ledger! It's people like you that make it a great tool for the Torn community.
 
 ## 🛠️ Development Setup
 

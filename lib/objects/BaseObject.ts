@@ -152,6 +152,75 @@ export function requireBaseObjectDatabaseFields(
     };
 }
 
+// Global registry of all Dexie schemas to prevent dynamic overwrites and data wipes.
+// Dexie requires all tables to be defined in a single .stores() call before opening.
+export const SCHEMA_REGISTRY: Record<string, Record<string, string>> = {
+    "BlackMarketLedgerObjectsDB": {
+        "item_logs": "++id,item_id,uid,timestamp,category,wrapper_id,logged_at,updated_at,realized_profit,torn_log_id,[item_id+uid],[item_id+uid+category+timestamp]",
+        "item_log_wrappers": "++id,type,timestamp,logged_at,updated_at",
+        "system_logs": "++id,timestamp,level,context",
+        "trades": "++id,timestamp,type,wrapper_id,receipt_id,torn_id,user_id,sync_status",
+        "trade_items": "++id,trade_db_id,item_id,type",
+        "receipts": "++id,receipt_id_string,source,created_at,seller_id,sync_status",
+        "receipt_items": "++id,receipt_db_id,item_id",
+        "system_configs": "key"
+    }
+};
+
+const DB_INSTANCES = new Map<string, Dexie>();
+
+/**
+ * Requests that the browser treat the IndexedDB storage as persistent.
+ * @returns (Promise<boolean>): True if storage is persistent, false otherwise
+ */
+async function requestPersistence(): Promise<boolean> {
+    if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
+        const isPersisted = await navigator.storage.persisted();
+        if (!isPersisted) {
+            return await navigator.storage.persist();
+        }
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Singleton database fetcher to ensure a unified schema and connection pool.
+ * @param databaseName (string): The name of the browser IndexedDB
+ * @returns (Dexie): The initialized Dexie instance for this database
+ */
+export function getDatabase(databaseName: string): Dexie {
+    let db = DB_INSTANCES.get(databaseName);
+    if (!db) {
+        db = new Dexie(databaseName);
+        const schemas = SCHEMA_REGISTRY[databaseName] || {};
+        db.version(6).stores(schemas);
+        
+        // Version 7: Enforce non-null UID in item_logs for compound index support
+        db.version(7).stores(schemas).upgrade(async tx => {
+            await tx.table("item_logs").toCollection().modify(record => {
+                if (record.uid === null || record.uid === undefined) {
+                    record.uid = "";
+                }
+            });
+        });
+
+        DB_INSTANCES.set(databaseName, db);
+        
+        // Request persistence in the background
+        requestPersistence().then(persisted => {
+            if (persisted) {
+                console.info(`Storage for ${databaseName} is now persistent.`);
+            } else {
+                console.warn(`Storage for ${databaseName} could not be made persistent.`);
+            }
+        }).catch(err => {
+            console.error(`Error requesting storage persistence for ${databaseName}:`, err);
+        });
+    }
+    return db;
+}
+
 export class BaseObjectRegistry<
     TObject extends BaseObject,
     TRecord extends BaseObjectDatabaseRecord,
@@ -165,11 +234,11 @@ export class BaseObjectRegistry<
      * Creates a Dexie registry for a single object table.
      * @param databaseName (string): Browser IndexedDB database name
      * @param tableName (string): Dexie table name
-     * @param schema (string): Dexie schema definition for the table
+     * @param schema (string): Dexie schema definition for the table (kept for interface compatibility)
      * @param serializeObject (BaseObjectSerializer<TObject, TRecord>): Converts an object into a persisted record
      * @param hydrateRecord (BaseObjectHydrator<TObject, TRecord>): Converts a persisted record into a domain object
      * @returns (BaseObjectRegistry<TObject, TRecord>): Configured Dexie registry
-     * @sideEffects Creates or upgrades an IndexedDB schema definition in Dexie
+     * @sideEffects Fetches or creates the shared IndexedDB database instance
      */
     constructor(
         databaseName: string,
@@ -178,28 +247,10 @@ export class BaseObjectRegistry<
         serializeObject: BaseObjectSerializer<TObject, TRecord>,
         hydrateRecord: BaseObjectHydrator<TObject, TRecord>
     ) {
-        this.database = new Dexie(databaseName);
-        this.tableRef = this.createTableReference(tableName, schema);
+        this.database = getDatabase(databaseName);
+        this.tableRef = this.database.table(tableName);
         this.serializeObject = serializeObject;
         this.hydrateRecord = hydrateRecord;
-    }
-
-    /**
-     * Creates the Dexie table reference used by the registry.
-     * @param tableName (string): Dexie table name
-     * @param schema (string): Dexie schema definition for the table
-     * @returns (Table<TRecord, number, BaseObjectWriteRecord<TRecord>>): Typed table reference for the registry
-     * @sideEffects Configures the Dexie database schema
-     */
-    private createTableReference(
-        tableName: string,
-        schema: string
-    ): Table<TRecord, number, BaseObjectWriteRecord<TRecord>> {
-        this.database.version(1).stores({
-            [tableName]: schema,
-        });
-
-        return this.database.table(tableName);
     }
 
     /**
@@ -248,12 +299,28 @@ export class BaseObjectRegistry<
     }
 
     /**
-     * Fetches every record in the table and hydrates them into domain objects.
+     * Fetches Every record in the table and hydrates them into domain objects.
      * @returns (Promise<TObject[]>): All stored objects for the registry table
      * @sideEffects Reads from IndexedDB through Dexie
      */
     public async getAll(): Promise<TObject[]> {
         const records = await this.tableRef.toArray();
+        return records.map((record) => this.hydrateRecord(record));
+    }
+
+    /**
+     * Fetches a slice of records from the table, ordered by timestamp descending.
+     * @param offset (number): The number of records to skip
+     * @param limit (number): The maximum number of records to return
+     * @returns (Promise<TObject[]>): A page of hydrated domain objects
+     */
+    public async getPaginated(offset: number, limit: number): Promise<TObject[]> {
+        const records = await this.tableRef
+            .orderBy("timestamp")
+            .reverse()
+            .offset(offset)
+            .limit(limit)
+            .toArray();
         return records.map((record) => this.hydrateRecord(record));
     }
 

@@ -128,15 +128,29 @@ export default function StatsModal({
         const inventory = new Map<string, InventorySnapshot>();
         const mugState = { total: 0 };
         let transactionIndex = 0;
+
+        // Calculate baseline totals for data before the first period
+        if (periods.length > 0) {
+            let firstPeriodStart: Date;
+            if (timeRange === "daily") firstPeriodStart = startOfDay(periods[0]);
+            else if (timeRange === "weekly") firstPeriodStart = startOfWeek(periods[0]);
+            else firstPeriodStart = startOfMonth(periods[0]);
+
+            while (
+                transactionIndex < sortedTransactions.length &&
+                getTransactionTimestamp(sortedTransactions[transactionIndex]) < firstPeriodStart.getTime()
+            ) {
+                applyTransaction(inventory, sortedTransactions[transactionIndex], mugState, () => true);
+                transactionIndex++;
+            }
+        }
+
+        const baselineTotals = getTotals(inventory, mugState.total);
+        const baselineNetProfit = baselineTotals.profit + baselineTotals.museumProfit + baselineTotals.abroadProfit - baselineTotals.mugLoss;
+
         let previousTotals: LedgerTotals = {
-            profit: 0,
-            inventory: 0,
-            mugLoss: 0,
-            netProfit: 0,
-            abroadProfit: 0,
-            abroadInventory: 0,
-            museumProfit: 0,
-            museumInventory: 0,
+            ...baselineTotals,
+            netProfit: baselineNetProfit,
         };
 
         return periods.map((period) => {
@@ -352,7 +366,7 @@ export default function StatsModal({
                                     ]}
                                 />
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="mugLoss"
                                     stackId="1"
                                     stroke="var(--danger)"
@@ -361,7 +375,7 @@ export default function StatsModal({
                                     fillOpacity={0.2}
                                 />
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="realizedProfit"
                                     stackId="1"
                                     stroke="var(--success)"
@@ -370,7 +384,7 @@ export default function StatsModal({
                                     fillOpacity={0.2}
                                 />
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}

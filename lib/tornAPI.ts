@@ -1,5 +1,5 @@
 import { NewRateLimiter } from "./api";
-import { getTornApiRateLimit, getTornApiKeyFull } from "@/lib/old/api-keys";
+import { getTornApiRateLimit, getTornApiKeyFull } from "./old/api-keys";
 
 /**
  * Interface representing a complex data structure for Torn inventory items.
@@ -74,46 +74,53 @@ export class TornAPIClient {
         return await response.json();
     }
 
+    private static catalogCache: any[] | null = null;
+
+    private static async getCatalog(): Promise<any[]> {
+        if (this.catalogCache) return this.catalogCache;
+        const catalogData = await this.sendV2Request("torn/items", { cat: "All" });
+        if (catalogData && Array.isArray(catalogData.items)) {
+            this.catalogCache = catalogData.items;
+            return this.catalogCache!;
+        }
+        return [];
+    }
+
     /**
      * Purpose: Fetch the current global catalog for Torn, extracting market prices exclusively.
      * 
      * @returns (Promise<Record<number, number>>): A dictionary mapping item ID to its market price.
      */
     public static async getMarketPrices(): Promise<Record<number, number>> {
-        const catalogData = await this.sendV2Request("torn/items", { cat: "All" });
+        const items = await this.getCatalog();
         const priceMap: Record<number, number> = {};
-        
-        if (catalogData && Array.isArray(catalogData.items)) {
-            for (const item of catalogData.items) {
-                if (item.id && item.value && typeof item.value.market_price === "number") {
-                    priceMap[item.id] = item.value.market_price;
-                }
+
+        for (const item of items) {
+            if (item.id && item.value && typeof item.value.market_price === "number") {
+                priceMap[item.id] = item.value.market_price;
             }
         }
-        
+
         return priceMap;
     }
 
     /**
-     * Purpose: Fetch the current global catalog for Torn items, extracting item names exclusively.
+     * Purpose: Fetch the names of all items in Torn's global catalog.
      * 
      * @returns (Promise<Record<number, string>>): A dictionary mapping item ID to its canonical name.
      */
     public static async getItemNames(): Promise<Record<number, string>> {
-        const catalogData = await this.sendV2Request("torn/items", { cat: "All" });
+        const items = await this.getCatalog();
         const nameMap: Record<number, string> = {};
-        
-        if (catalogData && Array.isArray(catalogData.items)) {
-            for (const item of catalogData.items) {
-                if (item.id && item.name) {
-                    nameMap[item.id] = item.name;
-                }
+
+        for (const item of items) {
+            if (item.id && item.name) {
+                nameMap[item.id] = item.name;
             }
         }
-        
+
         return nameMap;
     }
-
     /**
      * Purpose: Fetch the current user's inventory securely through Torn's API.
      * 
@@ -155,5 +162,67 @@ export class TornAPIClient {
         }
         
         return mappedInventory;
+    }
+
+    /**
+     * Purpose: Fetch daily item market prices from `https://api.torn.com/v2/torn/items` with date-based caching.
+     * @param timestamp (number): Optional timestamp to select the date key (defaults to current date)
+     * @returns (Promise<Map<number, number>>): Mapping of item ID to market price.
+     */
+    public static async getDailyMarketPrices(timestamp?: number): Promise<Map<number, number>> {
+        const dateObj = timestamp ? new Date(timestamp) : new Date();
+        const dateKey = dateObj.toISOString().split("T")[0];
+        const cacheKey = `torn_daily_market_prices_${dateKey}`;
+
+        if (typeof window !== "undefined") {
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    return new Map<number, number>(
+                        Object.entries(parsed).map(([k, v]) => [Number(k), Number(v)])
+                    );
+                }
+            } catch (e) {
+                // cache read fallback
+            }
+        }
+
+        const priceMap = new Map<number, number>();
+        try {
+            const data = await this.sendV2Request("torn/items");
+            const itemsSource = data?.items || data?.data?.items || [];
+            const entries = Array.isArray(itemsSource)
+                ? itemsSource
+                : Object.entries(itemsSource).map(([id, val]) => ({
+                      id,
+                      ...(val as object),
+                  }));
+
+            const cacheObj: Record<number, number> = {};
+
+            for (const item of entries) {
+                const id = Number(item?.id);
+                const marketPrice = Number(
+                    (item as any)?.value?.market_price ?? (item as any)?.value?.buy_price ?? 0
+                );
+                if (Number.isFinite(id)) {
+                    priceMap.set(id, marketPrice);
+                    cacheObj[id] = marketPrice;
+                }
+            }
+
+            if (typeof window !== "undefined") {
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(cacheObj));
+                } catch (e) {
+                    // cache write fallback
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch daily market prices in TornAPIClient:", error);
+        }
+
+        return priceMap;
     }
 }

@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
                 <section>
                     <h2 className="text-xl font-bold mb-2">1. Web App Local Storage</h2>
                     <p className="text-foreground/80 leading-relaxed">
-                        BlackMarket Ledger stores your trading logs, settings, and calculations
+                        Torn Ledger stores your trading logs, settings, and calculations
                         locally in your browser for the web app experience.
                     </p>
                 </section>
@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
                 <section>
                     <h2 className="text-xl font-bold mb-4">2. API Key Usage Disclosure</h2>
                     <p className="text-foreground/80 leading-relaxed mb-4">
-                        BlackMarket Ledger requires a Torn API key for account verification and
+                        Torn Ledger requires a Torn API key for account verification and
                         functionality. The key is stored locally in your browser and used to fetch
                         your trading data directly from Torn&apos;s official API.
                     </p>
@@ -138,7 +138,7 @@ export default function PrivacyPolicy() {
                     <h2 className="text-xl font-bold mb-2">4. No Advertising / Sale of Data</h2>
                     <p className="text-foreground/80 leading-relaxed">
                         We do not sell your personal data and do not run ad tracking profiles for
-                        BlackMarket Ledger.
+                        Torn Ledger.
                     </p>
                 </section>
             </div>

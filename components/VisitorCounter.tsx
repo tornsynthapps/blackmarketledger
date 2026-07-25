@@ -9,7 +9,7 @@ export function VisitorCounter() {
 
     useEffect(() => {
         fetch(
-            "https://script.google.com/macros/s/AKfycbxF9XJdE1ff3FYcTGMTK99Ue7j_Y-jabrQiO-WFM7U1mMEQUpIGaVbnaQsHEpp11h04gQ/exec?app=BlackMarket%20Ledger"
+            "https://script.google.com/macros/s/AKfycbxF9XJdE1ff3FYcTGMTK99Ue7j_Y-jabrQiO-WFM7U1mMEQUpIGaVbnaQsHEpp11h04gQ/exec?app=Torn%20Ledger"
         )
             .then((res) => res.json())
             .then((data) => {
@@ -27,7 +27,7 @@ export function VisitorCounter() {
         return <div className="h-4 w-24 animate-pulse bg-foreground/5 border border-border"></div>;
 
     return (
-        <div className="flex items-center gap-2 text-xs font-black uppercase bg-muted/20 py-0.5 px-2 border border-border border-l-2 border-l-primary font-vt323 tracking-wider">
+        <div className="flex items-center gap-2 text-xs font-black uppercase bg-muted/20 py-0.5 px-2 border border-border border-l-2 border-l-primary font-departure tracking-wider">
             <div className="flex items-center gap-1" title="Visitors Today">
                 <HugeiconsIcon icon={UserIcon} size={10} className="text-primary" />
                 <span>{stats.todayViews.toLocaleString()} TODAY</span>

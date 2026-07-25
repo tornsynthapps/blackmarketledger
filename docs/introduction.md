@@ -1,12 +1,12 @@
-# Introduction to Blackmarket Ledger
+# Introduction to Torn Ledger
 
-Welcome to the **Blackmarket Ledger** (BML) documentation!
+Welcome to the **Torn Ledger** documentation!
 
-Blackmarket Ledger is a premium trading logistics and profit-tracking tool designed specifically for players of [Torn](https://www.torn.com/). It allows you to track your item inventory, calculate cost bases, monitor trading profits, and review loss metrics (such as muggings) to help you make informed trading decisions.
+Torn Ledger is a premium trading logistics and profit-tracking tool designed specifically for players of [Torn](https://www.torn.com/). It allows you to track your item inventory, calculate cost bases, monitor trading profits, and review loss metrics (such as muggings) to help you make informed trading decisions.
 
-## What is Blackmarket Ledger?
+## What is Torn Ledger?
 
-At its core, Blackmarket Ledger provides a centralized, high-performance dashboard to log your Torn transactions. It calculates:
+At its core, Torn Ledger provides a centralized, high-performance dashboard to log your Torn transactions. It calculates:
 
 - **Total Realized Profit**: Net gains from selling items.
 - **Current Inventory Value**: The total cost basis of your current stock.
@@ -26,7 +26,7 @@ BML features **Auto-Pilot**, an automated logging system that syncs directly wit
 
 ## How to Use This Documentation
 
-This documentation is divided into several guides to help you get the most out of the Blackmarket Ledger ecosystem:
+This documentation is divided into several guides to help you get the most out of the Torn Ledger ecosystem:
 
 1. **[App User Guide](./app-guide)**: Details on navigating the dashboard and managing your ledger.
 2. **[Auto-Pilot Guide](./features/auto-pilot)**: How to set up and use automated log syncing.

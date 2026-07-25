@@ -1,36 +1,28 @@
 "use client";
 
-import { useJournal } from "@/store/useJournal";
-import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
-import { formatItemName, MUSEUM_TRACKED_ITEMS } from "@/lib/old/parser";
+import { ItemLogService } from "@/lib/domain/ItemLogService";
+import { getItemIdentityKey, ItemLog } from "@/lib/objects/ItemLog";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     ArrowUp02Icon,
     PackageSearchIcon,
     AlertCircleIcon,
     Activity01Icon,
-    PencilEdit02Icon,
     ArrowUpDownIcon,
     ArrowUp01Icon,
     ArrowDown01Icon,
     Search01Icon,
     Coins01Icon,
-    CheckmarkCircle01Icon,
-    Book01Icon,
     ArrowRight01Icon,
     ArrowLeft01Icon,
     StarIcon,
 } from "@hugeicons/core-free-icons";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
 import StatsModal from "@/components/StatsModal";
 import { ProfitChart } from "@/components/ProfitChart";
 import { PointsIcon } from "@/components/PointsIcon";
 import { ItemSetIcon } from "@/components/ItemSetIcon";
-import { CATEGORY_COLORS } from "@/lib/old/theme";
 import {
     format,
     subDays,
@@ -46,18 +38,76 @@ import {
     startOfYear,
     endOfYear,
 } from "date-fns";
-import { InventorySnapshot, applyTransaction, getTotals } from "@/lib/old/chartUtils";
-import type { AnyTrackedTransaction } from "@/lib/old/interfaces/transactions";
+import { TornAPIClient } from "@/lib/tornAPI";
 
-const getTransactionTimestamp = (transaction: any) =>
-    "date" in transaction ? transaction.date : transaction.timestamp;
-
-const getTransactionPriority = (transaction: any) => {
-    if ("isWrapper" in transaction && transaction.isWrapper) return 2;
-    if ("type" in transaction && transaction.type === "BUY") return 0;
-    if ("amount" in transaction && transaction.amount >= 0) return 0;
-    return 1;
+const CATEGORY_COLORS = {
+    normal: { hex: "#22c55e" },
+    trading: { hex: "#22c55e" },
+    museum: { hex: "#a855f7" },
+    abroad: { hex: "#3b82f6" },
+    mug: { hex: "#ef4444" },
+    net: { hex: "#3b82f6" },
 };
+
+const MUSEUM_TRACKED_ITEMS = [
+    "sheep plushie",
+    "teddy bear plushie",
+    "kitten plushie",
+    "jaguar plushie",
+    "wolverine plushie",
+    "nessie plushie",
+    "red fox plushie",
+    "monkey plushie",
+    "chamois plushie",
+    "panda plushie",
+    "lion plushie",
+    "camel plushie",
+    "stingray plushie",
+    "african violet",
+    "banana orchid",
+    "crocus",
+    "dahlia",
+    "edelweiss",
+    "heather",
+    "orchid",
+    "peony",
+    "ceibo flower",
+    "cherry blossom",
+    "tribulus omanense",
+];
+
+const vibrate = (type?: string) => {
+    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+        try {
+            window.navigator.vibrate(20);
+        } catch {}
+    }
+};
+
+const formatItemName = (name?: string) => {
+    if (!name) return "";
+    return name
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+};
+
+interface InventoryItemStats {
+    stock: number;
+    totalCost: number;
+    realizedProfit: number;
+    abroadStock: number;
+    abroadTotalCost: number;
+    abroadRealizedProfit: number;
+}
+
+interface InventoryRow {
+    identityKey: string;
+    itemID: number;
+    itemName: string;
+    uid: string | null;
+    stats: InventoryItemStats;
+}
 
 const formatMoney = (val: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -67,10 +117,34 @@ const formatMoney = (val: number) => {
     }).format(val);
 };
 
-export default function Home() {
-    const { isLoaded, inventory, totalMugLoss, renameItem, transactions } = useJournal();
+export default function NewDashboard() {
+    const itemLogService = useMemo(() => new ItemLogService(), []);
     const router = useRouter();
-    const { vibrate } = useHapticFeedback();
+
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [logs, setLogs] = useState<ItemLog[]>([]);
+    const [itemNames, setItemNames] = useState<Record<number, string>>({});
+
+    const fetchData = useCallback(async () => {
+        try {
+            const [allLogs, names] = await Promise.all([
+                itemLogService.ensureLogsPopulated(),
+                TornAPIClient.getItemNames(),
+            ]);
+
+            setLogs(allLogs);
+            setItemNames(names);
+            setIsLoaded(true);
+        } catch (error) {
+            console.error("V2 Dashboard fetch failed:", error);
+        }
+    }, [itemLogService]);
+
+    useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, 10000);
+        return () => clearInterval(interval);
+    }, [fetchData]);
 
     type SortKey = "name" | "stock" | "avgCost" | "totalCost" | "realizedProfit";
     const [sortConfig, setSortConfig] = useState<{
@@ -111,7 +185,7 @@ export default function Home() {
 
     // Load prefs
     useEffect(() => {
-        const prefs = localStorage.getItem("bml-main-chart-prefs");
+        const prefs = localStorage.getItem("bml-main-chart-prefs-v2");
         if (prefs) {
             try {
                 const p = JSON.parse(prefs);
@@ -122,28 +196,28 @@ export default function Home() {
                 if (p.includeNetProfit !== undefined) setIncludeNetProfit(p.includeNetProfit);
                 if (p.viewType !== undefined) setViewType(p.viewType);
                 if (p.timeRange !== undefined) setTimeRange(p.timeRange);
-            } catch (e) {}
+            } catch {}
         }
 
-        const sortPref = localStorage.getItem("bml-inventory-sort-pref");
+        const sortPref = localStorage.getItem("bml-inventory-sort-pref-v2");
         if (sortPref) {
             try {
                 setSortConfig(JSON.parse(sortPref));
-            } catch (e) {}
+            } catch {}
         }
 
-        const groupedPref = localStorage.getItem("bml-dashboard-grouped-pref");
+        const groupedPref = localStorage.getItem("bml-dashboard-grouped-pref-v2");
         if (groupedPref) {
             try {
                 setIsGrouped(JSON.parse(groupedPref));
-            } catch (e) {}
+            } catch {}
         }
 
-        const savedGroups = localStorage.getItem("bml-dashboard-favorite-groups");
+        const savedGroups = localStorage.getItem("bml-dashboard-favorite-groups-v2");
         if (savedGroups) {
             try {
                 setFavoriteGroups(new Set(JSON.parse(savedGroups)));
-            } catch (e) {}
+            } catch {}
         }
 
         // Load item types for grouping
@@ -157,7 +231,7 @@ export default function Home() {
     useEffect(() => {
         if (isLoaded) {
             localStorage.setItem(
-                "bml-main-chart-prefs",
+                "bml-main-chart-prefs-v2",
                 JSON.stringify({
                     includeTrading,
                     includeMuseum,
@@ -182,12 +256,12 @@ export default function Home() {
 
     useEffect(() => {
         if (isLoaded) {
-            localStorage.setItem("bml-inventory-sort-pref", JSON.stringify(sortConfig));
+            localStorage.setItem("bml-inventory-sort-pref-v2", JSON.stringify(sortConfig));
         }
     }, [sortConfig, isLoaded]);
 
     useEffect(() => {
-        localStorage.setItem("bml-dashboard-grouped-pref", JSON.stringify(isGrouped));
+        localStorage.setItem("bml-dashboard-grouped-pref-v2", JSON.stringify(isGrouped));
     }, [isGrouped]);
 
     const toggleGroupFavorites = (groupName: string) => {
@@ -198,66 +272,108 @@ export default function Home() {
             } else {
                 next.add(groupName);
             }
-            localStorage.setItem("bml-dashboard-favorite-groups", JSON.stringify(Array.from(next)));
+            localStorage.setItem("bml-dashboard-favorite-groups-v2", JSON.stringify(Array.from(next)));
             return next;
         });
     };
 
-    const itemIdByName = useMemo(() => {
-        const map = new Map<string, number>();
-        transactions.forEach((transaction) => {
-            if (
-                transaction &&
-                typeof transaction === "object" &&
-                "isWrapper" in transaction &&
-                transaction.isWrapper === false &&
-                "itemName" in transaction &&
-                "itemID" in transaction &&
-                typeof transaction.itemName === "string" &&
-                typeof transaction.itemID === "number"
-            ) {
-                map.set(transaction.itemName, transaction.itemID);
+    const inventory = useMemo(() => {
+        const rows = new Map<string, InventoryRow>();
+
+        const logsByIdentity = new Map<string, ItemLog[]>();
+        logs.forEach((log) => {
+            const identityKey = getItemIdentityKey(log);
+            if (!logsByIdentity.has(identityKey)) {
+                logsByIdentity.set(identityKey, []);
             }
+            logsByIdentity.get(identityKey)!.push(log);
         });
-        return map;
-    }, [transactions]);
+
+        logsByIdentity.forEach((itemLogs, identityKey) => {
+            const sampleLog = itemLogs[0];
+            const itemName = itemNames[sampleLog.item_id] || `Item ${sampleLog.item_id}`;
+
+            const latestByCategory = new Map<string, ItemLog>();
+            itemLogs.forEach((log) => {
+                const existing = latestByCategory.get(log.category);
+                if (!existing || log.timestamp > existing.timestamp || ((existing.id ?? 0) < (log.id ?? 0) && existing.timestamp === log.timestamp)) {
+                    latestByCategory.set(log.category, log);
+                }
+            });
+
+            const stats: InventoryItemStats = {
+                stock: 0,
+                totalCost: 0,
+                realizedProfit: 0,
+                abroadStock: 0,
+                abroadTotalCost: 0,
+                abroadRealizedProfit: 0,
+            };
+
+            latestByCategory.forEach((log, category) => {
+                if (category === "abroad") {
+                    stats.abroadStock = log.total_stock;
+                    stats.abroadTotalCost = log.total_cost;
+                    stats.abroadRealizedProfit = log.realized_profit;
+                } else if (category !== "skipped") {
+                    stats.stock += log.total_stock;
+                    stats.totalCost += log.total_cost;
+                    stats.realizedProfit += log.realized_profit;
+                }
+            });
+
+            rows.set(identityKey, {
+                identityKey,
+                itemID: sampleLog.item_id,
+                itemName,
+                uid: sampleLog.uid,
+                stats,
+            });
+        });
+
+        return Array.from(rows.values());
+    }, [logs, itemNames]);
 
     const { stats, sortedItems } = useMemo(() => {
         let tradingProfit = 0;
         let totalInvValue = 0;
         let museumProfit = 0;
         let abroadProfit = 0;
-        const items: { name: string; stats: any }[] = [];
+        const items: Array<InventoryRow & { displayName: string; stats: InventoryItemStats }> = [];
 
-        inventory.forEach((stat, name) => {
-            const isMuseum = name.toLowerCase() === "points";
-            abroadProfit += stat.abroadRealizedProfit;
+        inventory.forEach((row) => {
+            const isMuseum = row.itemName.toLowerCase() === "points";
+            abroadProfit += row.stats.abroadRealizedProfit;
 
-            let itemProfit = stat.realizedProfit;
-            let itemValue = Math.max(0, stat.totalCost);
-            let itemStock = stat.stock;
+            let itemProfit = row.stats.realizedProfit;
+            let itemValue = Math.max(0, row.stats.totalCost);
+            let itemStock = row.stats.stock;
 
             if (includeAbroad) {
-                itemProfit += stat.abroadRealizedProfit;
-                itemValue += Math.max(0, stat.abroadTotalCost);
-                itemStock += stat.abroadStock;
+                itemProfit += row.stats.abroadRealizedProfit;
+                itemValue += Math.max(0, row.stats.abroadTotalCost);
+                itemStock += row.stats.abroadStock;
             }
 
+            const displayName = row.uid === null ? row.itemName : `${row.itemName} [uid:${row.uid}]`;
+
             if (isMuseum) {
-                museumProfit += stat.realizedProfit;
+                museumProfit += row.stats.realizedProfit;
                 if (includeMuseum) {
                     items.push({
-                        name,
-                        stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
+                        ...row,
+                        displayName,
+                        stats: { ...row.stats, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
                     });
                     totalInvValue += itemValue;
                 }
             } else {
-                tradingProfit += stat.realizedProfit;
+                tradingProfit += row.stats.realizedProfit;
                 if (includeTrading) {
                     items.push({
-                        name,
-                        stats: { ...stat, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
+                        ...row,
+                        displayName,
+                        stats: { ...row.stats, realizedProfit: itemProfit, totalCost: itemValue, stock: itemStock },
                     });
                     totalInvValue += itemValue;
                 }
@@ -266,16 +382,17 @@ export default function Home() {
 
         const filtered = items.filter((item) => {
             const query = search.toLowerCase();
-            const itemNameMatch = item.name.toLowerCase().includes(query);
+            const itemNameMatch =
+                item.displayName.toLowerCase().includes(query) ||
+                (item.uid !== null && item.uid.toLowerCase().includes(query));
             
-            const itemID = itemIdByName.get(item.name);
-            let itemType = item.name.toLowerCase() === "points" 
+            let itemType = item.itemName.toLowerCase() === "points" 
                 ? "Points" 
-                : (itemID ? itemTypeMap[String(itemID)] : undefined)?.type || "Other";
+                : (item.itemID ? itemTypeMap[String(item.itemID)] : undefined)?.type || "Other";
             
             // Museum set overrides
-            if (item.name.toLowerCase() === "flower set") itemType = "Flower";
-            if (item.name.toLowerCase() === "plushie set") itemType = "Plushie";
+            if (item.itemName.toLowerCase() === "flower set") itemType = "Flower";
+            if (item.itemName.toLowerCase() === "plushie set") itemType = "Plushie";
             
             const itemTypeMatch = itemType.toLowerCase().includes(query);
             
@@ -287,8 +404,8 @@ export default function Home() {
             let bVal: number | string;
 
             if (sortConfig.key === "name") {
-                aVal = a.name;
-                bVal = b.name;
+                aVal = a.displayName;
+                bVal = b.displayName;
             } else if (sortConfig.key === "avgCost") {
                 aVal = a.stats.stock > 0 ? a.stats.totalCost / a.stats.stock : 0;
                 bVal = b.stats.stock > 0 ? b.stats.totalCost / b.stats.stock : 0;
@@ -306,27 +423,24 @@ export default function Home() {
             stats: { profit: tradingProfit, inventory: totalInvValue, museumProfit, abroadProfit },
             sortedItems: sorted,
         };
-    }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad, itemIdByName, itemTypeMap]);
+    }, [inventory, sortConfig, search, includeTrading, includeMuseum, includeAbroad, itemNames, itemTypeMap]);
 
     const enrichedItems = useMemo(() => {
-        return sortedItems.map(({ name, stats }) => {
-            const itemID = itemIdByName.get(name);
-            let itemType = name.toLowerCase() === "points" 
+        return sortedItems.map((item) => {
+            let itemType = item.itemName.toLowerCase() === "points" 
                 ? "Points" 
-                : (itemID ? itemTypeMap[String(itemID)] : undefined)?.type || "Other";
+                : (item.itemID ? itemTypeMap[String(item.itemID)] : undefined)?.type || "Other";
             
             // Museum set overrides
-            if (name.toLowerCase() === "flower set") itemType = "Flower";
-            if (name.toLowerCase() === "plushie set") itemType = "Plushie";
+            if (item.itemName.toLowerCase() === "flower set") itemType = "Flower";
+            if (item.itemName.toLowerCase() === "plushie set") itemType = "Plushie";
 
             return {
-                name,
-                stats,
+                ...item,
                 itemType,
-                itemID,
             };
         });
-    }, [sortedItems, itemTypeMap, itemIdByName]);
+    }, [sortedItems, itemTypeMap]);
 
     const groupedItems = useMemo(() => {
         if (!isGrouped) return null;
@@ -394,24 +508,19 @@ export default function Home() {
         setSortConfig({ key, direction });
     };
 
-    const openStatsModal = (
-        title: string,
-        statType: "profit" | "inventory" | "mugLoss" | "netProfit"
-    ) => {
-        vibrate("nav");
-        setModalState({ isOpen: true, title, statType });
-    };
-
     const closeStatsModal = () => {
         setModalState({ isOpen: false, title: "", statType: "profit" });
     };
 
+    const totalMugLoss = 0; // V2 doesn't have mug loss yet
     const netTotal = stats.profit + stats.museumProfit + stats.abroadProfit - totalMugLoss;
 
 
     // Chart data generation
     const chartData = useMemo(() => {
-        if (!isLoaded || !transactions.length) return [];
+        if (!isLoaded) return [];
+
+        if (!logs.length) return [];
 
         const now = new Date();
         let periods: Date[] = [];
@@ -430,36 +539,63 @@ export default function Home() {
             dateFormat = "yyyy";
         }
 
-        const sortedTransactions = [...transactions].sort((a, b) => {
-            const left = getTransactionTimestamp(a);
-            const right = getTransactionTimestamp(b);
-            if (left !== right) return left - right;
-            return getTransactionPriority(a) - getTransactionPriority(b);
-        });
+        const sortedLogs = [...logs].sort((a, b) => a.timestamp - b.timestamp);
 
-        if (sortedTransactions.length > 0) {
-            const firstTxDate = new Date(getTransactionTimestamp(sortedTransactions[0]));
+        if (sortedLogs.length > 0) {
+            const firstDate = new Date(sortedLogs[0].timestamp);
             let minDate: Date;
-            if (timeRange === "daily") minDate = startOfDay(subDays(firstTxDate, 1));
-            else if (timeRange === "weekly") minDate = startOfWeek(subWeeks(firstTxDate, 1));
-            else if (timeRange === "monthly") minDate = startOfMonth(subMonths(firstTxDate, 1));
-            else minDate = startOfYear(subYears(firstTxDate, 1));
+            if (timeRange === "daily") minDate = startOfDay(subDays(firstDate, 1));
+            else if (timeRange === "weekly") minDate = startOfWeek(subWeeks(firstDate, 1));
+            else if (timeRange === "monthly") minDate = startOfMonth(subMonths(firstDate, 1));
+            else minDate = startOfYear(subYears(firstDate, 1));
 
             periods = periods.filter((p) => p.getTime() >= minDate.getTime());
         }
 
-        const tempInventory = new Map<string, InventorySnapshot>();
-        const mugState = { total: 0 };
-        let transactionIndex = 0;
+        let logIndex = 0;
+        const categoryProfits = new Map<string, number>();
+
+        // Calculate baseline totals for data before the first period
+        if (periods.length > 0) {
+            let firstPeriodStart: Date;
+            if (timeRange === "daily") firstPeriodStart = startOfDay(periods[0]);
+            else if (timeRange === "weekly") firstPeriodStart = startOfWeek(periods[0]);
+            else if (timeRange === "monthly") firstPeriodStart = startOfMonth(periods[0]);
+            else firstPeriodStart = startOfYear(periods[0]);
+
+            while (
+                logIndex < sortedLogs.length &&
+                sortedLogs[logIndex].timestamp < firstPeriodStart.getTime()
+            ) {
+                const log = sortedLogs[logIndex];
+                const prev = categoryProfits.get(log.category) || 0;
+                categoryProfits.set(log.category, prev + (log.realized_profit || 0));
+                logIndex++;
+            }
+        }
+
+        let baselineRealized = 0;
+        let baselineMuseum = 0;
+        let baselineAbroad = 0;
+
+        categoryProfits.forEach((profit, category) => {
+            if (category === "abroad") baselineAbroad += profit;
+            else if (category === "museum") baselineMuseum += profit;
+            else if (category !== "skipped") baselineRealized += profit;
+        });
+
+        let baselineNetProfit = 0;
+        if (includeTrading) baselineNetProfit += baselineRealized;
+        if (includeMuseum) baselineNetProfit += baselineMuseum;
+        if (includeAbroad) baselineNetProfit += baselineAbroad;
+        baselineNetProfit -= (includeMug ? totalMugLoss : 0);
 
         // Track previous totals for incremental view
-        let previousTotals: any = {
-            profit: 0,
-            inventory: 0,
-            mugLoss: 0,
-            netProfit: 0,
-            museumProfit: 0,
-            abroadProfit: 0,
+        let previousTotals = {
+            profit: baselineRealized,
+            museumProfit: baselineMuseum,
+            abroadProfit: baselineAbroad,
+            netProfit: baselineNetProfit
         };
 
         return periods.map((period) => {
@@ -470,25 +606,24 @@ export default function Home() {
             else periodEnd = endOfYear(startOfMonth(period));
 
             while (
-                transactionIndex < sortedTransactions.length &&
-                getTransactionTimestamp(sortedTransactions[transactionIndex]) <= periodEnd.getTime()
+                logIndex < sortedLogs.length &&
+                sortedLogs[logIndex].timestamp <= periodEnd.getTime()
             ) {
-                const isTrackedItem = (item: string) => true; // Always evaluate all so tempInventory stays structurally accurate
-                applyTransaction(
-                    tempInventory,
-                    sortedTransactions[transactionIndex],
-                    mugState,
-                    isTrackedItem
-                );
-                transactionIndex++;
+                const log = sortedLogs[logIndex];
+                const prev = categoryProfits.get(log.category) || 0;
+                categoryProfits.set(log.category, prev + (log.realized_profit || 0));
+                logIndex++;
             }
 
-            const currentTotals = getTotals(tempInventory, mugState.total);
+            let totalRealized = 0;
+            let museumProfit = 0;
+            let abroadProfit = 0;
 
-            const totalRealized = currentTotals.profit;
-            const totalMugLoss = currentTotals.mugLoss;
-            const museumProfit = currentTotals.museumProfit;
-            const abroadProfit = currentTotals.abroadProfit;
+            categoryProfits.forEach((profit, category) => {
+                if (category === "abroad") abroadProfit += profit;
+                else if (category === "museum") museumProfit += profit;
+                else if (category !== "skipped") totalRealized += profit;
+            });
 
             let baseNetProfit = 0;
             if (includeTrading) baseNetProfit += totalRealized;
@@ -497,15 +632,15 @@ export default function Home() {
 
             const netProfit = baseNetProfit - (includeMug ? totalMugLoss : 0);
 
-            // For incremental view, get period-over-period values
             const incrementalRealized = totalRealized - previousTotals.profit;
-            const incrementalMug = totalMugLoss - previousTotals.mugLoss;
             const incrementalNet = netProfit - previousTotals.netProfit;
             const incrementalMuseum = museumProfit - previousTotals.museumProfit;
             const incrementalAbroad = abroadProfit - previousTotals.abroadProfit;
 
             previousTotals = {
-                ...currentTotals,
+                profit: totalRealized,
+                museumProfit,
+                abroadProfit,
                 netProfit,
             };
 
@@ -515,8 +650,9 @@ export default function Home() {
                 realizedProfit: Math.round(
                     viewType === "total" ? totalRealized : incrementalRealized
                 ),
-                mugLoss: -Math.round(viewType === "total" ? totalMugLoss : incrementalMug),
+                mugLoss: 0,
                 netProfit: Math.round(viewType === "total" ? netProfit : incrementalNet),
+                profit: Math.round(viewType === "total" ? totalRealized : incrementalRealized),
                 museumProfit: includeMuseum
                     ? Math.round(viewType === "total" ? museumProfit : incrementalMuseum)
                     : 0,
@@ -527,7 +663,7 @@ export default function Home() {
         });
     }, [
         isLoaded,
-        transactions,
+        logs,
         timeRange,
         viewType,
         includeTrading,
@@ -538,12 +674,17 @@ export default function Home() {
 
     if (!isLoaded)
         return (
-            <div className="text-center py-20 animate-pulse text-foreground/50 font-mono">
-                INITIALIZING ENGINE...
+            <div className="space-y-8 pb-10 opacity-60">
+                <div className="bg-panel border border-border/40 p-8 rounded-xl animate-pulse h-48" />
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                    <div className="bg-panel border border-border/40 p-6 rounded-xl animate-pulse h-28" />
+                </div>
             </div>
         );
 
-    // Calculate reference values
     const finalNetProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0;
     const averageNetProfit =
         chartData.length > 0
@@ -552,10 +693,10 @@ export default function Home() {
               )
             : 0;
 
-    // Calculate final reference value prioritizing netProfit
     const referenceValue = viewType === "daily" ? averageNetProfit : finalNetProfit;
+    
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 pb-10">
             {/* Hero Section */}
             <div className="bg-panel border-2 border-primary relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 -mr-32 -mt-32 rotate-45 pointer-events-none" />
@@ -618,7 +759,7 @@ export default function Home() {
                 {/* Chart (Full Width) */}
                 <div className="p-6 md:p-8 pt-4 h-[440px]">
                     <ProfitChart
-                        chartId="dashboard-main"
+                        chartId="dashboard-main-v2"
                         data={chartData}
                         viewType={viewType}
                         setViewType={setViewType}
@@ -643,7 +784,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-6 bg-primary" />
-                        <h2 className="font-black text-xl uppercase tracking-[0.3em]">Inventory</h2>
+                        <h2 className="font-black text-xl uppercase tracking-[0.3em]">Inventory V2</h2>
                     </div>
                     <div className="relative w-full sm:max-w-xs">
                         <HugeiconsIcon
@@ -730,7 +871,7 @@ export default function Home() {
                                             className={favoriteGroups.has(type) ? "text-warning" : "text-muted"}
                                         />
                                     </button>
-                                    <h3 className="text-xl font-vt323 tracking-widest text-primary">
+                                    <h3 className="text-xl font-departure tracking-widest text-primary">
                                         {type}
                                     </h3>
                                     <div className="h-px flex-1 bg-border-strong" />
@@ -741,17 +882,18 @@ export default function Home() {
                                 <div className="grid grid-cols-1 gap-px bg-border border border-border md:grid-cols-2 xl:grid-cols-3 overflow-hidden">
                                     {items.map((item) => (
                                         <DashboardItemCard
-                                            key={item.name}
-                                            name={item.name}
+                                            key={item.identityKey}
+                                            baseName={item.itemName}
+                                            uid={item.uid}
                                             stats={item.stats}
                                             itemID={item.itemID}
                                             onClick={() => {
                                                 vibrate("nav");
                                                 const itemID = item.itemID;
                                                 router.push(
-                                                    itemID !== undefined
+                                                    itemID !== undefined && itemID > 0
                                                         ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
-                                                        : `/logs?item=${encodeURIComponent(item.name)}`
+                                                        : `/logs?item=${encodeURIComponent(item.itemName)}`
                                                 );
                                             }}
                                         />
@@ -885,19 +1027,18 @@ export default function Home() {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedItems.map(({ name, stats }) => {
+                                paginatedItems.map(({ identityKey, itemName, uid, stats, itemID }) => {
                                     const avgCost =
                                         stats.stock > 0 ? stats.totalCost / stats.stock : 0;
-                                    const itemID = itemIdByName.get(name);
                                     return (
                                         <tr
-                                            key={name}
+                                            key={identityKey}
                                             onClick={() => {
                                                 vibrate("nav");
                                                 router.push(
-                                                    itemID !== undefined
+                                                    itemID !== undefined && itemID > 0
                                                         ? `/logs?itemID=${encodeURIComponent(String(itemID))}`
-                                                        : `/logs?item=${encodeURIComponent(name)}`
+                                                        : `/logs?item=${encodeURIComponent(itemName)}`
                                                 );
                                             }}
                                             className="hover:bg-primary/5 transition-colors cursor-pointer group"
@@ -905,11 +1046,11 @@ export default function Home() {
                                             <td className="px-6 py-4 font-bold group-hover:text-primary transition-colors uppercase">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-foreground/[0.03] rounded-sm">
-                                                       {name.toLowerCase() === "points" ? (
+                                                       {itemName.toLowerCase() === "points" ? (
                                                            <PointsIcon className="w-8 h-8 object-contain drop-shadow-sm transition-transform group-hover:scale-110" />
-                                                       ) : name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
-                                                           <ItemSetIcon name={name} className="w-8 h-8" />
-                                                       ) : itemID ? (
+                                                       ) : itemName.toLowerCase().includes("flower set") || itemName.toLowerCase().includes("plushie set") ? (
+                                                           <ItemSetIcon name={itemName} className="w-8 h-8" />
+                                                       ) : itemID && itemID > 0 ? (
                                                            <img
                                                                src={`https://www.torn.com/images/items/${itemID}/large.png`}
                                                                alt=""
@@ -920,7 +1061,14 @@ export default function Home() {
                                                            <div className="w-2 h-2 rounded-full bg-border" />
                                                        )}
                                                     </div>
-                                                    <span className="truncate">{formatItemName(name)}</span>
+                                                    <div className="min-w-0 flex flex-col">
+                                                        <span className="truncate">{formatItemName(itemName)}</span>
+                                                        {uid !== null && (
+                                                            <span className="text-[10px] font-mono normal-case text-info/80">
+                                                                UID {uid}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -940,34 +1088,7 @@ export default function Home() {
                                                 {formatMoney(stats.realizedProfit)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const newName = prompt(
-                                                            `Enter new name for ${formatItemName(name)}.\n\nIf you enter the name of another existing item, their logs will be MERGED automatically.`,
-                                                            formatItemName(name)
-                                                        );
-                                                        if (
-                                                            newName !== null &&
-                                                            newName !== formatItemName(name)
-                                                        ) {
-                                                            if (
-                                                                confirm(
-                                                                    `Are you sure you want to rename/merge '${formatItemName(name)}' to '${formatItemName(newName)}'? This updates all logs.`
-                                                                )
-                                                            ) {
-                                                                vibrate("success");
-                                                                renameItem(name, newName);
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="opacity-0 group-hover:opacity-100 text-muted hover:text-primary p-2 transition-all"
-                                                >
-                                                    <HugeiconsIcon
-                                                        icon={PencilEdit02Icon}
-                                                        size={14}
-                                                    />
-                                                </button>
+                                                {/* Rename not supported yet in V2 */}
                                             </td>
                                         </tr>
                                     );
@@ -1037,7 +1158,7 @@ export default function Home() {
                 isOpen={modalState.isOpen}
                 onClose={closeStatsModal}
                 title={modalState.title}
-                transactions={transactions}
+                transactions={[]} // Not used in V2 modal yet or needs adapter
                 statType={modalState.statType}
                 excludedItems={["flushie", "points", ...MUSEUM_TRACKED_ITEMS]}
                 inventoryScope="normal"
@@ -1087,14 +1208,17 @@ function OverviewItem({
         </div>
     );
 }
+
 function DashboardItemCard({
-    name,
+    baseName,
+    uid,
     stats,
     itemID,
     onClick,
 }: {
-    name: string;
-    stats: any;
+    baseName: string;
+    uid: string | null;
+    stats: InventoryItemStats;
     itemID?: number;
     onClick: () => void;
 }) {
@@ -1108,14 +1232,14 @@ function DashboardItemCard({
         >
             <div className="flex items-center gap-4 min-w-0 flex-1 relative">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center">
-                    {name.toLowerCase() === "points" ? (
+                    {baseName.toLowerCase() === "points" ? (
                         <PointsIcon className="h-10 w-10 object-contain drop-shadow-sm transition-transform group-hover:scale-110" />
-                    ) : name.toLowerCase().includes("flower set") || name.toLowerCase().includes("plushie set") ? (
-                        <ItemSetIcon name={name} className="h-10 w-10" />
+                    ) : baseName.toLowerCase().includes("flower set") || baseName.toLowerCase().includes("plushie set") ? (
+                        <ItemSetIcon name={baseName} className="h-10 w-10" />
                     ) : itemID && itemID > 0 ? (
                         <img
                             src={`https://www.torn.com/images/items/${itemID}/large.png`}
-                            alt={formatItemName(name)}
+                            alt={formatItemName(baseName)}
                             width={48}
                             height={48}
                             className="h-10 w-10 object-contain drop-shadow-sm transition-transform group-hover:scale-110"
@@ -1130,12 +1254,17 @@ function DashboardItemCard({
 
                 <div className="min-w-0 flex-1">
                     <h2 className="line-clamp-1 text-base font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">
-                        {formatItemName(name)}
+                        {formatItemName(baseName)}
                     </h2>
                     <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] font-mono text-muted uppercase">
                             {stats.stock.toLocaleString()} UNITS
                         </span>
+                        {uid !== null && (
+                            <span className="text-[10px] font-mono text-info/80 uppercase whitespace-nowrap">
+                                UID: {uid}
+                            </span>
+                        )}
                         <span className="text-[10px] font-mono text-muted/40 whitespace-nowrap">
                             AVG: {formatMoney(avgCost)}
                         </span>

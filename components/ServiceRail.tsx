@@ -8,6 +8,7 @@ import {
     FlashIcon,
     Cancel01Icon,
     Settings02Icon,
+    Activity01Icon,
 } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/old/useAuth";
@@ -102,7 +103,7 @@ export function ServiceRail() {
         {
             name: "Google Drive Sync",
             active: driveConnected,
-            detail: driveConnected ? "Connected" : "Connect in BML Connect.",
+            detail: driveConnected ? "Connected" : "Connect in Settings.",
         },
         {
             name: "Cost-basis on torn bazaar",
@@ -179,14 +180,24 @@ export function ServiceRail() {
                                     All system parameters, API nodes, and industrial schemas have been migrated to the primary settings terminal.
                                 </p>
                             </div>
-                            <Link 
-                                href="/settings"
-                                onClick={() => { vibrate("utility"); setIsOpen(false); }}
-                                className="inline-flex w-full items-center justify-center gap-3 bg-foreground text-background py-4 px-6 font-black uppercase text-xs tracking-[0.3em] hover:bg-primary transition-all active:scale-[0.98]"
-                            >
-                                <HugeiconsIcon icon={Settings02Icon} size={18} />
-                                ACCESS_SETTINGS
-                            </Link>
+                            <div className="space-y-3">
+                                <Link 
+                                    href="/settings"
+                                    onClick={() => { vibrate("utility"); setIsOpen(false); }}
+                                    className="inline-flex w-full items-center justify-center gap-3 bg-foreground text-background py-4 px-6 font-black uppercase text-xs tracking-[0.3em] hover:bg-primary transition-all active:scale-[0.98]"
+                                >
+                                    <HugeiconsIcon icon={Settings02Icon} size={18} />
+                                    ACCESS_SETTINGS
+                                </Link>
+                                <Link 
+                                    href="/blackbox"
+                                    onClick={() => { vibrate("utility"); setIsOpen(false); }}
+                                    className="inline-flex w-full items-center justify-center gap-3 border-2 border-foreground text-foreground py-3 px-6 font-black uppercase text-[10px] tracking-[0.3em] hover:bg-foreground hover:text-background transition-all active:scale-[0.98]"
+                                >
+                                    <HugeiconsIcon icon={Activity01Icon} size={16} />
+                                    SYSTEM_AUDIT
+                                </Link>
+                            </div>
                         </div>
 
                         <div className="h-px bg-border/50" />

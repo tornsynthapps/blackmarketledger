@@ -1,6 +1,21 @@
-import { InventoryItemStats } from "@/lib/old/interfaces/transactions";
-import { formatItemName } from "@/lib/old/parser";
 import React from "react";
+
+export interface InventoryItemStats {
+    stock: number;
+    totalCost: number;
+    realizedProfit?: number;
+    abroadStock?: number;
+    abroadTotalCost?: number;
+    abroadRealizedProfit?: number;
+}
+
+function formatItemName(name: string): string {
+    if (!name) return "";
+    return name
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
+}
 
 export function ItemGridCard({
     name,

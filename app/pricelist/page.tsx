@@ -211,7 +211,7 @@ function PricelistComparisonContent() {
             <div className="min-h-screen bg-background text-foreground p-6 max-w-2xl mx-auto flex flex-col items-center justify-center">
                 <div className="bg-panel p-8 rounded-2xl border border-border shadow-xl text-center flex flex-col items-center max-w-lg w-full">
                     <HugeiconsIcon icon={ArrowRight01Icon} size={48} className="text-primary mb-4" />
-                    <h1 className="text-2xl font-black uppercase font-vt323 tracking-wide mb-2">Page Moved</h1>
+                    <h1 className="text-2xl font-black uppercase font-departure tracking-wide mb-2">Page Moved</h1>
                     <p className="text-muted text-sm mb-6">
                         The public pricelist viewer has been moved to <strong>/pricelist/view</strong>, and now uses XID.
                     </p>
@@ -227,10 +227,10 @@ function PricelistComparisonContent() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-background animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-panel p-8 rounded-2xl border border-border shadow-xl text-center flex flex-col items-center max-w-lg w-full">
                 <HugeiconsIcon icon={AlertCircleIcon} size={48} className="text-warning mb-4" />
-                <h1 className="text-3xl font-black uppercase font-vt323 tracking-wide mb-2">Under Construction</h1>
+                <h1 className="text-3xl font-black uppercase font-departure tracking-wide mb-2">Under Construction</h1>
                 <p className="text-muted text-sm mb-6">
                     The Pricelist manage functionality is currently being rebuilt. Check back soon.
                 </p>

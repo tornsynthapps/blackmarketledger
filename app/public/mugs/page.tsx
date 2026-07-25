@@ -146,7 +146,7 @@ export default function PublicMugsPage() {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
             <div className="flex items-center justify-between">
                 {/* Top Navigation / Toggle */}
                 <nav className="flex items-center gap-px bg-border w-fit">
