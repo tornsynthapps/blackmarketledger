@@ -1,6 +1,7 @@
 "use client";
 
 import { useSettings } from "@/lib/old/useSettings";
+import { DataManagementService } from "@/lib/domain/DataManagementService";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     Settings01Icon,
@@ -20,9 +21,12 @@ import {
     Copy01Icon,
     Shield01Icon,
     AlertIcon,
+    DatabaseIcon,
+    Delete02Icon,
+    AlertCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { useHapticFeedback } from "@/lib/old/useHapticFeedback";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/old/useAuth";
 import { saveWeaverConfig } from "@/lib/old/auth";
 import {
@@ -56,7 +60,7 @@ import { PageHeader } from "@/components/PageHeader";
 
 type AuthMode = "signin" | "signup" | "forgot";
 type SignupMethod = "deposit" | "message";
-type TabId = "theme" | "api" | "account";
+type TabId = "theme" | "api" | "account" | "data";
 
 function SecurityWarning() {
     return (
@@ -93,8 +97,27 @@ function SecurityWarning() {
 
 export default function SettingsPage() {
     const { settings, updateSetting, isLoaded } = useSettings();
+    const dataService = useMemo(() => new DataManagementService(), []);
     const { vibrate } = useHapticFeedback();
     const [activeTab, setActiveTab] = useState<TabId>("theme");
+    const [isClearing, setIsClearing] = useState(false);
+    const [showConfirmClearModal, setShowConfirmClearModal] = useState(false);
+    const [clearSuccess, setClearSuccess] = useState(false);
+
+    const handleClearAllData = async () => {
+        vibrate("utility");
+        setIsClearing(true);
+        try {
+            await dataService.clearAllData();
+            setClearSuccess(true);
+            setShowConfirmClearModal(false);
+            vibrate("success");
+        } catch (err) {
+            console.error("Failed to clear data:", err);
+        } finally {
+            setIsClearing(false);
+        }
+    };
 
     // Settings (API Keys) Logic
     const {
@@ -360,6 +383,7 @@ export default function SettingsPage() {
         { id: "theme", label: "Theme", icon: PaintBoardIcon },
         { id: "api", label: "API Management", icon: Key01Icon },
         { id: "account", label: "Account", icon: UserIcon },
+        { id: "data", label: "Data Management", icon: DatabaseIcon },
     ];
 
     return (
@@ -739,6 +763,95 @@ export default function SettingsPage() {
                                     )}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === "data" && (
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-3 px-1">
+                                <HugeiconsIcon icon={DatabaseIcon} size={16} className="text-primary" />
+                                <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Data Management</h3>
+                                <div className="h-px flex-1 bg-border-strong" />
+                            </div>
+
+                            {/* Warning Banner */}
+                            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                    <HugeiconsIcon
+                                        icon={AlertCircleIcon}
+                                        size={22}
+                                        className="text-red-500 flex-shrink-0 mt-0.5"
+                                    />
+                                    <div className="space-y-1">
+                                        <h4 className="font-bold text-red-500 text-xs uppercase tracking-widest">
+                                            Warning: Irreversible Action
+                                        </h4>
+                                        <p className="text-xs text-muted">
+                                            Clearing data will permanently wipe stored item logs, trade records, receipts, cost-basis history, and autopilot sync cursors from your browser. Your API keys and login tokens will remain safe.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {clearSuccess && (
+                                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-green-500 text-xs font-bold uppercase tracking-wider">
+                                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={18} />
+                                        All logs, trade records, and autopilot cursors cleared successfully!
+                                    </div>
+                                    <button
+                                        onClick={() => setClearSuccess(false)}
+                                        className="text-xs text-muted hover:text-foreground"
+                                    >
+                                        Dismiss
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Data Actions Panel */}
+                            <div className="bg-panel border border-border p-6 space-y-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div>
+                                        <h4 className="font-bold text-sm uppercase tracking-tight text-foreground">
+                                            Clear All Ledger & Autopilot Data
+                                        </h4>
+                                        <p className="text-xs text-muted max-w-md mt-1">
+                                            Purge item logs, trade records, receipt history, cost-basis calculations, and reset autopilot sync cursors in one click.
+                                        </p>
+                                    </div>
+
+                                    {!showConfirmClearModal ? (
+                                        <button
+                                            onClick={() => {
+                                                vibrate("utility");
+                                                setShowConfirmClearModal(true);
+                                                setClearSuccess(false);
+                                            }}
+                                            className="px-5 py-3 bg-red-600/90 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 flex-shrink-0"
+                                        >
+                                            <HugeiconsIcon icon={Delete02Icon} size={16} />
+                                            Clear All Data
+                                        </button>
+                                    ) : (
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <button
+                                                onClick={handleClearAllData}
+                                                disabled={isClearing}
+                                                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider transition-all"
+                                            >
+                                                {isClearing ? "CLEARING..." : "CONFIRM CLEAR"}
+                                            </button>
+                                            <button
+                                                onClick={() => setShowConfirmClearModal(false)}
+                                                disabled={isClearing}
+                                                className="px-3 py-2.5 bg-muted text-foreground font-bold text-xs uppercase transition-all"
+                                            >
+                                                CANCEL
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
