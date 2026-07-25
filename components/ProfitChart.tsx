@@ -244,7 +244,7 @@ export function ProfitChart({
                                     dataKey="realizedProfit"
                                     fill={CATEGORY_COLORS.trading.hex}
                                     stackId="1"
-                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
+                                    radius={[4, 4, 4, 4]}
                                 />
                             )}
                             {visibleLines.museumProfit && (
@@ -252,7 +252,7 @@ export function ProfitChart({
                                     dataKey="museumProfit"
                                     fill={CATEGORY_COLORS.museum.hex}
                                     stackId="1"
-                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
+                                    radius={[4, 4, 4, 4]}
                                 />
                             )}
                             {visibleLines.abroadProfit && (
@@ -260,7 +260,7 @@ export function ProfitChart({
                                     dataKey="abroadProfit"
                                     fill={CATEGORY_COLORS.abroad.hex}
                                     stackId="1"
-                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
+                                    radius={[4, 4, 4, 4]}
                                 />
                             )}
                             {visibleLines.mugLoss && (
@@ -268,12 +268,12 @@ export function ProfitChart({
                                     dataKey="mugLoss" 
                                     fill={CATEGORY_COLORS.mug.hex} 
                                     stackId="1" 
-                                    radius={settings.boxyGraph ? 0 : [4, 4, 4, 4]}
+                                    radius={[4, 4, 4, 4]}
                                 />
                             )}
                             {visibleLines.netProfit && (
                                 <Line
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}
@@ -347,7 +347,7 @@ export function ProfitChart({
                             />
                             {visibleLines.realizedProfit && (
                                 <Line
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="realizedProfit"
                                     stroke={CATEGORY_COLORS.trading.hex}
                                     strokeWidth={1.5}
@@ -356,7 +356,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.museumProfit && (
                                 <Line
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="museumProfit"
                                     stroke={CATEGORY_COLORS.museum.hex}
                                     strokeWidth={1.5}
@@ -365,7 +365,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.abroadProfit && (
                                 <Line
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="abroadProfit"
                                     stroke={CATEGORY_COLORS.abroad.hex}
                                     strokeWidth={1.5}
@@ -374,7 +374,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.mugLoss && (
                                 <Line
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="mugLoss"
                                     stroke={CATEGORY_COLORS.mug.hex}
                                     strokeWidth={1.5}
@@ -383,7 +383,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.netProfit && (
                                 <Line
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}
@@ -457,7 +457,7 @@ export function ProfitChart({
                             />
                             {visibleLines.realizedProfit && (
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="realizedProfit"
                                     stroke={CATEGORY_COLORS.trading.hex}
                                     strokeWidth={1.5}
@@ -468,7 +468,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.museumProfit && (
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="museumProfit"
                                     stroke={CATEGORY_COLORS.museum.hex}
                                     strokeWidth={1.5}
@@ -479,7 +479,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.abroadProfit && (
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="abroadProfit"
                                     stroke={CATEGORY_COLORS.abroad.hex}
                                     strokeWidth={1.5}
@@ -490,7 +490,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.mugLoss && (
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="mugLoss"
                                     stroke={CATEGORY_COLORS.mug.hex}
                                     strokeWidth={1.5}
@@ -501,7 +501,7 @@ export function ProfitChart({
                             )}
                             {visibleLines.netProfit && (
                                 <Line
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}

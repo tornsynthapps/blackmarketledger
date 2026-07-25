@@ -8,7 +8,6 @@ import {
     PaintBoardIcon,
     Key01Icon,
     SaveIcon,
-    FlashIcon,
     InformationCircleIcon,
     EyeIcon,
     ViewIcon,
@@ -96,10 +95,10 @@ function SecurityWarning() {
 }
 
 export default function SettingsPage() {
-    const { settings, updateSetting, isLoaded } = useSettings();
+    const { settings, updateSetting, updateSettings, isLoaded } = useSettings();
     const dataService = useMemo(() => new DataManagementService(), []);
     const { vibrate } = useHapticFeedback();
-    const [activeTab, setActiveTab] = useState<TabId>("theme");
+    const [activeTab, setActiveTab] = useState<TabId>("account");
     const [isClearing, setIsClearing] = useState(false);
     const [showConfirmClearModal, setShowConfirmClearModal] = useState(false);
     const [clearSuccess, setClearSuccess] = useState(false);
@@ -116,6 +115,41 @@ export default function SettingsPage() {
             console.error("Failed to clear data:", err);
         } finally {
             setIsClearing(false);
+        }
+    };
+
+    // Auto-sync active tab based on visible scroll section
+    useEffect(() => {
+        const sectionIds: TabId[] = ["account", "api", "theme", "data"];
+        const observerOptions = {
+            root: null,
+            rootMargin: "-20% 0px -50% 0px",
+            threshold: 0,
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.id.replace("settings-", "") as TabId;
+                    setActiveTab(id);
+                }
+            });
+        }, observerOptions);
+
+        sectionIds.forEach((id) => {
+            const el = document.getElementById(`settings-${id}`);
+            if (el) observer.observe(el);
+        });
+
+        return () => observer.disconnect();
+    }, []);
+
+    const scrollToSection = (id: TabId) => {
+        vibrate("utility");
+        setActiveTab(id);
+        const el = document.getElementById(`settings-${id}`);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
     };
 
@@ -149,6 +183,7 @@ export default function SettingsPage() {
 
     // TornExchange shared logic
     const [teKey, setTeKey] = useState("");
+    const [savedTeKey, setSavedTeKey] = useState("");
     const [showTeKey, setShowTeKey] = useState(false);
 
     // Account Logic
@@ -170,7 +205,9 @@ export default function SettingsPage() {
 
     useEffect(() => {
         setIsNavLeft(localStorage.getItem("theme_nav_left") === "true");
-        setTeKey(getTEApiKey());
+        const key = getTEApiKey() || "";
+        setTeKey(key);
+        setSavedTeKey(key);
         const stored = getStoredAuth();
         if (stored) {
             setAuth(stored);
@@ -191,6 +228,7 @@ export default function SettingsPage() {
 
     const handleSaveTEKey = () => {
         setTEApiKey(teKey);
+        setSavedTeKey(teKey);
         vibrate("success");
     };
 
@@ -380,9 +418,9 @@ export default function SettingsPage() {
     }
 
     const tabs: { id: TabId; label: string; icon: any }[] = [
-        { id: "theme", label: "Theme", icon: PaintBoardIcon },
-        { id: "api", label: "API Management", icon: Key01Icon },
         { id: "account", label: "Account", icon: UserIcon },
+        { id: "api", label: "API Management", icon: Key01Icon },
+        { id: "theme", label: "Theme Settings", icon: PaintBoardIcon },
         { id: "data", label: "Data Management", icon: DatabaseIcon },
     ];
 
@@ -395,20 +433,18 @@ export default function SettingsPage() {
             />
 
             <div className="flex flex-col lg:flex-row gap-8">
-                {/* Sidebar Navigation */}
-                <div className="lg:w-1/3 flex flex-col gap-2">
+                {/* Sticky Sidebar Navigation Rail (Flush / Gapless) */}
+                <div className="lg:w-1/3 flex flex-col border-2 border-border divide-y-2 divide-border bg-panel self-start sticky top-6 shadow-sm overflow-hidden">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => {
-                                vibrate("utility");
-                                setActiveTab(tab.id);
-                            }}
+                            type="button"
+                            onClick={() => scrollToSection(tab.id)}
                             className={clsx(
-                                "flex items-center gap-4 px-6 py-4 border-2 transition-all group",
+                                "flex items-center gap-4 px-6 py-4 transition-all group text-left cursor-pointer",
                                 activeTab === tab.id
-                                    ? "bg-primary border-primary text-primary-foreground"
-                                    : "bg-panel border-border text-muted hover:border-primary/50 hover:text-foreground"
+                                    ? "bg-primary text-primary-foreground font-bold"
+                                    : "bg-panel text-muted hover:bg-panel-elevated hover:text-foreground"
                             )}
                         >
                             <HugeiconsIcon 
@@ -423,487 +459,462 @@ export default function SettingsPage() {
                     ))}
                 </div>
 
-                {/* Content Area */}
-                <div className="flex-1 min-h-[600px]">
-                    {activeTab === "theme" && (
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3 px-1">
-                                <HugeiconsIcon icon={PaintBoardIcon} size={16} className="text-primary" />
-                                <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Theme Settings</h3>
-                                <div className="h-px flex-1 bg-border-strong" />
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-px bg-border border border-border overflow-hidden">
-                                {/* Graph Type */}
-                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
-                                    <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Graph Type</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Toggle between stepped "boxy" and smooth "curved" charts.</p>
-                                    </div>
-                                    <div className="relative w-48">
-                                        <select
-                                            value={String(settings.boxyGraph)}
-                                            onChange={(e) => { vibrate("utility"); updateSetting("boxyGraph", e.target.value === "true"); }}
-                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
-                                        >
-                                            <option value="true" className="bg-panel text-foreground">Boxy (Stepped)</option>
-                                            <option value="false" className="bg-panel text-foreground">Curved (Smooth)</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* App Theme */}
-                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
-                                    <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">App Theme</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Select between Classic industrial or Playful visual style.</p>
-                                    </div>
-                                    <div className="relative w-48">
-                                        <select
-                                            value={settings.themeStyle}
-                                            onChange={(e) => { vibrate("utility"); updateSetting("themeStyle", e.target.value as any); }}
-                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
-                                        >
-                                            <option value="classic" className="bg-panel text-foreground">Classic (Industrial)</option>
-                                            <option value="playful" className="bg-panel text-foreground">Playful (Experimental)</option>
-                                            <option value="modern" className="bg-panel text-foreground">Modern (Geist)</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Background Style */}
-                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
-                                    <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Background Style</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Choose between the classic industrial Dots or technical Gridlines.</p>
-                                    </div>
-                                    <div className="relative w-48">
-                                        <select
-                                            value={settings.backgroundStyle}
-                                            onChange={(e) => { vibrate("utility"); updateSetting("backgroundStyle", e.target.value as any); }}
-                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
-                                        >
-                                            {[
-                                                { label: "Dots", value: "dots" },
-                                                { label: "Grid", value: "grid" },
-                                                { label: "Crosses", value: "crosses", experimental: true },
-                                                { label: "Scanlines", value: "scanlines", experimental: true },
-                                                { label: "Diagonal", value: "diagonal", experimental: true },
-                                                { label: "Solid", value: "solid", experimental: true },
-                                                { label: "Blueprint", value: "blueprint", experimental: true },
-                                                { label: "Noise", value: "noise", experimental: true },
-                                                { label: "Big Grid", value: "big-grid", experimental: true },
-                                            ].map((opt) => (
-                                                <option key={opt.value} value={opt.value} className="bg-panel text-foreground">
-                                                    {opt.label}{opt.experimental ? " (EXPERIMENTAL)" : ""}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                 {/* Heading Font (--font-heading) */}
-                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
-                                    <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Heading Font (--font-heading)</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Font applied to all headings (h1-h6), section titles, and table headers.</p>
-                                    </div>
-                                    <div className="relative w-48">
-                                        <select
-                                            value={settings.headingFont || "departure"}
-                                            onChange={(e) => { vibrate("utility"); updateSetting("headingFont", e.target.value as any); }}
-                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
-                                        >
-                                            <option value="departure" className="bg-panel text-foreground">Departure Mono</option>
-                                            <option value="space-grotesk" className="bg-panel text-foreground">Space Grotesk</option>
-                                            <option value="geist-pixel" className="bg-panel text-foreground">Geist Pixel</option>
-                                            <option value="cascadia" className="bg-panel text-foreground">Cascadia Code</option>
-                                            <option value="sour-gummy" className="bg-panel text-foreground">Sour Gummy</option>
-                                            <option value="vt323" className="bg-panel text-foreground">VT323</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Body / Sans Font (--font-sans) */}
-                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
-                                    <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Body / Sans Font (--font-sans)</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Font applied to body text, paragraphs, and general UI controls.</p>
-                                    </div>
-                                    <div className="relative w-48">
-                                        <select
-                                            value={settings.sansFont || "space-grotesk"}
-                                            onChange={(e) => { vibrate("utility"); updateSetting("sansFont", e.target.value as any); }}
-                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
-                                        >
-                                            <option value="space-grotesk" className="bg-panel text-foreground">Space Grotesk</option>
-                                            <option value="geist-sans" className="bg-panel text-foreground">Geist Sans</option>
-                                            <option value="departure" className="bg-panel text-foreground">Departure Mono</option>
-                                            <option value="sour-gummy" className="bg-panel text-foreground">Sour Gummy</option>
-                                            <option value="system" className="bg-panel text-foreground">System Sans</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Mono / Data Font (--font-mono) */}
-                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors border-b border-border">
-                                    <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Data / Mono Font (--font-mono)</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Font applied to numbers, currency, inputs, table data, and code.</p>
-                                    </div>
-                                    <div className="relative w-48">
-                                        <select
-                                            value={settings.monoFont || "space-mono"}
-                                            onChange={(e) => {
-                                                vibrate("utility");
-                                                updateSetting("monoFont", e.target.value as any);
-                                                updateSetting("monospaceFont", e.target.value === "cascadia" ? "cascadia" : "space");
-                                            }}
-                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
-                                        >
-                                            <option value="space-mono" className="bg-panel text-foreground">Space Mono</option>
-                                            <option value="geist-mono" className="bg-panel text-foreground">Geist Mono</option>
-                                            <option value="cascadia" className="bg-panel text-foreground">Cascadia Code</option>
-                                            <option value="departure" className="bg-panel text-foreground">Departure Mono</option>
-                                            <option value="vt323" className="bg-panel text-foreground">VT323</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Anchor Left */}
-                                <div className="bg-panel p-4 flex items-center justify-between group hover:bg-panel-elevated transition-colors">
-                                    <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Anchor Left</h4>
-                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Relocate navigation rail to the left terminal side.</p>
-                                    </div>
-                                    <div className="relative w-48">
-                                        <select
-                                            value={String(isNavLeft)}
-                                            onChange={(e) => handleToggleNavLeft(e.target.value === "true")}
-                                            className="w-full appearance-none bg-muted/20 border-2 border-border-strong px-4 py-1.5 pr-10 text-[10px] font-black uppercase tracking-widest text-foreground focus:border-primary outline-none cursor-pointer transition-all"
-                                        >
-                                            <option value="false" className="bg-panel text-foreground">Standard Right</option>
-                                            <option value="true" className="bg-panel text-foreground">Anchored Left</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
+                {/* Main Settings Continuous Scroll Content Area */}
+                <div className="flex-1 space-y-12 min-h-[600px]">
+                    {/* Section 1: Account Management */}
+                    <section id="settings-account" className="space-y-6 scroll-mt-6">
+                        <div className="flex items-center gap-3 px-1">
+                            <HugeiconsIcon icon={UserIcon} size={16} className="text-primary" />
+                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Account Management</h3>
+                            <div className="h-px flex-1 bg-border-strong" />
                         </div>
-                    )}
 
-                    {activeTab === "api" && (
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3 px-1">
-                                <HugeiconsIcon icon={Key01Icon} size={16} className="text-primary" />
-                                <h3 className="text-lg font-departure tracking-widest text-primary uppercase">API Management</h3>
-                                <div className="h-px flex-1 bg-border-strong" />
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-px bg-border border border-border overflow-hidden">
-                                {/* Torn API Throttle */}
-                                <div className="bg-panel p-4 space-y-4 border-b border-border">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <h4 className="font-bold text-sm uppercase tracking-tight">Torn API Throttle</h4>
-                                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Maximum requests per minute to the primary mainframe.</p>
-                                        </div>
-                                        <div className="text-xs font-mono font-bold text-primary">{tempTornRateLimit}/MIN</div>
+                        {auth ? (
+                            <div className="bg-panel border-2 border-primary p-6 space-y-6">
+                                <SecurityWarning />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="p-4 bg-background border border-border">
+                                        <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">User ID</span>
+                                        <span className="font-mono text-lg">{auth.userId}</span>
                                     </div>
-                                    <input type="range" min="10" max="80" value={tempTornRateLimit} onChange={(e) => setTempTornRateLimit(Number(e.target.value))} className="w-full h-1 bg-muted/30 appearance-none cursor-pointer accent-primary" />
-                                    {tempTornRateLimit !== tornApiRateLimit && (
-                                        <button onClick={() => handleUpdateTornRateLimit(tempTornRateLimit)} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
-                                            <HugeiconsIcon icon={SaveIcon} size={14} /> APPLY_THROTTLE
+                                    <div className="p-4 bg-background border border-border">
+                                        <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">Username</span>
+                                        <span className="text-lg">{auth.username || "N/A"}</span>
+                                    </div>
+                                    <div className="p-4 bg-background border border-border">
+                                        <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">Subscription</span>
+                                        <span className={clsx("flex items-center gap-2 font-bold text-lg", isSubscriptionValid() ? "text-success" : "text-danger")}>
+                                            <HugeiconsIcon icon={isSubscriptionValid() ? CheckmarkCircle01Icon : CancelCircleIcon} size={20} />
+                                            {isSubscriptionValid() ? "Active" : "Inactive"}
+                                        </span>
+                                    </div>
+                                    <div className="p-4 bg-background border border-border">
+                                        <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">Valid Until</span>
+                                        <span className="font-mono text-lg">{getValidUntil() ? new Date(getValidUntil()!).toLocaleDateString() : "N/A"}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-2">Secret Token</span>
+                                    <div className="flex items-center gap-2">
+                                        <code className="flex-1 bg-background px-4 py-3 font-mono text-sm border border-border truncate">
+                                            {showSecretToken ? auth.secretToken : "••••••••••••••••••••"}
+                                        </code>
+                                        <button onClick={() => setShowSecretToken(!showSecretToken)} className="p-3 border border-border hover:bg-foreground/5 transition-colors">
+                                            <HugeiconsIcon icon={showSecretToken ? ViewIcon : EyeIcon} size={20} />
                                         </button>
-                                    )}
+                                        <button onClick={() => copyToClipboard(auth.secretToken)} className="p-3 border border-border hover:bg-foreground/5 transition-colors">
+                                            <HugeiconsIcon icon={Copy01Icon} size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                                <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 bg-danger text-white px-4 py-3 font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all">
+                                    <HugeiconsIcon icon={Logout01Icon} size={18} /> SIGN OUT
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="max-w-xl bg-panel border-2 border-primary p-6">
+                                <SecurityWarning />
+                                <div className="flex gap-2 mb-6">
+                                    {["signin", "signup", "forgot"].map((m) => (
+                                        <button key={m} onClick={() => { setAuthMode(m as AuthMode); setAuthError(null); setVerificationData(null); }} className={clsx("flex-1 py-2 px-4 font-bold text-xs uppercase tracking-widest transition-all", authMode === m ? "bg-primary text-primary-foreground" : "bg-muted/10 text-muted hover:bg-muted/20")}>
+                                            {m === "signin" ? "Sign In" : m === "signup" ? "Sign Up" : "Forgot"}
+                                        </button>
+                                    ))}
                                 </div>
 
-                                {/* TornExchange Key */}
-                                <div className="bg-panel p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <h4 className="font-bold text-sm uppercase tracking-tight">TornExchange API Key</h4>
-                                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Integration key for TornExchange market data.</p>
+                                {authError && <div className="mb-4 p-3 bg-danger/10 border border-danger text-danger text-xs uppercase font-mono">{authError}</div>}
+
+                                {authMode === "signin" ? (
+                                    <div className="space-y-4">
+                                        <input type="text" value={userIdInput} onChange={(e) => setUserIdInput(e.target.value)} placeholder="Torn User ID" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
+                                        <input type="password" value={secretTokenInput} onChange={(e) => setSecretTokenInput(e.target.value)} placeholder="Secret Token" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
+                                        <button onClick={handleSignIn} disabled={isAuthLoading} className="w-full py-4 bg-primary text-primary-foreground font-black uppercase text-xs tracking-widest hover:opacity-90 transition-all disabled:opacity-50">
+                                            {isAuthLoading ? "VERIFYING..." : "VERIFY & SIGN IN"}
+                                        </button>
+                                    </div>
+                                ) : authMode === "forgot" ? (
+                                    verificationData ? (
+                                        <div className="space-y-4">
+                                            <div className="p-4 bg-blue-500/10 border border-blue-500 text-xs">
+                                                <p className="mb-2">Send <span className="font-bold text-primary">$1</span> to PixelGhost [3165209] with message:</p>
+                                                <div className="relative bg-background p-2 font-mono mb-4">
+                                                    {verificationData.message}
+                                                    <button onClick={() => copyToClipboard(verificationData.message!)} className="absolute right-2 top-1/2 -translate-y-1/2"><HugeiconsIcon icon={Copy01Icon} size={14} /></button>
+                                                </div>
+                                                <button onClick={handleVerifyResetToken} disabled={verifying} className="w-full py-3 bg-blue-500 text-white font-bold uppercase tracking-widest">{verifying ? "VERIFYING..." : "MESSAGE SENT - GET TOKEN"}</button>
+                                            </div>
                                         </div>
-                                        <div className="relative w-64">
-                                            <input type={showTeKey ? "text" : "password"} value={teKey} onChange={(e) => setTeKey(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
-                                            <button onClick={() => setShowTeKey(!showTeKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
-                                                <HugeiconsIcon icon={showTeKey ? ViewOffSlashIcon : ViewIcon} size={14} />
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <input type="text" value={userIdInput} onChange={(e) => setUserIdInput(e.target.value)} placeholder="Torn User ID" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
+                                            <button onClick={handleInitiateResetToken} disabled={isAuthLoading} className="w-full py-4 bg-blue-500 text-white font-black uppercase text-xs tracking-widest hover:opacity-90 transition-all">
+                                                {isAuthLoading ? "INITIATING..." : "INITIATE RESET"}
                                             </button>
                                         </div>
+                                    )
+                                ) : (
+                                    <div className="space-y-4">
+                                        <input type="text" value={userIdInput} onChange={(e) => setUserIdInput(e.target.value)} placeholder="Torn User ID" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleInitiateSignup("initiate-money")} disabled={isAuthLoading} className="flex-1 py-3 bg-primary text-primary-foreground font-bold text-[10px] uppercase">Send $X Deposit</button>
+                                            <button onClick={() => handleInitiateSignup("initiate-message")} disabled={isAuthLoading} className="flex-1 py-3 bg-muted text-foreground font-bold text-[10px] uppercase">Send $1 + Message</button>
+                                        </div>
                                     </div>
+                                )}
+                            </div>
+                        )}
+                    </section>
+
+                    {/* Section 2: API Management */}
+                    <section id="settings-api" className="space-y-6 scroll-mt-6">
+                        <div className="flex items-center gap-3 px-1">
+                            <HugeiconsIcon icon={Key01Icon} size={16} className="text-primary" />
+                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">API Management</h3>
+                            <div className="h-px flex-1 bg-border-strong" />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-px bg-border border border-border overflow-hidden">
+                            {/* Torn API Throttle */}
+                            <div className="bg-panel p-4 space-y-4 border-b border-border">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">Torn API Throttle</h4>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Maximum requests per minute to the primary mainframe.</p>
+                                    </div>
+                                    <div className="text-xs font-mono font-bold text-primary">{tempTornRateLimit}/MIN</div>
+                                </div>
+                                <input type="range" min="10" max="80" value={tempTornRateLimit} onChange={(e) => setTempTornRateLimit(Number(e.target.value))} className="w-full h-1 bg-muted/30 appearance-none cursor-pointer accent-primary" />
+                                {tempTornRateLimit !== tornApiRateLimit && (
+                                    <button onClick={() => handleUpdateTornRateLimit(tempTornRateLimit)} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+                                        <HugeiconsIcon icon={SaveIcon} size={14} /> APPLY_THROTTLE
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Weav3r Key */}
+                            <div className="bg-panel p-4 space-y-3 border-b border-border">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">Weav3r Key</h4>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Access key required for sales data harvesting.</p>
+                                    </div>
+                                    <div className="relative w-64">
+                                        <input type={showWeav3rKey ? "text" : "password"} value={tempWeav3rApiKey} onChange={(e) => setTempWeav3rApiKey(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
+                                        <button onClick={() => setShowWeav3rKey(!showWeav3rKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
+                                            <HugeiconsIcon icon={showWeav3rKey ? ViewOffSlashIcon : ViewIcon} size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                                {tempWeav3rApiKey !== (weav3rApiKey || "") && (
+                                    <button onClick={() => void handleSaveWeav3rKey()} disabled={isSavingWeav3rKey} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+                                        <HugeiconsIcon icon={SaveIcon} size={14} /> {isSavingWeav3rKey ? "UPDATING..." : "COMMIT_WEAV3R_KEY"}
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Torn Full Access API Key */}
+                            <div className="bg-panel p-4 space-y-3 border-b border-border">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">Torn Full Access API Key</h4>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Full-access key required for Auto-Pilot sync.</p>
+                                    </div>
+                                    <div className="relative w-64">
+                                        <input type={showTornFullKey ? "text" : "password"} value={tempTornApiKeyFull} onChange={(e) => setTempTornApiKeyFull(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
+                                        <button onClick={() => setShowTornFullKey(!showTornFullKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
+                                            <HugeiconsIcon icon={showTornFullKey ? ViewOffSlashIcon : ViewIcon} size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                                {tempTornApiKeyFull !== (tornApiKeyFull || "") && (
+                                    <button onClick={() => void handleSaveTornFullKey()} disabled={isSavingTornFullKey} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+                                        <HugeiconsIcon icon={SaveIcon} size={14} /> {isSavingTornFullKey ? "SAVING..." : "COMMIT_MAINFRAME_KEY"}
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* TornExchange Key */}
+                            <div className="bg-panel p-4 space-y-3 border-b border-border">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">TornExchange Key</h4>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Integration key for TornExchange market data.</p>
+                                    </div>
+                                    <div className="relative w-64">
+                                        <input type={showTeKey ? "text" : "password"} value={teKey} onChange={(e) => setTeKey(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
+                                        <button onClick={() => setShowTeKey(!showTeKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
+                                            <HugeiconsIcon icon={showTeKey ? ViewOffSlashIcon : ViewIcon} size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                                {teKey !== savedTeKey && (
                                     <button onClick={handleSaveTEKey} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
                                         <HugeiconsIcon icon={SaveIcon} size={14} /> COMMIT_TE_KEY
                                     </button>
-                                </div>
+                                )}
                             </div>
 
-                            {/* Legacy Auth Keys */}
-                            <div className="flex items-center gap-3 px-1 mt-8">
-                                <HugeiconsIcon icon={FlashIcon} size={16} className="text-primary" />
-                                <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Legacy Keyrings</h3>
-                                <div className="h-px flex-1 bg-border-strong" />
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-px bg-border border border-border overflow-hidden">
-                                {/* Weav3r Node Key */}
-                                <div className="bg-panel p-4 space-y-3 border-b border-border">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <h4 className="font-bold text-sm uppercase tracking-tight">Weav3r Node Key</h4>
-                                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Access key required for sales data harvesting.</p>
-                                        </div>
-                                        <div className="relative w-64">
-                                            <input type={showWeav3rKey ? "text" : "password"} value={tempWeav3rApiKey} onChange={(e) => setTempWeav3rApiKey(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
-                                            <button onClick={() => setShowWeav3rKey(!showWeav3rKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
-                                                <HugeiconsIcon icon={showWeav3rKey ? ViewOffSlashIcon : ViewIcon} size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {tempWeav3rApiKey !== (weav3rApiKey || "") && (
-                                        <button onClick={() => void handleSaveWeav3rKey()} disabled={isSavingWeav3rKey} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
-                                            <HugeiconsIcon icon={SaveIcon} size={14} /> {isSavingWeav3rKey ? "UPDATING..." : "COMMIT_WEAV3R_KEY"}
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Mainframe Access */}
-                                <div className="bg-panel p-4 space-y-3 border-b border-border">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <h4 className="font-bold text-sm uppercase tracking-tight">Mainframe Access</h4>
-                                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Full-access key required for Auto-Pilot sync.</p>
-                                        </div>
-                                        <div className="relative w-64">
-                                            <input type={showTornFullKey ? "text" : "password"} value={tempTornApiKeyFull} onChange={(e) => setTempTornApiKeyFull(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
-                                            <button onClick={() => setShowTornFullKey(!showTornFullKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
-                                                <HugeiconsIcon icon={showTornFullKey ? ViewOffSlashIcon : ViewIcon} size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {tempTornApiKeyFull !== (tornApiKeyFull || "") && (
-                                        <button onClick={() => void handleSaveTornFullKey()} disabled={isSavingTornFullKey} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
-                                            <HugeiconsIcon icon={SaveIcon} size={14} /> {isSavingTornFullKey ? "SAVING..." : "COMMIT_MAINFRAME_KEY"}
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Vault Sync Key */}
-                                <div className="bg-panel p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <h4 className="font-bold text-sm uppercase tracking-tight">Vault Sync Key</h4>
-                                            <p className="text-[10px] text-muted max-w-sm italic opacity-80">Google Drive database backup token.</p>
-                                        </div>
-                                        <div className="relative w-64">
-                                            <input type={showDriveKey ? "text" : "password"} value={tempDriveApiKey} onChange={(e) => setTempDriveApiKey(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
-                                            <button onClick={() => setShowDriveKey(!showDriveKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
-                                                <HugeiconsIcon icon={showDriveKey ? ViewOffSlashIcon : ViewIcon} size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {tempDriveApiKey !== (driveApiKey || "") && (
-                                        <button onClick={() => void handleSaveDriveKey()} disabled={isSavingDriveKey} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
-                                            <HugeiconsIcon icon={SaveIcon} size={14} /> {isSavingDriveKey ? "AUTHORIZING..." : "COMMIT_VAULT_KEY"}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === "account" && (
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3 px-1">
-                                <HugeiconsIcon icon={UserIcon} size={16} className="text-primary" />
-                                <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Account Management</h3>
-                                <div className="h-px flex-1 bg-border-strong" />
-                            </div>
-
-                            {auth ? (
-                                <div className="bg-panel border-2 border-primary p-6 space-y-6">
-                                    <SecurityWarning />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="p-4 bg-background border border-border">
-                                            <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">User ID</span>
-                                            <span className="font-mono text-lg">{auth.userId}</span>
-                                        </div>
-                                        <div className="p-4 bg-background border border-border">
-                                            <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">Username</span>
-                                            <span className="text-lg">{auth.username || "N/A"}</span>
-                                        </div>
-                                        <div className="p-4 bg-background border border-border">
-                                            <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">Subscription</span>
-                                            <span className={clsx("flex items-center gap-2 font-bold text-lg", isSubscriptionValid() ? "text-success" : "text-danger")}>
-                                                <HugeiconsIcon icon={isSubscriptionValid() ? CheckmarkCircle01Icon : CancelCircleIcon} size={20} />
-                                                {isSubscriptionValid() ? "Active" : "Inactive"}
-                                            </span>
-                                        </div>
-                                        <div className="p-4 bg-background border border-border">
-                                            <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-1">Valid Until</span>
-                                            <span className="font-mono text-lg">{getValidUntil() ? new Date(getValidUntil()!).toLocaleDateString() : "N/A"}</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted font-bold text-xs uppercase tracking-widest block mb-2">Secret Token</span>
-                                        <div className="flex items-center gap-2">
-                                            <code className="flex-1 bg-background px-4 py-3 font-mono text-sm border border-border truncate">
-                                                {showSecretToken ? auth.secretToken : "••••••••••••••••••••"}
-                                            </code>
-                                            <button onClick={() => setShowSecretToken(!showSecretToken)} className="p-3 border border-border hover:bg-foreground/5 transition-colors">
-                                                <HugeiconsIcon icon={showSecretToken ? ViewIcon : EyeIcon} size={20} />
-                                            </button>
-                                            <button onClick={() => copyToClipboard(auth.secretToken)} className="p-3 border border-border hover:bg-foreground/5 transition-colors">
-                                                <HugeiconsIcon icon={Copy01Icon} size={20} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 bg-danger text-white px-4 py-3 font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-all">
-                                        <HugeiconsIcon icon={Logout01Icon} size={18} /> SIGN OUT
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="max-w-xl bg-panel border-2 border-primary p-6">
-                                    <SecurityWarning />
-                                    <div className="flex gap-2 mb-6">
-                                        {["signin", "signup", "forgot"].map((m) => (
-                                            <button key={m} onClick={() => { setAuthMode(m as AuthMode); setAuthError(null); setVerificationData(null); }} className={clsx("flex-1 py-2 px-4 font-bold text-xs uppercase tracking-widest transition-all", authMode === m ? "bg-primary text-primary-foreground" : "bg-muted/10 text-muted hover:bg-muted/20")}>
-                                                {m === "signin" ? "Sign In" : m === "signup" ? "Sign Up" : "Forgot"}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {authError && <div className="mb-4 p-3 bg-danger/10 border border-danger text-danger text-xs uppercase font-mono">{authError}</div>}
-
-                                    {authMode === "signin" ? (
-                                        <div className="space-y-4">
-                                            <input type="text" value={userIdInput} onChange={(e) => setUserIdInput(e.target.value)} placeholder="Torn User ID" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
-                                            <input type="password" value={secretTokenInput} onChange={(e) => setSecretTokenInput(e.target.value)} placeholder="Secret Token" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
-                                            <button onClick={handleSignIn} disabled={isAuthLoading} className="w-full py-4 bg-primary text-primary-foreground font-black uppercase text-xs tracking-widest hover:opacity-90 transition-all disabled:opacity-50">
-                                                {isAuthLoading ? "VERIFYING..." : "VERIFY & SIGN IN"}
-                                            </button>
-                                        </div>
-                                    ) : authMode === "forgot" ? (
-                                        verificationData ? (
-                                            <div className="space-y-4">
-                                                <div className="p-4 bg-blue-500/10 border border-blue-500 text-xs">
-                                                    <p className="mb-2">Send <span className="font-bold text-primary">$1</span> to PixelGhost [3165209] with message:</p>
-                                                    <div className="relative bg-background p-2 font-mono mb-4">
-                                                        {verificationData.message}
-                                                        <button onClick={() => copyToClipboard(verificationData.message!)} className="absolute right-2 top-1/2 -translate-y-1/2"><HugeiconsIcon icon={Copy01Icon} size={14} /></button>
-                                                    </div>
-                                                    <button onClick={handleVerifyResetToken} disabled={verifying} className="w-full py-3 bg-blue-500 text-white font-bold uppercase tracking-widest">{verifying ? "VERIFYING..." : "MESSAGE SENT - GET TOKEN"}</button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-4">
-                                                <input type="text" value={userIdInput} onChange={(e) => setUserIdInput(e.target.value)} placeholder="Torn User ID" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
-                                                <button onClick={handleInitiateResetToken} disabled={isAuthLoading} className="w-full py-4 bg-blue-500 text-white font-black uppercase text-xs tracking-widest hover:opacity-90 transition-all">
-                                                    {isAuthLoading ? "INITIATING..." : "INITIATE RESET"}
-                                                </button>
-                                            </div>
-                                        )
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <input type="text" value={userIdInput} onChange={(e) => setUserIdInput(e.target.value)} placeholder="Torn User ID" className="w-full px-4 py-3 bg-background border border-border focus:border-primary outline-none font-mono text-sm" />
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleInitiateSignup("initiate-money")} disabled={isAuthLoading} className="flex-1 py-3 bg-primary text-primary-foreground font-bold text-[10px] uppercase">Send $X Deposit</button>
-                                                <button onClick={() => handleInitiateSignup("initiate-message")} disabled={isAuthLoading} className="flex-1 py-3 bg-muted text-foreground font-bold text-[10px] uppercase">Send $1 + Message</button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === "data" && (
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3 px-1">
-                                <HugeiconsIcon icon={DatabaseIcon} size={16} className="text-primary" />
-                                <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Data Management</h3>
-                                <div className="h-px flex-1 bg-border-strong" />
-                            </div>
-
-                            {/* Warning Banner */}
-                            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                                <div className="flex items-start gap-3">
-                                    <HugeiconsIcon
-                                        icon={AlertCircleIcon}
-                                        size={22}
-                                        className="text-red-500 flex-shrink-0 mt-0.5"
-                                    />
-                                    <div className="space-y-1">
-                                        <h4 className="font-bold text-red-500 text-xs uppercase tracking-widest">
-                                            Warning: Irreversible Action
+                            {/* Vault Sync Key (Deprecated) */}
+                            <div className="bg-panel p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <h4 className="font-bold text-sm uppercase tracking-tight">
+                                            Vault Sync Key <span className="text-[10px] text-danger uppercase tracking-wider ml-1 font-normal">(deprecated)</span>
                                         </h4>
-                                        <p className="text-xs text-muted">
-                                            Clearing data will permanently wipe stored item logs, trade records, receipts, cost-basis history, and autopilot sync cursors from your browser. Your API keys and login tokens will remain safe.
-                                        </p>
+                                        <p className="text-[10px] text-muted max-w-sm italic opacity-80">Google Drive database backup token.</p>
+                                    </div>
+                                    <div className="relative w-64">
+                                        <input type={showDriveKey ? "text" : "password"} value={tempDriveApiKey} onChange={(e) => setTempDriveApiKey(e.target.value)} className="w-full bg-muted/20 border-2 border-border-strong px-3 py-1.5 text-xs font-mono focus:border-primary outline-none transition-all" />
+                                        <button onClick={() => setShowDriveKey(!showDriveKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground">
+                                            <HugeiconsIcon icon={showDriveKey ? ViewOffSlashIcon : ViewIcon} size={14} />
+                                        </button>
                                     </div>
                                 </div>
+                                {tempDriveApiKey !== (driveApiKey || "") && (
+                                    <button onClick={() => void handleSaveDriveKey()} disabled={isSavingDriveKey} className="w-full py-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-[0.2em] flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+                                        <HugeiconsIcon icon={SaveIcon} size={14} /> {isSavingDriveKey ? "AUTHORIZING..." : "COMMIT_VAULT_KEY"}
+                                    </button>
+                                )}
                             </div>
+                        </div>
+                    </section>
 
-                            {clearSuccess && (
-                                <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-green-500 text-xs font-bold uppercase tracking-wider">
-                                        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={18} />
-                                        All logs, trade records, and autopilot cursors cleared successfully!
-                                    </div>
+                    {/* Section 3: Theme Settings */}
+                    <section id="settings-theme" className="space-y-6 scroll-mt-6">
+                        <div className="flex items-center gap-3 px-1">
+                            <HugeiconsIcon icon={PaintBoardIcon} size={16} className="text-primary" />
+                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Theme Settings</h3>
+                            <div className="h-px flex-1 bg-border-strong" />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-px bg-border border border-border overflow-hidden">
+                            {/* Typography Theme Selection Boxes */}
+                            <div className="bg-panel p-5 border-b border-border space-y-4">
+                                <div className="space-y-0.5">
+                                    <h4 className="font-bold text-sm uppercase tracking-tight">Typography Theme</h4>
+                                    <p className="text-[11px] text-muted italic opacity-80">Select your preferred font suite across the entire application.</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                                    {/* Pixel Box */}
                                     <button
-                                        onClick={() => setClearSuccess(false)}
-                                        className="text-xs text-muted hover:text-foreground"
+                                        type="button"
+                                        onClick={() => {
+                                            vibrate("utility");
+                                            updateSettings({ fontTheme: "pixel", themeStyle: "classic" });
+                                        }}
+                                        className={clsx(
+                                            "p-5 border-2 text-left transition-all relative flex flex-col justify-between min-h-[140px] cursor-pointer",
+                                            settings.fontTheme === "pixel" || settings.fontTheme === undefined
+                                                ? "bg-primary/10 border-primary text-foreground"
+                                                : "bg-panel border-border text-muted hover:border-border-strong hover:text-foreground"
+                                        )}
                                     >
-                                        Dismiss
+                                        <div className="flex items-start justify-between">
+                                            <span className="text-4xl font-bold tracking-tight" style={{ fontFamily: "'Departure Mono', monospace" }}>
+                                                Aa
+                                            </span>
+                                            {(settings.fontTheme === "pixel" || settings.fontTheme === undefined) && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2 py-0.5">
+                                                    ACTIVE
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="mt-4">
+                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Pixel</h4>
+                                            <p className="text-[11px] text-muted mt-0.5 opacity-90">Departure Mono for Headings, Body, & Data</p>
+                                        </div>
+                                    </button>
+
+                                    {/* Modern Box */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            vibrate("utility");
+                                            updateSettings({ fontTheme: "modern", themeStyle: "modern" });
+                                        }}
+                                        className={clsx(
+                                            "p-5 border-2 text-left transition-all relative flex flex-col justify-between min-h-[140px] cursor-pointer",
+                                            settings.fontTheme === "modern"
+                                                ? "bg-primary/10 border-primary text-foreground"
+                                                : "bg-panel border-border text-muted hover:border-border-strong hover:text-foreground"
+                                        )}
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <span className="text-4xl font-bold tracking-tight" style={{ fontFamily: "var(--font-geist-sans), sans-serif" }}>
+                                                Aa
+                                            </span>
+                                            {settings.fontTheme === "modern" && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2 py-0.5">
+                                                    ACTIVE
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="mt-4">
+                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Modern</h4>
+                                            <p className="text-[11px] text-muted mt-0.5 opacity-90">Geist Pixel Headings, Geist Sans Body, Geist Mono Data</p>
+                                        </div>
                                     </button>
                                 </div>
-                            )}
+                            </div>
 
-                            {/* Data Actions Panel */}
-                            <div className="bg-panel border border-border p-6 space-y-6">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div>
-                                        <h4 className="font-bold text-sm uppercase tracking-tight text-foreground">
-                                            Clear All Ledger & Autopilot Data
-                                        </h4>
-                                        <p className="text-xs text-muted max-w-md mt-1">
-                                            Purge item logs, trade records, receipt history, cost-basis calculations, and reset autopilot sync cursors in one click.
-                                        </p>
-                                    </div>
+                            {/* Navigation Bar Position */}
+                            <div className="bg-panel p-5 border-b border-border space-y-4">
+                                <div className="space-y-0.5">
+                                    <h4 className="font-bold text-sm uppercase tracking-tight">Navigation Bar Position</h4>
+                                    <p className="text-[11px] text-muted italic opacity-80">Select preferred layout position for the primary navigation rail.</p>
+                                </div>
 
-                                    {!showConfirmClearModal ? (
-                                        <button
-                                            onClick={() => {
-                                                vibrate("utility");
-                                                setShowConfirmClearModal(true);
-                                                setClearSuccess(false);
-                                            }}
-                                            className="px-5 py-3 bg-red-600/90 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 flex-shrink-0"
-                                        >
-                                            <HugeiconsIcon icon={Delete02Icon} size={16} />
-                                            Clear All Data
-                                        </button>
-                                    ) : (
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            <button
-                                                onClick={handleClearAllData}
-                                                disabled={isClearing}
-                                                className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider transition-all"
-                                            >
-                                                {isClearing ? "CLEARING..." : "CONFIRM CLEAR"}
-                                            </button>
-                                            <button
-                                                onClick={() => setShowConfirmClearModal(false)}
-                                                disabled={isClearing}
-                                                className="px-3 py-2.5 bg-muted text-foreground font-bold text-xs uppercase transition-all"
-                                            >
-                                                CANCEL
-                                            </button>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                                    {/* Top Navigation Box */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleToggleNavLeft(false)}
+                                        className={clsx(
+                                            "p-5 border-2 text-left transition-all relative flex flex-col justify-between min-h-[130px] cursor-pointer",
+                                            !isNavLeft
+                                                ? "bg-primary/10 border-primary text-foreground"
+                                                : "bg-panel border-border text-muted hover:border-border-strong hover:text-foreground"
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            {/* Wireframe Diagram */}
+                                            <div className="w-16 h-10 border border-border-strong bg-panel-elevated p-1 flex flex-col gap-1">
+                                                <div className="w-full h-2 bg-primary/70" />
+                                                <div className="w-full flex-1 bg-muted/20" />
+                                            </div>
+                                            {!isNavLeft && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2 py-0.5">
+                                                    ACTIVE
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
+                                        <div className="mt-4">
+                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Top Navigation</h4>
+                                            <p className="text-[11px] text-muted mt-0.5 opacity-90">Standard horizontal navigation bar at the top</p>
+                                        </div>
+                                    </button>
+
+                                    {/* Left Navigation Box */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleToggleNavLeft(true)}
+                                        className={clsx(
+                                            "p-5 border-2 text-left transition-all relative flex flex-col justify-between min-h-[130px] cursor-pointer",
+                                            isNavLeft
+                                                ? "bg-primary/10 border-primary text-foreground"
+                                                : "bg-panel border-border text-muted hover:border-border-strong hover:text-foreground"
+                                        )}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            {/* Wireframe Diagram */}
+                                            <div className="w-16 h-10 border border-border-strong bg-panel-elevated p-1 flex gap-1">
+                                                <div className="w-3.5 h-full bg-primary/70" />
+                                                <div className="flex-1 h-full bg-muted/20" />
+                                            </div>
+                                            {isNavLeft && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2 py-0.5">
+                                                    ACTIVE
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="mt-4">
+                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Left Navigation</h4>
+                                            <p className="text-[11px] text-muted mt-0.5 opacity-90">Anchored vertical sidebar rail on the left side</p>
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </section>
+
+                    {/* Section 4: Data Management */}
+                    <section id="settings-data" className="space-y-6 scroll-mt-6">
+                        <div className="flex items-center gap-3 px-1">
+                            <HugeiconsIcon icon={DatabaseIcon} size={16} className="text-primary" />
+                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Data Management</h3>
+                            <div className="h-px flex-1 bg-border-strong" />
+                        </div>
+
+                        {/* Warning Banner */}
+                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <div className="flex items-start gap-3">
+                                <HugeiconsIcon
+                                    icon={AlertCircleIcon}
+                                    size={22}
+                                    className="text-red-500 flex-shrink-0 mt-0.5"
+                                />
+                                <div className="space-y-1">
+                                    <h4 className="font-bold text-red-500 text-xs uppercase tracking-widest">
+                                        Warning: Irreversible Action
+                                    </h4>
+                                    <p className="text-xs text-muted">
+                                        Clearing data will permanently wipe stored item logs, trade records, receipts, cost-basis history, and autopilot sync cursors from your browser. Your API keys and login tokens will remain safe.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {clearSuccess && (
+                            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-green-500 text-xs font-bold uppercase tracking-wider">
+                                    <HugeiconsIcon icon={CheckmarkCircle01Icon} size={18} />
+                                    All logs, trade records, and autopilot cursors cleared successfully!
+                                </div>
+                                <button
+                                    onClick={() => setClearSuccess(false)}
+                                    className="text-xs text-muted hover:text-foreground"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Data Actions Panel */}
+                        <div className="bg-panel border border-border p-6 space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <h4 className="font-bold text-sm uppercase tracking-tight text-foreground">
+                                        Clear All Ledger & Autopilot Data
+                                    </h4>
+                                    <p className="text-xs text-muted max-w-md mt-1">
+                                        Purge item logs, trade records, receipt history, cost-basis calculations, and reset autopilot sync cursors in one click.
+                                    </p>
+                                </div>
+
+                                {!showConfirmClearModal ? (
+                                    <button
+                                        onClick={() => {
+                                            vibrate("utility");
+                                            setShowConfirmClearModal(true);
+                                            setClearSuccess(false);
+                                        }}
+                                        className="px-5 py-3 bg-red-600/90 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 flex-shrink-0"
+                                    >
+                                        <HugeiconsIcon icon={Delete02Icon} size={16} />
+                                        Clear All Data
+                                    </button>
+                                ) : (
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <button
+                                            onClick={handleClearAllData}
+                                            disabled={isClearing}
+                                            className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider transition-all"
+                                        >
+                                            {isClearing ? "CLEARING..." : "CONFIRM CLEAR"}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowConfirmClearModal(false)}
+                                            disabled={isClearing}
+                                            className="px-3 py-2.5 bg-muted text-foreground font-bold text-xs uppercase transition-all"
+                                        >
+                                            CANCEL
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>

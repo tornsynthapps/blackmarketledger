@@ -79,48 +79,18 @@ export default function RootLayout({
                   if (settings.themeStyle === 'playful') {
                     document.documentElement.classList.add('theme-playful');
                   }
-                  if (settings.themeStyle === 'modern') {
+                  const fontTheme = settings.fontTheme || (settings.themeStyle === 'modern' ? 'modern' : 'pixel');
+                  document.documentElement.style.setProperty('--font-brand', '"Departure Mono", monospace');
+                  if (fontTheme === 'modern') {
                     document.documentElement.classList.add('theme-modern');
-                  }
-                  if (settings.monospaceFont === 'cascadia') {
-                    document.documentElement.classList.add('font-cascadia');
-                  }
-                  if (settings.backgroundStyle && settings.backgroundStyle !== 'dots') {
-                    document.documentElement.classList.add('bg-' + settings.backgroundStyle);
-                  }
-
-                  const fontMap = {
-                    heading: {
-                      'geist-pixel': 'var(--font-geist-pixel), monospace',
-                      'space-grotesk': '"Space Grotesk", sans-serif',
-                      'sour-gummy': 'var(--font-sour-gummy), cursive',
-                      'cascadia': 'var(--font-cascadia-code), monospace',
-                      'vt323': 'var(--font-vt323), monospace',
-                      'departure': '"Departure Mono", monospace'
-                    },
-                    sans: {
-                      'geist-sans': 'var(--font-geist-sans), sans-serif',
-                      'departure': '"Departure Mono", sans-serif',
-                      'sour-gummy': 'var(--font-sour-gummy), cursive',
-                      'system': 'system-ui, sans-serif',
-                      'space-grotesk': '"Space Grotesk", var(--font-geist-sans), sans-serif'
-                    },
-                    mono: {
-                      'geist-mono': 'var(--font-geist-mono), monospace',
-                      'cascadia': 'var(--font-cascadia-code), monospace',
-                      'departure': '"Departure Mono", monospace',
-                      'vt323': 'var(--font-vt323), monospace',
-                      'space-mono': '"Space Mono", var(--font-geist-mono), monospace'
-                    }
-                  };
-                  if (settings.headingFont && fontMap.heading[settings.headingFont]) {
-                    document.documentElement.style.setProperty('--font-heading', fontMap.heading[settings.headingFont]);
-                  }
-                  if (settings.sansFont && fontMap.sans[settings.sansFont]) {
-                    document.documentElement.style.setProperty('--font-sans', fontMap.sans[settings.sansFont]);
-                  }
-                  if (settings.monoFont && fontMap.mono[settings.monoFont]) {
-                    document.documentElement.style.setProperty('--font-mono', fontMap.mono[settings.monoFont]);
+                    document.documentElement.style.setProperty('--font-heading', 'var(--font-geist-pixel), monospace');
+                    document.documentElement.style.setProperty('--font-sans', 'var(--font-geist-sans), sans-serif');
+                    document.documentElement.style.setProperty('--font-mono', 'var(--font-geist-mono), monospace');
+                  } else {
+                    document.documentElement.classList.remove('theme-modern');
+                    document.documentElement.style.setProperty('--font-heading', '"Departure Mono", monospace');
+                    document.documentElement.style.setProperty('--font-sans', '"Departure Mono", sans-serif');
+                    document.documentElement.style.setProperty('--font-mono', '"Departure Mono", monospace');
                   }
                 } catch (_) {}
               } catch (_) {}

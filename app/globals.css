@@ -87,23 +87,19 @@
     --font-space-grotesk: "Space Grotesk", sans-serif;
     --font-space-mono: "Space Mono", monospace;
 
-    /* 4-Font Variable Core System */
+    /* 4-Font Variable Core System - Pixel Default */
     --font-brand: "Departure Mono", monospace;
     --font-heading: "Departure Mono", monospace;
-    --font-sans: "Space Grotesk", var(--font-geist-sans), sans-serif;
-    --font-mono: "Space Mono", var(--font-geist-mono), monospace;
+    --font-sans: "Departure Mono", sans-serif;
+    --font-mono: "Departure Mono", monospace;
 
     /* Snappy Transitions */
     --transition-speed: 150ms;
     --transition-timing: cubic-bezier(0.2, 0, 0, 1);
 }
 
-:root.font-cascadia {
-    --font-mono: var(--font-cascadia-code), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
 :root.theme-modern {
-    --font-brand: var(--font-geist-pixel), monospace;
+    --font-brand: "Departure Mono", monospace;
     --font-heading: var(--font-geist-pixel), monospace;
     --font-sans: var(--font-geist-sans), sans-serif;
     --font-mono: var(--font-geist-mono), monospace;
@@ -417,7 +413,7 @@ tr:hover td {
 }
 
 :root.theme-playful {
-    --font-brand: var(--font-sour-gummy), cursive;
+    --font-brand: "Departure Mono", monospace;
     --font-heading: var(--font-sour-gummy), cursive;
     --font-sans: var(--font-sour-gummy), cursive;
     --font-mono: var(--font-sour-gummy), cursive;

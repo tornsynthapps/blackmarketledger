@@ -366,7 +366,7 @@ export default function StatsModal({
                                     ]}
                                 />
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="mugLoss"
                                     stackId="1"
                                     stroke="var(--danger)"
@@ -375,7 +375,7 @@ export default function StatsModal({
                                     fillOpacity={0.2}
                                 />
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="realizedProfit"
                                     stackId="1"
                                     stroke="var(--success)"
@@ -384,7 +384,7 @@ export default function StatsModal({
                                     fillOpacity={0.2}
                                 />
                                 <Area
-                                    type={settings.boxyGraph ? "stepAfter" : "monotone"}
+                                    type="monotone"
                                     dataKey="netProfit"
                                     stroke="var(--foreground)"
                                     strokeWidth={2}

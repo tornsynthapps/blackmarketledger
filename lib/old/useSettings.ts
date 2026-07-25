@@ -2,70 +2,29 @@
 
 import { useState, useEffect } from "react";
 
-export type HeadingFontOption = "departure" | "geist-pixel" | "space-grotesk" | "sour-gummy" | "cascadia" | "vt323";
-export type SansFontOption = "space-grotesk" | "geist-sans" | "departure" | "sour-gummy" | "system";
-export type MonoFontOption = "space-mono" | "geist-mono" | "cascadia" | "departure" | "vt323";
+export type FontThemeOption = "pixel" | "modern";
 
 export interface LedgerSettings {
     boxyGraph: boolean;
     themeStyle: "classic" | "playful" | "modern";
-    monospaceFont: "space" | "cascadia";
+    fontTheme: FontThemeOption;
     backgroundStyle: "dots" | "grid" | "crosses" | "scanlines" | "diagonal" | "solid" | "blueprint" | "noise" | "big-grid";
     compactTable: boolean;
     showVerticalLines: boolean;
     alternatingRowColors: boolean;
-    headingFont: HeadingFontOption;
-    sansFont: SansFontOption;
-    monoFont: MonoFontOption;
 }
 
 const STORAGE_KEY = "ledger-settings";
 
 const DEFAULT_SETTINGS: LedgerSettings = {
-    boxyGraph: true,
+    boxyGraph: false,
     themeStyle: "classic",
-    monospaceFont: "space",
+    fontTheme: "pixel",
     backgroundStyle: "dots",
     compactTable: false,
     showVerticalLines: false,
     alternatingRowColors: false,
-    headingFont: "departure",
-    sansFont: "space-grotesk",
-    monoFont: "space-mono",
 };
-
-export function resolveFontValue(type: "heading" | "sans" | "mono", fontKey: string): string {
-    if (type === "heading") {
-        switch (fontKey) {
-            case "geist-pixel": return "var(--font-geist-pixel), monospace";
-            case "space-grotesk": return "\"Space Grotesk\", sans-serif";
-            case "sour-gummy": return "var(--font-sour-gummy), cursive";
-            case "cascadia": return "var(--font-cascadia-code), monospace";
-            case "vt323": return "var(--font-vt323), monospace";
-            case "departure":
-            default: return "\"Departure Mono\", monospace";
-        }
-    }
-    if (type === "sans") {
-        switch (fontKey) {
-            case "geist-sans": return "var(--font-geist-sans), sans-serif";
-            case "departure": return "\"Departure Mono\", sans-serif";
-            case "sour-gummy": return "var(--font-sour-gummy), cursive";
-            case "system": return "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif";
-            case "space-grotesk":
-            default: return "\"Space Grotesk\", var(--font-geist-sans), sans-serif";
-        }
-    }
-    // mono
-    switch (fontKey) {
-        case "geist-mono": return "var(--font-geist-mono), monospace";
-        case "cascadia": return "var(--font-cascadia-code), monospace";
-        case "departure": return "\"Departure Mono\", monospace";
-        case "vt323": return "var(--font-vt323), monospace";
-        case "space-mono":
-        default: return "\"Space Mono\", var(--font-geist-mono), monospace";
-    }
-}
 
 export function useSettings() {
     const [settings, setSettings] = useState<LedgerSettings>(DEFAULT_SETTINGS);
@@ -76,6 +35,10 @@ export function useSettings() {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
+                // Backward-compatibility migration if fontTheme isn't set yet
+                if (!parsed.fontTheme && parsed.themeStyle === "modern") {
+                    parsed.fontTheme = "modern";
+                }
                 setSettings({ ...DEFAULT_SETTINGS, ...parsed });
             } catch (e) {
                 console.error("Failed to parse ledger-settings", e);
@@ -85,12 +48,21 @@ export function useSettings() {
     }, []);
 
     const updateSetting = <K extends keyof LedgerSettings>(key: K, value: LedgerSettings[K]) => {
-        const next = { ...settings, [key]: value };
-        setSettings(next);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        
-        // Dispatch event for other components
-        window.dispatchEvent(new CustomEvent("ledger-settings-updated", { detail: next }));
+        setSettings((prev) => {
+            const next = { ...prev, [key]: value };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            window.dispatchEvent(new CustomEvent("ledger-settings-updated", { detail: next }));
+            return next;
+        });
+    };
+
+    const updateSettings = (partial: Partial<LedgerSettings>) => {
+        setSettings((prev) => {
+            const next = { ...prev, ...partial };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            window.dispatchEvent(new CustomEvent("ledger-settings-updated", { detail: next }));
+            return next;
+        });
     };
 
     // Listen for updates from other tabs/components
@@ -107,18 +79,21 @@ export function useSettings() {
     // Apply global classes & font variables
     useEffect(() => {
         if (!isLoaded) return;
+        const isModern = settings.fontTheme === "modern";
         document.documentElement.classList.toggle("theme-playful", settings.themeStyle === "playful");
-        document.documentElement.classList.toggle("theme-modern", settings.themeStyle === "modern");
-        document.documentElement.classList.toggle("font-cascadia", settings.monospaceFont === "cascadia");
+        document.documentElement.classList.toggle("theme-modern", isModern);
 
-        // Set CSS Variables for 4-font system
-        const headingVal = resolveFontValue("heading", settings.headingFont || "departure");
-        const sansVal = resolveFontValue("sans", settings.sansFont || "space-grotesk");
-        const monoVal = resolveFontValue("mono", settings.monoFont || "space-mono");
-
-        document.documentElement.style.setProperty("--font-heading", headingVal);
-        document.documentElement.style.setProperty("--font-sans", sansVal);
-        document.documentElement.style.setProperty("--font-mono", monoVal);
+        // Set CSS Variables for 4-font system based on selected Font Theme
+        document.documentElement.style.setProperty("--font-brand", "\"Departure Mono\", monospace");
+        if (isModern) {
+            document.documentElement.style.setProperty("--font-heading", "var(--font-geist-pixel), monospace");
+            document.documentElement.style.setProperty("--font-sans", "var(--font-geist-sans), sans-serif");
+            document.documentElement.style.setProperty("--font-mono", "var(--font-geist-mono), monospace");
+        } else {
+            document.documentElement.style.setProperty("--font-heading", "\"Departure Mono\", monospace");
+            document.documentElement.style.setProperty("--font-sans", "\"Departure Mono\", sans-serif");
+            document.documentElement.style.setProperty("--font-mono", "\"Departure Mono\", monospace");
+        }
 
         // Background Style
         const bgClasses = ["bg-grid", "bg-crosses", "bg-scanlines", "bg-diagonal", "bg-solid", "bg-blueprint", "bg-noise", "bg-big-grid"];
@@ -126,7 +101,7 @@ export function useSettings() {
         if (settings.backgroundStyle !== "dots") {
             document.documentElement.classList.add(`bg-${settings.backgroundStyle}`);
         }
-    }, [settings.themeStyle, settings.monospaceFont, settings.headingFont, settings.sansFont, settings.monoFont, settings.backgroundStyle, isLoaded]);
+    }, [settings.themeStyle, settings.fontTheme, settings.backgroundStyle, isLoaded]);
 
-    return { settings, updateSetting, isLoaded };
+    return { settings, updateSetting, updateSettings, isLoaded };
 }
