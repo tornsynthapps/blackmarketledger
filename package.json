@@ -21,7 +21,7 @@
         "dexie": "^4.4.2",
         "firebase": "^12.10.0",
         "geist": "^1.7.0",
-        "next": "16.1.6",
+        "next": "16.2.11",
         "react": "19.2.3",
         "react-dom": "19.2.3",
         "react-markdown": "^10.1.0",
