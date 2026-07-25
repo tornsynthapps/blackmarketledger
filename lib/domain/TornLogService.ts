@@ -770,7 +770,8 @@ export class TornLogService extends BaseService {
 
         for (const log of normalizedLogs) {
             const isSupported = registeredTypeIds.includes(log.typeId);
-            const isSkipped = SKIPPED_LOGS.includes(log.typeId);
+            const isFutureWork = FUTURE_WORK.includes(log.typeId);
+            const isSkipped = SKIPPED_LOGS.includes(log.typeId) && !isFutureWork;
             const metadata = this.registry.getMetadata(log.typeId);
 
             // ALWAYS store raw log data for audit/debugging in SystemLog
@@ -786,9 +787,12 @@ export class TornLogService extends BaseService {
                         params: log.params
                     });
                 }
+            } else if (isFutureWork) {
+                this.logger.info(`Future work log type ID ${log.typeId} encountered.`, log);
+                unsupportedLogs.push({ ...log, logCategory: "future_work" } as any);
             } else if (!isSkipped) {
                 this.logger.error(`Unsupported log type ID ${log.typeId} encountered.`, log);
-                unsupportedLogs.push(log);
+                unsupportedLogs.push({ ...log, logCategory: "unsupported" } as any);
             }
 
             // Only process business logic if it's a type we care about

@@ -11,11 +11,12 @@ import {
     Cancel01Icon,
     FilterIcon,
     Tick01Icon,
-    InformationCircleIcon
+    InformationCircleIcon,
+    Task01Icon
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
-import { SKIPPED_LOGS } from "@/lib/domain/TornLogService";
+import { SKIPPED_LOGS, FUTURE_WORK } from "@/lib/domain/TornLogService";
 
 interface UnsupportedLog {
     id: string;
@@ -25,6 +26,7 @@ interface UnsupportedLog {
     title: string;
     data: Record<string, any>;
     params: Record<string, any>;
+    logCategory?: "unsupported" | "future_work";
 }
 
 export default function UnsupportedLogsVisualizer() {
@@ -33,6 +35,7 @@ export default function UnsupportedLogsVisualizer() {
     const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([]);
     const [showTypeFilter, setShowTypeFilter] = useState(false);
     const [hideSkipped, setHideSkipped] = useState(true);
+    const [logCategoryFilter, setLogCategoryFilter] = useState<"all" | "unsupported" | "future_work">("all");
     const [error, setError] = useState<string | null>(null);
 
     const availableTypeIds = useMemo(() => {
@@ -49,8 +52,12 @@ export default function UnsupportedLogsVisualizer() {
             try {
                 const json = JSON.parse(event.target?.result as string);
                 if (Array.isArray(json)) {
-                    setLogs(json);
-                    const types = Array.from(new Set(json.map((log: any) => Number(log.typeId)))) as number[];
+                    const normalized = json.map((log: any) => ({
+                        ...log,
+                        logCategory: log.logCategory || (FUTURE_WORK.includes(Number(log.typeId)) ? "future_work" : "unsupported"),
+                    }));
+                    setLogs(normalized);
+                    const types = Array.from(new Set(normalized.map((log: any) => Number(log.typeId)))) as number[];
                     setSelectedTypeIds(types);
                     setError(null);
                 } else {
@@ -72,8 +79,27 @@ export default function UnsupportedLogsVisualizer() {
         );
     };
 
+    const categoryCounts = useMemo(() => {
+        let unsupported = 0;
+        let futureWork = 0;
+        logs.forEach(l => {
+            const cat = l.logCategory || (FUTURE_WORK.includes(l.typeId) ? "future_work" : "unsupported");
+            if (cat === "future_work") futureWork++;
+            else unsupported++;
+        });
+        return { total: logs.length, unsupported, futureWork };
+    }, [logs]);
+
     const filteredLogs = useMemo(() => {
         let result = logs;
+
+        // Filter by log category (all / unsupported / future_work)
+        if (logCategoryFilter !== "all") {
+            result = result.filter(log => {
+                const cat = log.logCategory || (FUTURE_WORK.includes(log.typeId) ? "future_work" : "unsupported");
+                return cat === logCategoryFilter;
+            });
+        }
 
         // Skip known types if enabled
         if (hideSkipped) {
@@ -98,7 +124,7 @@ export default function UnsupportedLogsVisualizer() {
         }
 
         return result;
-    }, [logs, searchQuery, selectedTypeIds, availableTypeIds, hideSkipped]);
+    }, [logs, logCategoryFilter, searchQuery, selectedTypeIds, availableTypeIds, hideSkipped]);
 
     return (
         <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
@@ -150,6 +176,40 @@ export default function UnsupportedLogsVisualizer() {
                 </div>
             ) : (
                 <div className="space-y-4">
+                    {/* Log Category Filter Tabs */}
+                    <div className="flex items-center gap-2 p-1.5 bg-panel border-2 border-border rounded-2xl w-fit">
+                        <button
+                            onClick={() => setLogCategoryFilter("all")}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                logCategoryFilter === "all"
+                                    ? "bg-primary text-primary-foreground shadow-sm"
+                                    : "text-muted hover:text-foreground hover:bg-foreground/5"
+                            }`}
+                        >
+                            All Logs ({categoryCounts.total})
+                        </button>
+                        <button
+                            onClick={() => setLogCategoryFilter("unsupported")}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                logCategoryFilter === "unsupported"
+                                    ? "bg-orange-500 text-white shadow-sm"
+                                    : "text-muted hover:text-foreground hover:bg-foreground/5"
+                            }`}
+                        >
+                            Unsupported ({categoryCounts.unsupported})
+                        </button>
+                        <button
+                            onClick={() => setLogCategoryFilter("future_work")}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                logCategoryFilter === "future_work"
+                                    ? "bg-purple-600 text-white shadow-sm"
+                                    : "text-muted hover:text-foreground hover:bg-foreground/5"
+                            }`}
+                        >
+                            Future Work ({categoryCounts.futureWork})
+                        </button>
+                    </div>
+
                     <div className="flex flex-col md:flex-row gap-4">
                         <div className="relative flex-1">
                             <HugeiconsIcon
@@ -235,7 +295,7 @@ export default function UnsupportedLogsVisualizer() {
                         </button>
 
                         <button
-                            onClick={() => { setLogs([]); setSearchQuery(""); setSelectedTypeIds([]); setHideSkipped(true); }}
+                            onClick={() => { setLogs([]); setSearchQuery(""); setSelectedTypeIds([]); setHideSkipped(true); setLogCategoryFilter("all"); }}
                             className="px-6 py-3 rounded-2xl border-2 border-border hover:bg-foreground/5 transition-all text-sm font-bold"
                         >
                             <HugeiconsIcon icon={Cancel01Icon} size={16} className="inline mr-2" />
@@ -249,37 +309,51 @@ export default function UnsupportedLogsVisualizer() {
                                 <thead className="bg-muted/30 border-b-2 border-border text-[10px] font-black uppercase tracking-widest text-muted">
                                     <tr>
                                         <th className="px-6 py-4">Timestamp / ID</th>
-                                        <th className="px-6 py-4">Category / Type</th>
+                                        <th className="px-6 py-4">Classification / Type</th>
                                         <th className="px-6 py-4">Title</th>
                                         <th className="px-6 py-4">Data Preview</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y-2 divide-border">
                                     {filteredLogs.length > 0 ? (
-                                        filteredLogs.map((log) => (
-                                            <tr key={log.id} className="hover:bg-foreground/[0.02] transition-colors group">
-                                                <td className="px-6 py-4">
-                                                    <div className="font-mono text-xs font-bold">{new Date(log.timestamp * 1000).toLocaleString()}</div>
-                                                    <div className="text-[10px] text-muted font-mono mt-1 group-hover:text-primary transition-colors">ID: {log.id}</div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="inline-flex items-center px-2 py-0.5 rounded bg-foreground/5 text-[10px] font-bold uppercase tracking-wider text-muted mb-1">
-                                                        {log.category}
-                                                    </div>
-                                                    <div className="font-bold font-mono text-xs">Type: {log.typeId}</div>
-                                                </td>
-                                                <td className="px-6 py-4 font-bold text-foreground/80 leading-snug">
-                                                    {log.title}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="max-w-[300px]">
-                                                        <pre className="text-[10px] font-mono bg-background/50 p-2 rounded border border-border overflow-hidden text-ellipsis whitespace-nowrap opacity-60 hover:opacity-100 hover:whitespace-normal hover:overflow-visible transition-all cursor-help">
-                                                            {JSON.stringify({ ...log.data, ...log.params }, null, 2)}
-                                                        </pre>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
+                                        filteredLogs.map((log) => {
+                                            const isFuture = (log.logCategory || (FUTURE_WORK.includes(log.typeId) ? "future_work" : "unsupported")) === "future_work";
+                                            return (
+                                                <tr key={log.id} className="hover:bg-foreground/[0.02] transition-colors group">
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-mono text-xs font-bold">{new Date(log.timestamp * 1000).toLocaleString()}</div>
+                                                        <div className="text-[10px] text-muted font-mono mt-1 group-hover:text-primary transition-colors">ID: {log.id}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-wrap gap-1 mb-1">
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                                isFuture
+                                                                    ? "bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400"
+                                                                    : "bg-orange-500/15 border border-orange-500/30 text-orange-600 dark:text-orange-400"
+                                                            }`}>
+                                                                {isFuture ? "Future Work" : "Unsupported"}
+                                                            </span>
+                                                            {log.category && (
+                                                                <span className="px-2 py-0.5 rounded bg-foreground/5 text-[10px] font-bold uppercase tracking-wider text-muted">
+                                                                    {log.category}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="font-bold font-mono text-xs">Type: {log.typeId}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 font-bold text-foreground/80 leading-snug">
+                                                        {log.title}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="max-w-[300px]">
+                                                            <pre className="text-[10px] font-mono bg-background/50 p-2 rounded border border-border overflow-hidden text-ellipsis whitespace-nowrap opacity-60 hover:opacity-100 hover:whitespace-normal hover:overflow-visible transition-all cursor-help">
+                                                                {JSON.stringify({ ...log.data, ...log.params }, null, 2)}
+                                                            </pre>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     ) : (
                                         <tr>
                                             <td colSpan={4} className="px-6 py-12 text-center text-muted italic">

@@ -32,7 +32,7 @@ export interface SyncState {
     targetTimestamp: number;
     originTimestamp: number;
     earliestActivityTimestamp: number | null;
-    unsupportedLogs?: NormalizedLog[];
+    unsupportedLogs?: Array<NormalizedLog & { logCategory?: "unsupported" | "future_work" }>;
 }
 
 export class SyncService extends BaseService {

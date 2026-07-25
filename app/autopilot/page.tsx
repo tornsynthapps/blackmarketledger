@@ -242,7 +242,7 @@ export default function AutoPilotV2Page() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `unsupported_logs_${Date.now()}.json`;
+        a.download = `unsupported_and_future_logs_${Date.now()}.json`;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -482,11 +482,11 @@ export default function AutoPilotV2Page() {
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold">
                                         <HugeiconsIcon icon={Alert01Icon} size={18} />
-                                        Unsupported Logs Detected
+                                        Unsupported & Future Work Logs Detected
                                     </div>
                                     <p className="text-sm text-foreground/70">
-                                        We found {syncState.unsupportedLogs.length} log types that are not yet supported by BML. 
-                                        Please download and share them with the developer to add support.
+                                        We found {syncState.unsupportedLogs.length} unsupported or future work log entries during sync. 
+                                        Download them into a single JSON file to visualize or share for development.
                                     </p>
                                 </div>
                                 <button 
@@ -494,7 +494,7 @@ export default function AutoPilotV2Page() {
                                     className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-orange-500 text-white font-bold text-sm hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20 active:scale-95 shrink-0"
                                 >
                                     <HugeiconsIcon icon={CloudDownloadIcon} size={18} />
-                                    Download Logs (.json)
+                                    Export Logs (.json)
                                 </button>
                             </div>
                         </div>
