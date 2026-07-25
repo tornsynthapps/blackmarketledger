@@ -66,7 +66,7 @@ function LogDetailContent() {
                     Error: Log Entry Not Found
                 </div>
                 <Link 
-                    href="/logger"
+                    href="/blackbox"
                     className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-bold uppercase tracking-tighter"
                 >
                     <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
@@ -82,7 +82,7 @@ function LogDetailContent() {
         <div className="space-y-6 animate-in fade-in zoom-in duration-300">
             <div className="flex items-center justify-between">
                 <Link 
-                    href="/logger"
+                    href="/blackbox"
                     className="group inline-flex items-center gap-2 text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-widest"
                 >
                     <HugeiconsIcon icon={ArrowLeft01Icon} size={14} className="group-hover:-translate-x-1 transition-transform" />

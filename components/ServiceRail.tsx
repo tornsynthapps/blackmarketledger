@@ -190,7 +190,7 @@ export function ServiceRail() {
                                     ACCESS_SETTINGS
                                 </Link>
                                 <Link 
-                                    href="/logger"
+                                    href="/blackbox"
                                     onClick={() => { vibrate("utility"); setIsOpen(false); }}
                                     className="inline-flex w-full items-center justify-center gap-3 border-2 border-foreground text-foreground py-3 px-6 font-black uppercase text-[10px] tracking-[0.3em] hover:bg-foreground hover:text-background transition-all active:scale-[0.98]"
                                 >

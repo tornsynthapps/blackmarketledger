@@ -18,7 +18,6 @@ Application routes, pages, and web interfaces.
 - `docs/`: Subdirectory containing related module files.
 - `links/`: Subdirectory containing related module files.
 - `log-formats/`: Subdirectory containing related module files.
-- `logger/`: Subdirectory containing related module files.
 - `logs/`: Subdirectory containing related module files.
 - `migration/`: Subdirectory containing related module files.
 - `museum/`: Subdirectory containing related module files.
