@@ -454,7 +454,7 @@ export default function SettingsPage() {
                                     activeTab === tab.id ? "text-primary-foreground" : "text-primary group-hover:scale-110 transition-transform"
                                 )} 
                             />
-                            <span className="font-departure tracking-widest uppercase text-sm">{tab.label}</span>
+                            <span className="font-heading tracking-widest uppercase text-sm">{tab.label}</span>
                         </button>
                     ))}
                 </div>
@@ -465,7 +465,7 @@ export default function SettingsPage() {
                     <section id="settings-account" className="space-y-6 scroll-mt-6">
                         <div className="flex items-center gap-3 px-1">
                             <HugeiconsIcon icon={UserIcon} size={16} className="text-primary" />
-                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Account Management</h3>
+                            <h3 className="text-lg font-heading tracking-widest text-primary uppercase">Account Management</h3>
                             <div className="h-px flex-1 bg-border-strong" />
                         </div>
 
@@ -569,7 +569,7 @@ export default function SettingsPage() {
                     <section id="settings-api" className="space-y-6 scroll-mt-6">
                         <div className="flex items-center gap-3 px-1">
                             <HugeiconsIcon icon={Key01Icon} size={16} className="text-primary" />
-                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">API Management</h3>
+                            <h3 className="text-lg font-heading tracking-widest text-primary uppercase">API Management</h3>
                             <div className="h-px flex-1 bg-border-strong" />
                         </div>
 
@@ -578,7 +578,7 @@ export default function SettingsPage() {
                             <div className="bg-panel p-4 space-y-4 border-b border-border">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Torn API Throttle</h4>
+                                        <h4 className="font-bold font-heading text-sm uppercase tracking-tight">Torn API Throttle</h4>
                                         <p className="text-[10px] text-muted max-w-sm italic opacity-80">Maximum requests per minute to the primary mainframe.</p>
                                     </div>
                                     <div className="text-xs font-mono font-bold text-primary">{tempTornRateLimit}/MIN</div>
@@ -595,7 +595,7 @@ export default function SettingsPage() {
                             <div className="bg-panel p-4 space-y-3 border-b border-border">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Weav3r Key</h4>
+                                        <h4 className="font-bold font-heading text-sm uppercase tracking-tight">Weav3r Key</h4>
                                         <p className="text-[10px] text-muted max-w-sm italic opacity-80">Access key required for sales data harvesting.</p>
                                     </div>
                                     <div className="relative w-64">
@@ -616,7 +616,7 @@ export default function SettingsPage() {
                             <div className="bg-panel p-4 space-y-3 border-b border-border">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">Torn Full Access API Key</h4>
+                                        <h4 className="font-bold font-heading text-sm uppercase tracking-tight">Torn Full Access API Key</h4>
                                         <p className="text-[10px] text-muted max-w-sm italic opacity-80">Full-access key required for Auto-Pilot sync.</p>
                                     </div>
                                     <div className="relative w-64">
@@ -637,7 +637,7 @@ export default function SettingsPage() {
                             <div className="bg-panel p-4 space-y-3 border-b border-border">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">TornExchange Key</h4>
+                                        <h4 className="font-bold font-heading text-sm uppercase tracking-tight">TornExchange Key</h4>
                                         <p className="text-[10px] text-muted max-w-sm italic opacity-80">Integration key for TornExchange market data.</p>
                                     </div>
                                     <div className="relative w-64">
@@ -658,7 +658,7 @@ export default function SettingsPage() {
                             <div className="bg-panel p-4 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <h4 className="font-bold text-sm uppercase tracking-tight">
+                                        <h4 className="font-bold font-heading text-sm uppercase tracking-tight">
                                             Vault Sync Key <span className="text-[10px] text-danger uppercase tracking-wider ml-1 font-normal">(deprecated)</span>
                                         </h4>
                                         <p className="text-[10px] text-muted max-w-sm italic opacity-80">Google Drive database backup token.</p>
@@ -683,7 +683,7 @@ export default function SettingsPage() {
                     <section id="settings-theme" className="space-y-6 scroll-mt-6">
                         <div className="flex items-center gap-3 px-1">
                             <HugeiconsIcon icon={PaintBoardIcon} size={16} className="text-primary" />
-                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Theme Settings</h3>
+                            <h3 className="text-lg font-heading tracking-widest text-primary uppercase">Theme Settings</h3>
                             <div className="h-px flex-1 bg-border-strong" />
                         </div>
 
@@ -691,7 +691,7 @@ export default function SettingsPage() {
                             {/* Typography Theme Selection Boxes */}
                             <div className="bg-panel p-5 border-b border-border space-y-4">
                                 <div className="space-y-0.5">
-                                    <h4 className="font-bold text-sm uppercase tracking-tight">Typography Theme</h4>
+                                    <h4 className="font-bold font-heading text-sm uppercase tracking-tight">Typography Theme</h4>
                                     <p className="text-[11px] text-muted italic opacity-80">Select your preferred font suite across the entire application.</p>
                                 </div>
 
@@ -721,7 +721,7 @@ export default function SettingsPage() {
                                             )}
                                         </div>
                                         <div className="mt-4">
-                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Pixel</h4>
+                                            <h4 className="font-bold font-heading text-sm uppercase tracking-wider text-foreground">Pixel</h4>
                                             <p className="text-[11px] text-muted mt-0.5 opacity-90">Departure Mono for Headings, Body, & Data</p>
                                         </div>
                                     </button>
@@ -751,7 +751,7 @@ export default function SettingsPage() {
                                             )}
                                         </div>
                                         <div className="mt-4">
-                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Modern</h4>
+                                            <h4 className="font-bold font-heading text-sm uppercase tracking-wider text-foreground">Modern</h4>
                                             <p className="text-[11px] text-muted mt-0.5 opacity-90">Geist Pixel Headings, Geist Sans Body, Geist Mono Data</p>
                                         </div>
                                     </button>
@@ -761,7 +761,7 @@ export default function SettingsPage() {
                             {/* Navigation Bar Position */}
                             <div className="bg-panel p-5 border-b border-border space-y-4">
                                 <div className="space-y-0.5">
-                                    <h4 className="font-bold text-sm uppercase tracking-tight">Navigation Bar Position</h4>
+                                    <h4 className="font-bold font-heading text-sm uppercase tracking-tight">Navigation Bar Position</h4>
                                     <p className="text-[11px] text-muted italic opacity-80">Select preferred layout position for the primary navigation rail.</p>
                                 </div>
 
@@ -790,7 +790,7 @@ export default function SettingsPage() {
                                             )}
                                         </div>
                                         <div className="mt-4">
-                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Top Navigation</h4>
+                                            <h4 className="font-bold font-heading text-sm uppercase tracking-wider text-foreground">Top Navigation</h4>
                                             <p className="text-[11px] text-muted mt-0.5 opacity-90">Standard horizontal navigation bar at the top</p>
                                         </div>
                                     </button>
@@ -819,7 +819,7 @@ export default function SettingsPage() {
                                             )}
                                         </div>
                                         <div className="mt-4">
-                                            <h4 className="font-bold text-sm uppercase tracking-wider text-foreground">Left Navigation</h4>
+                                            <h4 className="font-bold font-heading text-sm uppercase tracking-wider text-foreground">Left Navigation</h4>
                                             <p className="text-[11px] text-muted mt-0.5 opacity-90">Anchored vertical sidebar rail on the left side</p>
                                         </div>
                                     </button>
@@ -832,7 +832,7 @@ export default function SettingsPage() {
                     <section id="settings-data" className="space-y-6 scroll-mt-6">
                         <div className="flex items-center gap-3 px-1">
                             <HugeiconsIcon icon={DatabaseIcon} size={16} className="text-primary" />
-                            <h3 className="text-lg font-departure tracking-widest text-primary uppercase">Data Management</h3>
+                            <h3 className="text-lg font-heading tracking-widest text-primary uppercase">Data Management</h3>
                             <div className="h-px flex-1 bg-border-strong" />
                         </div>
 
@@ -845,7 +845,7 @@ export default function SettingsPage() {
                                     className="text-red-500 flex-shrink-0 mt-0.5"
                                 />
                                 <div className="space-y-1">
-                                    <h4 className="font-bold text-red-500 text-xs uppercase tracking-widest">
+                                    <h4 className="font-bold font-heading text-red-500 text-xs uppercase tracking-widest">
                                         Warning: Irreversible Action
                                     </h4>
                                     <p className="text-xs text-muted">
@@ -874,7 +874,7 @@ export default function SettingsPage() {
                         <div className="bg-panel border border-border p-6 space-y-6">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
-                                    <h4 className="font-bold text-sm uppercase tracking-tight text-foreground">
+                                    <h4 className="font-bold font-heading text-sm uppercase tracking-tight text-foreground">
                                         Clear All Ledger & Autopilot Data
                                     </h4>
                                     <p className="text-xs text-muted max-w-md mt-1">

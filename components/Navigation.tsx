@@ -126,7 +126,7 @@ export function Navigation() {
                                     href={item.href}
                                     onClick={() => vibrate("nav")}
                                     className={cn(
-                                        "group flex items-center gap-0 hover:gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent",
+                                        "group flex items-center gap-0 hover:gap-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all border border-transparent font-heading",
                                         isActive
                                             ? "bg-primary text-primary-foreground"
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 hover:border-border"
@@ -217,7 +217,7 @@ export function Navigation() {
                                     href={item.href}
                                     onClick={() => vibrate("nav")}
                                     className={cn(
-                                        "flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest transition-all border-l-2",
+                                        "flex items-center gap-3 px-4 py-3 text-[11px] font-bold uppercase tracking-widest transition-all border-l-2 font-heading",
                                         isActive
                                             ? "bg-primary/5 text-primary border-primary"
                                             : "text-muted hover:text-foreground hover:bg-foreground/5 border-transparent"
@@ -248,7 +248,7 @@ export function Navigation() {
                             className="flex-1 flex items-center justify-center gap-2 h-8 bg-foreground/5 hover:bg-foreground/10 border border-border transition-all text-muted hover:text-primary"
                         >
                             <HugeiconsIcon icon={BookOpenTextIcon} size={14} />
-                            <span className="text-[9px] font-bold uppercase tracking-wider">
+                            <span className="text-[9px] font-bold uppercase tracking-wider font-heading">
                                 Docs
                             </span>
                         </Link>
@@ -307,7 +307,7 @@ export function Navigation() {
                                             setIsDrawerOpen(false);
                                         }}
                                         className={cn(
-                                            "flex items-center gap-4 px-6 py-4 text-[13px] font-bold uppercase tracking-widest transition-all",
+                                            "flex items-center gap-4 px-6 py-4 text-[13px] font-bold uppercase tracking-widest transition-all font-heading",
                                             isActive
                                                 ? "bg-primary text-primary-foreground"
                                                 : "text-muted hover:text-foreground hover:bg-foreground/5"
