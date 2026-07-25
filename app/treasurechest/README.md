@@ -1,12 +1,20 @@
-# Treasure Chest
+# treasurechest
 
-This folder contains developer and administrative tools for debugging and managing the application.
+Directory path: `app/treasurechest`
 
-## Contents
+## Purpose
 
-- `debug/`: Tools for debugging specific features.
-- `new-architecture/`: Preview of the upcoming architectural changes, including direct inspection of UID-aware item logs and wrappers.
-- `preview/`: Preview components and layouts.
-- `reset-cursor/`: Tool to reset the dual-cursor state.
-- `userdb/`: **(New)** IndexedDB viewer for inspecting local Dexie data (tables, records, pagination).
-- `page.tsx`: Main entry point for the Treasure Chest section (currently under construction).
+Application routes, pages, and web interfaces.
+
+## Subdirectories
+
+- `debug/`: Subdirectory containing related module files.
+- `new-architecture/`: Subdirectory containing related module files.
+- `preview/`: Subdirectory containing related module files.
+- `reset-cursor/`: Subdirectory containing related module files.
+- `userdb/`: Subdirectory containing related module files.
+
+## Files & Contents
+
+- **`page.tsx`**: Module file providing specific functionality for this directory.
+

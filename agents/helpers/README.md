@@ -1,14 +1,15 @@
-# Agents Helpers
+# helpers
 
-Helper modules for agent operations, providing utility functions for API interactions and data processing.
+Directory path: `agents/helpers`
 
-## Files
+## Purpose
 
-- `check_categories.py` - Validates and categorizes items based on Torn game categories
-- `read_torn_api.py` - Reads and processes data from Torn API endpoints
-- `search_torn_api.py` - Searches Torn API for specific items or data
-- `te_swagger_reader.py` - Reads and parses TornExchange Swagger documentation for API details
+Agent helper scripts, guidelines, and execution plans.
 
-## Usage
+## Files & Contents
 
-These helpers are imported and used by various agent implementations to interact with Torn game data and external APIs.
+- **`check_categories.py`**: Module file providing specific functionality for this directory.
+- **`read_torn_api.py`**: Module file providing specific functionality for this directory.
+- **`search_torn_api.py`**: Module file providing specific functionality for this directory.
+- **`te_swagger_reader.py`**: Module file providing specific functionality for this directory.
+

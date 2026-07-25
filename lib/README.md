@@ -1,29 +1,31 @@
-# Lib
+# lib
 
-Core library utilities and API integrations.
+Directory path: `lib`
 
-## Files
+## Purpose
 
-- `api.ts` - API utilities including `NewRateLimiter` class
-    - `NewRateLimiter` - Token bucket rate limiter (1-80 requests/minute)
-- `storage.ts` - LocalStorage utilities for key-value persistence
-    - `Storage.getDictFromLocalStorage()` - Retrieves and parses dictionary from localStorage
-    - `Storage.appendInLocalStorage()` - Adds/updates key-value pair in localStorage dictionary
-- `blackbox.ts` - Logging and data persistence for blackbox entries
-    - `Blackbox.getUniqueId()` - Generates unique identifier for instance
-    - `Blackbox.addLog()` - Adds log entry with timestamp to logs
-    - `Blackbox.save()` - Persists current logs to localStorage
-- `tornexchange.ts` - [TornExchange](https://tornexchange.com) API client
-    - Handles rate limiting (configurable 1-8 req/min)
-    - Receipt management (`getReceipt`, `getReceipts`)
-    - Pricelist management (`getPricelist`, `getMyPricelist`, `delistItems`, `updateItemPricesByPercentage`, `updateItemPricesByFixed`)
-    - Global market data (`getAllPrices`)
-- `tornAPI.ts` - Internal Torn API client utilities
-    - `TornAPIClient.fetchInventory()` - Fetch user's safe inventory directly from Torn API
-    - `TornAPIClient.getMarketPrices()` - Fetch current global market prices for all Torn items
-    - `TornAPIClient.getItemNames()` - Fetch canonical names for all Torn items
-    - `TORN_INVENTORY_CATEGORIES` - Complete list of valid Torn inventory categories
+Core library utilities, helper functions, and external API integrations.
 
 ## Subdirectories
 
-- `old/` - Legacy code
+- `domain/`: Subdirectory containing related module files.
+- `objects/`: Subdirectory containing related module files.
+- `old/`: Subdirectory containing related module files.
+
+## Files & Contents
+
+- **`api.ts`**: Paced Token Bucket rate limiter implementation.
+  - **Exports**: Class: `NewRateLimiter`
+- **`blackbox.ts`**: Module file providing specific functionality for this directory.
+  - **Exports**: Class: `Blackbox`
+- **`ledger-api.ts`**: Module file providing specific functionality for this directory.
+  - **Exports**: Function: `login()`, Function: `signupInitiate()`, Function: `signupVerify()`, Function: `resetTokenInitiate()`, Function: `resetTokenVerify()`, Interface: `AuthResponse`, Interface: `InitiateSignupResponse`, Interface: `ResetTokenInitiateResponse`, Interface: `ResetTokenVerifyResponse`
+- **`museum-sync.ts`**: Module file providing specific functionality for this directory.
+  - **Exports**: Function: `runMuseumPricelistSyncCheck()`
+- **`storage.ts`**: Module file providing specific functionality for this directory.
+  - **Exports**: Class: `Storage`
+- **`tornAPI.ts`**: Module file providing specific functionality for this directory.
+  - **Exports**: Class: `TornAPIClient`, Interface: `TornInventoryItem`, Interface: `TornInventoryResponse`
+- **`tornexchange.ts`**: Module file providing specific functionality for this directory.
+  - **Exports**: Class: `TornExchange`, Interface: `TornExchangeReceiptSummary`, Interface: `TornExchangeReceiptItem`, Interface: `TornExchangeReceiptMeta`, Interface: `TornExchangeReceipt`, Interface: `TornExchangePricelistItem`, Interface: `TornExchangePricelistMeta`, Interface: `TornExchangePricelist`, Interface: `TornExchangeMarketPrice`
+

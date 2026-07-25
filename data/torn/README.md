@@ -1,8 +1,13 @@
-# Torn Data
+# torn
 
-This directory contains data and API definitions specifically for the official Torn API.
+Directory path: `data/torn`
 
-## Files
+## Purpose
 
-- [items.json](./items.json): A comprehensive list of items from the Torn API, including names, descriptions, types, and market values.
-- [swagger-api.json](./swagger-api.json): The OpenAPI (Swagger) definition for the Torn API v2, used for generating API clients and documentation.
+Static data assets, mappings, and Torn game references.
+
+## Files & Contents
+
+- **`items.json`**: JSON configuration or data file.
+- **`swagger-api.json`**: JSON configuration or data file.
+

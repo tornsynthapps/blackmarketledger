@@ -1,16 +1,19 @@
-# Blackmarket Ledger Documentation
+# docs
 
-Welcome to the official documentation for **Blackmarket Ledger** (BML).
+Directory path: `docs`
 
-## Table of Contents
+## Purpose
 
-1. [Introduction to Blackmarket Ledger](./introduction) - High-level overview of the ecosystem.
-2. [App User Guide](./app-guide) - Detailed guide on how to navigate the BML dashboard.
-3. [Auto-Pilot Guide](./features/auto-pilot) - Complete guide on automated logging.
-4. [Abroad & Self-Sell Guide](./features/abroad-self-sell) - Master your sourcing margins.
-5. [Stats & Charts Guide](./features/stats-charts) - Visualizing your performance.
-6. [FAQ & Troubleshooting](./faq-troubleshooting) - Solutions to common issues.
+Documentation, specifications, and architecture notes.
 
----
+## Subdirectories
 
-_Built for the Torn community by TornSynthApps_
+- `features/`: Subdirectory containing related module files.
+
+## Files & Contents
+
+- **`app-guide.md`**: Module file providing specific functionality for this directory.
+- **`faq-troubleshooting.md`**: Module file providing specific functionality for this directory.
+- **`introduction.md`**: Module file providing specific functionality for this directory.
+- **`log-formats.md`**: Module file providing specific functionality for this directory.
+
