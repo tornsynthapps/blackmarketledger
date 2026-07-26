@@ -588,7 +588,7 @@ export class ItemLogService extends BaseService {
                 continue;
             }
 
-            this.logger.info(`Processing log: ${log.id} for ${this.formatIdentity(logIdentity)}`, log);
+            this.logger.info(`Processing log: ${log.id} (torn_log_id: ${log.torn_log_id ?? "N/A"}) for ${this.formatIdentity(logIdentity)}`, log);
             const runningTotals = runningTotalsByIdentity.get(identityKey)!;
 
             // Case: Log has a wrapper.

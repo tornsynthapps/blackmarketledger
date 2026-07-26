@@ -822,6 +822,7 @@ export class TornLogService extends BaseService {
     ): Promise<TornLogEntry[]> {
         const allLogs: TornLogEntry[] = [];
         let currentTo = to;
+        const fetchedIdsInCategory = new Set<string>();
 
         while (true) {
             const url = new URL("https://api.torn.com/v2/user/log");
@@ -840,17 +841,45 @@ export class TornLogService extends BaseService {
                 throw new Error(data.error.error || "Torn API Error");
             }
 
-            const page = Array.isArray(data.log) ? data.log : [];
+            const page: TornLogEntry[] = Array.isArray(data.log) ? data.log : [];
             if (page.length === 0) break;
 
-            allLogs.push(...page);
+            // De-duplicate in-flight logs for this category
+            let newLogCount = 0;
+            for (const item of page) {
+                const idStr = String(item.id);
+                if (!fetchedIdsInCategory.has(idStr)) {
+                    fetchedIdsInCategory.add(idStr);
+                    allLogs.push(item);
+                    newLogCount++;
+                }
+            }
 
-            if (page.length < 100) break;
+            // Stop if less than full page returned or no new logs discovered (prevents infinite loops)
+            if (page.length < 100 || newLogCount === 0) break;
 
-            // Move currentTo back to the earliest log in this page
-            const earliest = Math.min(...page.map((l: { timestamp: number | string }) => Number(l.timestamp)));
-            if (earliest <= from) break;
-            currentTo = earliest - 1;
+            // Extract 'to' parameter from Torn API _metadata.links.prev if available
+            let nextTo: number | null = null;
+            if (data._metadata?.links?.prev) {
+                try {
+                    const prevUrl = new URL(data._metadata.links.prev);
+                    const toParam = prevUrl.searchParams.get("to");
+                    if (toParam !== null && toParam !== undefined) {
+                        nextTo = Number(toParam);
+                    }
+                } catch (err) {
+                    // Fallback to earliest timestamp in current page
+                }
+            }
+
+            if (nextTo === null || isNaN(nextTo)) {
+                nextTo = Math.min(...page.map((l: { timestamp: number | string }) => Number(l.timestamp)));
+            }
+
+            if (nextTo <= from) break;
+
+            // Advance currentTo to nextTo without subtracting 1 to avoid excluding same-timestamp logs
+            currentTo = nextTo;
         }
 
         return allLogs;
