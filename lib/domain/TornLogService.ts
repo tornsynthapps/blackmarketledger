@@ -712,7 +712,7 @@ export class TornLogService extends BaseService {
         if (!apiKey) throw new Error("Missing Torn API Key");
 
         const registeredTypeIds = this.registry.getRegisteredTypes();
-        const categories = [11, 18, 6, 12, 17, 15]; // Standard categories to check
+        const categories = [6, 11, 12, 18]; // Standard categories to check
 
         this.logger.info(`Fetching logs from ${cursor.lastTimestamp} to ${toTimestamp}`);
 

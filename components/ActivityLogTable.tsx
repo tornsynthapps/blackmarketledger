@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { ItemLog } from "@/lib/objects/ItemLog";
+import { ItemLogWrapper } from "@/lib/objects/ItemLogWrapper";
 import { ReceiptTextIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { format } from "date-fns";
@@ -10,6 +11,7 @@ import { useSettings } from "@/lib/old/useSettings";
 interface ActivityLogTableProps {
     logs: ItemLog[];
     itemMap: Record<number, string>;
+    wrapperMap?: Record<number, ItemLogWrapper>;
     isLoading: boolean;
 }
 
@@ -36,13 +38,14 @@ const safeFormatDate = (timestamp: number): string => {
 
 /**
  * Reusable table component for displaying item logs.
- * Supports a compact mode, vertical lines, and alternating colors via settings.
+ * Supports a compact mode, vertical lines, alternating colors, and wrapper group visual indicators.
  * 
  * @param logs (ItemLog[]): Array of log entries to display
  * @param itemMap (Record<number, string>): Map of item IDs to names
+ * @param wrapperMap (Record<number, ItemLogWrapper>): Map of wrapper IDs to wrapper metadata
  * @param isLoading (boolean): Loading state to show spinner
  */
-export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableProps) {
+export function ActivityLogTable({ logs, itemMap, wrapperMap = {}, isLoading }: ActivityLogTableProps) {
     const { settings } = useSettings();
     const isCompact = settings.compactTable;
     
@@ -53,7 +56,17 @@ export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableP
     const headerFontSize = "text-[10px]";
     
     const verticalLineClass = settings.showVerticalLines ? "border-r border-primary/10 last:border-r-0" : "";
-    const rowClass = settings.alternatingRowColors ? "even:bg-primary/[0.03]" : "";
+
+    // Count how many visible logs belong to each wrapper in the current view
+    const wrapperCounts = useMemo(() => {
+        const counts: Record<number, number> = {};
+        logs.forEach((log) => {
+            if (log.wrapper_id !== null && log.wrapper_id !== undefined) {
+                counts[log.wrapper_id] = (counts[log.wrapper_id] || 0) + 1;
+            }
+        });
+        return counts;
+    }, [logs]);
 
     return (
         <div className="bg-panel border-2 border-primary overflow-hidden shadow-lg shadow-primary/5">
@@ -91,39 +104,86 @@ export function ActivityLogTable({ logs, itemMap, isLoading }: ActivityLogTableP
                                 </td>
                             </tr>
                         ) : (
-                            logs.map((log) => (
-                                <tr key={log.id} className={`${rowClass} hover:bg-primary/[0.05] transition-colors group leading-tight`}>
-                                    <td className={`${cellPadding} ${verticalLineClass} font-mono ${fontSize} whitespace-nowrap text-muted-foreground`}>
-                                        {safeFormatDate(log.timestamp)}
-                                    </td>
-                                    <td className={`${cellPadding} ${verticalLineClass}`}>
-                                        <span className={`${fontSize} font-black uppercase tracking-tight group-hover:text-primary transition-colors`}>
-                                            {itemMap[log.item_id] || `ITEM_${log.item_id}`} <span className="text-muted font-mono font-normal opacity-50">#{log.item_id}</span>
-                                        </span>
-                                    </td>
-                                    <td className={`${cellPadding} ${verticalLineClass} font-mono ${fontSize} text-info/80`}>
-                                        {log.uid ?? "STANDARD"}
-                                    </td>
-                                    <td className={`${cellPadding} ${verticalLineClass}`}>
-                                        <span className={`${fontSize} font-mono font-black uppercase tracking-widest text-muted-foreground`}>
-                                            {log.category}
-                                        </span>
-                                    </td>
-                                    <td className={`${cellPadding} ${verticalLineClass} text-right font-mono ${fontSize} font-bold ${log.quantity > 0 ? 'text-success' : 'text-danger'}`}>
-                                        {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
-                                    </td>
-                                    <td className={`${cellPadding} ${verticalLineClass} text-right font-mono ${fontSize}`}>
-                                        <span className="text-muted mr-1">$</span>
-                                        {Math.round(log.unit_price).toLocaleString()}
-                                    </td>
-                                    <td className={`${cellPadding} ${verticalLineClass} text-right font-mono ${fontSize} font-bold text-info`}>
-                                        {Math.round(log.total_stock).toLocaleString()}
-                                    </td>
-                                    <td className={`${cellPadding} text-right font-mono ${fontSize} ${log.realized_profit > 0 ? 'text-success font-bold' : log.realized_profit < 0 ? 'text-danger font-bold' : 'text-muted-foreground'}`}>
-                                        {log.realized_profit > 0 ? `+$${Math.round(log.realized_profit).toLocaleString()}` : log.realized_profit < 0 ? `-$${Math.round(Math.abs(log.realized_profit)).toLocaleString()}` : '—'}
-                                    </td>
-                                </tr>
-                            ) )
+                            logs.map((log, index) => {
+                                const isWrapped = log.wrapper_id !== null && log.wrapper_id !== undefined;
+                                const wrapperId = log.wrapper_id;
+                                const prevLog = index > 0 ? logs[index - 1] : null;
+                                const isFirstInGroup = isWrapped && (prevLog?.wrapper_id !== wrapperId);
+                                const wrapperInfo = isWrapped && wrapperId ? wrapperMap[wrapperId] : undefined;
+                                const count = isWrapped && wrapperId ? wrapperCounts[wrapperId] : 0;
+
+                                const wrapperBorderClass = isWrapped
+                                    ? "border-l-4 border-amber-500/80 bg-amber-500/[0.03]"
+                                    : settings.alternatingRowColors ? "even:bg-primary/[0.03]" : "";
+
+                                return (
+                                    <React.Fragment key={log.id ?? `log-${index}`}>
+                                        {/* Thin Wrapper Header Row */}
+                                        {isFirstInGroup && wrapperId && (
+                                            <tr className="bg-amber-500/10 border-t-2 border-b border-amber-500/40 text-[10px] font-mono select-none">
+                                                <td colSpan={8} className="px-3 py-1 text-amber-500 font-bold">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                            <span className="uppercase tracking-widest font-black">
+                                                                WRAPPER #{wrapperId}
+                                                            </span>
+                                                            {wrapperInfo && (
+                                                                <span className="text-[9px] opacity-80 uppercase font-normal tracking-wide">
+                                                                    • {String(wrapperInfo.type || (wrapperInfo as any).wrapper_type || "group").toUpperCase()} {wrapperInfo.description ? `(${wrapperInfo.description})` : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[9px] uppercase tracking-wider opacity-80 font-mono font-bold">
+                                                            {count} {count === 1 ? 'CONNECTED ITEM' : 'CONNECTED ITEMS'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+
+                                        {/* Log Item Row */}
+                                        <tr className={`${wrapperBorderClass} hover:bg-primary/[0.05] transition-colors group leading-tight`}>
+                                            <td className={`${cellPadding} ${verticalLineClass} font-mono ${fontSize} whitespace-nowrap text-muted-foreground`}>
+                                                {safeFormatDate(log.timestamp)}
+                                            </td>
+                                            <td className={`${cellPadding} ${verticalLineClass}`}>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`${fontSize} font-black uppercase tracking-tight group-hover:text-primary transition-colors`}>
+                                                        {itemMap[log.item_id] || `ITEM_${log.item_id}`} <span className="text-muted font-mono font-normal opacity-50">#{log.item_id}</span>
+                                                    </span>
+                                                    {isWrapped && (
+                                                        <span className="text-[9px] px-1 py-0.2 bg-amber-500/20 text-amber-500 font-mono font-bold rounded" title={`Wrapper #${wrapperId}`}>
+                                                            W#{wrapperId}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className={`${cellPadding} ${verticalLineClass} font-mono ${fontSize} text-info/80`}>
+                                                {log.uid ?? "STANDARD"}
+                                            </td>
+                                            <td className={`${cellPadding} ${verticalLineClass}`}>
+                                                <span className={`${fontSize} font-mono font-black uppercase tracking-widest text-muted-foreground`}>
+                                                    {log.category}
+                                                </span>
+                                            </td>
+                                            <td className={`${cellPadding} ${verticalLineClass} text-right font-mono ${fontSize} font-bold ${log.quantity > 0 ? 'text-success' : 'text-danger'}`}>
+                                                {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
+                                            </td>
+                                            <td className={`${cellPadding} ${verticalLineClass} text-right font-mono ${fontSize}`}>
+                                                <span className="text-muted mr-1">$</span>
+                                                {Math.round(log.unit_price).toLocaleString()}
+                                            </td>
+                                            <td className={`${cellPadding} ${verticalLineClass} text-right font-mono ${fontSize} font-bold text-info`}>
+                                                {Math.round(log.total_stock).toLocaleString()}
+                                            </td>
+                                            <td className={`${cellPadding} text-right font-mono ${fontSize} ${log.realized_profit > 0 ? 'text-success font-bold' : log.realized_profit < 0 ? 'text-danger font-bold' : 'text-muted-foreground'}`}>
+                                                {log.realized_profit > 0 ? `+$${Math.round(log.realized_profit).toLocaleString()}` : log.realized_profit < 0 ? `-$${Math.round(Math.abs(log.realized_profit)).toLocaleString()}` : '—'}
+                                            </td>
+                                        </tr>
+                                    </React.Fragment>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

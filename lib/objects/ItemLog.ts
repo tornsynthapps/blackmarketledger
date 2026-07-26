@@ -22,7 +22,7 @@ export interface ItemLogCreateFields {
     torn_log_id?: string | null;
 }
 
-export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "dump" | "christmas-town" | "consumption" | "skipped";
+export type ItemLogCategories = "normal" | "abroad" | "museum" | "city-finds" | "city-shop" | "crimes" | "dump" | "christmas-town" | "consumption" | "skipped" | "skipped-counted";
 
 export interface ItemIdentity {
     item_id: number;
@@ -32,12 +32,12 @@ export interface ItemIdentity {
 /**
  * Normalizes item UID inputs into the persisted representation.
  * @param uid (unknown): Raw UID value from storage or external APIs
- * @returns (string): Stable UID string or empty string when absent
+ * @returns (string): Stable UID string or "0" when absent
  * @sideEffects None
  */
 export function normalizeItemUid(uid: unknown): string {
-    if (uid === undefined || uid === null || uid === "" || uid === "null") {
-        return "";
+    if (uid === undefined || uid === null || uid === "" || uid === "null" || uid === "0" || uid === 0) {
+        return "0";
     }
 
     return String(uid);
@@ -50,7 +50,8 @@ export function normalizeItemUid(uid: unknown): string {
  * @sideEffects None
  */
 export function getItemIdentityKey(identity: ItemIdentity): string {
-    return `${identity.item_id}::${identity.uid || "__null__"}`;
+    const normUid = normalizeItemUid(identity.uid);
+    return `${identity.item_id}::${normUid}`;
 }
 
 /**
@@ -213,11 +214,13 @@ export class ItemLog extends BaseObject {
                 total_stock: totalStock,
                 total_cost: totalCost,
             },
-            {
-                id: this.id!,
-                logged_at: this.logged_at,
-                updated_at: this.updated_at,
-            }
+            this.id !== undefined
+                ? {
+                      id: this.id,
+                      logged_at: this.logged_at,
+                      updated_at: this.updated_at,
+                  }
+                : undefined
         );
     }
 }

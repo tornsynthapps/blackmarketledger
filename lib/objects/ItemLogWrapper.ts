@@ -120,8 +120,8 @@ export class ItemLogWrapper extends BaseObject {
         return new ItemLogWrapper(
             {
                 timestamp: record.timestamp,
-                type: record.type,
-                description: record.description,
+                type: record.type || (record as any).wrapper_type || "auto-split",
+                description: record.description || "",
                 sub_type: (record.sub_type as ItemLogWrapperSubType) ?? null,
             },
             databaseFields

@@ -315,7 +315,7 @@ export default function NewDashboard() {
                     stats.abroadStock = log.total_stock;
                     stats.abroadTotalCost = log.total_cost;
                     stats.abroadRealizedProfit = log.realized_profit;
-                } else if (category !== "skipped") {
+                } else if (category !== "skipped" && category !== "skipped-counted") {
                     stats.stock += log.total_stock;
                     stats.totalCost += log.total_cost;
                     stats.realizedProfit += log.realized_profit;
@@ -581,7 +581,7 @@ export default function NewDashboard() {
         categoryProfits.forEach((profit, category) => {
             if (category === "abroad") baselineAbroad += profit;
             else if (category === "museum") baselineMuseum += profit;
-            else if (category !== "skipped") baselineRealized += profit;
+            else if (category !== "skipped" && category !== "skipped-counted") baselineRealized += profit;
         });
 
         let baselineNetProfit = 0;
@@ -622,7 +622,7 @@ export default function NewDashboard() {
             categoryProfits.forEach((profit, category) => {
                 if (category === "abroad") abroadProfit += profit;
                 else if (category === "museum") museumProfit += profit;
-                else if (category !== "skipped") totalRealized += profit;
+                else if (category !== "skipped" && category !== "skipped-counted") totalRealized += profit;
             });
 
             let baseNetProfit = 0;

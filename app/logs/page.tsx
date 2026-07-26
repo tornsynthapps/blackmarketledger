@@ -8,6 +8,8 @@ import { ReceiptTextIcon } from "@hugeicons/core-free-icons";
 import { ActivityLogTable } from "@/components/ActivityLogTable";
 import { useSettings } from "@/lib/old/useSettings";
 
+import { ItemLogWrapper } from "@/lib/objects/ItemLogWrapper";
+
 /**
  * Page to display item logs using the new domain service.
  * Provides a clean table view of all activity tracked in the new system.
@@ -15,7 +17,9 @@ import { useSettings } from "@/lib/old/useSettings";
  */
 export default function NewLogsPage() {
     const { settings } = useSettings();
+    const [isMounted, setIsMounted] = useState(false);
     const [logs, setLogs] = useState<ItemLog[]>([]);
+    const [wrapperMap, setWrapperMap] = useState<Record<number, ItemLogWrapper>>({});
     const [itemMap, setItemMap] = useState<Record<number, string>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -27,6 +31,10 @@ export default function NewLogsPage() {
     const [refreshDate, setRefreshDate] = useState("");
     const [isRefreshing, setIsRefreshing] = useState(false);
     const logsPerPage = 50;
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const service = useMemo(() => new ItemLogService(), []);
 
@@ -65,6 +73,10 @@ export default function NewLogsPage() {
             
             setTotalFilteredCount(count);
             setLogs(fetchedLogs);
+
+            const wrapperIds = Array.from(new Set(fetchedLogs.map(l => l.wrapper_id).filter((id): id is number => id !== null)));
+            const wrappers = wrapperIds.length > 0 ? await service.getWrapperMap(wrapperIds) : {};
+            setWrapperMap(wrappers);
         } catch (error) {
             console.error("Failed to load logs:", error);
         } finally {
@@ -114,7 +126,9 @@ export default function NewLogsPage() {
         { id: "city-shop", label: "CITY SHOP" },
         { id: "crimes", label: "CRIMES" },
         { id: "dump", label: "DUMP" },
+        { id: "consumption", label: "CONSUMPTION" },
         { id: "skipped", label: "SKIPPED" },
+        { id: "skipped-counted", label: "SKIPPED (COUNTED)" },
     ];
 
     return (
@@ -209,8 +223,9 @@ export default function NewLogsPage() {
                             />
                         </div>
                         <button 
+                            suppressHydrationWarning
                             onClick={handleRefreshCostBasis}
-                            disabled={isRefreshing || !refreshDate}
+                            disabled={!isMounted || isRefreshing || !refreshDate}
                             className="w-full py-2 bg-foreground text-background text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:grayscale"
                         >
                             {isRefreshing ? "Recalculating..." : "Recalculate_Basis"}
@@ -224,6 +239,7 @@ export default function NewLogsPage() {
                 <ActivityLogTable 
                     logs={logs} 
                     itemMap={itemMap} 
+                    wrapperMap={wrapperMap}
                     isLoading={isLoading} 
                 />
 

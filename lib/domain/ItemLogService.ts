@@ -4,6 +4,7 @@ import { ItemList } from "../objects/Item";
 import {
     createItemIdentity,
     getItemIdentityKey,
+    normalizeItemUid,
     ItemLog,
     ItemLogCategories,
     ItemLogRegistry,
@@ -253,6 +254,25 @@ export class ItemLogService extends BaseService {
      */
     public async updateLog(log: ItemLog): Promise<number> {
         return await this.registry.put(log);
+    }
+
+    /**
+     * Retrieves wrappers by their IDs as a dictionary map.
+     * @param wrapperIds (number[]): Array of wrapper IDs to load
+     * @returns (Promise<Record<number, ItemLogWrapper>>): Map of wrapper ID to wrapper instance
+     */
+    public async getWrapperMap(wrapperIds: number[]): Promise<Record<number, ItemLogWrapper>> {
+        const uniqueIds = Array.from(new Set(wrapperIds.filter((id) => id !== null && id !== undefined)));
+        const wrappers = await Promise.all(
+            uniqueIds.map((id) => this.wrapperRegistry.getById(id))
+        );
+        const map: Record<number, ItemLogWrapper> = {};
+        wrappers.forEach((w) => {
+            if (w && w.id !== undefined && w.id !== null) {
+                map[w.id] = w;
+            }
+        });
+        return map;
     }
 
     /**
@@ -523,7 +543,22 @@ export class ItemLogService extends BaseService {
         for (const [identityKey, identity] of affectedIdentities.entries()) {
             this.logger.debug(`Initializing totals for ${this.formatIdentity(identity)}`);
             const totals = await this.registry.getLatestTotalsPerCategoryBefore(identity, fromTimestamp);
-            runningTotalsByIdentity.set(identityKey, totals);
+            const totalsCopy = new Map<string, { stock: number; cost: number }>();
+            for (const [k, v] of totals.entries()) {
+                totalsCopy.set(k, { ...v });
+            }
+            runningTotalsByIdentity.set(identityKey, totalsCopy);
+
+            const noUidIdentity = { item_id: identity.item_id, uid: "0" };
+            const noUidKey = this.getIdentityKey(noUidIdentity);
+            if (!runningTotalsByIdentity.has(noUidKey)) {
+                const noUidTotals = await this.registry.getLatestTotalsPerCategoryBefore(noUidIdentity, fromTimestamp);
+                const noUidTotalsCopy = new Map<string, { stock: number; cost: number }>();
+                for (const [k, v] of noUidTotals.entries()) {
+                    noUidTotalsCopy.set(k, { ...v });
+                }
+                runningTotalsByIdentity.set(noUidKey, noUidTotalsCopy);
+            }
         }
 
         // Sort all logs chronologically (timestamp first, then database ID for stability)
@@ -597,7 +632,7 @@ export class ItemLogService extends BaseService {
 
             // Case: Log is standalone (no wrapper)
             if (log.wrapper_id === null) {
-                const result = await this.processStandardLog(log, runningTotals);
+                const result = await this.processStandardLog(log, runningTotals, runningTotalsByIdentity);
                 updatedLogs.push(...result.updatedLogs);
                 continue;
             }
@@ -1244,7 +1279,8 @@ export class ItemLogService extends BaseService {
 
     private async processStandardLog(
         log: ItemLog,
-        runningTotals: Map<string, { stock: number; cost: number }>
+        runningTotals: Map<string, { stock: number; cost: number }>,
+        runningTotalsByIdentity?: Map<string, Map<string, { stock: number; cost: number }>>
     ): Promise<{ updatedLogs: ItemLog[] }> {
         const updatedLogs: ItemLog[] = [];
         const categoryTotals = runningTotals.get(log.category) || { stock: 0, cost: 0 };
@@ -1269,9 +1305,12 @@ export class ItemLogService extends BaseService {
                 categoryTotals.stock -= absQuantity;
                 categoryTotals.cost -= costOfGoodsSold;
             } else {
-                this.logger.info(` Over-sell detected for item ${log.item_id} in ${log.category}: requested ${absQuantity}, available ${categoryTotals.stock}. Splitting.`, log);
+                this.logger.info(
+                    ` Over-sell detected for item ${log.item_id} (uid: ${log.uid}) in ${log.category}: requested ${absQuantity}, available ${categoryTotals.stock}. Splitting.`,
+                    log
+                );
                 // Over-Sell: Part of the sell exceeds current stock in this category.
-                // We split the log into multiple logs across categories.
+                // We split the log into multiple logs across categories and UID fallbacks.
 
                 let wrapperId = log.wrapper_id;
                 if (wrapperId === null) {
@@ -1287,15 +1326,15 @@ export class ItemLogService extends BaseService {
 
                 let remainingToSell = absQuantity;
 
-                // 1. Use up current category stock first
-                const coveredInCurrent = categoryTotals.stock;
+                // 1. Use up current category stock first for this UID
+                const coveredInCurrent = Math.min(remainingToSell, categoryTotals.stock);
                 const currentCOGS = coveredInCurrent * currentAverageCost;
 
-                categoryTotals.stock = 0;
-                categoryTotals.cost = 0;
+                categoryTotals.stock -= coveredInCurrent;
+                categoryTotals.cost -= currentCOGS;
                 runningTotals.set(log.category, categoryTotals);
 
-                const originalLogUpdated = log.withTotals(0, 0, {
+                const originalLogUpdated = log.withTotals(categoryTotals.stock, categoryTotals.cost, {
                     quantity: -coveredInCurrent,
                     wrapper_id: wrapperId,
                     realized_profit: coveredInCurrent * unitPrice - currentCOGS,
@@ -1303,10 +1342,10 @@ export class ItemLogService extends BaseService {
                 updatedLogs.push(originalLogUpdated);
                 remainingToSell -= coveredInCurrent;
 
-                // 2. Loop through other priority categories
+                // 2. Loop through other priority categories with SAME UID
                 for (const cat of this.CATEGORY_PRIORITY) {
                     if (remainingToSell <= 0) break;
-                    if (cat === (log.category as ItemLogCategories)) continue;
+                    if (cat === (log.category as ItemLogCategories) || cat === "consumption" || cat === "skipped" || cat === "skipped-counted") continue;
 
                     const catTotals = runningTotals.get(cat) || { stock: 0, cost: 0 };
                     if (catTotals.stock <= 0) continue;
@@ -1337,9 +1376,69 @@ export class ItemLogService extends BaseService {
                     remainingToSell -= usedFromCat;
                 }
 
-                // 3. Move all the remaining quantity to the "skipped" category
+                // 3. Fallback to default No-UID ("0") categories if log.uid !== "0" and remainingToSell > 0
+                const normUid = normalizeItemUid(log.uid);
+                if (normUid !== "0" && remainingToSell > 0 && runningTotalsByIdentity) {
+                    const noUidKey = getItemIdentityKey({ item_id: log.item_id, uid: "0" });
+                    let noUidTotalsMap = runningTotalsByIdentity.get(noUidKey);
+                    if (!noUidTotalsMap) {
+                        noUidTotalsMap = new Map<string, { stock: number; cost: number }>();
+                        runningTotalsByIdentity.set(noUidKey, noUidTotalsMap);
+                    }
+
+                    for (const cat of this.CATEGORY_PRIORITY) {
+                        if (remainingToSell <= 0) break;
+                        if (cat === "consumption" || cat === "skipped" || cat === "skipped-counted") continue;
+
+                        const noUidCatTotals = noUidTotalsMap.get(cat) || { stock: 0, cost: 0 };
+                        if (noUidCatTotals.stock <= 0) continue;
+
+                        const usedFromNoUid = Math.min(remainingToSell, noUidCatTotals.stock);
+                        const noUidAvgCost = noUidCatTotals.cost / noUidCatTotals.stock;
+                        const noUidCOGS = usedFromNoUid * noUidAvgCost;
+
+                        noUidCatTotals.stock -= usedFromNoUid;
+                        noUidCatTotals.cost -= noUidCOGS;
+                        noUidTotalsMap.set(cat, noUidCatTotals);
+
+                        // Split log deducting from no-UID stock
+                        const noUidSplitLog = ItemLog.create({
+                            timestamp: log.timestamp,
+                            item_id: log.item_id,
+                            uid: "0",
+                            quantity: -usedFromNoUid,
+                            unit_price: unitPrice,
+                            category: cat,
+                            wrapper_id: wrapperId,
+                            total_stock: noUidCatTotals.stock,
+                            total_cost: noUidCatTotals.cost,
+                            realized_profit: usedFromNoUid * unitPrice - noUidCOGS,
+                        });
+                        const noUidSplitLogId = await this.registry.put(noUidSplitLog);
+                        noUidSplitLog.applyPersistedId(noUidSplitLogId);
+
+                        // Record skipped-counted log for the original log identity
+                        const skippedCountedLog = ItemLog.create({
+                            timestamp: log.timestamp,
+                            item_id: log.item_id,
+                            uid: log.uid,
+                            quantity: -usedFromNoUid,
+                            unit_price: unitPrice,
+                            category: "skipped-counted",
+                            wrapper_id: wrapperId,
+                            total_stock: 0,
+                            total_cost: 0,
+                            realized_profit: 0,
+                        });
+                        const skippedCountedLogId = await this.registry.put(skippedCountedLog);
+                        skippedCountedLog.applyPersistedId(skippedCountedLogId);
+
+                        remainingToSell -= usedFromNoUid;
+                    }
+                }
+
+                // 4. Move all the remaining quantity to the "skipped" category
                 if (remainingToSell > 0) {
-                    // Skipped category has 0 cost basis
                     const skippedLog = ItemLog.create({
                         timestamp: log.timestamp,
                         item_id: log.item_id,

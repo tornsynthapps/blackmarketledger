@@ -258,6 +258,59 @@ describe("ItemLogService", () => {
             expect(alphaSell?.total_cost).toBe(100);
             expect(alphaSell?.realized_profit).toBe(50);
         });
+
+        it("should fallback to UID 0 stock when specific UID stock is insufficient and mark category as skipped-counted", async () => {
+            const service = new ItemLogService();
+            const mockRegistry = (service as any).registry;
+            const mockWrapperRegistry = (service as any).wrapperRegistry;
+
+            const logs = [
+                ItemLog.create({
+                    timestamp: 1000,
+                    item_id: 179,
+                    uid: "0",
+                    quantity: 5,
+                    unit_price: 100,
+                    category: "normal",
+                }),
+                ItemLog.create({
+                    timestamp: 2000,
+                    item_id: 179,
+                    uid: "23423423",
+                    quantity: -3,
+                    unit_price: 200,
+                    category: "normal",
+                }),
+            ];
+
+            vi.spyOn(service, "getAllLogs").mockResolvedValue(logs);
+            vi.spyOn(mockRegistry, "getLatestTotalsPerCategoryBefore").mockResolvedValue(
+                new Map([
+                    ["normal", { stock: 0, cost: 0 }],
+                    ["abroad", { stock: 0, cost: 0 }],
+                ])
+            );
+            vi.spyOn(mockWrapperRegistry, "put").mockResolvedValue(99);
+            vi.spyOn(mockRegistry, "put").mockImplementation(async (log: ItemLog) => {
+                if (!log.id) log.applyPersistedId(Math.floor(Math.random() * 1000) + 1);
+                return log.id!;
+            });
+
+            await service.updateCostBasis(1000);
+
+            const bulkPutLogs: ItemLog[] = mockRegistry.bulkPut.mock.calls.flatMap((c: any) => c[0]);
+            const putCalls: ItemLog[] = mockRegistry.put.mock.calls.map((c: any) => c[0]);
+            const putLogs = [...bulkPutLogs, ...putCalls];
+
+            const skippedCountedLog = putLogs.find(
+                (l) => l.uid === "23423423" && l.category === "skipped-counted"
+            );
+            const noUidDeductionLog = putLogs.find((l) => l.uid === "0" && l.quantity === -3);
+
+            expect(skippedCountedLog).toBeDefined();
+            expect(noUidDeductionLog).toBeDefined();
+            expect(noUidDeductionLog?.realized_profit).toBe(300); // 3 * 200 - 3 * 100 = 300
+        });
     });
 
     describe("consumeItem", () => {
