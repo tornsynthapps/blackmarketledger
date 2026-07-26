@@ -311,6 +311,113 @@ describe("ItemLogService", () => {
             expect(noUidDeductionLog).toBeDefined();
             expect(noUidDeductionLog?.realized_profit).toBe(300); // 3 * 200 - 3 * 100 = 300
         });
+
+        it("should not double quantities when re-evaluating auto-split wrappers with skipped-counted logs", async () => {
+            const mockRegistry = {
+                getAll: vi.fn(),
+                getLatestTotalsPerCategoryBefore: vi.fn().mockResolvedValue(
+                    new Map([
+                        ["normal", { stock: 0, cost: 0 }],
+                        ["crimes", { stock: 10, cost: 1000 }],
+                    ])
+                ),
+                getLogsByWrapperId: vi.fn(),
+                bulkPut: vi.fn().mockResolvedValue(undefined),
+                put: vi.fn(),
+                delete: vi.fn(),
+            };
+
+            const autoSplitWrapper = ItemLogWrapper.fromDatabase({
+                id: 99,
+                timestamp: 1000,
+                version: 2,
+                logged_at: 1000,
+                updated_at: 1000,
+                type: "auto-split",
+                sub_type: "auto-split-default",
+                description: "Automatic split",
+            });
+
+            const mockWrapperRegistry = {
+                getById: vi.fn().mockResolvedValue(autoSplitWrapper),
+                put: vi.fn().mockResolvedValue(99),
+                delete: vi.fn().mockResolvedValue(undefined),
+            };
+
+            (ItemLogRegistry as any).mockImplementation(function (this: any) {
+                return mockRegistry;
+            });
+            (ItemLogWrapperRegistry as any).mockImplementation(function (this: any) {
+                return mockWrapperRegistry;
+            });
+
+            // Create 3 logs in auto-split wrapper:
+            // 1. Original log (normal, qty: 0)
+            // 2. Fallback deduction log (crimes, qty: -1, uid: "0")
+            // 3. Audit log (skipped-counted, qty: -1, uid: "11240017740")
+            const log1 = ItemLog.fromDatabase({
+                id: 1,
+                timestamp: 2000,
+                version: 7,
+                logged_at: 2000,
+                updated_at: 2000,
+                item_id: 403,
+                uid: "11240017740",
+                quantity: 0,
+                unit_price: 112,
+                category: "normal",
+                wrapper_id: 99,
+                total_stock: 0,
+                total_cost: 0,
+                realized_profit: 0,
+            });
+
+            const log2 = ItemLog.fromDatabase({
+                id: 2,
+                timestamp: 2000,
+                version: 7,
+                logged_at: 2000,
+                updated_at: 2000,
+                item_id: 403,
+                uid: "0",
+                quantity: -1,
+                unit_price: 112,
+                category: "crimes",
+                wrapper_id: 99,
+                total_stock: 9,
+                total_cost: 900,
+                realized_profit: 12,
+            });
+
+            const log3 = ItemLog.fromDatabase({
+                id: 3,
+                timestamp: 2000,
+                version: 7,
+                logged_at: 2000,
+                updated_at: 2000,
+                item_id: 403,
+                uid: "11240017740",
+                quantity: -1,
+                unit_price: 112,
+                category: "skipped-counted",
+                wrapper_id: 99,
+                total_stock: 0,
+                total_cost: 0,
+                realized_profit: 0,
+            });
+
+            mockRegistry.getAll.mockResolvedValue([log1, log2, log3]);
+            mockRegistry.getLogsByWrapperId.mockResolvedValue([log1, log2, log3]);
+
+            const service = new ItemLogService();
+            await service.updateCostBasis(1000);
+
+            // Verify that the merged log created by handleAutoSplitWrapper has quantity: -1 (NOT -2)
+            const putCalls: ItemLog[] = mockRegistry.put.mock.calls.map((c: any) => c[0]);
+            const mergedLog = putCalls.find((l) => l.id === 1);
+            expect(mergedLog).toBeDefined();
+            expect(mergedLog?.quantity).toBe(-1);
+        });
     });
 
     describe("consumeItem", () => {

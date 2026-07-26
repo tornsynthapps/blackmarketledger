@@ -745,7 +745,10 @@ export class ItemLogService extends BaseService {
         const logsWithWrapper = await this.registry.getLogsByWrapperId(wid);
 
         // Default Case: Merge split logs back into one and re-evaluate
-        const totalQuantity = logsWithWrapper.reduce((sum, l) => sum + l.quantity, 0);
+        // Exclude 'skipped-counted' audit logs from totalQuantity summation to prevent doubling
+        const totalQuantity = logsWithWrapper
+            .filter((l) => l.category !== "skipped-counted")
+            .reduce((sum, l) => sum + l.quantity, 0);
 
         // Sort to find the canonical log (least ID)
         logsWithWrapper.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
@@ -802,8 +805,12 @@ export class ItemLogService extends BaseService {
         this.logger.info(`Processing trade-receipt re-evaluation: ${wid} for ${this.formatIdentity(this.getLogIdentity(log))}`);
         const logsWithWrapper = await this.registry.getLogsByWrapperId(wid);
         
-        // Filter logs specifically for this identity.
-        const itemLogs = logsWithWrapper.filter((candidate) => this.getIdentityKey(candidate) === this.getIdentityKey(log));
+        // Filter logs specifically for this identity, excluding 'skipped-counted' audit logs
+        const itemLogs = logsWithWrapper.filter(
+            (candidate) =>
+                this.getIdentityKey(candidate) === this.getIdentityKey(log) &&
+                candidate.category !== "skipped-counted"
+        );
         
         // Merge split logs back into one and re-evaluate
         const totalQuantity = itemLogs.reduce((sum, l) => sum + l.quantity, 0);
