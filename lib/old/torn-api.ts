@@ -262,7 +262,10 @@ async function fetchWithTornRateLimit(url: string, options?: RequestInit, retryC
     const response = await fetch(url, options);
     
     // Torn V2 can return 200 with code 5 for rate limits
-    const data = await response.clone().json().catch(() => ({}));
+    const data =
+        typeof response.clone === "function"
+            ? await response.clone().json().catch(() => ({}))
+            : {};
     if (data?.error?.code === 5 || response.status === 429) {
         if (retryCount === 0) {
             console.warn("Torn API Rate Limit hit in fetchWithTornRateLimit. Pausing 10s and retrying...");
@@ -616,12 +619,36 @@ defaultLogRegistry.register(7000, parseMuseumLog);
 // Register Mug logs
 defaultLogRegistry.register(8156, parseMugLog);
 
+// Fallback handler resolution for logs whose typeId is not registered (e.g. typeId 0)
+// but whose category/title still identifies a supported log kind.
+function resolveHandlerByContent(log: NormalizedLog): LogHandlerFn | undefined {
+    const haystack = `${log.category} ${log.title}`.toLowerCase();
+    if (haystack.includes("points")) {
+        return parsePointLog;
+    }
+    if (haystack.includes("museum")) {
+        return parseMuseumLog;
+    }
+    if (haystack.includes("mugged")) {
+        return parseMugLog;
+    }
+    if (
+        haystack.includes("bazaar") ||
+        haystack.includes("item market") ||
+        haystack.includes("travel") ||
+        log.category.toLowerCase() === "travel"
+    ) {
+        return parseBazaarOrMarketLog;
+    }
+    return undefined;
+}
+
 export function parseNormalizedLog(log: NormalizedLog, itemNameMap?: TornItemNameMap): ParseResult {
     if (isTradeLog(log)) {
         return { kind: "trade" };
     }
 
-    const handler = defaultLogRegistry.getHandler(log.typeId);
+    const handler = defaultLogRegistry.getHandler(log.typeId) ?? resolveHandlerByContent(log);
     if (!handler) {
         return { kind: "unsupported" };
     }
@@ -1103,11 +1130,9 @@ export function createParsedLogsFromReceipt(
             ? String(trade.trader?.name || "")
             : String(trade.user?.name || "");
 
-    // Determine trade direction: BUY if current user received items, SELL if current user sent items
-    // If trade.user?.id === currentUserId, user initiated the trade → sent items → SELL
-    // If trade.trader?.id === currentUserId, user received the trade → received items → BUY
-    const isIncoming = String(trade.trader?.id) === String(currentUserId);
-    const tradeType: "BUY" | "SELL" = isIncoming ? "BUY" : "SELL";
+    // Weav3r receipts record purchases, so receipt-derived logs are always BUY
+    // regardless of how the underlying Torn trade shape is oriented.
+    const tradeType: "BUY" | "SELL" = "BUY";
 
     return receipt.items.map((item) => ({
         type: tradeType,
